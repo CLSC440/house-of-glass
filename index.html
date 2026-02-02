@@ -150,8 +150,18 @@
                 </svg>
                 <input type="text" id="searchInput" placeholder="Search by name or category..." class="w-full pl-12 pr-4 py-4 rounded-xl bg-gray-50 dark:bg-gray-800 dark:text-white border-none focus:ring-2 focus:ring-brandGold outline-none transition-all">
             </div>
-            <div id="activeFilterDisplay" class="hidden md:flex items-center px-6 bg-brandGold/10 text-brandGold rounded-xl font-bold py-4">
-                Category: All
+            
+            <!-- Category Dropdown -->
+            <div class="relative group/cat">
+                <button onclick="toggleCatDropdown()" class="w-full h-full min-w-[180px] flex items-center justify-between px-6 bg-brandGold/10 text-brandGold rounded-xl font-bold py-4 hover:bg-brandGold/20 transition-all">
+                    <span id="activeFilterDisplay">Category: All</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-2 transition-transform group-hover/cat:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+                <div id="catDropdown" class="absolute right-0 top-full mt-2 w-full min-w-[200px] bg-white dark:bg-darkCard rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 py-2 hidden z-[60]">
+                    <!-- Dropdown items will be injected here -->
+                </div>
             </div>
         </div>
     </div>
@@ -286,22 +296,54 @@
             }
         }
 
+        window.toggleCatDropdown = function() {
+            const dropdown = document.getElementById('catDropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+        // Close dropdown when clicking outside
+        window.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('catDropdown');
+            if (!e.target.closest('.group\\/cat')) {
+                dropdown.classList.add('hidden');
+            }
+        });
+
         function renderCategories() {
             const catList = document.getElementById('categoryList');
+            const catDropdown = document.getElementById('catDropdown');
+            
             catList.innerHTML = '';
+            catDropdown.innerHTML = '';
+
             categories.forEach(cat => {
+                // Sidebar items
                 const btn = document.createElement('button');
                 btn.className = `w-full text-left px-8 py-4 text-lg font-medium transition-all hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center ${activeCategory === cat ? 'text-brandGold border-r-4 border-brandGold bg-gray-50 dark:bg-gray-800' : 'text-gray-600 dark:text-gray-400'}`;
                 btn.innerHTML = `${cat}`;
                 btn.onclick = () => {
-                    activeCategory = cat;
-                    document.getElementById('activeFilterDisplay').innerText = `Category: ${cat}`;
-                    renderProducts();
-                    renderCategories();
+                    selectCategory(cat);
                     window.toggleSidebar();
                 };
                 catList.appendChild(btn);
+
+                // Dropdown items
+                const dropBtn = document.createElement('button');
+                dropBtn.className = `w-full text-left px-4 py-3 text-sm font-medium transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center ${activeCategory === cat ? 'text-brandGold' : 'text-gray-600 dark:text-gray-400'}`;
+                dropBtn.innerHTML = `${cat}`;
+                dropBtn.onclick = () => {
+                    selectCategory(cat);
+                    document.getElementById('catDropdown').classList.add('hidden');
+                };
+                catDropdown.appendChild(dropBtn);
             });
+        }
+
+        function selectCategory(cat) {
+            activeCategory = cat;
+            document.getElementById('activeFilterDisplay').innerText = `Category: ${cat}`;
+            renderProducts();
+            renderCategories();
         }
 
         function renderProducts() {
