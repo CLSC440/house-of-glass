@@ -1,12 +1,51 @@
-# Product Gallery Website
+# 💎 House of Glass - Al Ashour Ades Showroom
 
-A simple and elegant product gallery website built with HTML and Tailwind CSS. This project is designed to showcase product images in a responsive grid layout without displaying prices.
+A premium, modern glassware gallery website designed for **Al Ashour Ades Showroom**. This project features a high-end product showcase with a dynamic management dashboard.
 
-## Features
-- **Responsive Design:** Optimized for mobile, tablet, and desktop screens.
-- **Tailwind CSS:** Modern styling using the Tailwind CSS CDN.
-- **Product Grid:** A clean layout to highlight product visuals.
-- **Hero Section:** Engaging introduction to the collection.
+&nbsp;
+
+## 🚀 Live Demo
+**Visit the website:** [https://al-ashour-ades.netlify.app](https://al-ashour-ades.netlify.app)
+
+&nbsp;
+
+## ✨ Key Features
+- **Modern UI/UX:** Styled with Tailwind CSS and premium typography (Cairo & Almarai).
+- **Dynamic Database:** Powered by **Firebase Firestore** for real-time data syncing.
+- **Admin Dashboard:** Secure area to add, edit, or delete products and categories.
+- **Responsive Design:** Elegant viewing experience on mobiles, tablets, and desktops.
+- **Advanced Sidebar:** Smart filtering system for product categories.
+
+&nbsp;
+
+## 🛠️ Tech Stack
+- **Frontend:** HTML5, Tailwind CSS (CDN)
+- **Backend/Database:** Firebase Firestore (v10 Modular SDK)
+- **Icons:** FontAwesome
+- **Deployment:** GitHub & Netlify (Continuous Deployment)
+
+&nbsp;
+
+## 🔐 Admin Access
+To manage the gallery, navigate to `/login.html`:
+- **URL:** `[your-domain]/login.html`
+- **Username:** `admin`
+- **Password:** `123`
+
+&nbsp;
+
+## ⚙️ How to Update
+1. **Content Updates:** Simply log in to the admin panel on the live site to manage products.
+2. **Code Updates:** 
+   - Edit files in VS Code.
+   - Run `git add .` -> `git commit -m "Update message"` -> `git push`.
+   - The site will automatically redeploy via Netlify.
+
+&nbsp;
+<p align="center">
+  <b>Developed with ❤️ for Al Ashour Ades Showroom</b><br>
+  ال عاشور عدس - للفخامة عنوان
+</p>
 
 ## How to Run
 Since this is a static website, you can simply open `index.html` in any web browser.
