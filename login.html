@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>House Of Glass | Admin Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brandBlue: '#0A3654',
+                        brandGold: '#C19B4E',
+                    },
+                    fontFamily: {
+                        arabic: ['Cairo', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 font-sans flex items-center justify-center min-h-screen px-4">
+
+    <div class="max-w-md w-full bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+        <div class="text-center mb-8">
+            <a href="index.html" class="inline-block group">
+                <img src="logo.png" alt="Logo" class="h-20 mx-auto mb-4 transition-transform group-hover:scale-105">
+            </a>
+            <h2 class="text-2xl font-bold text-brandBlue">Admin Access</h2>
+            <p class="text-gray-500 text-sm">Please login to manage your gallery</p>
+        </div>
+
+        <form id="loginForm" class="space-y-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Username</label>
+                <input type="text" id="username" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-brandGold focus:border-brandGold focus:outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Password</label>
+                <input type="password" id="password" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-brandGold focus:border-brandGold focus:outline-none">
+            </div>
+            
+            <div id="errorMessage" class="text-red-500 text-sm hidden text-center italic">Invalid username or password!</div>
+
+            <button type="submit" class="w-full bg-brandBlue text-white p-3 rounded-lg font-bold hover:bg-opacity-90 border border-brandGold transition-all">
+                Login
+            </button>
+        </form>
+
+        <div class="mt-8 pt-6 border-t border-gray-100 text-center">
+            <p class="text-[10px] text-gray-400 uppercase tracking-[0.2em] mb-1">Powered by</p>
+            <p class="text-sm font-bold text-brandBlue uppercase tracking-tight">Al Ashour Ades Showroom</p>
+            <p class="text-xl font-black text-brandBlue font-arabic" dir="rtl">ال عاشور عدس</p>
+        </div>
+
+        <div class="mt-6 text-center">
+            <a href="index.html" class="text-brandBlue hover:text-brandGold text-sm transition-colors">← Back to Gallery</a>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').onsubmit = function(e) {
+            e.preventDefault();
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+
+            // Simple client-side auth for demonstration
+            // Username: admin | Password: 123
+            if (user === 'admin' && pass === '123') {
+                sessionStorage.setItem('isAdmin', 'true');
+                window.location.href = 'admin.html';
+            } else {
+                document.getElementById('errorMessage').classList.remove('hidden');
+            }
+        };
+    </script>
+</body>
+</html>

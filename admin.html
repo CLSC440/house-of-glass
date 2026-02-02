@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>House Of Glass | Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <script>
+        if (sessionStorage.getItem('isAdmin') !== 'true') {
+            window.location.href = 'login.html';
+        }
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brandBlue: '#0A3654',
+                        brandGold: '#C19B4E',
+                    },
+                    fontFamily: {
+                        arabic: ['Cairo', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .group:hover .admin-actions { opacity: 1; }
+        .modal { transition: opacity 0.25s ease; }
+        body.modal-active { overflow: hidden; }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans">
+
+    <header class="bg-white shadow-sm sticky top-0 z-50 border-b-2 border-brandGold">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex justify-between items-center">
+            <a href="index.html" class="flex items-center group">
+                <img src="logo.png" alt="Logo" class="h-16 w-auto transition-transform group-hover:scale-105">
+                <div class="ml-3 hidden sm:block">
+                    <span class="text-xl font-bold text-brandBlue block leading-none">House Of Glass Admin</span>
+                </div>
+            </a>
+            <div class="flex items-center space-x-4">
+                <button onclick="openCategoryModal()" class="text-brandGold hover:text-brandBlue text-sm font-bold border border-brandGold px-3 py-1 rounded transition-all">Manage Categories</button>
+                <button onclick="openModal()" class="bg-brandBlue text-white px-4 py-2 rounded-lg text-sm border border-brandGold hover:bg-opacity-90 transition-all">+ Add Product</button>
+                <button onclick="logout()" class="text-gray-500 hover:text-red-600 text-sm">Logout</button>
+                <a href="index.html" class="text-brandBlue text-sm font-medium">View Site</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-12 min-h-[70vh]">
+        <div id="product-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"></div>
+    </main>
+
+    <footer class="bg-gray-100 border-t py-8 mt-12">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <p class="text-brandBlue opacity-60 text-[10px] uppercase tracking-widest mb-1">Powered by Al Ashour Ades Showroom</p>
+            <p class="text-xl font-black text-brandBlue opacity-60 font-arabic" dir="rtl">ال عاشور عدس</p>
+        </div>
+    </footer>
+
+    <!-- Modal -->
+    <div id="productModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-[100]">
+        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50"></div>
+        <div class="modal-container bg-white w-11/12 md:max-w-lg mx-auto rounded shadow-lg z-50 overflow-y-auto max-h-[90vh]">
+            <div class="modal-content py-6 px-8 text-left">
+                <div class="flex justify-between items-center pb-4 border-b">
+                    <p class="text-2xl font-bold text-brandBlue" id="modalTitle">Add Product</p>
+                    <div class="cursor-pointer" onclick="closeModal()">✕</div>
+                </div>
+                <form id="productForm" class="space-y-4 mt-4">
+                    <input type="hidden" id="productId">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Product Name</label>
+                        <input type="text" id="pName" required class="w-full border rounded-lg p-2 focus:ring-brandGold outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Category</label>
+                        <select id="pCategory" class="w-full border rounded-lg p-2 focus:ring-brandGold outline-none">
+                            <!-- Options injected by JS -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Description</label>
+                        <textarea id="pDesc" required rows="3" class="w-full border rounded-lg p-2 focus:ring-brandGold outline-none"></textarea>
+                    </div>
+                    
+                    <div class="border-t pt-4">
+                        <label class="block text-sm font-bold text-brandBlue mb-2">Product Images</label>
+                        <div id="imageInputs" class="space-y-4">
+                            <div class="flex items-center space-x-2 bg-gray-50 p-2 rounded-lg border border-dashed border-gray-300 relative">
+                                <input type="radio" name="defaultImage" checked class="absolute -left-6 top-1/2 -translate-y-1/2 h-4 w-4 accent-brandGold" title="Set as main image">
+                                <div class="w-12 h-12 bg-gray-200 rounded overflow-hidden flex-shrink-0 border">
+                                    <img class="img-preview w-full h-full object-cover hidden">
+                                </div>
+                                <div class="flex-grow space-y-1">
+                                    <input type="text" placeholder="Image URL" class="pImageUrl w-full border rounded p-1 text-xs outline-none focus:border-brandGold" oninput="updatePreview(this)">
+                                    <input type="file" class="pImageFile text-[10px] w-full" accept="image/*" onchange="handleFile(this)">
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-gray-400 mt-1 italic">* Use the radio button on the left to set the main cover image.</p>
+                        <button type="button" onclick="addImageInput()" class="mt-2 text-xs text-brandGold font-bold">+ Add More Images</button>
+                    </div>
+
+                    <div class="flex justify-end pt-6">
+                        <button type="button" onclick="closeModal()" class="px-4 py-2 text-gray-500 mr-2">Cancel</button>
+                        <button type="submit" class="bg-brandBlue text-white px-6 py-2 rounded-lg font-bold border border-brandGold">Save Product</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Modal -->
+    <div id="categoryModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-[110]">
+        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50" onclick="closeCategoryModal()"></div>
+        <div class="modal-container bg-white w-11/12 md:max-w-md mx-auto rounded shadow-lg z-50 overflow-y-auto">
+            <div class="modal-content py-6 px-8">
+                <div class="flex justify-between items-center pb-4 border-b">
+                    <p class="text-xl font-bold text-brandBlue">Manage Categories</p>
+                    <div class="cursor-pointer" onclick="closeCategoryModal()">✕</div>
+                </div>
+                <div class="mt-4 space-y-4">
+                    <div class="flex space-x-2">
+                        <input type="text" id="newCatInput" placeholder="New category name..." class="flex-grow border rounded p-2 text-sm outline-none">
+                        <button onclick="addCategory()" class="bg-brandGold text-white px-4 py-2 rounded font-bold text-sm">Add</button>
+                    </div>
+                    <div id="catAdminList" class="space-y-2 max-h-60 overflow-y-auto">
+                        <!-- Cats injected here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyA_oTePhmWmzuOcZDmc_-7bhoAVbYVhH3Q",
+            authDomain: "houseofglass-440.firebaseapp.com",
+            projectId: "houseofglass-440",
+            storageBucket: "houseofglass-440.firebasestorage.app",
+            messagingSenderId: "73082039144",
+            appId: "1:73082039144:web:0658e54416293334dc84dd",
+            measurementId: "G-S81YY4Z4RM"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let products = [];
+        let categories = ['All'];
+
+        const grid = document.getElementById('product-grid');
+        const modal = document.getElementById('productModal');
+        const catModal = document.getElementById('categoryModal');
+        const form = document.getElementById('productForm');
+
+        async function loadData() {
+            try {
+                // Load Categories
+                const catSnapshot = await getDocs(collection(db, "categories"));
+                const fetchedCats = catSnapshot.docs.map(doc => doc.data().name);
+                categories = ['All', ...fetchedCats];
+                
+                // Load Products
+                const prodSnapshot = await getDocs(query(collection(db, "products"), orderBy("createdAt", "desc")));
+                products = prodSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                renderProducts();
+                updateCategorySelect();
+            } catch (error) {
+                console.error("Error loading data:", error);
+            }
+        }
+
+        window.logout = function() { sessionStorage.removeItem('isAdmin'); window.location.href = 'login.html'; }
+
+        function updateCategorySelect() {
+            const select = document.getElementById('pCategory');
+            select.innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
+        }
+
+        window.renderCatAdminList = async function() {
+            const list = document.getElementById('catAdminList');
+            list.innerHTML = categories.map(c => `
+                <div class="flex justify-between items-center bg-gray-50 p-2 rounded">
+                    <span class="text-sm font-medium text-brandBlue font-arabic">${c}</span>
+                    ${c !== 'All' ? `<button onclick="deleteCategory('${c}')" class="text-red-500 text-xs">Delete</button>` : ''}
+                </div>
+            `).join('');
+            updateCategorySelect();
+        }
+
+        window.addCategory = async function() {
+            const val = document.getElementById('newCatInput').value.trim();
+            if (val && !categories.includes(val)) {
+                try {
+                    const btn = document.querySelector('#categoryModal button');
+                    btn.innerText = '...';
+                    btn.disabled = true;
+                    
+                    await addDoc(collection(db, "categories"), { name: val });
+                    document.getElementById('newCatInput').value = '';
+                    await loadData();
+                    renderCatAdminList();
+                    
+                    btn.innerText = 'Add';
+                    btn.disabled = false;
+                } catch (error) {
+                    console.error("Firebase Error:", error);
+                    alert("Error: " + error.message + "\n\nMake sure your Firebase Rules are set to ALLOW reads/writes.");
+                    const btn = document.querySelector('#categoryModal button');
+                    btn.innerText = 'Add';
+                    btn.disabled = false;
+                }
+            }
+        }
+
+        window.deleteCategory = async function(catName) {
+            if (confirm(`Are you sure you want to delete "${catName}"?`)) {
+                try {
+                    const snapshot = await getDocs(collection(db, "categories"));
+                    const catDoc = snapshot.docs.find(d => d.data().name === catName);
+                    if (catDoc) {
+                        await deleteDoc(doc(db, "categories", catDoc.id));
+                        await loadData();
+                        renderCatAdminList();
+                    }
+                } catch (error) {
+                    alert("Delete failed: " + error.message);
+                }
+            }
+        }
+
+        window.openCategoryModal = function() {
+            catModal.classList.remove('opacity-0', 'pointer-events-none');
+            renderCatAdminList();
+        }
+
+        window.closeCategoryModal = function() {
+            catModal.classList.add('opacity-0', 'pointer-events-none');
+        }
+
+        function renderProducts() {
+            grid.innerHTML = '';
+            products.forEach(p => {
+                const card = document.createElement('div');
+                card.className = 'group relative bg-white rounded-lg shadow-md overflow-hidden';
+                card.innerHTML = `
+                    <div class="relative h-48 bg-gray-50 flex items-center justify-center">
+                        <img src="${p.images[0] || 'https://via.placeholder.com/400x300'}" class="w-full h-full object-contain p-2">
+                        <div class="absolute top-2 left-2 bg-brandGold text-white text-[10px] px-2 py-1 rounded font-bold">${p.category || 'All'}</div>
+                        <div class="absolute bottom-0 right-0 bg-black/50 text-white text-[10px] px-2 py-1">${p.images.length} Images</div>
+                        <div class="admin-actions opacity-0 absolute top-2 right-2 flex space-x-2">
+                            <button onclick="editProduct('${p.id}')" class="bg-blue-600 p-2 rounded-full text-white shadow">✎</button>
+                            <button onclick="deleteProduct('${p.id}')" class="bg-red-600 p-2 rounded-full text-white shadow">✕</button>
+                        </div>
+                    </div>
+                    <div class="p-4"><h3 class="font-bold text-brandBlue">${p.name}</h3></div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        window.addImageInput = function(val = '', isDefault = false) {
+            const div = document.createElement('div');
+            div.className = 'flex items-center space-x-2 bg-gray-50 p-2 rounded-lg border border-dashed border-gray-300 relative';
+            div.innerHTML = `
+                <input type="radio" name="defaultImage" ${isDefault ? 'checked' : ''} class="absolute -left-6 top-1/2 -translate-y-1/2 h-4 w-4 accent-brandGold">
+                <div class="w-12 h-12 bg-gray-200 rounded overflow-hidden flex-shrink-0 border">
+                    <img src="${val}" class="img-preview w-full h-full object-cover ${val ? '' : 'hidden'}">
+                </div>
+                <div class="flex-grow space-y-1">
+                    <input type="text" value="${val}" placeholder="Image URL" class="pImageUrl w-full border rounded p-1 text-xs outline-none focus:border-brandGold" oninput="updatePreview(this)">
+                    <input type="file" class="pImageFile text-[10px] w-full" accept="image/*" onchange="handleFile(this)">
+                </div>
+                <button type="button" onclick="this.parentElement.remove()" class="text-red-500 hover:text-red-700 font-bold px-2">✕</button>
+            `;
+            document.getElementById('imageInputs').appendChild(div);
+        }
+
+        window.updatePreview = function(input) {
+            const preview = input.parentElement.parentElement.querySelector('.img-preview');
+            if (input.value) {
+                preview.src = input.value;
+                preview.classList.remove('hidden');
+            } else {
+                preview.classList.add('hidden');
+            }
+        }
+
+        window.handleFile = async function(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.readAsDataURL(input.files[0]);
+                reader.onload = () => {
+                    const row = input.parentElement;
+                    const urlInput = row.querySelector('.pImageUrl');
+                    const preview = row.parentElement.querySelector('.img-preview');
+                    urlInput.value = reader.result;
+                    preview.src = reader.result;
+                    preview.classList.remove('hidden');
+                };
+            }
+        }
+
+        window.openModal = function(isEdit = false) {
+            document.getElementById('modalTitle').innerText = isEdit ? 'Edit Product' : 'Add Product';
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            document.body.classList.add('modal-active');
+        }
+
+        window.closeModal = function() {
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            document.body.classList.remove('modal-active');
+            form.reset();
+            document.getElementById('imageInputs').innerHTML = `
+                <div class="flex items-center space-x-2 bg-gray-50 p-2 rounded-lg border border-dashed border-gray-300 relative">
+                    <input type="radio" name="defaultImage" checked class="absolute -left-6 top-1/2 -translate-y-1/2 h-4 w-4 accent-brandGold">
+                    <div class="w-12 h-12 bg-gray-200 rounded overflow-hidden flex-shrink-0 border">
+                        <img class="img-preview w-full h-full object-cover hidden">
+                    </div>
+                    <div class="flex-grow space-y-1">
+                        <input type="text" placeholder="Image URL" class="pImageUrl w-full border rounded p-1 text-xs outline-none focus:border-brandGold" oninput="updatePreview(this)">
+                        <input type="file" class="pImageFile text-[10px] w-full" accept="image/*" onchange="handleFile(this)">
+                    </div>
+                </div>
+            `;
+            document.getElementById('productId').value = '';
+        }
+
+        window.editProduct = function(id) {
+            const p = products.find(prod => prod.id === id);
+            if (p) {
+                document.getElementById('productId').value = p.id;
+                document.getElementById('pName').value = p.name;
+                document.getElementById('pCategory').value = p.category || 'All';
+                document.getElementById('pDesc').value = p.desc;
+                const container = document.getElementById('imageInputs');
+                container.innerHTML = '';
+                p.images.forEach((url, idx) => window.addImageInput(url, idx === 0));
+                window.openModal(true);
+            }
+        }
+
+        window.deleteProduct = async function(id) {
+            if (confirm('Are you sure you want to delete this product?')) {
+                try {
+                    await deleteDoc(doc(db, "products", id));
+                    await loadData();
+                } catch (error) {
+                    alert("Delete failed: " + error.message);
+                }
+            }
+        }
+
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.innerText = 'Saving...';
+            submitBtn.disabled = true;
+
+            try {
+                const id = document.getElementById('productId').value;
+                const name = document.getElementById('pName').value;
+                const category = document.getElementById('pCategory').value;
+                const desc = document.getElementById('pDesc').value;
+                
+                const rows = Array.from(document.querySelectorAll('#imageInputs > div'));
+                let imageUrls = [];
+                let defaultIndex = 0;
+
+                rows.forEach((row, idx) => {
+                    const url = row.querySelector('.pImageUrl').value;
+                    const isDefault = row.querySelector('input[type="radio"]').checked;
+                    if (url) {
+                        imageUrls.push(url);
+                        if (isDefault) defaultIndex = imageUrls.length - 1;
+                    }
+                });
+
+                if (imageUrls.length > 0) {
+                    const defaultImg = imageUrls.splice(defaultIndex, 1)[0];
+                    imageUrls.unshift(defaultImg);
+                }
+
+                const productData = {
+                    name,
+                    category,
+                    desc,
+                    images: imageUrls,
+                    updatedAt: serverTimestamp()
+                };
+
+                if (id) {
+                    await updateDoc(doc(db, "products", id), productData);
+                } else {
+                    productData.createdAt = serverTimestamp();
+                    await addDoc(collection(db, "products"), productData);
+                }
+                
+                await loadData();
+                window.closeModal();
+            } catch (error) {
+                alert("Save failed: " + error.message);
+            } finally {
+                submitBtn.innerText = 'Save Product';
+                submitBtn.disabled = false;
+            }
+        };
+
+        loadData();
+    </script>
+</body>
+</html>
