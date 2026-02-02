@@ -428,7 +428,14 @@
             document.getElementById('detailTitle').innerText = p.name;
             document.getElementById('detailDesc').innerText = p.desc;
             document.getElementById('mainDetailImg').src = p.images[0];
-            document.getElementById('enquiryBtn').href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent('مرحباً ال عاشور عدس، أود الاستفسار عن منتج: ' + p.name)}`;
+            
+            const siteLink = window.location.origin + window.location.pathname;
+            const message = `مرحباً ال عاشور عدس، أود الاستفسار عن:
+📌 منتج: ${p.name}
+🖼️ رابط الصورة: ${p.images[0]}
+🔗 رابط المعرض: ${siteLink}`;
+            
+            document.getElementById('enquiryBtn').href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
 
             const thumbBar = document.getElementById('thumbnailBar');
             thumbBar.innerHTML = '';
