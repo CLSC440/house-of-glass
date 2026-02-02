@@ -228,7 +228,12 @@
                     <p id="detailDesc" class="text-gray-600 dark:text-gray-300 leading-relaxed overflow-y-auto max-h-[30vh]"></p>
                 </div>
                 <div class="mt-8">
-                    <a id="enquiryBtn" href="#" target="_blank" class="block text-center w-full bg-brandBlue dark:bg-brandGold text-white py-3 rounded-xl font-bold border border-brandGold hover:bg-opacity-90 transition-all">Enquire Now</a>
+                    <a id="enquiryBtn" href="#" target="_blank" class="flex items-center justify-center space-x-2 w-full bg-[#25D366] text-white py-4 rounded-xl font-bold hover:bg-opacity-90 transition-all shadow-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.319 1.592 5.548 0 10.061-4.512 10.063-10.062 0-2.69-1.046-5.216-2.947-7.117s-4.426-2.95-7.116-2.95c-5.545 0-10.06 4.512-10.063 10.062-.001 1.922.503 3.391 1.397 4.938l-.951 3.474 3.519-.923zm10.257-8.22c-.105-.174-.383-.28-.8-.49s-2.457-1.212-2.837-1.353-.654-.21-.929.21-.983 1.212-1.205 1.458-.444.275-.86.065-1.751-.645-3.333-2.057c-1.231-1.098-2.062-2.454-2.303-2.875-.105-.174-.012-.268.073-.373.102-.126.225-.262.338-.393s.15-.224.225-.373c.075-.149.038-.28-.019-.393s-1.127-2.711-1.423-3.419c-.287-.687-.581-.593-.8-.604-.206-.01-.444-.011-.681-.011-.237 0-.623.088-.949.444-.326.356-1.244 1.217-1.244 2.967s1.274 3.437 1.452 3.67c.178.233 2.507 3.828 6.072 5.371.848.367 1.511.587 2.027.75.851.27 1.626.232 2.238.141.683-.102 2.23-.912 2.545-1.792.315-.88.315-1.635.221-1.792z"/>
+                        </svg>
+                        <span>Ask on WhatsApp</span>
+                    </a>
                 </div>
             </div>
         </div>
@@ -417,7 +422,7 @@
             document.getElementById('detailTitle').innerText = p.name;
             document.getElementById('detailDesc').innerText = p.desc;
             document.getElementById('mainDetailImg').src = p.images[0];
-            document.getElementById('enquiryBtn').href = `https://wa.me/201026600350?text=I am interested in: ${encodeURIComponent(p.name)}`;
+            document.getElementById('enquiryBtn').href = `https://wa.me/201026600350?text=${encodeURIComponent('مرحباً ال عاشور عدس، أود الاستفسار عن منتج: ' + p.name)}`;
 
             const thumbBar = document.getElementById('thumbnailBar');
             thumbBar.innerHTML = '';
