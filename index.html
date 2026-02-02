@@ -21,47 +21,96 @@
             }
         }
     </script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brandBlue: '#0A3654',
+                        brandGold: '#C19B4E',
+                        darkBg: '#0F172A',
+                        darkCard: '#1E293B'
+                    },
+                    fontFamily: {
+                        arabic: ['Almarai', 'Cairo', 'sans-serif'],
+                    }
+                }
+            }
+        }
+
+        // Initialize Dark Mode from LocalStorage
+        if (localStorage.getItem('darkMode') === 'true' || (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        }
+    </script>
     <style>
         .modal { transition: opacity 0.25s ease; }
         body.modal-active { overflow: hidden; }
         .hide-scroll::-webkit-scrollbar { display: none; }
+        
+        /* Animations */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s ease-out;
+        }
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
     </style>
 </head>
-<body class="bg-gray-50 font-sans">
+<body class="bg-gray-50 dark:bg-darkBg font-sans transition-colors duration-300">
 
     <!-- Header -->
-    <header class="bg-white shadow-sm sticky top-0 z-50 border-b-2 border-brandGold">
+    <header class="bg-white dark:bg-darkCard shadow-sm sticky top-0 z-50 border-b-2 border-brandGold">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex justify-between items-center">
             <div class="flex items-center">
                 <!-- Hamburger Menu Button -->
-                <button onclick="toggleSidebar()" class="mr-4 p-2 text-brandBlue hover:bg-gray-100 rounded-lg transition-colors">
+                <button onclick="toggleSidebar()" class="mr-4 p-2 text-brandBlue dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
                 </button>
                 <a href="index.html" class="flex items-center group">
                     <img src="logo.png" alt="Logo" class="h-16 w-auto transition-transform group-hover:scale-105">
-                    <span class="ml-3 text-xl font-bold text-brandBlue hidden sm:block">House Of Glass</span>
+                    <span class="ml-3 text-xl font-bold text-brandBlue dark:text-white hidden sm:block">House Of Glass</span>
                 </a>
             </div>
-            <nav class="hidden md:flex space-x-8">
-                <a href="index.html" class="text-brandBlue border-b-2 border-brandGold px-1 py-2 text-sm font-bold">Home</a>
-                <a href="login.html" class="text-brandGold hover:text-brandBlue px-1 py-2 text-sm font-bold transition-colors">Admin Login</a>
-            </nav>
+            
+            <div class="flex items-center space-x-4">
+                <!-- Dark Mode Toggle -->
+                <button onclick="toggleDarkMode()" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" id="darkToggle">
+                    <!-- Sun Icon (Hidden in Light Mode) -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-yellow-400 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 9h-1m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M12 5a7 7 0 100 14 7 7 0 000-14z" />
+                    </svg>
+                    <!-- Moon Icon (Hidden in Dark Mode) -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brandBlue block dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                </button>
+
+                <nav class="hidden md:flex space-x-6">
+                    <a href="index.html" class="text-brandBlue dark:text-white border-b-2 border-brandGold px-1 py-1 text-sm font-bold">Home</a>
+                    <a href="login.html" class="text-brandGold hover:text-brandBlue dark:hover:text-white px-1 py-1 text-sm font-bold transition-colors">Admin Login</a>
+                </nav>
+            </div>
         </div>
     </header>
 
     <!-- Sidebar / Drawer -->
     <div id="sidebarOverlay" class="fixed inset-0 bg-black/50 z-[60] opacity-0 pointer-events-none transition-opacity duration-300" onclick="toggleSidebar()"></div>
-    <div id="sidebar" class="fixed top-0 left-0 w-80 h-full bg-white z-[70] -translate-x-full transition-transform duration-300 shadow-2xl flex flex-col">
-        <div class="p-6 border-b flex justify-between items-center">
-            <h2 class="text-2xl font-bold text-brandBlue italic">Categories</h2>
-            <button onclick="toggleSidebar()" class="text-gray-400 hover:text-brandBlue text-2xl font-bold">✕</button>
+    <div id="sidebar" class="fixed top-0 left-0 w-80 h-full bg-white dark:bg-darkCard z-[70] -translate-x-full transition-transform duration-300 shadow-2xl flex flex-col">
+        <div class="p-6 border-b dark:border-gray-700 flex justify-between items-center">
+            <h2 class="text-2xl font-bold text-brandBlue dark:text-brandGold italic">Categories</h2>
+            <button onclick="toggleSidebar()" class="text-gray-400 hover:text-brandBlue dark:hover:text-white text-2xl font-bold">✕</button>
         </div>
         <div id="categoryList" class="flex-grow overflow-y-auto py-4">
             <!-- Categories will be injected here -->
         </div>
-        <div class="p-6 border-t bg-gray-50">
+        <div class="p-6 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
             <a href="login.html" class="block text-center bg-brandBlue text-white py-3 rounded-xl font-bold border border-brandGold hover:bg-opacity-90">Admin Dashboard</a>
         </div>
     </div>
@@ -73,7 +122,7 @@
             <div class="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,_rgba(193,155,78,0.15),transparent_70%)]"></div>
         </div>
         
-        <div class="relative z-10 px-4">
+        <div class="relative z-10 px-4 reveal active">
             <h2 class="text-6xl md:text-7xl font-black mb-4 text-brandGold tracking-tighter uppercase drop-shadow-sm">House Of Glass</h2>
             
             <div class="flex flex-col items-center justify-center mb-10">
@@ -92,12 +141,35 @@
         </div>
     </section>
 
+    <!-- Search Section -->
+    <div class="max-w-7xl mx-auto px-4 -mt-8 relative z-20">
+        <div class="bg-white dark:bg-darkCard rounded-2xl shadow-xl p-4 flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 border border-brandGold/20">
+            <div class="flex-grow relative">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input type="text" id="searchInput" placeholder="Search by name or category..." class="w-full pl-12 pr-4 py-4 rounded-xl bg-gray-50 dark:bg-gray-800 dark:text-white border-none focus:ring-2 focus:ring-brandGold outline-none transition-all">
+            </div>
+            <div id="activeFilterDisplay" class="hidden md:flex items-center px-6 bg-brandGold/10 text-brandGold rounded-xl font-bold py-4">
+                Category: All
+            </div>
+        </div>
+    </div>
+
     <!-- Gallery Grid -->
     <main class="max-w-7xl mx-auto px-4 py-16 min-h-[60vh]">
         <div id="product-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"></div>
     </main>
 
-    <footer class="bg-white border-t border-gray-100 py-20">
+    <!-- Floating Contact (WhatsApp) -->
+    <a href="https://wa.me/201026600350" target="_blank" class="fixed bottom-8 right-8 z-[80] bg-[#25D366] text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-transform flex items-center group">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.319 1.592 5.548 0 10.061-4.512 10.063-10.062 0-2.69-1.046-5.216-2.947-7.117s-4.426-2.95-7.116-2.95c-5.545 0-10.06 4.512-10.063 10.062-.001 1.922.503 3.391 1.397 4.938l-.951 3.474 3.519-.923zm10.257-8.22c-.105-.174-.383-.28-.8-.49s-2.457-1.212-2.837-1.353-.654-.21-.929.21-.983 1.212-1.205 1.458-.444.275-.86.065-1.751-.645-3.333-2.057c-1.231-1.098-2.062-2.454-2.303-2.875-.105-.174-.012-.268.073-.373.102-.126.225-.262.338-.393s.15-.224.225-.373c.075-.149.038-.28-.019-.393s-1.127-2.711-1.423-3.419c-.287-.687-.581-.593-.8-.604-.206-.01-.444-.011-.681-.011-.237 0-.623.088-.949.444-.326.356-1.244 1.217-1.244 2.967s1.274 3.437 1.452 3.67c.178.233 2.507 3.828 6.072 5.371.848.367 1.511.587 2.027.75.851.27 1.626.232 2.238.141.683-.102 2.23-.912 2.545-1.792.315-.88.315-1.635.221-1.792z"/>
+        </svg>
+        <span class="max-w-0 overflow-hidden group-hover:max-w-xs group-hover:ml-3 transition-all duration-300 font-bold whitespace-nowrap">Contact Us</span>
+    </a>
+
+    <footer class="bg-white dark:bg-darkCard border-t border-gray-100 dark:border-gray-800 py-20">
         <div class="max-w-7xl mx-auto px-4 text-center">
             <div class="mb-12 flex flex-col items-center">
                 <img src="logo.png" alt="Logo" class="h-14 opacity-30 grayscale hover:grayscale-0 transition-all cursor-pointer mb-8" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
@@ -125,14 +197,14 @@
     <!-- PRODUCT DETAIL MODAL -->
     <div id="detailModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-[100]">
         <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-80" onclick="closeDetails()"></div>
-        <div class="modal-container bg-white w-11/12 md:max-w-5xl mx-auto rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col md:flex-row max-h-[90vh]">
+        <div class="modal-container bg-white dark:bg-darkCard w-11/12 md:max-w-5xl mx-auto rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col md:flex-row max-h-[90vh]">
             
             <!-- Image Section -->
-            <div class="w-full md:w-2/3 bg-gray-100 flex flex-col overflow-hidden">
+            <div class="w-full md:w-2/3 bg-gray-100 dark:bg-gray-800 flex flex-col overflow-hidden">
                 <div class="flex-grow flex items-center justify-center p-4">
                     <img id="mainDetailImg" src="" class="max-w-full max-h-[50vh] md:max-h-[70vh] object-contain rounded-lg">
                 </div>
-                <div id="thumbnailBar" class="h-24 bg-white border-t flex space-x-2 p-2 overflow-x-auto hide-scroll justify-center">
+                <div id="thumbnailBar" class="h-24 bg-white dark:bg-darkCard border-t dark:border-gray-700 flex space-x-2 p-2 overflow-x-auto hide-scroll justify-center">
                     <!-- Thumbnails will go here -->
                 </div>
             </div>
@@ -140,13 +212,13 @@
             <!-- Content Section -->
             <div class="w-full md:w-1/3 p-8 flex flex-col justify-between">
                 <div>
-                    <button onclick="closeDetails()" class="float-right text-gray-400 hover:text-gray-600">✕</button>
-                    <h2 id="detailTitle" class="text-3xl font-bold text-brandBlue mb-4"></h2>
+                    <button onclick="closeDetails()" class="float-right text-gray-400 hover:text-gray-600 dark:hover:text-white">✕</button>
+                    <h2 id="detailTitle" class="text-3xl font-bold text-brandBlue dark:text-white mb-4"></h2>
                     <div class="w-16 h-1 bg-brandGold mb-6"></div>
-                    <p id="detailDesc" class="text-gray-600 leading-relaxed overflow-y-auto max-h-[30vh]"></p>
+                    <p id="detailDesc" class="text-gray-600 dark:text-gray-300 leading-relaxed overflow-y-auto max-h-[30vh]"></p>
                 </div>
                 <div class="mt-8">
-                    <button class="w-full bg-brandBlue text-white py-3 rounded-xl font-bold border border-brandGold hover:bg-opacity-90 transition-all">Enquire Now</button>
+                    <a id="enquiryBtn" href="#" target="_blank" class="block text-center w-full bg-brandBlue dark:bg-brandGold text-white py-3 rounded-xl font-bold border border-brandGold hover:bg-opacity-90 transition-all">Enquire Now</a>
                 </div>
             </div>
         </div>
@@ -172,11 +244,13 @@
         let products = [];
         let categories = ['All'];
         let activeCategory = 'All';
+        let searchQuery = '';
 
         const grid = document.getElementById('product-grid');
         const modal = document.getElementById('detailModal');
         const sidebar = document.getElementById('sidebar');
         const sidebarOverlay = document.getElementById('sidebarOverlay');
+        const searchInput = document.getElementById('searchInput');
 
         async function loadData() {
             try {
@@ -196,6 +270,11 @@
             }
         }
 
+        window.toggleDarkMode = function() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('darkMode', isDark);
+        }
+
         window.toggleSidebar = function() {
             const isOpen = !sidebar.classList.contains('-translate-x-full');
             if (isOpen) {
@@ -212,10 +291,11 @@
             catList.innerHTML = '';
             categories.forEach(cat => {
                 const btn = document.createElement('button');
-                btn.className = `w-full text-left px-8 py-4 text-lg font-medium transition-all hover:bg-gray-50 flex items-center ${activeCategory === cat ? 'text-brandGold border-r-4 border-brandGold bg-gray-50' : 'text-gray-600'}`;
+                btn.className = `w-full text-left px-8 py-4 text-lg font-medium transition-all hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center ${activeCategory === cat ? 'text-brandGold border-r-4 border-brandGold bg-gray-50 dark:bg-gray-800' : 'text-gray-600 dark:text-gray-400'}`;
                 btn.innerHTML = `${cat}`;
                 btn.onclick = () => {
                     activeCategory = cat;
+                    document.getElementById('activeFilterDisplay').innerText = `Category: ${cat}`;
                     renderProducts();
                     renderCategories();
                     window.toggleSidebar();
@@ -226,32 +306,66 @@
 
         function renderProducts() {
             grid.innerHTML = '';
-            const filteredProducts = activeCategory === 'All' 
-                ? products 
-                : products.filter(p => p.category === activeCategory);
+            let filtered = products;
 
-            if (filteredProducts.length === 0) {
-                grid.innerHTML = `<div class="col-span-full py-20 text-center text-gray-400 font-arabic">لا يوجد منتجات في هذا القسم حالياً</div>`;
+            if (activeCategory !== 'All') {
+                filtered = filtered.filter(p => p.category === activeCategory);
+            }
+
+            if (searchQuery) {
+                const q = searchQuery.toLowerCase();
+                filtered = filtered.filter(p => 
+                    p.name.toLowerCase().includes(q) || 
+                    (p.category && p.category.toLowerCase().includes(q))
+                );
+            }
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `<div class="col-span-full py-20 text-center text-gray-400 font-arabic">لا يوجد ما يطابق بحثك حالياً</div>`;
                 return;
             }
 
-            filteredProducts.forEach(p => {
+            filtered.forEach((p, idx) => {
                 const card = document.createElement('div');
-                card.className = 'cursor-pointer group bg-white rounded-2xl shadow-sm hover:shadow-xl overflow-hidden transition-all duration-500 border border-gray-100';
+                card.className = 'reveal cursor-pointer group bg-white dark:bg-darkCard rounded-2xl shadow-sm hover:shadow-xl overflow-hidden transition-all duration-500 border border-gray-100 dark:border-gray-800';
+                card.style.transitionDelay = `${idx * 50}ms`;
                 card.onclick = () => showDetails(p.id);
                 card.innerHTML = `
-                    <div class="overflow-hidden h-64 relative bg-gray-50 flex items-center justify-center">
-                        <img src="${p.images[0] || 'https://via.placeholder.com/400x300'}" class="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-700">
-                        <div class="absolute top-2 left-2 bg-brandBlue/10 text-brandBlue text-[10px] px-2 py-1 rounded font-bold uppercase tracking-wider">${p.category}</div>
+                    <div class="overflow-hidden h-64 relative bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+                        <img src="${p.images[0] || 'https://via.placeholder.com/400x300'}" class="w-full h-full object-contain p-2 group-hover:scale-110 transition-transform duration-700">
+                        <div class="absolute top-2 left-2 bg-brandGold/20 text-brandGold text-[10px] px-2 py-1 rounded font-bold uppercase tracking-wider">${p.category}</div>
                         <div class="absolute bottom-2 right-2 bg-black/40 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur-sm">${p.images.length} Photos</div>
                     </div>
                     <div class="p-6">
-                        <h3 class="text-lg font-bold text-brandBlue">${p.name}</h3>
-                        <p class="text-gray-400 text-xs mt-1 italic">Click to view details</p>
+                        <h3 class="text-lg font-bold text-brandBlue dark:text-white">${p.name}</h3>
+                        <p class="text-gray-400 dark:text-gray-500 text-xs mt-1 italic">Click to view details</p>
                     </div>
                 `;
                 grid.appendChild(card);
             });
+
+            // Trigger animations
+            setTimeout(initReveal, 100);
+        }
+
+        // Search logic
+        searchInput.oninput = (e) => {
+            searchQuery = e.target.value;
+            renderProducts();
+        };
+
+        // Scroll Reveal logic
+        function initReveal() {
+            const reveals = document.querySelectorAll('.reveal');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('active');
+                    }
+                });
+            }, { threshold: 0.1 });
+
+            reveals.forEach(r => observer.observe(r));
         }
 
         window.showDetails = function(id) {
@@ -261,6 +375,7 @@
             document.getElementById('detailTitle').innerText = p.name;
             document.getElementById('detailDesc').innerText = p.desc;
             document.getElementById('mainDetailImg').src = p.images[0];
+            document.getElementById('enquiryBtn').href = `https://wa.me/201026600350?text=I am interested in: ${encodeURIComponent(p.name)}`;
 
             const thumbBar = document.getElementById('thumbnailBar');
             thumbBar.innerHTML = '';
