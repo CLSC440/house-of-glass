@@ -428,9 +428,8 @@
             document.getElementById('detailTitle').innerText = p.name;
             document.getElementById('detailDesc').innerText = p.desc;
             document.getElementById('mainDetailImg').src = p.images[0];
-            
-            const whatsappMsg = `مرحباً ال عاشور عدس، أود الاستفسار عن هذا المنتج:\n\n*${p.name}*\n\n${p.images[0]}`;
-            document.getElementById('enquiryBtn').href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMsg)}`;
+            const message = `مرحباً ال عاشور عدس، أود الاستفسار عن منتج: ${p.name}\n\nالوصف:\n${p.desc}`;
+            document.getElementById('enquiryBtn').href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
 
             const thumbBar = document.getElementById('thumbnailBar');
             thumbBar.innerHTML = '';
