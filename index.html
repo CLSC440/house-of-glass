@@ -429,13 +429,8 @@
             document.getElementById('detailDesc').innerText = p.desc;
             document.getElementById('mainDetailImg').src = p.images[0];
             
-            const siteLink = window.location.origin + window.location.pathname;
-            const message = `مرحباً ال عاشور عدس، أود الاستفسار عن:
-📌 منتج: ${p.name}
-🖼️ رابط الصورة: ${p.images[0]}
-🔗 رابط المعرض: ${siteLink}`;
-            
-            document.getElementById('enquiryBtn').href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+            const whatsappMsg = `مرحباً ال عاشور عدس، أود الاستفسار عن هذا المنتج:\n\n*${p.name}*\n\n${p.images[0]}`;
+            document.getElementById('enquiryBtn').href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMsg)}`;
 
             const thumbBar = document.getElementById('thumbnailBar');
             thumbBar.innerHTML = '';
