@@ -29,8 +29,8 @@ A premium, modern glassware gallery website designed for **Al Ashour Ades Showro
 ## 🔐 Admin Access
 To manage the gallery, navigate to `/login.html`:
 - **URL:** `[your-domain]/login.html`
-- **Username:** `admin`
-- **Password:** `123`
+- **Username:** `****`
+- **Password:** `*****`
 
 &nbsp;
 
