@@ -22,58 +22,148 @@
         }
     </script>
 </head>
-<body class="bg-gray-50 font-sans flex items-center justify-center min-h-screen px-4">
+<body class="bg-gray-50 dark:bg-darkBg font-sans flex items-center justify-center min-h-screen px-4 transition-colors duration-300">
 
-    <div class="max-w-md w-full bg-white rounded-xl shadow-lg border border-gray-200 p-8">
-        <div class="text-center mb-8">
-            <a href="index.html" class="inline-block group">
-                <img src="logo.png" alt="Logo" class="h-20 mx-auto mb-4 transition-transform group-hover:scale-105">
+    <div class="max-w-md w-full bg-white dark:bg-darkCard rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 p-6 md:p-8">
+        <div class="text-center mb-6 md:mb-8">
+            <a href="index.html" class="inline-block group mb-4">
+                <img src="logo.png" alt="Logo" class="h-12 md:h-16 mx-auto transition-transform group-hover:scale-105">
             </a>
-            <h2 class="text-2xl font-bold text-brandBlue">Admin Access</h2>
-            <p class="text-gray-500 text-sm">Please login to manage your gallery</p>
+            <h2 class="text-xl md:text-2xl font-bold text-brandBlue dark:text-brandGold italic">Welcome Back</h2>
+            <p class="text-gray-500 dark:text-gray-400 text-xs md:text-sm">Login to your account</p>
         </div>
 
         <form id="loginForm" class="space-y-6">
             <div>
-                <label class="block text-sm font-medium text-gray-700">Username</label>
-                <input type="text" id="username" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-brandGold focus:border-brandGold focus:outline-none">
+                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">Email or Phone Number</label>
+                <input type="text" id="loginIdentifier" required class="mt-1 block w-full bg-white border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue" placeholder="you@example.com or 01XXXXXXXXX">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700">Password</label>
-                <input type="password" id="password" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-brandGold focus:border-brandGold focus:outline-none">
+                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
+                <div class="relative">
+                    <input type="password" id="password" required class="mt-1 block w-full bg-white border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue pr-10">
+                    <button type="button" onclick="togglePassword('password')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brandGold transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="text-right mt-1">
+                    <button type="button" onclick="forgotPassword()" class="text-[10px] text-brandGold hover:underline">Forgot Password?</button>
+                </div>
             </div>
             
-            <div id="errorMessage" class="text-red-500 text-sm hidden text-center italic">Invalid username or password!</div>
+            <div id="errorMessage" class="text-red-500 text-[10px] md:text-xs hidden text-center italic"></div>
 
-            <button type="submit" class="w-full bg-brandBlue text-white p-3 rounded-lg font-bold hover:bg-opacity-90 border border-brandGold transition-all">
+            <button type="submit" id="submitBtn" class="w-full bg-brandBlue text-white p-3.5 md:p-4 rounded-xl font-bold hover:bg-opacity-90 border border-brandGold/30 transition-all shadow-lg text-sm md:text-base">
                 Login
             </button>
         </form>
 
-        <div class="mt-8 pt-6 border-t border-gray-100 text-center">
-            <p class="text-[10px] text-gray-400 uppercase tracking-[0.2em] mb-1">Powered by</p>
-            <p class="text-sm font-bold text-brandBlue uppercase tracking-tight">Al Ashour Ades Showroom</p>
-            <p class="text-xl font-black text-brandBlue font-arabic" dir="rtl">ال عاشور عدس</p>
+        <div class="mt-6 text-center">
+            <p class="text-sm text-gray-500">Don't have an account? <a href="signup.html" class="text-brandBlue dark:text-brandGold font-bold hover:underline">Create one</a></p>
+        </div>
+
+        <div class="mt-8 pt-6 border-t border-gray-100 dark:border-gray-800 text-center">
+            <p class="text-[10px] text-gray-400 uppercase tracking-[0.2em] mb-1 italic">Premium Home Glassware</p>
+            <p class="text-xl font-black text-brandBlue dark:text-brandGold font-arabic" dir="rtl">ال عاشور عدس</p>
         </div>
 
         <div class="mt-6 text-center">
-            <a href="index.html" class="text-brandBlue hover:text-brandGold text-sm transition-colors">← Back to Gallery</a>
+            <a href="index.html" class="text-gray-400 hover:text-brandBlue text-xs transition-colors">← Back to Gallery</a>
         </div>
     </div>
 
-    <script>
-        document.getElementById('loginForm').onsubmit = function(e) {
-            e.preventDefault();
-            const user = document.getElementById('username').value;
-            const pass = document.getElementById('password').value;
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-            // Simple client-side auth for demonstration
-            // Username: admin | Password: 123
-            if (user === 'admin' && pass === '123') {
-                sessionStorage.setItem('isAdmin', 'true');
-                window.location.href = 'admin.html';
-            } else {
-                document.getElementById('errorMessage').classList.remove('hidden');
+        // Firebase Config...
+        const firebaseConfig = {
+            apiKey: "AIzaSyA_oTePhmWmzuOcZDmc_-7bhoAVbYVhH3Q",
+            authDomain: "houseofglass-440.firebaseapp.com",
+            projectId: "houseofglass-440",
+            storageBucket: "houseofglass-440.firebasestorage.app",
+            messagingSenderId: "73082039144",
+            appId: "1:73082039144:web:0658e54416293334dc84dd"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        window.togglePassword = (id) => {
+            const input = document.getElementById(id);
+            input.type = input.type === 'password' ? 'text' : 'password';
+        };
+
+        document.getElementById('loginForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const identifier = document.getElementById('loginIdentifier').value.trim();
+            const password = document.getElementById('password').value;
+            const btn = document.getElementById('submitBtn');
+            const err = document.getElementById('errorMessage');
+
+            btn.innerText = "Checking...";
+            btn.disabled = true;
+            err.classList.add('hidden');
+
+            let emailToLogin = identifier;
+
+            // Check if it's a phone number (e.g., only numbers and potentially starts with 0 or +)
+            const isPhone = /^\+?[0-9]{10,15}$/.test(identifier.replace(/\s/g, ''));
+            
+            if (isPhone) {
+                try {
+                    const q = query(collection(db, "users"), where("phone", "==", identifier));
+                    const querySnapshot = await getDocs(q);
+                    if (!querySnapshot.empty) {
+                        emailToLogin = querySnapshot.docs[0].data().email;
+                    } else {
+                        // Fallback if phone not found, maybe it's just a weird email/input
+                    }
+                } catch (e) {
+                    console.error("Phone lookup failed:", e);
+                }
+            }
+
+            try {
+                const userCredential = await signInWithEmailAndPassword(auth, emailToLogin, password);
+                const user = userCredential.user;
+
+                // Check if user is Admin
+                const userDoc = await getDoc(doc(db, "users", user.uid));
+                const userData = userDoc.data();
+
+                if (userData && (userData.role === 'admin' || userData.role === 'moderator')) {
+                    sessionStorage.setItem('isAdmin', 'true');
+                    sessionStorage.setItem('userRole', userData.role);
+                    window.location.href = 'admin.html';
+                } else {
+                    sessionStorage.removeItem('isAdmin');
+                    window.location.href = 'index.html';
+                }
+            } catch (error) {
+                err.innerText = "Invalid email/phone or password!";
+                err.classList.remove('hidden');
+                btn.innerText = "Login";
+                btn.disabled = false;
+            }
+        };
+
+        window.forgotPassword = async () => {
+            const email = document.getElementById('loginIdentifier').value;
+            if (!email || !email.includes('@')) {
+                alert("Please enter your valid email in the field first.");
+                return;
+            }
+            try {
+                await sendPasswordResetEmail(auth, email);
+                alert("Password reset link sent to your email!");
+            } catch (error) {
+                alert("Error: " + error.message);
             }
         };
     </script>

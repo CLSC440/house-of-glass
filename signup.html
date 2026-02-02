@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>House Of Glass | Join Us</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: { brandBlue: '#0A3654', brandGold: '#C19B4E', darkBg: '#0F172A', darkCard: '#1E293B' },
+                    fontFamily: { arabic: ['Almarai', 'Cairo', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 dark:bg-darkBg font-sans flex items-center justify-center min-h-screen px-4 transition-colors duration-300">
+
+    <div class="max-w-md w-full bg-white dark:bg-darkCard rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 p-6 md:p-8">
+        <div class="text-center mb-6 md:mb-8">
+            <a href="index.html" class="inline-block group mb-4">
+                <img src="logo.png" alt="Logo" class="h-12 md:h-16 mx-auto transition-transform group-hover:scale-105">
+            </a>
+            <h2 class="text-xl md:text-2xl font-bold text-brandBlue dark:text-brandGold">Create Account</h2>
+            <p class="text-gray-500 dark:text-gray-400 text-xs md:text-sm">Join us to save your favorite pieces</p>
+        </div>
+
+        <form id="signupForm" class="space-y-4">
+            <div>
+                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">Full Name</label>
+                <input type="text" id="fullName" required class="mt-1 block w-full bg-white border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue">
+            </div>
+            <div>
+                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">Email Address</label>
+                <input type="email" id="email" required class="mt-1 block w-full bg-white border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue">
+            </div>
+            <div>
+                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">Phone Number (Optional)</label>
+                <input type="tel" id="phone" class="mt-1 block w-full bg-white border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue" placeholder="01XXXXXXXXX">
+            </div>
+            <div>
+                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
+                <div class="relative">
+                    <input type="password" id="password" required class="mt-1 block w-full bg-white border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue pr-10">
+                    <button type="button" onclick="togglePassword('password')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brandGold transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" id="eye-icon">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="errorMessage" class="text-red-500 text-[10px] md:text-xs hidden text-center italic"></div>
+
+            <button type="submit" id="submitBtn" class="w-full bg-brandBlue text-white p-3.5 md:p-4 rounded-xl font-bold hover:bg-opacity-90 border border-brandGold/30 transition-all shadow-lg text-sm md:text-base">
+                Create Account
+            </button>
+        </form>
+
+        <div class="mt-6 text-center">
+            <p class="text-sm text-gray-500">Already have an account? <a href="login.html" class="text-brandBlue dark:text-brandGold font-bold hover:underline">Login here</a></p>
+        </div>
+        
+        <div class="mt-6 text-center">
+            <a href="index.html" class="text-gray-400 hover:text-brandBlue text-xs transition-colors">← Back to Gallery</a>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // Firebase config here...
+        const firebaseConfig = {
+            apiKey: "AIzaSyA_oTePhmWmzuOcZDmc_-7bhoAVbYVhH3Q",
+            authDomain: "houseofglass-440.firebaseapp.com",
+            projectId: "houseofglass-440",
+            storageBucket: "houseofglass-440.firebasestorage.app",
+            messagingSenderId: "73082039144",
+            appId: "1:73082039144:web:0658e54416293334dc84dd"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        window.togglePassword = (id) => {
+            const input = document.getElementById(id);
+            input.type = input.type === 'password' ? 'text' : 'password';
+        };
+
+        document.getElementById('signupForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const phone = document.getElementById('phone').value;
+            const name = document.getElementById('fullName').value;
+            const btn = document.getElementById('submitBtn');
+            const err = document.getElementById('errorMessage');
+
+            btn.innerText = "Creating...";
+            btn.disabled = true;
+            err.classList.add('hidden');
+
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+                
+                await updateProfile(user, { displayName: name });
+                
+                // Keep isAdmin false by default for customers
+                await setDoc(doc(db, "users", user.uid), {
+                    uid: user.uid,
+                    name: name,
+                    email: email,
+                    phone: phone,
+                    favorites: [],
+                    role: 'customer',
+                    createdAt: new Date()
+                });
+
+                window.location.href = 'index.html';
+            } catch (error) {
+                err.innerText = error.message;
+                err.classList.remove('hidden');
+                btn.innerText = "Create Account";
+                btn.disabled = false;
+            }
+        };
+    </script>
+</body>
+</html>
