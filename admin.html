@@ -41,6 +41,12 @@
                 </div>
             </a>
             <div class="flex items-center space-x-4">
+                <button onclick="openSettingsModal()" class="text-gray-600 hover:text-brandBlue transition-colors mr-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </button>
                 <button onclick="openCategoryModal()" class="text-brandGold hover:text-brandBlue text-sm font-bold border border-brandGold px-3 py-1 rounded transition-all">Manage Categories</button>
                 <button onclick="openModal()" class="bg-brandBlue text-white px-4 py-2 rounded-lg text-sm border border-brandGold hover:bg-opacity-90 transition-all">+ Add Product</button>
                 <button onclick="logout()" class="text-gray-500 hover:text-red-600 text-sm">Logout</button>
@@ -114,22 +120,25 @@
     </div>
 
     <!-- Category Modal -->
-    <div id="categoryModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-[110]">
-        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50" onclick="closeCategoryModal()"></div>
+    /* Lines 144-162 omitted */
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-[110]">
+        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50" onclick="closeSettingsModal()"></div>
         <div class="modal-container bg-white w-11/12 md:max-w-md mx-auto rounded shadow-lg z-50 overflow-y-auto">
             <div class="modal-content py-6 px-8">
                 <div class="flex justify-between items-center pb-4 border-b">
-                    <p class="text-xl font-bold text-brandBlue">Manage Categories</p>
-                    <div class="cursor-pointer" onclick="closeCategoryModal()">✕</div>
+                    <p class="text-xl font-bold text-brandBlue">General Settings</p>
+                    <div class="cursor-pointer" onclick="closeSettingsModal()">✕</div>
                 </div>
                 <div class="mt-4 space-y-4">
-                    <div class="flex space-x-2">
-                        <input type="text" id="newCatInput" placeholder="New category name..." class="flex-grow border rounded p-2 text-sm outline-none">
-                        <button onclick="addCategory()" class="bg-brandGold text-white px-4 py-2 rounded font-bold text-sm">Add</button>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">WhatsApp Phone Number</label>
+                        <p class="text-[10px] text-gray-400 mb-1">Include country code (e.g., 201234567890)</p>
+                        <input type="text" id="waPhoneInput" placeholder="2010XXXXXXXX" class="w-full border rounded p-2 text-sm outline-none focus:ring-brandGold">
                     </div>
-                    <div id="catAdminList" class="space-y-2 max-h-60 overflow-y-auto">
-                        <!-- Cats injected here -->
-                    </div>
+                    <button onclick="saveSettings()" class="w-full bg-brandBlue text-white py-2 rounded font-bold text-sm">Save Settings</button>
                 </div>
             </div>
         </div>
@@ -154,6 +163,7 @@
 
         let products = [];
         let categories = ['All'];
+        let siteSettings = { whatsapp: '201026600350' };
 
         const grid = document.getElementById('product-grid');
         const modal = document.getElementById('productModal');
@@ -162,6 +172,12 @@
 
         async function loadData() {
             try {
+                // Load Settings
+                const settingsSnap = await getDocs(collection(db, "settings"));
+                settingsSnap.forEach(doc => {
+                    if (doc.id === 'whatsapp') siteSettings.whatsapp = doc.data().phone;
+                });
+
                 // Load Categories
                 const catSnapshot = await getDocs(collection(db, "categories"));
                 const fetchedCats = catSnapshot.docs.map(doc => doc.data().name);
@@ -175,6 +191,40 @@
                 updateCategorySelect();
             } catch (error) {
                 console.error("Error loading data:", error);
+            }
+        }
+
+        window.openSettingsModal = function() {
+            document.getElementById('waPhoneInput').value = siteSettings.whatsapp;
+            document.getElementById('settingsModal').classList.remove('opacity-0', 'pointer-events-none');
+            document.body.classList.add('modal-active');
+        }
+
+        window.closeSettingsModal = function() {
+            document.getElementById('settingsModal').classList.add('opacity-0', 'pointer-events-none');
+            document.body.classList.remove('modal-active');
+        }
+
+        window.saveSettings = async function() {
+            const phone = document.getElementById('waPhoneInput').value.trim();
+            if (!phone) return alert("Please enter a valid phone number");
+            
+            try {
+                const btn = document.querySelector('#settingsModal button');
+                btn.innerText = 'Saving...';
+                btn.disabled = true;
+
+                await setDoc(doc(db, "settings", "whatsapp"), { phone: phone });
+                siteSettings.whatsapp = phone;
+                alert("Settings saved successfully!");
+                window.closeSettingsModal();
+                btn.innerText = 'Save Settings';
+                btn.disabled = false;
+            } catch (error) {
+                alert("Save failed: " + error.message);
+                const btn = document.querySelector('#settingsModal button');
+                btn.innerText = 'Save Settings';
+                btn.disabled = false;
             }
         }
 
