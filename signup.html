@@ -21,29 +21,32 @@
 <body class="bg-gray-50 dark:bg-darkBg font-sans flex items-center justify-center min-h-screen px-4 transition-colors duration-300">
 
     <div class="max-w-md w-full bg-white dark:bg-darkCard rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 p-6 md:p-8">
+        <div class="flex justify-end mb-2">
+            <button id="langToggle" class="px-3 py-1.5 rounded-full border border-brandGold text-brandGold text-xs font-bold hover:bg-brandGold hover:text-white transition-all">AR</button>
+        </div>
         <div class="text-center mb-6 md:mb-8">
             <a href="index.html" class="inline-block group mb-4">
                 <img src="logo.png" alt="Logo" class="h-12 md:h-16 mx-auto transition-transform group-hover:scale-105">
             </a>
-            <h2 class="text-xl md:text-2xl font-bold text-brandBlue dark:text-brandGold">Create Account</h2>
-            <p class="text-gray-500 dark:text-gray-400 text-xs md:text-sm">Join us to save your favorite pieces</p>
+            <h2 class="text-xl md:text-2xl font-bold text-brandBlue dark:text-brandGold" data-i18n="create_account">Create Account</h2>
+            <p class="text-gray-500 dark:text-gray-400 text-xs md:text-sm" data-i18n="join_us">Join us to save your favorite pieces</p>
         </div>
 
         <form id="signupForm" class="space-y-4">
             <div>
-                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">Full Name</label>
+                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300" data-i18n="full_name">Full Name</label>
                 <input type="text" id="fullName" required class="mt-1 block w-full bg-white border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue">
             </div>
             <div>
-                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">Email Address</label>
+                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300" data-i18n="email_address">Email Address</label>
                 <input type="email" id="email" required class="mt-1 block w-full bg-white border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue">
             </div>
             <div>
-                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">Phone Number (Optional)</label>
-                <input type="tel" id="phone" class="mt-1 block w-full bg-white border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue" placeholder="01XXXXXXXXX">
+                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300" data-i18n="phone_number">Phone Number (Optional)</label>
+                <input type="tel" id="phone" class="mt-1 block w-full bg-white border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue" placeholder="01XXXXXXXXX" data-i18n-placeholder="phone_number">
             </div>
             <div>
-                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
+                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300" data-i18n="password">Password</label>
                 <div class="relative">
                     <input type="password" id="password" required class="mt-1 block w-full bg-white border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue pr-10">
                     <button type="button" onclick="togglePassword('password')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brandGold transition-colors">
@@ -57,24 +60,42 @@
             
             <div id="errorMessage" class="text-red-500 text-[10px] md:text-xs hidden text-center italic"></div>
 
-            <button type="submit" id="submitBtn" class="w-full bg-brandBlue text-white p-3.5 md:p-4 rounded-xl font-bold hover:bg-opacity-90 border border-brandGold/30 transition-all shadow-lg text-sm md:text-base">
+            <button type="submit" id="submitBtn" class="w-full bg-brandBlue text-white p-3.5 md:p-4 rounded-xl font-bold hover:bg-opacity-90 border border-brandGold/30 transition-all shadow-lg text-sm md:text-base" data-i18n="create_account">
                 Create Account
             </button>
         </form>
 
+        <div class="mt-6 flex items-center gap-3">
+            <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+            <span class="text-[10px] md:text-xs text-gray-400 uppercase tracking-[0.3em]" data-i18n="or">OR</span>
+            <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+        </div>
+
+        <button type="button" onclick="googleAuth()" class="mt-5 w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-brandBlue dark:text-white p-3.5 md:p-4 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm flex items-center justify-center gap-3 text-sm md:text-base">
+            <svg class="w-5 h-5" viewBox="0 0 48 48" aria-hidden="true">
+                <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303C33.766 32.653 29.201 36 24 36c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.954 4 4 12.954 4 24s8.954 20 20 20 20-8.954 20-20c0-1.341-.138-2.651-.389-3.917z"/>
+                <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 16.108 19.01 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4c-7.681 0-14.344 4.327-17.694 10.691z"/>
+                <path fill="#4CAF50" d="M24 44c5.128 0 9.805-1.961 13.333-5.148l-6.161-5.212C29.137 35.091 26.695 36 24 36c-5.176 0-9.73-3.331-11.284-7.946l-6.52 5.025C9.52 39.556 16.227 44 24 44z"/>
+                <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.02 12.02 0 0 1-4.131 5.64l.002-.001 6.161 5.212C36.87 39.306 44 34 44 24c0-1.341-.138-2.651-.389-3.917z"/>
+            </svg>
+            <span data-i18n="continue_with_google">Continue with Google</span>
+        </button>
+
         <div class="mt-6 text-center">
-            <p class="text-sm text-gray-500">Already have an account? <a href="login.html" class="text-brandBlue dark:text-brandGold font-bold hover:underline">Login here</a></p>
+            <p class="text-sm text-gray-500"><span data-i18n="already_have_account">Already have an account?</span> <a href="login.html" class="text-brandBlue dark:text-brandGold font-bold hover:underline" data-i18n="login_here">Login here</a></p>
         </div>
         
         <div class="mt-6 text-center">
-            <a href="index.html" class="text-gray-400 hover:text-brandBlue text-xs transition-colors">← Back to Gallery</a>
+            <a href="index.html" class="text-gray-400 hover:text-brandBlue text-xs transition-colors">← <span data-i18n="back_to_gallery">Back to Gallery</span></a>
         </div>
     </div>
 
+    <script src="locales-data.js"></script>
+    <script src="i18n.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // Firebase config here...
         const firebaseConfig = {
@@ -89,6 +110,7 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const googleProvider = new GoogleAuthProvider();
 
         window.togglePassword = (id) => {
             const input = document.getElementById(id);
@@ -133,6 +155,34 @@
                 btn.disabled = false;
             }
         };
+
+        window.googleAuth = async () => {
+            try {
+                const result = await signInWithPopup(auth, googleProvider);
+                const user = result.user;
+                const userRef = doc(db, "users", user.uid);
+                const userDoc = await getDoc(userRef);
+
+                if (!userDoc.exists()) {
+                    await setDoc(userRef, {
+                        uid: user.uid,
+                        name: user.displayName || 'Google User',
+                        email: user.email,
+                        phone: user.phoneNumber || '',
+                        favorites: [],
+                        role: 'customer',
+                        createdAt: new Date()
+                    });
+                }
+
+                window.location.href = 'index.html';
+            } catch (error) {
+                const err = document.getElementById('errorMessage');
+                err.innerText = error.message;
+                err.classList.remove('hidden');
+            }
+        };
+
     </script>
 </body>
 </html>
