@@ -27,16 +27,23 @@
         // --- Smart Theme Logic ---
         function applySmartTheme() {
             const manualTheme = localStorage.getItem('darkMode');
-            if (manualTheme !== null) {
+            const overrideTime = localStorage.getItem('themeOverrideTime');
+            const now = Date.now();
+            
+            if (overrideTime && (now - overrideTime > 600000)) {
+                localStorage.removeItem('darkMode');
+                localStorage.removeItem('themeOverrideTime');
+            } else if (manualTheme !== null) {
                 if (manualTheme === 'true') document.documentElement.classList.add('dark');
                 else document.documentElement.classList.remove('dark');
+                return;
+            }
+
+            const hour = new Date().getHours();
+            if (hour < 6 || hour >= 18) {
+                document.documentElement.classList.add('dark');
             } else {
-                const hour = new Date().getHours();
-                if (hour < 6 || hour >= 18) {
-                    document.documentElement.classList.add('dark');
-                } else {
-                    document.documentElement.classList.remove('dark');
-                }
+                document.documentElement.classList.remove('dark');
             }
         }
         applySmartTheme();

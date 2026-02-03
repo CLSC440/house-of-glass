@@ -27,16 +27,23 @@
         // --- Smart Theme Logic ---
         function applySmartTheme() {
             const manualTheme = localStorage.getItem('darkMode');
-            if (manualTheme !== null) {
+            const overrideTime = localStorage.getItem('themeOverrideTime');
+            const now = Date.now();
+            
+            if (overrideTime && (now - overrideTime > 600000)) {
+                localStorage.removeItem('darkMode');
+                localStorage.removeItem('themeOverrideTime');
+            } else if (manualTheme !== null) {
                 if (manualTheme === 'true') document.documentElement.classList.add('dark');
                 else document.documentElement.classList.remove('dark');
+                return;
+            }
+
+            const hour = new Date().getHours();
+            if (hour < 6 || hour >= 18) {
+                document.documentElement.classList.add('dark');
             } else {
-                const hour = new Date().getHours();
-                if (hour < 6 || hour >= 18) {
-                    document.documentElement.classList.add('dark');
-                } else {
-                    document.documentElement.classList.remove('dark');
-                }
+                document.documentElement.classList.remove('dark');
             }
         }
         applySmartTheme();
@@ -774,13 +781,13 @@
         window.toggleDarkMode = function() {
             const isDark = document.documentElement.classList.toggle('dark');
             localStorage.setItem('darkMode', isDark);
+            localStorage.setItem('themeOverrideTime', Date.now());
 
-            // Set a timer to return to "Smart Auto" mode after 10 minutes (600,000 ms)
             if (window._themeResetTimer) clearTimeout(window._themeResetTimer);
             window._themeResetTimer = setTimeout(() => {
                 localStorage.removeItem('darkMode');
+                localStorage.removeItem('themeOverrideTime');
                 if (typeof applySmartTheme === 'function') applySmartTheme();
-                console.log("Returned to Smart Auto mode after 10 minutes");
             }, 600000);
         }
 
