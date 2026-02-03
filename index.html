@@ -26,11 +26,19 @@
 
         // --- Smart Theme Logic ---
         function applySmartTheme() {
+            const isAutoEnabled = localStorage.getItem('autoThemeEnabled') !== 'false'; // Default to true
             const manualTheme = localStorage.getItem('darkMode');
             const overrideTime = localStorage.getItem('themeOverrideTime');
             const now = Date.now();
             
-            // If more than 10 mins (600,000ms) since manual toggle, reset
+            if (!isAutoEnabled) {
+                // If auto is disabled, strictly follow manual choice or system preference
+                if (manualTheme === 'true') document.documentElement.classList.add('dark');
+                else if (manualTheme === 'false') document.documentElement.classList.remove('dark');
+                return;
+            }
+
+            // Return to Auto mode after 10 minutes (600,000ms)
             if (overrideTime && (now - overrideTime > 600000)) {
                 localStorage.removeItem('darkMode');
                 localStorage.removeItem('themeOverrideTime');
@@ -417,6 +425,21 @@
                         </div>
                         <p class="text-[10px] text-gray-400 italic" data-i18n="leave_empty_keep">* Leave empty to keep current password</p>
                     </div>
+
+                    <!-- Appearance Settings -->
+                    <div class="pt-4 border-t dark:border-gray-700">
+                        <label class="block text-xs font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-3">Appearance</label>
+                        <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                            <div>
+                                <p class="text-sm font-bold text-gray-700 dark:text-gray-200" data-i18n="auto_theme">Auto Day/Night Mode</p>
+                                <p class="text-[10px] text-gray-400 italic" data-i18n="auto_theme_desc">Switch based on sun time (10 min reset)</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="settingsAutoTheme" class="sr-only peer" onchange="toggleAutoTheme(this.checked)">
+                                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none ring-4 ring-brandGold/10 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-brandGold"></div>
+                            </label>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="settingsMessage" class="hidden text-center text-xs p-2 rounded-lg"></div>
@@ -501,7 +524,20 @@
                     document.getElementById('settingsPhotoPreview').innerText = (data.name?.[0] || currentUser.email[0]).toUpperCase();
                 }
             }
+            // Load auto theme setting
+            document.getElementById('settingsAutoTheme').checked = localStorage.getItem('autoThemeEnabled') !== 'false';
+            
             document.getElementById('userSettingsModal').classList.remove('opacity-0', 'pointer-events-none');
+        };
+
+        window.toggleAutoTheme = (enabled) => {
+            localStorage.setItem('autoThemeEnabled', enabled);
+            if (enabled) {
+                // If turning ON, clear manual toggle and apply immediately
+                localStorage.removeItem('darkMode');
+                localStorage.removeItem('themeOverrideTime');
+                applySmartTheme();
+            }
         };
 
         window.closeUserSettingsModal = () => {
@@ -1052,15 +1088,17 @@
         window.toggleDarkMode = function() {
             const isDark = document.documentElement.classList.toggle('dark');
             localStorage.setItem('darkMode', isDark);
-            localStorage.setItem('themeOverrideTime', Date.now());
             
-            // Set a timer to return to "Smart Auto" mode after 10 minutes
-            if (window._themeResetTimer) clearTimeout(window._themeResetTimer);
-            window._themeResetTimer = setTimeout(() => {
-                localStorage.removeItem('darkMode');
-                localStorage.removeItem('themeOverrideTime');
-                applySmartTheme();
-            }, 600000); 
+            const isAutoEnabled = localStorage.getItem('autoThemeEnabled') !== 'false';
+            if (isAutoEnabled) {
+                localStorage.setItem('themeOverrideTime', Date.now());
+                if (window._themeResetTimer) clearTimeout(window._themeResetTimer);
+                window._themeResetTimer = setTimeout(() => {
+                    localStorage.removeItem('darkMode');
+                    localStorage.removeItem('themeOverrideTime');
+                    applySmartTheme();
+                }, 600000); 
+            }
 
             // Expand the toggle briefly (like the toolbar) so the label appears for 3s
             const toggleEl = document.getElementById('darkToggle');
