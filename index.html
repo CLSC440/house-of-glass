@@ -58,6 +58,11 @@
         applySmartTheme();
     </script>
     <style>
+        * {
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            scrollbar-color: #C19B4E rgba(193, 155, 78, 0.05);
+        }
         .modal { transition: opacity 0.25s ease; }
         body.modal-active { overflow: hidden; }
         .hide-scroll::-webkit-scrollbar { display: none; }
