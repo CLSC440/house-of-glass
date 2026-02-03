@@ -24,10 +24,24 @@
             }
         }
 
-        // Initialize Dark Mode from LocalStorage
-        if (localStorage.getItem('darkMode') === 'true' || (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark');
+        // --- Smart Theme Logic ---
+        function applySmartTheme() {
+            const manualTheme = localStorage.getItem('darkMode');
+            if (manualTheme !== null) {
+                // If user set it manually, use that
+                if (manualTheme === 'true') document.documentElement.classList.add('dark');
+                else document.documentElement.classList.remove('dark');
+            } else {
+                // Automatic: Dark if 6 PM to 6 AM
+                const hour = new Date().getHours();
+                if (hour < 6 || hour >= 18) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            }
         }
+        applySmartTheme();
     </script>
     <style>
         .modal { transition: opacity 0.25s ease; }

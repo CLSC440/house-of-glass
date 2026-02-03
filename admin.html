@@ -23,9 +23,23 @@
                 }
             }
         }
-        if (localStorage.getItem('darkMode') === 'true' || (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark');
+
+        // --- Smart Theme Logic ---
+        function applySmartTheme() {
+            const manualTheme = localStorage.getItem('darkMode');
+            if (manualTheme !== null) {
+                if (manualTheme === 'true') document.documentElement.classList.add('dark');
+                else document.documentElement.classList.remove('dark');
+            } else {
+                const hour = new Date().getHours();
+                if (hour < 6 || hour >= 18) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            }
         }
+        applySmartTheme();
     </script>
     <style>
         .group:hover .admin-actions { opacity: 1; }
