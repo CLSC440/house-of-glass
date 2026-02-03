@@ -52,7 +52,7 @@
     <style>
         .group:hover .admin-actions { opacity: 1; }
         .modal { transition: opacity 0.25s ease; }
-        body.modal-active { overflow: hidden; }
+        body.modal-active { overflow: hidden !important; }
         .hide-scroll::-webkit-scrollbar { display: none; }
         .image-row:hover .delete-img { opacity: 1; }
 
@@ -288,9 +288,9 @@
     </div>
 
     <!-- Category Modal -->
-    <div id="categoryModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-[110]">
+    <div id="categoryModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-[110] overflow-hidden">
         <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50" onclick="closeCategoryModal()"></div>
-        <div class="modal-container bg-white dark:bg-darkCard w-11/12 md:max-w-sm mx-auto rounded-2xl shadow-2xl z-50 overflow-hidden">
+        <div class="modal-container bg-white dark:bg-darkCard w-11/12 md:max-w-sm mx-auto rounded-2xl shadow-2xl z-50 overflow-hidden max-h-[85vh] flex flex-col">
             <div class="p-6 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800">
                 <h2 class="text-xl font-bold text-brandBlue dark:text-brandGold italic" data-i18n="categories">Categories</h2>
                 <button onclick="closeCategoryModal()" class="text-gray-400 hover:text-red-500 transition-colors">✕</button>
@@ -482,9 +482,11 @@
                 touchStartThreshold: 3,
                 onStart: function() {
                     list.classList.add('is-dragging');
+                    document.body.style.overflow = 'hidden';
                 },
                 onEnd: async function() {
                     list.classList.remove('is-dragging');
+                    document.body.style.overflow = '';
                     const items = Array.from(list.querySelectorAll('[data-id]'));
                     const newOrderData = items.map((item, index) => ({
                         id: item.dataset.id,
@@ -897,8 +899,20 @@
         }
 
         window.logout = () => signOut(auth);
-        window.openCategoryModal = () => document.getElementById('categoryModal').classList.remove('opacity-0', 'pointer-events-none');
-        window.closeCategoryModal = () => document.getElementById('categoryModal').classList.add('opacity-0', 'pointer-events-none');
+        window.openCategoryModal = () => {
+            document.getElementById('categoryModal').classList.remove('opacity-0', 'pointer-events-none');
+            document.body.classList.add('modal-active');
+            document.body.style.overflow = 'hidden';
+            document.body.style.position = 'fixed';
+            document.body.style.width = '100%';
+        };
+        window.closeCategoryModal = () => {
+            document.getElementById('categoryModal').classList.add('opacity-0', 'pointer-events-none');
+            document.body.classList.remove('modal-active');
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+        };
 
 
     </script>
