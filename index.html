@@ -738,9 +738,14 @@
                     }
                 });
 
-                // Load Categories
+                // Load Categories (Fetch all then sort in JS for safety)
                 const catSnapshot = await getDocs(collection(db, "categories"));
-                const fetchedCats = catSnapshot.docs.map(doc => doc.data().name);
+                const fetchedCatsData = catSnapshot.docs.map((doc, idx) => {
+                    const data = doc.data();
+                    return { name: data.name, order: data.order !== undefined ? data.order : idx };
+                }).sort((a, b) => a.order - b.order);
+                
+                const fetchedCats = fetchedCatsData.map(c => c.name);
                 categories = ['All', ...fetchedCats];
                 if (currentUser) categories.splice(1, 0, 'My Favorites');
                 
