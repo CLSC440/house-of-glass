@@ -725,8 +725,10 @@
                         whatsappNumber = docSnap.data().whatsapp || '201026600350';
                         const fb = docSnap.data().facebook || '#';
                         const maps = docSnap.data().maps || '#';
+                        const waChannel = docSnap.data().whatsappChannel || '#';
+
                         document.getElementById('floatingWhatsapp').href = `https://wa.me/${whatsappNumber}`;
-                        document.getElementById('footerWhatsapp').href = `https://wa.me/${whatsappNumber}`;
+                        document.getElementById('footerWhatsapp').href = waChannel;
                         
                         // Handle Multiple Phone Numbers
                         sitePhones = (docSnap.data().phone || '+201026600350').split(',').map(p => p.trim()).filter(p => p);

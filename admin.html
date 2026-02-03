@@ -308,6 +308,10 @@
                         <input type="text" id="fbLinkInput" placeholder="https://facebook.com/..." class="w-full border dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded p-2 text-sm outline-none focus:ring-brandGold">
                     </div>
                     <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">WhatsApp Channel Link</label>
+                        <input type="text" id="waChannelInput" placeholder="https://whatsapp.com/channel/..." class="w-full border dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded p-2 text-sm outline-none focus:ring-brandGold">
+                    </div>
+                    <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300" data-i18n="maps_link">Google Maps Link</label>
                         <input type="text" id="mapLinkInput" placeholder="https://goo.gl/maps/..." class="w-full border dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded p-1.5 text-xs outline-none focus:ring-brandGold">
                     </div>
@@ -760,6 +764,7 @@
             document.getElementById('waPhoneInput').value = siteSettings.whatsapp || '';
             document.getElementById('callPhoneInput').value = siteSettings.phone || '';
             document.getElementById('fbLinkInput').value = siteSettings.facebook || '';
+            document.getElementById('waChannelInput').value = siteSettings.whatsappChannel || '';
             document.getElementById('mapLinkInput').value = siteSettings.maps || '';
             document.getElementById('settingsModal').classList.remove('opacity-0', 'pointer-events-none');
         };
@@ -770,6 +775,7 @@
                 whatsapp: document.getElementById('waPhoneInput').value,
                 phone: document.getElementById('callPhoneInput').value,
                 facebook: document.getElementById('fbLinkInput').value,
+                whatsappChannel: document.getElementById('waChannelInput').value,
                 maps: document.getElementById('mapLinkInput').value
             };
             await setDoc(doc(db, "settings", "contact"), data);
