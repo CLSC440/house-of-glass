@@ -212,7 +212,7 @@
             <!-- Right: Controls -->
             <div class="flex-1 md:flex-none flex items-center justify-end space-x-2 md:space-x-4">
                 <!-- User Profile Card (Top Bar) -->
-                <div id="headerUserProfile" class="hidden md:flex items-center space-x-3 px-4 py-2 bg-gray-50 dark:bg-gray-800 rounded-full border border-gray-100 dark:border-gray-700">
+                <div id="headerUserProfile" class="hidden items-center space-x-3 px-4 py-2 bg-gray-50 dark:bg-gray-800 rounded-full border border-gray-100 dark:border-gray-700">
                     <!-- Will be populated by JS -->
                 </div>
                 
@@ -736,24 +736,29 @@
                                 </svg>
                             </button>
                         `;
-                        headerProfile.style.display = 'flex';
+                        headerProfile.classList.remove('hidden');
+                        headerProfile.classList.add('md:flex');
                     }
                 }
             } else {
                 userFavorites = [];
                 headerNav.innerHTML = `${homeLink} <a href="login.html" class="text-brandGold hover:text-brandBlue dark:hover:text-white px-1 py-1 text-sm font-bold transition-colors" data-i18n="login_signup">Login / Sign Up</a>`;
                 
-                // Show footer for non-logged in users
-                sidebarFooter.style.display = 'block';
-                sidebarFooter.innerHTML = `
-                    <a href="login.html" class="block text-center bg-brandBlue text-white py-3 rounded-xl font-black border border-brandGold hover:bg-opacity-90 transition-all shadow-xl shadow-brandBlue/20 uppercase tracking-widest text-[10px]" data-i18n="login_signup">Login / Sign Up</a>
-                `;
+                // Hide header profile card
+                const headerProfile = document.getElementById('headerUserProfile');
+                if (headerProfile) {
+                    headerProfile.classList.add('hidden');
+                    headerProfile.classList.remove('md:flex');
+                }
                 
-                // Restore Categories header for non-logged in users
+                // Hide footer for non-logged in users
+                sidebarFooter.style.display = 'none';
+                
+                // Replace header with Login/Signup button for non-logged in users
                 const sidebarHeader = document.getElementById('sidebarHeader');
                 sidebarHeader.innerHTML = `
-                    <h2 class="text-xl font-bold text-brandBlue dark:text-brandGold italic" data-i18n="categories">Categories</h2>
-                    <button onclick="toggleSidebar()" class="text-gray-400 hover:text-brandBlue dark:hover:text-white text-xl font-bold">✕</button>
+                    <a href="login.html" class="flex-1 text-center bg-brandBlue text-white py-3 rounded-xl font-black border border-brandGold hover:bg-opacity-90 transition-all shadow-xl shadow-brandBlue/20 uppercase tracking-widest text-[10px]" data-i18n="login_signup">Login / Sign Up</a>
+                    <button onclick="toggleSidebar()" class="text-gray-400 hover:text-brandBlue dark:hover:text-white text-xl font-bold ml-3">✕</button>
                 `;
             }
             // Add "My Favorites" to categories if not present
