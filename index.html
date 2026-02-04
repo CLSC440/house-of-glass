@@ -152,6 +152,23 @@
             transform: translateX(6.5rem);
         }
 
+        /* Mobile: keep toggle compact, hide labels */
+        @media (max-width: 768px) {
+            #darkToggle,
+            #darkToggle.expanded,
+            #darkToggle:hover {
+                width: 2.5rem !important;
+            }
+            #darkTextDay,
+            #darkTextNight {
+                display: none !important;
+            }
+            .dark #darkToggle.expanded .knob,
+            .dark #darkToggle:hover .knob {
+                transform: translateX(0);
+            }
+        }
+
         /* Ultra-Realistic Warm Glass & Sunlight Effect */
         @keyframes rim-glow {
             0%, 100% { 
@@ -715,7 +732,7 @@
                     const headerProfile = document.getElementById('headerUserProfile');
                     if (headerProfile) {
                         headerProfile.innerHTML = `
-                            <div class="flex items-center space-x-2">
+                            <div class="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity" onclick="window.openUserSettingsModal()">
                                 <div class="w-6 h-6 rounded-full bg-brandGold flex items-center justify-center text-white text-[10px] font-bold shadow-lg shadow-brandGold/20 overflow-hidden">
                                     ${userDoc.data().photoURL ? `<img src="${userDoc.data().photoURL}" class="w-full h-full object-cover">` : user.email[0].toUpperCase()}
                                 </div>
@@ -1185,16 +1202,19 @@
                 }, 600000); 
             }
 
-            // Expand the toggle briefly (like the toolbar) so the label appears for 3s
+            // Expand the toggle briefly on desktop so the label appears for 3s
             const toggleEl = document.getElementById('darkToggle');
             if (!toggleEl) return;
-            // clear previous timer
-            if (window._darkToggleTimer) clearTimeout(window._darkToggleTimer);
-            toggleEl.classList.add('expanded');
-            // auto-collapse after 3s
-            window._darkToggleTimer = setTimeout(() => {
+            const isDesktop = window.matchMedia('(min-width: 769px)').matches;
+            if (isDesktop) {
+                if (window._darkToggleTimer) clearTimeout(window._darkToggleTimer);
+                toggleEl.classList.add('expanded');
+                window._darkToggleTimer = setTimeout(() => {
+                    toggleEl.classList.remove('expanded');
+                }, 3000);
+            } else {
                 toggleEl.classList.remove('expanded');
-            }, 3000);
+            }
         }
 
         // Ensure toggle is compact on initial load (remove expanded state)
