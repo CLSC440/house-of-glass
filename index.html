@@ -179,6 +179,16 @@
             .dark #darkToggle:hover .knob {
                 transform: translateX(0);
             }
+
+            #headerUserProfile {
+                min-width: auto !important;
+                max-width: 220px;
+                padding: 0.45rem 0.9rem;
+                gap: 0.5rem;
+            }
+            #headerUserProfile .profile-text {
+                max-width: 120px;
+            }
         }
 
         /* Ultra-Realistic Warm Glass & Sunlight Effect */
@@ -241,7 +251,7 @@
             <!-- Right: Controls -->
             <div class="flex-1 md:flex-none flex items-center justify-end space-x-3 md:space-x-6">
                 <!-- User Profile Card (Top Bar) -->
-                <div id="headerUserProfile" class="hidden items-center justify-between space-x-4 px-5 py-2.5 bg-gray-50 dark:bg-gray-800 rounded-full border border-gray-100 dark:border-gray-700 shadow-[0_12px_30px_rgba(10,54,84,0.15)] min-w-[220px]">
+                <div id="headerUserProfile" class="hidden items-center justify-between space-x-3 md:space-x-4 px-4 py-2 md:px-5 md:py-2.5 bg-gray-50 dark:bg-gray-800 rounded-full border border-gray-100 dark:border-gray-700 shadow-[0_12px_30px_rgba(10,54,84,0.15)] min-w-[190px] md:min-w-[220px] w-auto">
                     <!-- Will be populated by JS -->
                 </div>
                 
@@ -748,7 +758,7 @@
                                 <div class="w-6 h-6 rounded-full bg-brandGold flex items-center justify-center text-white text-[10px] font-bold shadow-lg shadow-brandGold/20 overflow-hidden">
                                     ${userDoc.data().photoURL ? `<img src="${userDoc.data().photoURL}" class="w-full h-full object-cover">` : user.email[0].toUpperCase()}
                                 </div>
-                                <div class="overflow-hidden">
+                                <div class="overflow-hidden profile-text">
                                     <p class="text-[9px] font-bold dark:text-white truncate">${userDoc.data().name || user.email.split('@')[0]}</p>
                                     <p class="text-[7px] text-brandGold uppercase font-black">${role}</p>
                                 </div>
@@ -785,7 +795,7 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.75 9a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM6.75 18A5.25 5.25 0 0112 15.75 5.25 5.25 0 0117.25 18" />
                                     </svg>
                                 </div>
-                                <div class="text-left">
+                                <div class="text-left profile-text">
                                     <p class="text-[9px] font-bold text-brandBlue dark:text-white tracking-tight uppercase">Guest</p>
                                     <p class="text-[7px] text-brandGold uppercase font-black tracking-[0.4em]" data-i18n="login_signup">Login / Sign Up</p>
                                 </div>
