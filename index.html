@@ -581,8 +581,15 @@
 
             <!-- Image Section -->
             <div class="w-full md:w-1/2 bg-gray-100 dark:bg-gray-800 flex flex-col overflow-hidden relative group">
-                <div id="swipeArea" class="flex-grow flex items-center justify-center p-8 md:p-24 touch-pan-y h-[32vh] md:h-auto">
+                <div id="swipeArea" class="flex-grow flex items-center justify-center p-8 md:p-24 touch-pan-y h-[32vh] md:h-auto relative">
                     <img id="mainDetailImg" src="" class="max-w-full max-h-full object-contain rounded-xl select-none transition-transform duration-300">
+                    <!-- Out of Stock Overlay -->
+                    <div id="outOfStockOverlay" class="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300 z-10">
+                        <div class="bg-red-600 text-white px-6 py-2 rounded-full font-black uppercase tracking-widest shadow-2xl flex flex-col items-center border-2 border-white/20">
+                            <span class="text-[10px] md:text-xs leading-none mb-1">Out of stock</span>
+                            <span class="text-[9px] md:text-[10px] leading-none opacity-90">ليست متوفرة الان!</span>
+                        </div>
+                    </div>
                 </div>
                 <div id="thumbnailBar" class="h-20 md:h-28 bg-white/40 dark:bg-darkCard/40 backdrop-blur-md border-t dark:border-gray-700/50 flex space-x-2 md:space-x-4 p-2 md:p-4 overflow-x-auto hide-scroll items-center justify-start">
                     <!-- Thumbnails will go here -->
@@ -1866,13 +1873,13 @@
 
                 currentProduct.variants.forEach((v, idx) => {
                     const chip = document.createElement('button');
-                    chip.className = `px-4 py-2 rounded-lg text-xs font-bold border transition-all flex items-center gap-2 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-brandGold`;
+                    chip.className = `px-4 py-2 rounded-lg text-xs font-bold border transition-all flex items-center gap-2 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-brandGold ${!v.inStock ? 'opacity-60' : ''}`;
                     
                     const dot = `<span class="w-2 h-2 rounded-full ${v.inStock ? 'bg-green-500' : 'bg-red-500'}"></span>`;
-                    chip.innerHTML = `${dot} ${v.name}`;
+                    const nameSpan = `<span class="${v.inStock ? '' : 'line-through decoration-red-500/50'}">${v.name}</span>`;
+                    chip.innerHTML = `${dot} ${nameSpan}`;
                     
                     if(!v.inStock) {
-                        chip.classList.add('opacity-60');
                         chip.title = "Currently Unavailable";
                     }
 
@@ -1987,6 +1994,9 @@
             
             const vContainer = document.getElementById('detailVariants');
             const chipsContainer = vContainer.querySelector('div.flex.flex-wrap');
+            const overlay = document.getElementById('outOfStockOverlay');
+            const mainImg = document.getElementById('mainDetailImg');
+            
             if (!chipsContainer) return;
 
             const allChips = chipsContainer.querySelectorAll('button');
@@ -1994,6 +2004,9 @@
 
             // Reset all
             allChips.forEach(c => c.classList.remove('ring-2', 'ring-brandGold', 'bg-brandGold/10'));
+            overlay.classList.add('opacity-0');
+            overlay.classList.remove('opacity-100');
+            mainImg.style.filter = 'none';
             
             // Default enquiry
             let message = `مرحباً ال عاشور عدس، أود الاستفسار عن منتج: ${currentProduct.name}\n\nالوصف:\n${currentProduct.desc}`;
@@ -2007,6 +2020,13 @@
                     if (chip) {
                         chip.classList.add('ring-2', 'ring-brandGold', 'bg-brandGold/10');
                         message = `مرحباً ال عاشور عدس، أود الاستفسار عن منتج: ${currentProduct.name} (Option: ${v.name})\n\nالوصف:\n${currentProduct.desc}`;
+                        
+                        // Handle Out of Stock Visuals
+                        if (!v.inStock) {
+                            overlay.classList.remove('opacity-0');
+                            overlay.classList.add('opacity-100');
+                            mainImg.style.filter = 'grayscale(100%) brightness(0.7)';
+                        }
                     }
                 }
             });
