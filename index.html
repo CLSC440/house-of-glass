@@ -584,10 +584,10 @@
                 <div id="swipeArea" class="flex-grow flex items-center justify-center p-8 md:p-24 touch-pan-y h-[32vh] md:h-auto relative">
                     <img id="mainDetailImg" src="" class="max-w-full max-h-full object-contain rounded-xl select-none transition-transform duration-300">
                     <!-- Out of Stock Overlay -->
-                    <div id="outOfStockOverlay" class="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300 z-10">
-                        <div class="bg-red-600 text-white px-6 py-2 rounded-full font-black uppercase tracking-widest shadow-2xl flex flex-col items-center border-2 border-white/20">
-                            <span class="text-[10px] md:text-xs leading-none mb-1">Out of stock</span>
-                            <span class="text-[9px] md:text-[10px] leading-none opacity-90">ليست متوفرة الان!</span>
+                    <div id="outOfStockOverlay" class="absolute inset-0 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300 z-10">
+                        <div class="bg-black/40 text-white px-5 py-3 rounded-2xl font-black uppercase tracking-widest shadow-2xl flex flex-col items-center border-2 border-brandGold/60">
+                            <span class="text-lg md:text-2xl leading-none mb-1">Out of stock</span>
+                            <span class="text-[10px] md:text-xs leading-none text-brandGold font-bold font-arabic capitalize">غير متاح حاليا!</span>
                         </div>
                     </div>
                 </div>
@@ -1747,10 +1747,10 @@
                     <div class="absolute bottom-3 right-3 bg-black/60 text-white text-[8px] md:text-[10px] px-3 py-1 rounded-full backdrop-blur-md font-bold">${p.images.length} Photos</div>
                     
                     ${p.inStock === false ? `
-                    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm z-[25] flex flex-col items-center justify-center text-center p-4 transition-all duration-500 group-hover:bg-black/70">
-                        <div class="border-2 border-brandGold/50 px-4 py-2 rounded-xl">
-                            <span class="block text-white text-xs md:text-sm font-black uppercase tracking-widest mb-1">Out of stock</span>
-                            <span class="block text-brandGold text-[10px] md:text-[8px] font-bold font-arabic capitalize">غير متاح حاليا!</span>
+                    <div class="absolute inset-0 z-[25] flex flex-col items-center justify-center text-center p-4 transition-all duration-500">
+                        <div class="border-2 border-brandGold/60 bg-black/40 px-4 py-2 rounded-2xl shadow-2xl">
+                            <span class="block text-white text-xs md:text-base font-black uppercase tracking-widest mb-0.5 md:mb-1">Out of stock</span>
+                            <span class="block text-brandGold text-[8px] md:text-[10px] font-bold font-arabic capitalize">غير متاح حاليا!</span>
                         </div>
                     </div>
                     ` : ''}
@@ -1762,10 +1762,6 @@
                     <p class="text-brandGold/80 dark:text-brandGold/60 text-[10px] md:text-xs font-bold italic tracking-wide">View masterpiece <span class="group-hover:translate-x-1 inline-block transition-transform">→</span></p>
                 </div>
             `;
-
-            if (p.inStock === false) {
-                card.querySelector('.product-card-img').style.filter = 'grayscale(100%)';
-            }
 
             // Quick Edit button for Staff
             if (userRole === 'admin' || userRole === 'moderator') {
@@ -2030,7 +2026,6 @@
             if (isGloballyOOS) {
                 overlay.classList.remove('opacity-0');
                 overlay.classList.add('opacity-100');
-                mainImg.style.filter = 'grayscale(100%) brightness(0.7)';
             }
 
             if (!currentProduct.variants || currentProduct.variants.length === 0) {
@@ -2068,7 +2063,6 @@
                         if (!isGloballyOOS && !v.inStock) {
                             overlay.classList.remove('opacity-0');
                             overlay.classList.add('opacity-100');
-                            mainImg.style.filter = 'grayscale(100%) brightness(0.7)';
                         }
                     }
                 }
