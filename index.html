@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>House Of Glass | Gallery</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=2">
+    <link rel="apple-touch-icon" href="logo.png">
+    <meta name="theme-color" content="#121926">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
     <script>
@@ -12,10 +15,10 @@
             theme: {
                 extend: {
                     colors: {
-                        brandBlue: '#0A3654',
-                        brandGold: '#C19B4E',
-                        darkBg: '#0F172A',
-                        darkCard: '#1E293B'
+                        brandBlue: '#121926',
+                        brandGold: '#D4AF37',
+                        darkBg: '#030712',
+                        darkCard: '#111827'
                     },
                     fontFamily: {
                         arabic: ['Almarai', 'Cairo', 'sans-serif'],
@@ -76,13 +79,13 @@
             background: rgba(193, 155, 78, 0.05);
         }
         ::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, #C19B4E, #a67c3a);
+            background: linear-gradient(180deg, #D4AF37, #B08D2C);
             border-radius: 10px;
             border: 2px solid transparent;
             background-clip: padding-box;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(180deg, #d4ad5a, #C19B4E);
+            background: linear-gradient(180deg, #E5C354, #D4AF37);
         }
         .dark ::-webkit-scrollbar-track {
             background: rgba(193, 155, 78, 0.08);
@@ -153,9 +156,16 @@
             top: 0.375rem;
             transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
+
+        #headerUserProfile[data-mode="guest"] {
+            min-width: 0;
+        }
+        #headerUserProfile[data-mode="guest"] .profile-text {
+            white-space: nowrap;
+        }
         .dark #darkToggle.expanded .knob,
         .dark #darkToggle:hover .knob {
-            transform: translateX(6.5rem);
+            transform: translateX(6rem);
         }
 
         /* Mobile: keep toggle compact, hide labels */
@@ -191,6 +201,13 @@
             #headerUserProfile .profile-text {
                 max-width: 120px;
             }
+            #headerUserProfile[data-mode="guest"] {
+                max-width: 155px;
+                padding: 0.35rem 0.65rem;
+            }
+            #headerUserProfile[data-mode="guest"] .profile-text {
+                max-width: 80px;
+            }
         }
 
         /* Ultra-Realistic Warm Glass & Sunlight Effect */
@@ -198,7 +215,7 @@
             0%, 100% { 
                 filter: 
                     drop-shadow(0 0 1px rgba(255, 236, 180, 0.8)) 
-                    drop-shadow(0 0 8px rgba(193, 155, 78, 0.3))
+                    drop-shadow(0 0 8px rgba(212, 175, 55, 0.3))
                     brightness(1.15) contrast(1.1); 
             }
             50% { 
@@ -224,12 +241,115 @@
             transition: all 0.5s ease;
             image-rendering: -webkit-optimize-contrast;
         }
+
+        /* Cinematic Scrolling Product Title */
+        .title-container {
+            overflow: hidden;
+            width: 100%;
+            white-space: nowrap;
+            mask-image: linear-gradient(to right, black 85%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+        }
+        
+        .title-slide {
+            display: block;
+            width: max-content;
+        }
+
+        .group:hover .title-slide {
+            animation: marqueeTitle 8s linear infinite;
+            padding-left: 30px;
+        }
+
+        @keyframes marqueeTitle {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-100%); }
+        }
+        
+        .group:hover .title-container {
+            mask-image: none;
+            -webkit-mask-image: none;
+        }
+
+        /* Horizontal Category Scrolling */
+        .category-row-wrapper {
+            position: relative;
+            margin-bottom: 4rem;
+        }
+        .category-row-container {
+            display: flex;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            gap: 1.5rem;
+            padding: 1rem 1px;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+        }
+        .category-row-container::-webkit-scrollbar {
+            display: none;
+        }
+        .category-card {
+            flex: 0 0 240px;
+        }
+        @media (min-width: 768px) {
+            .category-card {
+                flex: 0 0 320px;
+            }
+        }
+
+        /* Quick Edit Styles */
+        .image-row:hover .delete-img { opacity: 1; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #D4AF37; border-radius: 10px; }
+        .scroll-arrow {
+            position: absolute;
+            top: 55%;
+            transform: translateY(-50%);
+            z-index: 30;
+            width: 3rem;
+            height: 3rem;
+            background: white;
+            color: #121926;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            opacity: 0;
+            pointer-events: none;
+        }
+        .dark .scroll-arrow {
+            background: #111827;
+            color: white;
+        }
+        .category-row-wrapper:hover .scroll-arrow {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .scroll-arrow:hover {
+            background: #D4AF37;
+            color: white;
+            scale: 1.1;
+            box-shadow: 0 15px 30px rgba(212, 175, 55, 0.3);
+        }
+        .scroll-arrow-left { left: -1.5rem; }
+        .scroll-arrow-right { right: -1.5rem; }
+        
+        @media (max-width: 1024px) {
+            .scroll-arrow { display: none; }
+        }
     </style>
 </head>
-<body class="bg-gray-50 dark:bg-darkBg font-sans transition-colors duration-300">
+<body class="bg-white dark:bg-darkBg font-sans transition-colors duration-300">
 
     <!-- Header -->
-    <header class="bg-white/80 dark:bg-[#20293D]/90 backdrop-blur-md sticky top-0 z-50 border-b border-brandGold/20 transition-all duration-500">
+    <header class="bg-white/80 dark:bg-brandBlue/80 backdrop-blur-xl sticky top-0 z-50 border-b border-brandGold/20 transition-all duration-500">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 md:h-24 flex items-center justify-between">
             <!-- Left: Toggle Sidebar (Mobile flex-1 to push logo to center) -->
             <div class="flex-1 md:flex-none">
@@ -246,14 +366,17 @@
                     <div class="shine-effect">
                         <img src="logo.png" alt="Logo" class="h-24 md:h-32 w-auto transition-all group-hover:scale-105 relative z-10">
                     </div>
-                    <span class="ml-3 text-xl md:text-2xl font-bold text-brandBlue dark:text-brandGold hidden lg:block tracking-[-0.03em] font-sans">House Of Glass</span>
+                    <div class="ml-3 hidden lg:flex flex-col justify-center leading-none">
+                        <span class="text-xl md:text-2xl font-bold text-brandBlue dark:text-brandGold tracking-[-0.03em] font-sans">House Of Glass</span>
+                        <span class="text-[9px] md:text-[11px] font-black tracking-[0.25em] text-brandGold dark:text-slate-200 uppercase mt-1.5 opacity-90">Al Ashour Ades</span>
+                    </div>
                 </a>
             </div>
             
             <!-- Right: Controls -->
             <div class="flex-1 md:flex-none flex items-center justify-end space-x-3 md:space-x-6">
                 <!-- User Profile Card (Top Bar) -->
-                <div id="headerUserProfile" class="hidden items-center justify-between space-x-3 md:space-x-4 px-4 py-2 md:px-5 md:py-2.5 bg-gray-50 dark:bg-gray-800 rounded-full border border-gray-100 dark:border-gray-700 shadow-[0_12px_30px_rgba(10,54,84,0.15)] min-w-[190px] md:min-w-[220px] w-auto">
+                <div id="headerUserProfile" class="hidden items-center justify-between space-x-3 md:space-x-4 px-4 py-2 md:px-5 md:py-2.5 bg-gray-50 dark:bg-gray-800 rounded-full border border-gray-100 dark:border-gray-700 shadow-[0_12px_30px_rgba(32,41,61,0.15)] min-w-[190px] md:min-w-[220px] w-auto">
                     <!-- Will be populated by JS -->
                 </div>
                 
@@ -300,47 +423,73 @@
         <div class="p-4 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
             <a href="login.html" class="block text-center bg-brandBlue text-white py-3 rounded-xl font-bold border border-brandGold hover:bg-opacity-90" data-i18n="admin_dashboard">Admin Dashboard</a>
         </div>
+        <div class="px-6 py-5 border-t border-gray-100 dark:border-gray-800 md:hidden">
+            <div class="h-px w-full bg-gradient-to-r from-transparent via-brandGold to-transparent opacity-70 mb-4"></div>
+            <div class="flex items-center justify-between text-gray-400 dark:text-gray-500">
+                <button id="sidebarPhone" type="button" onclick="openContactPicker()" class="p-2 hover:text-brandGold transition-colors" title="Contact">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21L8.965 10.5a11.042 11.042 0 005.516 5.516l1.113-2.33a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                </button>
+                <a id="sidebarWhatsapp" href="#" class="p-2 hover:text-brandGold transition-colors" title="WhatsApp" target="_blank" rel="noopener">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M20.52 3.48A11.82 11.82 0 0012.04 0C5.49 0 .15 5.33.15 11.89c0 2.1.55 4.14 1.59 5.95L0 24l6.32-1.65a11.9 11.9 0 005.72 1.45h.01c6.55 0 11.89-5.34 11.89-11.89a11.82 11.82 0 00-3.39-8.43z" />
+                        <path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.64.07-.3-.15-1.25-.46-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.13.3-.35.44-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.61-.92-2.21-.24-.58-.49-.5-.67-.5h-.58c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48 0 1.46 1.06 2.88 1.21 3.08.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.7.63.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.69.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35z" />
+                    </svg>
+                </a>
+                <a id="sidebarFacebook" href="#" class="p-2 hover:text-brandGold transition-colors" title="Facebook" target="_blank" rel="noopener">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M24 12.073c0-6.627-5.373-12-12-12S0 5.446 0 12.073c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                    </svg>
+                </a>
+                <a id="sidebarMaps" href="#" class="p-2 hover:text-brandGold transition-colors" title="Location" target="_blank" rel="noopener">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
+                    </svg>
+                </a>
+            </div>
+        </div>
     </div>
 
     <!-- Hero -->
-    <section class="bg-gray-50 dark:bg-brandBlue py-16 md:py-32 text-center relative overflow-hidden transition-all duration-1000">
+    <section class="bg-white dark:bg-brandBlue py-16 md:py-32 text-center relative overflow-hidden transition-all duration-1000">
         <!-- Subtle backround effect -->
-        <div class="absolute inset-0 opacity-40 dark:opacity-20 pointer-events-none">
-            <div class="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,_rgba(193,155,78,0.2),transparent_70%)] dark:bg-[radial-gradient(circle_at_50%_50%,_rgba(193,155,78,0.15),transparent_70%)]"></div>
+        <div class="absolute inset-0 opacity-10 dark:opacity-20 pointer-events-none">
+            <div class="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,_rgba(0,0,0,0.1),transparent_70%)] dark:bg-[radial-gradient(circle_at_50%_50%,_rgba(193,155,78,0.15),transparent_70%)]"></div>
         </div>
         
         <div class="relative z-10 px-4 reveal active">
             <h2 class="text-3xl md:text-7xl font-black mb-4 text-brandGold tracking-tighter uppercase drop-shadow-sm dark:drop-shadow-[0_0_20px_rgba(193,155,78,0.4)]">House Of Glass</h2>
             
             <div class="flex flex-col items-center justify-center mb-12 md:mb-16">
-                <p class="text-[8px] md:text-xs tracking-[0.4em] md:tracking-[0.6em] uppercase text-brandBlue/40 dark:text-white/40 font-bold mb-6 md:mb-10 transition-all hover:opacity-60 cursor-default" data-i18n="showroom">Showroom for Home Glassware</p>
+                <p class="text-[8px] md:text-xs tracking-[0.4em] md:tracking-[0.6em] uppercase text-slate-400 dark:text-white/40 font-bold mb-6 md:mb-10 transition-all hover:opacity-60 cursor-default" data-i18n="showroom">Showroom for Home Glassware</p>
                 
                 <div class="flex items-center justify-center w-full max-w-3xl mx-auto group">
-                    <div class="flex-grow h-[1px] bg-gradient-to-l from-brandGold via-brandGold/40 to-transparent transition-all duration-1000 group-hover:from-brandBlue dark:group-hover:from-white"></div>
-                    <p class="text-3xl md:text-7xl font-black text-brandBlue dark:text-white font-arabic px-6 md:px-16 whitespace-nowrap leading-none transition-all duration-700 hover:scale-105" dir="rtl" style="text-shadow: 0 10px 30px rgba(10,54,84,0.1); dark:text-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+                    <div class="flex-grow h-[1px] bg-gradient-to-l from-brandGold via-brandGold/40 to-transparent transition-all duration-1000 dark:group-hover:from-white"></div>
+                    <p class="text-3xl md:text-7xl font-black text-[#163159] dark:text-slate-100 font-arabic px-6 md:px-16 whitespace-nowrap leading-none transition-all duration-700 hover:scale-105" dir="rtl" style="text-shadow: 0 10px 30px rgba(22,49,89,0.1);">
                         ال عاشور عدس
                     </p>
-                    <div class="flex-grow h-[1px] bg-gradient-to-r from-brandGold via-brandGold/40 to-transparent transition-all duration-1000 group-hover:from-brandBlue dark:group-hover:from-white"></div>
+                    <div class="flex-grow h-[1px] bg-gradient-to-r from-brandGold via-brandGold/40 to-transparent transition-all duration-1000 dark:group-hover:from-white"></div>
                 </div>
             </div>
             
-            <p class="text-sm md:text-2xl text-brandBlue/60 dark:text-white/60 max-w-2xl mx-auto font-light tracking-widest italic font-serif mt-4 md:mt-8" data-i18n="excellence">"Excellence in every reflection."</p>
+            <p class="text-sm md:text-2xl text-slate-500 dark:text-white/60 max-w-2xl mx-auto font-light tracking-widest italic font-serif mt-4 md:mt-8" data-i18n="excellence">"Excellence in every reflection."</p>
         </div>
     </section>
 
     <!-- Search Section -->
     <div class="max-w-7xl mx-auto px-4 -mt-8 md:-mt-10 relative z-20">
-        <div class="bg-white dark:bg-darkCard rounded-2xl shadow-xl p-4 md:p-6 flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-6 border border-brandGold/20">
+        <div class="bg-white dark:bg-darkCard/90 backdrop-blur-2xl rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.06)] p-4 md:p-6 flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-6 border border-brandGold/20">
             <div class="flex-grow relative">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 md:h-6 md:w-6 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
-                <input type="text" id="searchInput" placeholder="Search by name or category..." data-i18n-placeholder="search_placeholder" class="w-full pl-11 md:pl-12 pr-4 py-3 md:py-4 rounded-xl bg-gray-50 dark:bg-gray-800 dark:text-white border-none focus:ring-2 focus:ring-brandGold outline-none transition-all text-sm md:text-base">
+                <input type="text" id="searchInput" placeholder="Search by name or category..." data-i18n-placeholder="search_placeholder" class="w-full pl-11 md:pl-12 pr-4 py-3 md:py-4 rounded-xl bg-gray-100/50 dark:bg-gray-800/50 dark:text-slate-200 border-none focus:ring-2 focus:ring-brandGold outline-none transition-all text-sm md:text-base">
             </div>
             
             <!-- Category Dropdown -->
             <div class="relative group/cat">
-                <button onclick="toggleCatDropdown()" class="w-full h-full min-w-[160px] flex items-center justify-between px-5 md:px-6 bg-brandGold/10 text-brandGold rounded-xl font-bold py-3 md:py-4 hover:bg-brandGold/20 transition-all text-sm md:text-base">
+                <button onclick="toggleCatDropdown()" class="w-full h-full min-w-[160px] flex items-center justify-between px-5 md:px-6 bg-brandGold/5 text-brandGold rounded-xl font-bold py-3 md:py-4 hover:bg-brandGold/10 transition-all text-sm md:text-base border border-brandGold/10">
                     <span id="activeFilterDisplay" data-i18n="category_all">Category: All</span>
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-2 transition-transform group-hover/cat:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -355,7 +504,18 @@
 
     <!-- Gallery Grid -->
     <main class="max-w-7xl mx-auto px-4 md:px-6 py-16 md:py-24 min-h-[60vh]">
-        <div id="product-grid" class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-10"></div>
+        <div id="product-grid" class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-10">
+            <!-- Loading Skeleton -->
+            <div class="loading-skeleton col-span-full flex flex-col items-center justify-center py-20">
+                <img src="logo.png" class="h-20 md:h-24 w-auto mb-6 animate-pulse opacity-60" alt="Loading...">
+                <div class="flex gap-2">
+                    <div class="w-2 h-2 bg-brandGold rounded-full animate-bounce" style="animation-delay: 0s"></div>
+                    <div class="w-2 h-2 bg-brandGold rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                    <div class="w-2 h-2 bg-brandGold rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                </div>
+                <p class="mt-4 text-xs text-gray-400 dark:text-gray-500 uppercase tracking-widest" data-i18n="loading">Loading Products...</p>
+            </div>
+        </div>
     </main>
 
     <!-- Floating Contact (WhatsApp) -->
@@ -364,7 +524,7 @@
         <span class="max-w-0 overflow-hidden group-hover:max-w-xs group-hover:ml-2 transition-all duration-300 font-bold whitespace-nowrap text-sm">Contact Us</span>
     </a>
 
-    <footer class="bg-white dark:bg-darkCard border-t border-gray-100 dark:border-gray-800 pt-24 pb-12">
+    <footer class="bg-white dark:bg-darkCard border-t border-brandGold/20 pt-24 pb-12">
         <div class="max-w-7xl mx-auto px-4 text-center">
             <div class="mb-16 flex flex-col items-center">
                 <div class="shine-effect">
@@ -413,18 +573,18 @@
     <!-- PRODUCT DETAIL MODAL -->
     <div id="detailModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-[100]">
         <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-80" onclick="closeDetails()"></div>
-        <div class="modal-container bg-white dark:bg-darkCard w-[92%] md:max-w-4xl mx-auto rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col md:flex-row max-h-[90vh] md:max-h-[80vh] transition-all duration-300 transform">
+        <div class="modal-container bg-white dark:bg-darkCard w-[92%] md:max-w-4xl mx-auto rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col md:flex-row max-h-[90vh] md:max-h-[80vh] transition-all duration-300 transform relative">
+            <!-- Global close button for the card -->
+            <button onclick="closeDetails()" class="absolute top-3 right-3 md:top-5 md:right-5 z-[70] bg-white/90 dark:bg-black/50 backdrop-blur-md text-gray-800 dark:text-white w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center shadow-xl hover:bg-brandGold hover:text-white dark:hover:bg-brandGold transition-all active:scale-95 border border-black/5 dark:border-white/10">
+                <svg class="w-5 h-5 md:w-6 md:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+
             <!-- Image Section -->
             <div class="w-full md:w-1/2 bg-gray-100 dark:bg-gray-800 flex flex-col overflow-hidden relative group">
-                <!-- Close button for mobile/desktop over image -->
-                <button onclick="closeDetails()" class="absolute top-3 right-3 z-[60] bg-white/80 dark:bg-black/50 backdrop-blur-md text-gray-800 dark:text-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg hover:bg-white dark:hover:bg-black transition-all active:scale-95">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-
-                <div id="swipeArea" class="flex-grow flex items-center justify-center p-3 md:p-6 touch-pan-y h-[32vh] md:h-auto">
+                <div id="swipeArea" class="flex-grow flex items-center justify-center p-8 md:p-24 touch-pan-y h-[32vh] md:h-auto">
                     <img id="mainDetailImg" src="" class="max-w-full max-h-full object-contain rounded-xl select-none transition-transform duration-300">
                 </div>
-                <div id="thumbnailBar" class="h-16 md:h-24 bg-white/50 dark:bg-darkCard/50 backdrop-blur-sm border-t dark:border-gray-700 flex space-x-3 p-3 overflow-x-auto hide-scroll justify-center">
+                <div id="thumbnailBar" class="h-24 md:h-96 bg-white/40 dark:bg-darkCard/40 backdrop-blur-md border-t dark:border-gray-700/50 flex space-x-3 md:space-x-5 p-3 md:pt-12 md:pb-40 overflow-x-auto hide-scroll justify-center items-center">
                     <!-- Thumbnails will go here -->
                 </div>
             </div>
@@ -433,7 +593,7 @@
             <div class="w-full md:w-1/2 p-5 md:p-8 flex flex-col justify-between overflow-y-auto">
                 <div class="space-y-4 md:space-y-6">
                     <div class="flex items-center justify-between">
-                        <h2 id="detailTitle" class="text-lg md:text-2xl font-black text-brandBlue dark:text-white uppercase italic tracking-tighter"></h2>
+                        <h2 id="detailTitle" class="text-lg md:text-2xl font-black text-brandBlue dark:text-slate-100 uppercase italic tracking-tighter"></h2>
                         <!-- Desktop close button removed from here, integrated into image section -->
                     </div>
                     <div class="w-12 h-1 bg-brandGold rounded-full"></div>
@@ -478,8 +638,18 @@
 
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-xs font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-1" data-i18n="full_name">Full Name</label>
-                        <input type="text" id="settingsName" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brandGold outline-none dark:text-white">
+                        <label class="block text-xs font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-1" data-i18n="username">Username</label>
+                        <input type="text" id="settingsUsername" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brandGold outline-none dark:text-white">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-1" data-i18n="first_name">First Name</label>
+                            <input type="text" id="settingsFirstName" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brandGold outline-none dark:text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-1" data-i18n="last_name">Last Name</label>
+                            <input type="text" id="settingsLastName" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brandGold outline-none dark:text-white">
+                        </div>
                     </div>
                     <div>
                         <label class="block text-xs font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-1" data-i18n="email_address">Email Address</label>
@@ -487,13 +657,22 @@
                     </div>
                     <div>
                         <label class="block text-xs font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-1" data-i18n="phone_number">Phone Number</label>
-                        <input type="tel" id="settingsPhone" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brandGold outline-none dark:text-white" placeholder="01XXXXXXXXX">
+                        <div class="flex group">
+                            <span class="inline-flex items-center justify-center bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-700 ltr:rounded-l-xl rtl:rounded-r-xl px-3 text-sm text-gray-500 dark:text-gray-400 font-bold tracking-wider">+20</span>
+                            <input type="tel" id="settingsPhone" class="flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 ltr:rounded-r-xl rtl:rounded-l-xl p-3 text-sm focus:ring-2 focus:ring-brandGold outline-none dark:text-white" placeholder="01XXXXXXXXX">
+                        </div>
                     </div>
                     
                     <div class="pt-4 border-t dark:border-gray-700">
                         <label class="block text-xs font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-1" data-i18n="change_password">Change Password</label>
-                        <div class="relative">
-                            <input type="password" id="settingsNewPassword" placeholder="New Password" data-i18n-placeholder="new_password" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brandGold outline-none dark:text-white mb-2">
+                        <div class="relative group">
+                            <input type="password" id="settingsNewPassword" placeholder="New Password" data-i18n-placeholder="new_password" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brandGold outline-none dark:text-white mb-2 ltr:pr-10 rtl:pl-10">
+                            <button type="button" onclick="togglePassword('settingsNewPassword')" class="absolute ltr:right-3 rtl:left-3 top-[43%] -translate-y-1/2 text-gray-400 hover:text-brandGold transition-colors focus:outline-none">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                            </button>
                         </div>
                         <p class="text-[10px] text-gray-400 italic" data-i18n="leave_empty_keep">* Leave empty to keep current password</p>
                     </div>
@@ -512,6 +691,17 @@
                             </label>
                         </div>
                     </div>
+
+                    <!-- Delete Account -->
+                    <div class="pt-6 border-t dark:border-gray-700 mt-6">
+                        <button type="button" onclick="window.confirmDeleteAccount()" class="w-full px-4 py-3 bg-red-50 dark:bg-red-900/10 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 group border border-red-100 dark:border-red-900/20">
+                            <svg class="w-3.5 h-3.5 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Delete Account
+                        </button>
+                        <p class="text-[9px] text-gray-400 text-center mt-2 italic shadow-sm">This action is permanent and cannot be undone.</p>
+                    </div>
                 </div>
 
                 <div id="settingsMessage" class="hidden text-center text-xs p-2 rounded-lg"></div>
@@ -521,6 +711,74 @@
                     <button type="submit" id="saveSettingsBtn" class="flex-2 px-8 py-3 bg-brandBlue text-white rounded-xl font-black text-sm border border-brandGold/30 shadow-lg shadow-brandBlue/20 hover:scale-105 transition-all" data-i18n="save_changes">Save Changes</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Custom Confirmation Modal -->
+    <div id="confirmModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-[200] transition-all duration-300">
+        <div class="modal-overlay absolute w-full h-full bg-gray-900/60 backdrop-blur-sm" onclick="closeConfirmModal()"></div>
+        <div class="modal-container bg-white dark:bg-darkCard w-[90%] max-w-sm mx-auto rounded-3xl shadow-2xl z-50 overflow-hidden transform scale-95 transition-transform duration-300">
+            <div class="p-8 text-center">
+                <div id="confirmIconContainer" class="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg id="confirmIcon" class="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <h3 id="confirmTitle" class="text-xl font-black text-brandBlue dark:text-brandGold uppercase italic mb-2">Are you sure?</h3>
+                <p id="confirmMessage" class="text-sm text-gray-500 dark:text-gray-400 mb-8 leading-relaxed">This action cannot be undone.</p>
+                
+                <div class="flex gap-3">
+                    <button onclick="closeConfirmModal()" class="flex-1 px-4 py-3 bg-gray-50 dark:bg-gray-800 text-gray-500 font-bold text-xs rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all uppercase tracking-widest">Cancel</button>
+                    <button id="confirmActionBtn" class="flex-1 px-4 py-3 bg-red-500 text-white font-bold text-xs rounded-xl hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all uppercase tracking-widest">Yes, Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Edit Modal (Admin Only) -->
+    <div id="productModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-[150]">
+        <div class="modal-overlay absolute w-full h-full bg-gray-900/60 backdrop-blur-sm" onclick="window.closeQuickEdit()"></div>
+        <div class="modal-container bg-white dark:bg-darkCard w-11/12 md:max-w-lg mx-auto rounded-3xl shadow-2xl z-50 overflow-y-auto max-h-[90vh] border border-brandGold/20">
+            <div class="modal-content py-6 px-8 text-left">
+                <div class="flex justify-between items-center pb-4 border-b dark:border-gray-700">
+                    <p class="text-xl font-black text-brandBlue dark:text-brandGold uppercase italic tracking-tighter" id="modalTitle">Edit Piece</p>
+                    <div class="cursor-pointer dark:text-gray-400 bg-gray-50 dark:bg-gray-800 p-2 rounded-full hover:text-red-500 transition-all shadow-sm" onclick="window.closeQuickEdit()">✕</div>
+                </div>
+                <form id="productForm" class="space-y-4 mt-6">
+                    <input type="hidden" id="productId">
+                    <div>
+                        <label class="block text-[10px] font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-1.5">Piece Name</label>
+                        <input type="text" id="pName" required class="w-full bg-gray-50 dark:bg-gray-800/50 border dark:border-gray-700 dark:text-white rounded-xl p-3 text-sm focus:ring-2 focus:ring-brandGold outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-1.5">Category</label>
+                        <select id="pCategory" class="w-full bg-gray-50 dark:bg-gray-800/50 border dark:border-gray-700 dark:text-white rounded-xl p-3 text-sm focus:ring-2 focus:ring-brandGold outline-none transition-all cursor-pointer">
+                            <!-- Options injected by JS -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-1.5">Description</label>
+                        <textarea id="pDesc" required rows="3" class="w-full bg-gray-50 dark:bg-gray-800/50 border dark:border-gray-700 dark:text-white rounded-xl p-3 text-sm focus:ring-2 focus:ring-brandGold outline-none transition-all resize-none"></textarea>
+                    </div>
+                    
+                    <div class="border-t dark:border-gray-700 pt-6">
+                        <label class="block text-[10px] font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-3">Product Images</label>
+                        <div id="imageInputs" class="space-y-4 max-h-[30vh] overflow-y-auto pr-2 custom-scroll">
+                            <!-- Image inputs injected by JS -->
+                        </div>
+                        <p class="text-[9px] text-gray-400 mt-3 italic font-medium leading-relaxed">* Use the radio button to set the main cover image. You can paste URLs or upload files.</p>
+                        <button type="button" onclick="window.addImageInput()" class="mt-4 text-[10px] text-brandGold font-black uppercase tracking-widest hover:text-brandBlue dark:hover:text-white transition-colors flex items-center gap-1.5">
+                            <span class="w-5 h-5 bg-brandGold/10 rounded-full flex items-center justify-center">+</span>
+                            Add More Images
+                        </button>
+                    </div>
+
+                    <div class="flex gap-3 pt-8">
+                        <button type="button" onclick="window.closeQuickEdit()" class="flex-1 px-4 py-3 text-gray-500 font-bold text-xs bg-gray-50 dark:bg-gray-800 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all uppercase tracking-widest">Cancel</button>
+                        <button type="submit" class="flex-2 px-8 py-3 bg-brandBlue text-white rounded-xl font-black text-sm border border-brandGold shadow-lg shadow-brandBlue/20 hover:scale-[1.02] active:scale-[0.98] transition-all uppercase tracking-widest">Save Changes</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -543,13 +801,15 @@
         </div>
     </div>
 
+    <!-- Toast Notifications Container -->
+    <div id="toast-container" class="fixed top-24 right-4 z-[200] flex flex-col gap-3 pointer-events-none"></div>
+
     <script src="locales-data.js"></script>
     <script src="i18n.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, getDocs, doc, onSnapshot, query, orderBy, getDoc, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-        import { getAuth, onAuthStateChanged, signOut, updatePassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getStorage, ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+        import { getFirestore, collection, getDocs, doc, onSnapshot, query, orderBy, getDoc, updateDoc, arrayUnion, arrayRemove, deleteDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, signOut, updatePassword, deleteUser } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyA_oTePhmWmzuOcZDmc_-7bhoAVbYVhH3Q",
@@ -564,7 +824,47 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
-        const storage = getStorage(app);
+
+        // --- Custom Toast Notification ---
+        window.showToast = (message, type = 'success') => {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            // Simplified logic: success (gold) or error (red)
+            const isError = type === 'error';
+            
+            toast.className = `
+                pointer-events-auto flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl 
+                transform translate-x-full transition-all duration-500 ease-[cubic-bezier(0.68,-0.55,0.265,1.55)]
+                backdrop-blur-md border border-white/10 min-w-[280px]
+                ${isError ? 'bg-red-500/90 text-white' : 'bg-brandGold/90 text-brandBlue'}
+            `;
+            
+            toast.innerHTML = `
+                <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${isError ? 'bg-white/20' : 'bg-brandBlue/10'}">
+                    ${isError 
+                        ? '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>'
+                        : '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>'
+                    }
+                </div>
+                <div class="flex-1 font-bold text-sm tracking-wide">${message}</div>
+            `;
+
+            container.appendChild(toast);
+            
+            // Animate In: Force reflow then remove translate
+            setTimeout(() => toast.classList.remove('translate-x-full'), 100);
+
+            // Auto Remove
+            const removeToast = () => {
+                toast.classList.add('translate-x-[150%]', 'opacity-0');
+                setTimeout(() => toast.remove(), 500);
+            };
+
+            const timer = setTimeout(removeToast, 4000);
+            toast.onclick = () => { clearTimeout(timer); removeToast(); };
+        };
 
         let products = [];
         let categories = ['All'];
@@ -574,6 +874,7 @@
         let sitePhones = [];
         let currentUser = null;
         let userFavorites = [];
+        let userRole = 'customer';
 
         const grid = document.getElementById('product-grid');
         const modal = document.getElementById('detailModal');
@@ -581,15 +882,29 @@
         const sidebarOverlay = document.getElementById('sidebarOverlay');
         const searchInput = document.getElementById('searchInput');
 
+        window.togglePassword = (id) => {
+            const input = document.getElementById(id);
+            input.type = input.type === 'password' ? 'text' : 'password';
+        };
+
         // User Settings Functions
         window.openUserSettingsModal = async () => {
             if (!currentUser) return;
             const userDoc = await getDoc(doc(db, "users", currentUser.uid));
             if (userDoc.exists()) {
                 const data = userDoc.data();
-                document.getElementById('settingsName').value = data.name || '';
+                document.getElementById('settingsUsername').value = data.username || '';
+                document.getElementById('settingsFirstName').value = data.firstName || '';
+                document.getElementById('settingsLastName').value = data.lastName || '';
                 document.getElementById('settingsEmail').value = currentUser.email || data.email || '';
-                document.getElementById('settingsPhone').value = data.phone || '';
+                
+                // If phone exists and starts with +20, strip it for display in the input
+                let displayPhone = data.phone || '';
+                if (displayPhone.startsWith('+20')) {
+                    displayPhone = displayPhone.substring(3);
+                }
+                document.getElementById('settingsPhone').value = displayPhone;
+
                 if (data.photoURL) {
                     document.getElementById('settingsPhotoPreview').innerHTML = `<img src="${data.photoURL}" class="w-full h-full object-cover">`;
                 } else {
@@ -663,17 +978,32 @@
             e.preventDefault();
             const btn = document.getElementById('saveSettingsBtn');
             const msg = document.getElementById('settingsMessage');
-            const name = document.getElementById('settingsName').value;
-            const phone = document.getElementById('settingsPhone').value;
+            const username = document.getElementById('settingsUsername').value.trim();
+            const firstName = document.getElementById('settingsFirstName').value.trim();
+            const lastName = document.getElementById('settingsLastName').value.trim();
+            let phone = document.getElementById('settingsPhone').value.trim();
             const pass = document.getElementById('settingsNewPassword').value;
             const photoPreview = document.getElementById('settingsPhotoPreview');
             const photo = photoPreview.dataset.newPhoto;
+
+            if (phone) {
+                // Ensure +20 format
+                phone = "+20" + phone.replace(/^0/, '').replace(/^\+20/, '');
+            }
+
+            const fullName = `${firstName} ${lastName}`;
 
             btn.disabled = true;
             btn.innerText = "Saving...";
 
             try {
-                const updates = { name, phone };
+                const updates = { 
+                    username, 
+                    firstName, 
+                    lastName, 
+                    name: fullName, 
+                    phone 
+                };
                 
                 // If there's a new photo, compress and save Base64 directly to Firestore
                 if (photo && photo.startsWith('data:image')) {
@@ -706,6 +1036,138 @@
             }
         };
 
+        // --- Quick Edit Logic ---
+        window.closeQuickEdit = function() {
+            document.getElementById('productModal').classList.add('opacity-0', 'pointer-events-none');
+            document.body.classList.remove('modal-active');
+        };
+
+        window.addImageInput = function(val = '', isDefault = false) {
+            const div = document.createElement('div');
+            div.className = 'image-row flex items-center space-x-3 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl border border-gray-100 dark:border-gray-700 relative group/img';
+            div.innerHTML = `
+                <input type="radio" name="defaultImage" ${isDefault ? 'checked' : ''} class="w-4 h-4 accent-brandGold cursor-pointer shrink-0" title="Set as main image">
+                <div class="w-12 h-12 bg-white dark:bg-gray-700 rounded-lg border dark:border-gray-600 overflow-hidden flex-shrink-0 shadow-sm relative">
+                    <img src="${val || ''}" class="img-preview w-full h-full object-cover ${val ? '' : 'hidden'}">
+                    <div class="absolute inset-0 bg-black/10 flex items-center justify-center pointer-events-none ${val ? 'hidden' : ''}">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    </div>
+                </div>
+                <div class="flex-grow space-y-1">
+                    <input type="text" value="${val}" placeholder="Paste Image URL..." class="pImageUrl w-full bg-transparent text-[10px] outline-none border-b border-transparent focus:border-brandGold italic dark:text-gray-300" oninput="window.updatePreview(this)">
+                    <div class="flex items-center space-x-2">
+                        <label class="cursor-pointer bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 px-3 py-1 rounded-md text-[9px] font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-all flex items-center">
+                            Upload File
+                            <input type="file" class="hidden" accept="image/*" onchange="window.handleFile(this)">
+                        </label>
+                    </div>
+                </div>
+                <button type="button" onclick="this.parentElement.remove()" class="delete-img opacity-0 group-hover/img:opacity-100 text-red-400 hover:text-red-500 transition-all p-1">✕</button>
+            `;
+            document.getElementById('imageInputs').appendChild(div);
+        };
+
+        window.updatePreview = function(input) {
+            const row = input.closest('.image-row');
+            const preview = row.querySelector('.img-preview');
+            const placeholder = row.querySelector('.absolute.inset-0.bg-black\\/10');
+            if (input.value) {
+                preview.src = input.value;
+                preview.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+            } else {
+                preview.classList.add('hidden');
+                placeholder.classList.remove('hidden');
+            }
+        };
+
+        window.handleFile = function(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const row = input.closest('.image-row');
+                    const urlInput = row.querySelector('.pImageUrl');
+                    urlInput.value = e.target.result;
+                    window.updatePreview(urlInput);
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        };
+
+        window.editProduct = function(id) {
+            const p = products.find(prod => prod.id === id);
+            if (p) {
+                // Populate categories dropdown for the modal
+                const select = document.getElementById('pCategory');
+                select.innerHTML = categories.filter(c => c !== 'All' && c !== 'My Favorites').map(c => `<option value="${c}">${c}</option>`).join('');
+                
+                document.getElementById('productId').value = p.id;
+                document.getElementById('pName').value = p.name;
+                document.getElementById('pCategory').value = p.category;
+                document.getElementById('pDesc').value = p.desc;
+                document.getElementById('imageInputs').innerHTML = '';
+                p.images.forEach((url, idx) => window.addImageInput(url, idx === 0));
+                
+                document.getElementById('productModal').classList.remove('opacity-0', 'pointer-events-none');
+                document.body.classList.add('modal-active');
+            }
+        };
+
+        document.getElementById('productForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalBtnText = submitBtn.innerText;
+            submitBtn.disabled = true;
+            submitBtn.innerText = "Saving...";
+
+            const id = document.getElementById('productId').value;
+            const rows = Array.from(document.querySelectorAll('#imageInputs > div'));
+            let imgs = [];
+            let mainIdx = 0;
+
+            try {
+                for (let i = 0; i < rows.length; i++) {
+                    const row = rows[i];
+                    let url = row.querySelector('input[type="text"]').value;
+                    const isMain = row.querySelector('input[type="radio"]').checked;
+                    
+                    if(url) {
+                        if(url.startsWith('data:')) {
+                            url = await compressImage(url, 800, 800);
+                        }
+                        imgs.push(url);
+                        if(isMain) mainIdx = imgs.length - 1;
+                    }
+                }
+
+                if(imgs.length > 0) {
+                    const main = imgs.splice(mainIdx, 1)[0];
+                    imgs.unshift(main); 
+                }
+
+                const data = {
+                    name: document.getElementById('pName').value,
+                    category: document.getElementById('pCategory').value,
+                    desc: document.getElementById('pDesc').value,
+                    images: imgs,
+                    updatedAt: serverTimestamp()
+                };
+
+                await updateDoc(doc(db, "products", id), data);
+                
+                window.closeQuickEdit();
+                window.showDetails(id); // Refresh the detail modal to show new data
+                window.showToast("Piece updated successfully!");
+                
+            } catch (err) {
+                console.error("Error in save process:", err);
+                window.showToast(`Error: ${err.message}`, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = originalBtnText;
+            }
+        };
+
         // Auth listener
         onAuthStateChanged(auth, async (user) => {
             currentUser = user;
@@ -714,55 +1176,73 @@
             const homeLink = `<a href="index.html" class="text-brandBlue dark:text-white border-b-2 border-brandGold px-1 py-1 text-sm font-bold" data-i18n="home">Home</a>`;
             
             if (user) {
-                const userDoc = await getDoc(doc(db, "users", user.uid));
-                if (userDoc.exists()) {
-                    userFavorites = userDoc.data().favorites || [];
-                    const role = userDoc.data().role || 'customer';
-                    
-                    // Update Header
-                    if (role === 'admin' || role === 'moderator') {
-                        headerNav.innerHTML = `${homeLink} <a href="admin.html" class="text-brandGold hover:text-brandBlue dark:hover:text-white px-1 py-1 text-sm font-bold transition-colors" data-i18n="admin_dashboard">Admin Dashboard</a>`;
-                    } else {
-                        headerNav.innerHTML = homeLink;
-                    }
+                // Initialize default USER DATA to prevent crash if doc fetch fails
+                 let userData = {
+                     name: user.email.split('@')[0],
+                     photoURL: null,
+                     role: 'customer',
+                     favorites: []
+                };
 
-                    // Update footer with logout and dashboard buttons
-                    sidebarFooter.style.display = 'block';
-                    sidebarFooter.innerHTML = `
-                        <div class="flex flex-col space-y-2">
-                            <button onclick="window.logout()" class="w-full bg-red-500/10 text-red-500 py-2.5 rounded-xl text-xs font-bold border border-red-500/20 hover:bg-red-500 hover:text-white transition-all" data-i18n="logout">Logout</button>
-                            ${(role === 'admin' || role === 'moderator') ? `<a href="admin.html" class="block text-center bg-brandBlue text-white py-2.5 rounded-xl font-bold border border-brandGold hover:bg-opacity-90 text-xs shadow-xl shadow-brandBlue/20" data-i18n="admin_dashboard">Admin Dashboard</a>` : ''}
-                        </div>
-                    `;
-                    
-                    // Replace header with profile card
-                    const sidebarHeader = document.getElementById('sidebarHeader');
-                    sidebarHeader.innerHTML = `
+                try {
+                     const userDoc = await getDoc(doc(db, "users", user.uid));
+                     if (userDoc.exists()) {
+                         const d = userDoc.data();
+                         userData.name = d.name || userData.name;
+                         userData.photoURL = d.photoURL;
+                         userData.role = d.role || 'customer';
+                         userData.favorites = d.favorites || [];
+                     }
+                } catch(e) {
+                    console.error("User doc fetch error", e);
+                }
+                
+                userFavorites = userData.favorites;
+                userRole = userData.role;
+
+                // Update Header Nav
+                if (userRole === 'admin' || userRole === 'moderator') {
+                    headerNav.innerHTML = `${homeLink} <a href="admin.html" class="text-brandGold hover:text-brandBlue dark:hover:text-white px-1 py-1 text-sm font-bold transition-colors" data-i18n="admin_dashboard">Admin Dashboard</a>`;
+                } else {
+                    headerNav.innerHTML = homeLink;
+                }
+
+                // Update Footer
+                sidebarFooter.style.display = 'block';
+                sidebarFooter.innerHTML = `
+                    <div class="flex flex-col space-y-2">
+                        ${(userRole === 'admin' || userRole === 'moderator') ? `<a href="admin.html" class="block text-center bg-brandBlue text-white py-2.5 rounded-xl font-bold border border-brandGold hover:bg-opacity-90 text-xs shadow-xl shadow-brandBlue/20" data-i18n="admin_dashboard">Admin Dashboard</a>` : ''}
+                    </div>
+                `;
+                
+                // Replace header with profile card
+                const sidebarHeader = document.getElementById('sidebarHeader');
+                sidebarHeader.innerHTML = `
                         <div class="flex items-center justify-between w-full">
                             <div class="flex items-center space-x-3 flex-1">
                                 <div onclick="window.openUserSettingsModal()" class="w-10 h-10 rounded-full bg-brandGold flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-brandGold/20 overflow-hidden cursor-pointer hover:scale-105 transition-transform">
-                                    ${userDoc.data().photoURL ? `<img src="${userDoc.data().photoURL}" class="w-full h-full object-cover">` : user.email[0].toUpperCase()}
+                                    ${userData.photoURL ? `<img src="${userData.photoURL}" class="w-full h-full object-cover">` : userData.name[0].toUpperCase()}
                                 </div>
-                                <div class="overflow-hidden flex-1" onclick="window.openUserSettingsModal()" class="cursor-pointer">
-                                    <p class="text-sm font-bold dark:text-white truncate">${userDoc.data().name || user.email.split('@')[0]}</p>
-                                    <p class="text-[10px] text-brandGold uppercase font-black tracking-widest">${role}</p>
+                                <div class="overflow-hidden flex-1 cursor-pointer" onclick="window.openUserSettingsModal()">
+                                    <p class="text-sm font-bold dark:text-white truncate">${userData.name}</p>
+                                    <p class="text-[10px] text-brandGold uppercase font-black tracking-widest">${userRole}</p>
                                 </div>
                             </div>
                             <button onclick="toggleSidebar()" class="text-gray-400 hover:text-brandBlue dark:hover:text-white text-xl font-bold ml-2">✕</button>
                         </div>
-                    `;
-                    
-                    // Also populate header profile card
-                    const headerProfile = document.getElementById('headerUserProfile');
-                    if (headerProfile) {
-                        headerProfile.innerHTML = `
+                `;
+
+                // Also populate header profile card
+                const headerProfile = document.getElementById('headerUserProfile');
+                if (headerProfile) {
+                    headerProfile.innerHTML = `
                             <div class="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity" onclick="window.openUserSettingsModal()">
                                 <div class="w-6 h-6 rounded-full bg-brandGold flex items-center justify-center text-white text-[10px] font-bold shadow-lg shadow-brandGold/20 overflow-hidden">
-                                    ${userDoc.data().photoURL ? `<img src="${userDoc.data().photoURL}" class="w-full h-full object-cover">` : user.email[0].toUpperCase()}
+                                    ${userData.photoURL ? `<img src="${userData.photoURL}" class="w-full h-full object-cover">` : userData.name[0].toUpperCase()}
                                 </div>
                                 <div class="overflow-hidden profile-text">
-                                    <p class="text-[9px] font-bold dark:text-white truncate">${userDoc.data().name || user.email.split('@')[0]}</p>
-                                    <p class="text-[7px] text-brandGold uppercase font-black">${role}</p>
+                                    <p class="text-[9px] font-bold dark:text-white truncate">${userData.name}</p>
+                                    <p class="text-[7px] text-brandGold uppercase font-black">${userRole}</p>
                                 </div>
                             </div>
                             <button onclick="window.openUserSettingsModal()" class="hidden md:inline-block p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" title="Settings">
@@ -776,33 +1256,26 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                                 </svg>
                             </button>
-                        `;
-                        headerProfile.classList.remove('hidden', 'md:hidden');
-                        headerProfile.classList.add('flex', 'md:flex');
-                    }
+                    `;
+                    headerProfile.classList.remove('hidden', 'md:hidden');
+                    headerProfile.classList.add('flex', 'md:flex');
+                    headerProfile.dataset.mode = 'user';
                 }
+
             } else {
                 userFavorites = [];
+                userRole = 'customer';
                 headerNav.innerHTML = `${homeLink} <a href="login.html" class="text-brandGold hover:text-brandBlue dark:hover:text-white px-1 py-1 text-sm font-bold transition-colors" data-i18n="login_signup">Login / Sign Up</a>`;
                 
                 // Show header login capsule on mobile with same styling as profile capsule
                 const headerProfile = document.getElementById('headerUserProfile');
                 if (headerProfile) {
                     headerProfile.innerHTML = `
-                        <button onclick="window.location.href='login.html'" class="w-full flex items-center justify-between gap-4 text-left group">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-6 h-6 rounded-full bg-brandGold flex items-center justify-center text-white text-[10px] font-black shadow-lg shadow-brandGold/20">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5.121 17.804A8 8 0 1118.364 4.56 8 8 0 015.12 17.804z" />
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.75 9a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM6.75 18A5.25 5.25 0 0112 15.75 5.25 5.25 0 0117.25 18" />
-                                    </svg>
-                                </div>
-                                <div class="text-left profile-text">
-                                    <p class="text-[9px] font-bold text-brandBlue dark:text-white tracking-tight uppercase">Guest</p>
-                                    <p class="text-[7px] text-brandGold uppercase font-black tracking-[0.4em]" data-i18n="login_signup">Login / Sign Up</p>
-                                </div>
+                        <button onclick="window.location.href='login.html'" class="login-pill flex items-center justify-between gap-3 text-left group">
+                            <div class="text-left profile-text">
+                                <p class="text-[7px] text-brandGold uppercase font-black tracking-[0.3em]" data-i18n="login_signup">Login / Sign Up</p>
                             </div>
-                            <span class="p-1.5 rounded-full bg-brandGold/10 text-brandGold transition-transform duration-300 group-hover:translate-x-1 group-hover:bg-brandGold/20">
+                            <span class="p-1 rounded-full bg-brandGold/10 text-brandGold transition-transform duration-300 group-hover:translate-x-1 group-hover:bg-brandGold/20">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                                 </svg>
@@ -811,16 +1284,21 @@
                     `;
                     headerProfile.classList.remove('hidden', 'md:flex');
                     headerProfile.classList.add('flex', 'md:hidden');
+                    headerProfile.dataset.mode = 'guest';
                 }
                 
-                // Hide footer for non-logged in users
-                sidebarFooter.style.display = 'none';
+                sidebarFooter.style.display = 'block';
+                sidebarFooter.innerHTML = `
+                    <div class="flex flex-col space-y-2">
+                        <a href="login.html" class="w-full text-center bg-brandBlue text-white py-3 rounded-xl font-black border border-brandGold hover:bg-opacity-90 transition-all shadow-xl shadow-brandBlue/20 uppercase tracking-widest text-[10px]" data-i18n="login_signup">Login / Sign Up</a>
+                    </div>
+                `;
                 
-                // Replace header with Login/Signup button for non-logged in users
+                // Keep Sidebar Header as just Title + Close for guests
                 const sidebarHeader = document.getElementById('sidebarHeader');
                 sidebarHeader.innerHTML = `
-                    <a href="login.html" class="flex-1 text-center bg-brandBlue text-white py-3 rounded-xl font-black border border-brandGold hover:bg-opacity-90 transition-all shadow-xl shadow-brandBlue/20 uppercase tracking-widest text-[10px]" data-i18n="login_signup">Login / Sign Up</a>
-                    <button onclick="toggleSidebar()" class="text-gray-400 hover:text-brandBlue dark:hover:text-white text-xl font-bold ml-3">✕</button>
+                    <h2 class="text-xl font-bold text-brandBlue dark:text-brandGold italic" data-i18n="categories">Categories</h2>
+                    <button onclick="toggleSidebar()" class="text-gray-400 hover:text-brandBlue dark:hover:text-white text-xl font-bold">✕</button>
                 `;
             }
             // Add "My Favorites" to categories if not present
@@ -838,6 +1316,67 @@
         });
 
         window.logout = () => signOut(auth);
+
+        window.confirmDeleteAccount = async () => {
+            if (!currentUser) return;
+            
+            showConfirmModal({
+                title: "Delete Account?",
+                message: "⚠️ Are you absolutely sure? This will permanently delete your account, favorites, and profile data. This action cannot be undone.",
+                icon: "delete",
+                confirmText: "Delete Forever",
+                onConfirm: async () => {
+                    try {
+                        const uid = currentUser.uid;
+                        await deleteDoc(doc(db, "users", uid));
+                        await deleteUser(currentUser);
+                        window.location.reload();
+                    } catch (error) {
+                        console.error("Delete Error:", error);
+                        if (error.code === 'auth/requires-recent-login') {
+                            showToast("For security reasons, you must have logged in recently to delete your account. Please log out and log back in, then try again.", 'error');
+                        } else {
+                            showToast("Error: " + error.message, 'error');
+                        }
+                    }
+                }
+            });
+        };
+
+        window.showConfirmModal = ({ title, message, icon, confirmText, onConfirm }) => {
+            const modal = document.getElementById('confirmModal');
+            document.getElementById('confirmTitle').innerText = title;
+            document.getElementById('confirmMessage').innerText = message;
+            document.getElementById('confirmActionBtn').innerText = confirmText;
+            
+            const iconContainer = document.getElementById('confirmIconContainer');
+            if (icon === 'delete') {
+                iconContainer.className = "w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4";
+                document.getElementById('confirmActionBtn').className = "flex-1 px-4 py-3 bg-red-500 text-white font-bold text-xs rounded-xl hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all uppercase tracking-widest";
+            } else {
+                iconContainer.className = "w-16 h-16 bg-brandGold/10 rounded-full flex items-center justify-center mx-auto mb-4";
+                document.getElementById('confirmActionBtn').className = "flex-1 px-4 py-3 bg-brandGold text-white font-bold text-xs rounded-xl hover:bg-brandGold/80 shadow-lg shadow-brandGold/20 transition-all uppercase tracking-widest";
+            }
+
+            const btn = document.getElementById('confirmActionBtn');
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            newBtn.onclick = () => {
+                onConfirm();
+                closeConfirmModal();
+            };
+
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.querySelector('.modal-container').classList.remove('scale-95');
+            modal.querySelector('.modal-container').classList.add('scale-100');
+        };
+
+        window.closeConfirmModal = () => {
+            const modal = document.getElementById('confirmModal');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.querySelector('.modal-container').classList.remove('scale-100');
+            modal.querySelector('.modal-container').classList.add('scale-95');
+        };
 
         window.openContactPicker = () => {
             const list = document.getElementById('contactPickerList');
@@ -859,7 +1398,7 @@
 
         async function loadData() {
             try {
-                // Load Settings (Contacts)
+                // Load Settings (Contacts) - Live Listener
                 onSnapshot(doc(db, "settings", "contact"), (docSnap) => {
                     if (docSnap.exists()) {
                         whatsappNumber = docSnap.data().whatsapp || '201026600350';
@@ -870,31 +1409,63 @@
                         document.getElementById('floatingWhatsapp').href = `https://wa.me/${whatsappNumber}`;
                         document.getElementById('footerWhatsapp').href = waChannel;
                         
-                        // Handle Multiple Phone Numbers
                         sitePhones = (docSnap.data().phone || '+201026600350').split(',').map(p => p.trim()).filter(p => p);
 
                         document.getElementById('footerFacebook').href = fb;
                         document.getElementById('footerMaps').href = maps;
+
+                        const sidebarPhoneLink = document.getElementById('sidebarPhone');
+                        if (sidebarPhoneLink && sitePhones.length) {
+                            sidebarPhoneLink.href = `tel:${sitePhones[0]}`;
+                        }
+
+                        const sidebarWaLink = document.getElementById('sidebarWhatsapp');
+                        if (sidebarWaLink) {
+                            const waLink = (waChannel && waChannel !== '#') ? waChannel : `https://wa.me/${whatsappNumber}`;
+                            sidebarWaLink.href = waLink;
+                        }
+
+                        const sidebarFbLink = document.getElementById('sidebarFacebook');
+                        if (sidebarFbLink) sidebarFbLink.href = fb;
+
+                        const sidebarMapLink = document.getElementById('sidebarMaps');
+                        if (sidebarMapLink) sidebarMapLink.href = maps;
                     }
                 });
 
-                // Load Categories (Fetch all then sort in JS for safety)
-                const catSnapshot = await getDocs(collection(db, "categories"));
-                const fetchedCatsData = catSnapshot.docs.map((doc, idx) => {
-                    const data = doc.data();
-                    return { name: data.name, order: data.order !== undefined ? data.order : idx };
-                }).sort((a, b) => a.order - b.order);
+                // Load Categories - Live Listener
+                onSnapshot(collection(db, "categories"), (catSnapshot) => {
+                    const fetchedCatsData = catSnapshot.docs.map((doc, idx) => {
+                        const data = doc.data();
+                        return { name: data.name, order: data.order !== undefined ? data.order : idx };
+                    }).sort((a, b) => a.order - b.order);
+                    
+                    const fetchedCats = fetchedCatsData.map(c => c.name);
+                    categories = ['All', ...fetchedCats];
+                    if (currentUser) {
+                        if (!categories.includes('My Favorites')) {
+                            categories.splice(1, 0, 'My Favorites');
+                        }
+                    }
+                    renderCategories();
+                    renderProducts();
+                });
                 
-                const fetchedCats = fetchedCatsData.map(c => c.name);
-                categories = ['All', ...fetchedCats];
-                if (currentUser) categories.splice(1, 0, 'My Favorites');
-                
-                // Load Products
-                const prodSnapshot = await getDocs(query(collection(db, "products"), orderBy("createdAt", "desc")));
-                products = prodSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                // Load Products - Live Listener
+                onSnapshot(collection(db, "products"), (prodSnapshot) => {
+                    products = prodSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    // Sort locally to handle missing order fields gracefully
+                    products.sort((a, b) => {
+                        const orderA = a.order !== undefined ? a.order : 999999;
+                        const orderB = b.order !== undefined ? b.order : 999999;
+                        if (orderA !== orderB) return orderA - orderB;
+                        const timeA = a.createdAt?.toMillis() || 0;
+                        const timeB = b.createdAt?.toMillis() || 0;
+                        return timeB - timeA;
+                    });
+                    renderProducts();
+                });
 
-                renderCategories();
-                renderProducts();
             } catch (error) {
                 console.error("Error loading data:", error);
             }
@@ -949,14 +1520,40 @@
                 dropBtn.onclick = () => { selectCategory(cat); document.getElementById('catDropdown').classList.add('hidden'); };
                 catDropdown.appendChild(dropBtn);
             });
+
+            // Add Sign Out to Sidebar List for Logged In Users
+            if (currentUser) {
+                const logoutBtn = document.createElement('button');
+                logoutBtn.className = "w-full text-left px-6 py-3.5 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex items-center space-x-3 border-t border-gray-100 dark:border-gray-800 mt-2";
+                logoutBtn.innerHTML = `
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    <span data-i18n="logout">Sign Out</span>
+                `;
+                logoutBtn.onclick = () => {
+                    window.toggleSidebar();
+                    window.logout();
+                };
+                catList.appendChild(logoutBtn);
+            }
         }
 
-        function selectCategory(cat) {
+        window.selectCategory = (cat) => {
             activeCategory = cat;
+            searchQuery = ''; // Clear search when selecting a category
+            if(document.getElementById('searchInput')) document.getElementById('searchInput').value = '';
+            
             document.getElementById('activeFilterDisplay').innerText = `Category: ${cat}`;
             renderProducts();
             renderCategories();
-        }
+            
+            // Scroll to the main section to see results
+            const contentSection = document.getElementById('product-grid');
+            if (contentSection) {
+                const yOffset = -150; 
+                const y = contentSection.getBoundingClientRect().top + window.pageYOffset + yOffset;
+                window.scrollTo({top: y, behavior: 'smooth'});
+            }
+        };
 
         window.toggleFavorite = async (e, productId) => {
             e.stopPropagation();
@@ -986,55 +1583,218 @@
             }
         };
 
+        window.scrollCategory = (id, direction) => {
+            const el = document.getElementById(id);
+            if (el) {
+                // Pause auto-scroll briefly
+                el.dataset.manualScrolling = "true";
+                setTimeout(() => {
+                    delete el.dataset.manualScrolling;
+                }, 1000);
+
+                const amount = el.clientWidth * 0.8;
+                el.style.scrollBehavior = 'smooth';
+                el.scrollBy({ left: direction * amount, behavior: 'smooth' });
+            }
+        };
+
         function renderProducts() {
             grid.innerHTML = '';
-            let filtered = products;
-
-            if (activeCategory === 'My Favorites') {
-                filtered = products.filter(p => userFavorites.includes(p.id));
-            } else if (activeCategory !== 'All') {
-                filtered = filtered.filter(p => p.category === activeCategory);
-            }
-
-            if (searchQuery) {
-                const q = searchQuery.toLowerCase();
-                filtered = filtered.filter(p => 
-                    p.name.toLowerCase().includes(q) || 
-                    (p.category && p.category.toLowerCase().includes(q))
-                );
-            }
-
-            if (filtered.length === 0) {
-                grid.innerHTML = `<div class="col-span-full py-20 text-center text-gray-400 font-arabic italic text-lg">لا يوجد ما يطابق بحثك حالياً</div>`;
-                return;
-            }
-
-            filtered.forEach((p, idx) => {
-                const isFav = userFavorites.includes(p.id);
-                const card = document.createElement('div');
-                card.className = 'reveal cursor-pointer group bg-white dark:bg-darkCard rounded-xl md:rounded-2xl shadow-sm hover:shadow-xl overflow-hidden transition-all duration-500 border border-gray-100 dark:border-gray-800';
-                card.style.transitionDelay = `${idx * 50}ms`;
-                card.onclick = () => showDetails(p.id);
-                card.innerHTML = `
-                    <div class="overflow-hidden h-44 md:h-72 relative bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center">
-                        <img src="${p.images[0] || 'https://via.placeholder.com/800x600?text=No+Image'}" class="w-full h-full object-contain p-2 group-hover:scale-110 transition-transform duration-700">
-                        
-                        <button onclick="toggleFavorite(event, '${p.id}')" class="absolute top-3 right-3 z-30 p-2 rounded-full bg-white/90 dark:bg-black/40 backdrop-blur-md shadow-lg hover:scale-110 active:scale-95 transition-all ${isFav ? 'text-red-500' : 'text-gray-400'}">
-                            <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-                        </button>
-
-                        <div class="absolute top-3 left-3 bg-brandGold/90 text-white text-[8px] md:text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-widest shadow-lg shadow-brandGold/20">${p.category}</div>
-                        <div class="absolute bottom-3 right-3 bg-black/60 text-white text-[8px] md:text-[10px] px-3 py-1 rounded-full backdrop-blur-md font-bold">${p.images.length} Photos</div>
-                    </div>
-                    <div class="p-4 md:p-6">
-                        <h3 class="text-sm md:text-xl font-black text-brandBlue dark:text-white truncate mb-1">${p.name}</h3>
-                        <p class="text-gray-400 dark:text-gray-500 text-[10px] md:text-xs font-medium italic">View Masterpiece Details →</p>
+            
+            // Remove loading skeleton
+            const loadingSkeleton = document.querySelector('.loading-skeleton');
+            if (loadingSkeleton) loadingSkeleton.remove();
+            
+            // If search is active or specific category is selected, use grid mode
+            if (activeCategory !== 'All' || searchQuery !== '') {
+                grid.className = "grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-10";
+                
+                // Add Back Header
+                const backHeader = document.createElement('div');
+                backHeader.className = 'col-span-full flex items-center justify-between mb-8 pb-6 border-b border-gray-100 dark:border-gray-800/50 reveal';
+                
+                const titleText = searchQuery !== '' ? (localStorage.getItem('lang') === 'ar' ? 'نتائج البحث' : 'Search Results') : activeCategory;
+                
+                backHeader.innerHTML = `
+                    <button onclick="selectCategory('All')" class="flex items-center gap-3 group/back text-brandBlue dark:text-brandGold hover:translate-x-[-4px] transition-transform">
+                        <div class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-brandGold/10 flex items-center justify-center group-hover/back:bg-brandGold group-hover/back:text-white transition-all shadow-sm">
+                            <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-[10px] md:text-xs font-black uppercase tracking-[0.2em] leading-none">Back</span>
+                            <span class="text-[8px] md:text-[10px] text-gray-400 group-hover/back:text-brandGold transition-colors uppercase font-bold mt-1">Return to All</span>
+                        </div>
+                    </button>
+                    <div class="text-right">
+                        <h2 class="text-lg md:text-3xl font-black text-brandBlue dark:text-brandGold uppercase italic tracking-tighter leading-none">${titleText}</h2>
+                        <div class="w-12 h-1 bg-brandGold rounded-full mt-2 ml-auto"></div>
                     </div>
                 `;
-                grid.appendChild(card);
-            });
+                grid.appendChild(backHeader);
+
+                let filtered = products;
+                if (activeCategory === 'My Favorites') {
+                    filtered = products.filter(p => userFavorites.includes(p.id));
+                } else if (activeCategory !== 'All') {
+                    filtered = filtered.filter(p => p.category === activeCategory);
+                }
+
+                if (searchQuery) {
+                    const q = searchQuery.toLowerCase();
+                    filtered = filtered.filter(p => 
+                        p.name.toLowerCase().includes(q) || 
+                        (p.category && p.category.toLowerCase().includes(q))
+                    );
+                }
+
+                if (filtered.length === 0 && products.length > 0) {
+                    grid.innerHTML = `<div class="col-span-full py-20 flex flex-col items-center justify-center gap-2 text-gray-400 italic text-lg">
+                        <p class="font-sans">Nothing matches your search.</p>
+                        <p class="font-arabic">.لا يوجد ما يطابق بحثك حالياً</p>
+                    </div>`;
+                    return;
+                }
+
+                filtered.forEach((p, idx) => {
+                    grid.appendChild(createProductCard(p, idx));
+                });
+            } else {
+                // CATEGORY ROW MODE (All Categories Default)
+                grid.className = "flex flex-col space-y-12 md:space-y-20";
+                
+                const actualCategories = categories.filter(c => c !== 'All' && c !== 'My Favorites');
+                
+                actualCategories.forEach((catName, catIdx) => {
+                    const catProducts = products.filter(p => p.category === catName);
+                    if (catProducts.length === 0) return;
+
+                    const rowWrapper = document.createElement('div');
+                    rowWrapper.className = 'category-row-wrapper reveal';
+                    rowWrapper.style.transitionDelay = `${catIdx * 100}ms`;
+                    
+                    const rowId = `row-${catName.replace(/\s+/g, '-')}`;
+                    
+                    rowWrapper.innerHTML = `
+                        <div class="flex items-center justify-between mb-6 px-1">
+                            <div class="flex flex-col">
+                                <h2 class="text-xl md:text-3xl font-black text-brandBlue dark:text-brandGold uppercase italic tracking-tighter">${catName}</h2>
+                                <div class="w-12 h-1 bg-brandGold rounded-full mt-2"></div>
+                            </div>
+                            <button onclick="selectCategory('${catName}')" class="text-[10px] md:text-xs font-bold text-brandGold uppercase tracking-[0.2em] hover:translate-x-1 transition-transform">See All <span class="ml-1">→</span></button>
+                        </div>
+                        
+                        <div class="relative group/row">
+                            <!-- Arrows -->
+                            <button onclick="scrollCategory('${rowId}', -1)" class="scroll-arrow scroll-arrow-left">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                            </button>
+                            <button onclick="scrollCategory('${rowId}', 1)" class="scroll-arrow scroll-arrow-right">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                            </button>
+                            
+                            <div id="${rowId}" class="category-row-container">
+                                <!-- Cards will be injected here -->
+                            </div>
+                        </div>
+                    `;
+
+                    const rowContainer = rowWrapper.querySelector('.category-row-container');
+                    catProducts.forEach((p, pIdx) => {
+                        const card = createProductCard(p, pIdx);
+                        card.classList.add('category-card');
+                        card.classList.remove('reveal');
+                        rowContainer.appendChild(card);
+                    });
+
+                    grid.appendChild(rowWrapper);
+                });
+
+                // Initialize cinematic auto-scroll for the new rows
+                setTimeout(initRowAutoScroll, 500); 
+            }
 
             setTimeout(initReveal, 100);
+        }
+
+        function createProductCard(p, idx) {
+            const isFav = userFavorites.includes(p.id);
+            const card = document.createElement('div');
+            card.className = 'reveal cursor-pointer group bg-white dark:bg-darkCard/80 backdrop-blur-md rounded-xl md:rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden transition-all duration-700 border border-transparent dark:border-gray-800 hover:border-gray-200';
+            card.style.transitionDelay = `${idx * 50}ms`;
+            card.onclick = () => showDetails(p.id);
+            card.innerHTML = `
+                <div class="overflow-hidden h-44 md:h-72 relative bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center">
+                    <img src="${p.images[0] || 'https://via.placeholder.com/800x600?text=No+Image'}" class="product-card-img w-full h-full object-contain p-6 group-hover:scale-110 transition-all duration-500">
+                    
+                    <button onclick="toggleFavorite(event, '${p.id}')" class="absolute top-3 right-3 z-30 p-2 rounded-full bg-white/90 dark:bg-black/40 backdrop-blur-md shadow-lg hover:scale-110 active:scale-95 transition-all ${isFav ? 'text-red-500' : 'text-gray-400'}">
+                        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                    </button>
+
+                    <div class="absolute top-3 left-3 bg-brandGold/90 text-white text-[8px] md:text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-widest shadow-lg shadow-brandGold/20">${p.category}</div>
+                    <div class="absolute bottom-3 right-3 bg-black/60 text-white text-[8px] md:text-[10px] px-3 py-1 rounded-full backdrop-blur-md font-bold">${p.images.length} Photos</div>
+                </div>
+                <div class="p-4 md:p-6 bg-white dark:bg-transparent overflow-hidden">
+                    <div class="title-container mb-1">
+                        <h3 class="title-slide text-sm md:text-xl font-black text-brandBlue dark:text-slate-100 uppercase">${p.name}</h3>
+                    </div>
+                    <p class="text-brandGold/80 dark:text-brandGold/60 text-[10px] md:text-xs font-bold italic tracking-wide">View masterpiece <span class="group-hover:translate-x-1 inline-block transition-transform">→</span></p>
+                </div>
+            `;
+
+            // Quick Edit button for Staff
+            if (userRole === 'admin' || userRole === 'moderator') {
+                const editBtn = document.createElement('button');
+                editBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    window.editProduct(p.id);
+                };
+                editBtn.className = "absolute top-3 right-12 z-40 p-2 rounded-full bg-brandBlue/90 dark:bg-brandGold/90 text-white backdrop-blur-md shadow-lg hover:scale-110 active:scale-95 transition-all border border-white/20";
+                editBtn.innerHTML = `
+                    <svg class="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                `;
+                editBtn.title = "Quick Edit";
+                card.querySelector('.relative').appendChild(editBtn);
+            }
+
+            // Auto-slide logic
+            let interval = null;
+            let currentIdx = 0;
+            const imgElement = card.querySelector('.product-card-img');
+            const images = p.images && p.images.length > 0 ? p.images : [];
+
+            if (images.length > 1) {
+                const startSliding = () => {
+                    if (interval) return;
+                    interval = setInterval(() => {
+                        currentIdx = (currentIdx + 1) % images.length;
+                        imgElement.style.opacity = '0.7';
+                        setTimeout(() => {
+                            imgElement.src = images[currentIdx];
+                            imgElement.style.opacity = '1';
+                        }, 100);
+                    }, 1200);
+                };
+
+                const stopSliding = () => {
+                    if (interval) {
+                        clearInterval(interval);
+                        interval = null;
+                        currentIdx = 0;
+                        imgElement.src = images[0];
+                        imgElement.style.opacity = '1';
+                    }
+                };
+
+                card.addEventListener('mouseenter', startSliding);
+                card.addEventListener('mouseleave', stopSliding);
+                // Also support touch
+                card.addEventListener('touchstart', startSliding, {passive: true});
+                card.addEventListener('touchend', stopSliding, {passive: true});
+            }
+
+            return card;
         }
 
         searchInput.oninput = (e) => {
@@ -1096,9 +1856,27 @@
             const enquiryBtn = document.getElementById('enquiryBtn');
             const btnContainer = enquiryBtn.parentElement;
             
-            // Remove existing fav button if any
+            // Remove existing buttons (fav & edit)
             const oldFav = btnContainer.querySelector('.modal-fav-btn');
             if(oldFav) oldFav.remove();
+            const oldEdit = btnContainer.querySelector('.modal-edit-btn');
+            if(oldEdit) oldEdit.remove();
+
+            // Create Edit Button for Admins/Moderators
+            if (userRole === 'admin' || userRole === 'moderator') {
+                const editBtn = document.createElement('button');
+                editBtn.className = "modal-edit-btn p-3 md:p-4 rounded-xl bg-brandGold/10 hover:bg-brandGold/20 text-brandGold transition-all border border-brandGold/20 hover:scale-105 active:scale-95";
+                editBtn.innerHTML = `
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                    </svg>
+                `;
+                editBtn.title = "Edit Piece";
+                editBtn.onclick = () => {
+                    window.editProduct(currentProduct.id);
+                };
+                btnContainer.insertBefore(editBtn, enquiryBtn);
+            }
 
             const favBtn = document.createElement('button');
             favBtn.className = `modal-fav-btn p-3 md:p-4 rounded-xl bg-gray-50 dark:bg-gray-800 transition-all border border-gray-100 dark:border-gray-700 hover:scale-105 active:scale-95 ${isFav ? 'text-red-500 shadow-lg shadow-red-500/10' : 'text-gray-400'}`;
@@ -1108,7 +1886,9 @@
                 updateModalFavBtn();
             };
             
-            btnContainer.className = "flex space-x-4 mt-6 md:mt-10";
+            btnContainer.className = "flex items-center space-x-3 mt-6 md:mt-10";
+            enquiryBtn.classList.remove('w-full');
+            enquiryBtn.classList.add('flex-1');
             btnContainer.insertBefore(favBtn, enquiryBtn);
         }
 
@@ -1138,7 +1918,8 @@
             currentProduct.images.forEach((img, idx) => {
                 const t = document.createElement('img');
                 t.src = img;
-                t.className = `h-12 w-12 md:h-20 md:w-20 object-cover rounded-xl cursor-pointer border-2 transition-all flex-shrink-0 ${idx === currentImgIdx ? 'border-brandGold scale-105' : 'border-transparent opacity-60 hover:opacity-100'}`;
+                // Enhanced for Desktop: Larger, better padding, and no clipping for scale effect
+                t.className = `h-14 w-14 md:h-24 md:w-24 object-contain p-2 md:p-3 bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl cursor-pointer border-2 transition-all flex-shrink-0 ${idx === currentImgIdx ? 'border-brandGold scale-110 shadow-xl' : 'border-transparent opacity-70 hover:opacity-100 hover:scale-105'}`;
                 t.onclick = () => updateDetailImage(idx);
                 thumbBar.appendChild(t);
             });
@@ -1208,22 +1989,44 @@
                 }
             });
 
+            // Mobile: Touch move to pan
+            swipeContainer.addEventListener('touchmove', function(e) {
+                if (isZoomed && e.touches.length === 1) {
+                    const touch = e.touches[0];
+                    const { left, top, width, height } = swipeContainer.getBoundingClientRect();
+                    const x = ((touch.clientX - left) / width) * 100;
+                    const y = ((touch.clientY - top) / height) * 100;
+                    
+                    // Clamp values to keep it within image
+                    const clampedX = Math.max(0, Math.min(100, x));
+                    const clampedY = Math.max(0, Math.min(100, y));
+                    
+                    mainImg.style.transformOrigin = `${clampedX}% ${clampedY}%`;
+                    if (e.cancelable) e.preventDefault();
+                }
+            }, { passive: false });
+
             // Click to toggle zoom
             mainImg.addEventListener('click', function(e) {
-                e.stopPropagation(); // Prevent modal close or other events
+                e.stopPropagation();
                 if (isZoomed) {
                     isZoomed = false;
                     mainImg.style.transform = "scale(1)";
                     mainImg.style.cursor = "zoom-in";
+                    mainImg.classList.add('transition-transform');
+                    mainImg.classList.add('duration-300');
                     setTimeout(() => {
                         if(!isZoomed) mainImg.style.transformOrigin = "center center"; 
                     }, 300);
                 } else {
                     isZoomed = true;
-                    mainImg.style.transform = "scale(2.5)";
+                    // Disable transition while zooming for smooth panning
+                    mainImg.classList.remove('transition-transform');
+                    mainImg.classList.remove('duration-300');
+                    
+                    mainImg.style.transform = "scale(3)";
                     mainImg.style.cursor = "zoom-out";
                     
-                    // Initial zoom target based on click
                     const rect = swipeContainer.getBoundingClientRect();
                     const x = ((e.clientX - rect.left) / rect.width) * 100;
                     const y = ((e.clientY - rect.top) / rect.height) * 100;
@@ -1269,6 +2072,50 @@
         });
 
         loadData();
+
+        // 📽️ Cinematic Auto-Scroll Controller
+        let activeAutoScrolls = new Map();
+
+        function initRowAutoScroll() {
+            // Cancel current animations if any
+            activeAutoScrolls.forEach((id) => cancelAnimationFrame(id));
+            activeAutoScrolls.clear();
+
+            const rows = document.querySelectorAll('.category-row-container');
+            if (!rows.length) return;
+
+            rows.forEach(row => {
+                let isPaused = false;
+                let scrollSpeed = 0.5; // Cinematic speed (pixels per frame)
+                
+                const setPause = (val) => isPaused = val;
+                
+                row.addEventListener('mouseenter', () => setPause(true));
+                row.addEventListener('mouseleave', () => setPause(false));
+                row.addEventListener('touchstart', () => setPause(true), {passive: true});
+                row.addEventListener('touchend', () => {
+                    setTimeout(() => setPause(false), 2000); // Resume after 2s of no touch
+                }, {passive: true});
+
+                function step() {
+                    // Don't auto-scroll if manually scrolling or paused
+                    if (!isPaused && !row.dataset.manualScrolling) {
+                        row.style.scrollBehavior = 'auto';
+                        row.scrollLeft += scrollSpeed;
+                        
+                        // Loop logic (Infinite feel)
+                        if (row.scrollLeft >= (row.scrollWidth - row.clientWidth - 1)) {
+                            row.scrollLeft = 0;
+                        }
+                    }
+                    const animId = requestAnimationFrame(step);
+                    activeAutoScrolls.set(row.id, animId);
+                }
+                
+                const animId = requestAnimationFrame(step);
+                activeAutoScrolls.set(row.id, animId);
+            });
+        }
     </script>
 </body>
 </html>

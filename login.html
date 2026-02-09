@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>House Of Glass | Admin Login</title>
+    <title>House Of Glass | Login</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=2">
+    <link rel="apple-touch-icon" href="logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <script>
@@ -12,10 +14,10 @@
             theme: {
                 extend: {
                     colors: {
-                        brandBlue: '#0A3654',
-                        brandGold: '#C19B4E',
-                        darkBg: '#0F172A',
-                        darkCard: '#1E293B'
+                        brandBlue: '#121926',
+                        brandGold: '#D4AF37',
+                        darkBg: '#030712',
+                        darkCard: '#111827'
                     },
                     fontFamily: {
                         arabic: ['Cairo', 'sans-serif'],
@@ -26,10 +28,17 @@
 
         // --- Smart Theme Logic ---
         function applySmartTheme() {
+            const isAutoEnabled = localStorage.getItem('autoThemeEnabled') !== 'false';
             const manualTheme = localStorage.getItem('darkMode');
             const overrideTime = localStorage.getItem('themeOverrideTime');
             const now = Date.now();
             
+            if (!isAutoEnabled) {
+                if (manualTheme === 'true') document.documentElement.classList.add('dark');
+                else if (manualTheme === 'false') document.documentElement.classList.remove('dark');
+                return;
+            }
+
             if (overrideTime && (now - overrideTime > 600000)) {
                 localStorage.removeItem('darkMode');
                 localStorage.removeItem('themeOverrideTime');
@@ -54,6 +63,19 @@
             scrollbar-width: thin;
             scrollbar-color: #C19B4E rgba(193, 155, 78, 0.05);
         }
+
+        @keyframes logo-pulse {
+            0%, 100% { transform: scale(1); opacity: 0.8; filter: drop-shadow(0 0 10px rgba(193,155,78,0.2)); }
+            50% { transform: scale(1.15); opacity: 1; filter: drop-shadow(0 0 30px rgba(193,155,78,0.4)); }
+        }
+        .loading-logo {
+            animation: logo-pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes loading-bar {
+            0% { left: -40%; width: 30%; }
+            50% { width: 60%; }
+            100% { left: 110%; width: 30%; }
+        }
         
         /* Professional Scrollbar Styling */
         ::-webkit-scrollbar {
@@ -64,13 +86,13 @@
             background: rgba(193, 155, 78, 0.05);
         }
         ::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, #C19B4E, #a67c3a);
+            background: linear-gradient(180deg, #D4AF37, #B08D2C);
             border-radius: 10px;
             border: 2px solid transparent;
             background-clip: padding-box;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(180deg, #d4ad5a, #C19B4E);
+            background: linear-gradient(180deg, #E5C354, #D4AF37);
         }
         .dark ::-webkit-scrollbar-track {
             background: rgba(193, 155, 78, 0.08);
@@ -105,7 +127,19 @@
         }
     </style>
 </head>
-<body class="bg-gray-50 dark:bg-darkBg font-sans flex items-center justify-center min-h-screen px-4 transition-colors duration-300">
+<body class="bg-white dark:bg-darkBg font-sans flex items-center justify-center min-h-screen px-4 transition-colors duration-300">
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 z-[200] bg-white dark:bg-brandBlue flex flex-col items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="relative flex flex-col items-center">
+            <img src="logo.png" class="h-32 md:h-48 w-auto loading-logo" alt="Loading...">
+            <div class="mt-12 flex flex-col items-center">
+                <div class="w-48 h-1 bg-gray-100 dark:bg-brandGold/10 rounded-full overflow-hidden relative">
+                    <div class="absolute h-full bg-brandGold w-1/3 rounded-full animate-[loading-bar_2s_infinite_ease-in-out]"></div>
+                </div>
+                <p class="mt-6 text-[10px] font-black uppercase text-brandGold tracking-[0.5em] animate-pulse" data-i18n="processing">Processing</p>
+            </div>
+        </div>
+    </div>
 
     <div class="max-w-md w-full bg-white dark:bg-darkCard rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 p-6 md:p-8">
         <div class="flex justify-end mb-2">
@@ -118,26 +152,29 @@
                 </div>
             </a>
             <h2 class="text-xl md:text-2xl font-bold text-brandBlue dark:text-brandGold italic" data-i18n="welcome_back">Welcome Back</h2>
-            <p class="text-gray-500 dark:text-gray-400 text-xs md:text-sm" data-i18n="login_to_account">Login to your account</p>
+            <p class="text-gray-500 dark:text-slate-400 text-xs md:text-sm" data-i18n="login_to_account">Login to your account</p>
         </div>
 
         <form id="loginForm" class="space-y-6">
             <div>
-                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300" data-i18n="email_or_phone">Email or Phone Number</label>
-                <input type="text" id="loginIdentifier" required class="mt-1 block w-full bg-white border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue" placeholder="you@example.com or 01XXXXXXXXX" data-i18n-placeholder="email_or_phone">
+                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-slate-300" data-i18n="login_identity">Email, Phone, or Username</label>
+                <input type="text" id="loginIdentifier" required class="mt-1 block w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue dark:text-slate-200" placeholder="Email, phone, or username" data-i18n-placeholder="email_phone_username_placeholder">
             </div>
             <div>
-                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300" data-i18n="password">Password</label>
-                <div class="relative">
-                    <input type="password" id="password" required class="mt-1 block w-full bg-white border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue pr-10">
-                    <button type="button" onclick="togglePassword('password')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brandGold transition-colors">
+                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-slate-300" data-i18n="password">Password</label>
+                <div class="relative group">
+                    <input type="password" id="password" required 
+                        class="mt-1 block w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue dark:text-slate-200 transition-all ltr:pr-10 rtl:pl-10" 
+                        placeholder="••••••••">
+                    <button type="button" onclick="togglePassword('password')" 
+                        class="absolute ltr:right-3 rtl:left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brandGold transition-colors focus:outline-none">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                         </svg>
                     </button>
                 </div>
-                <div class="text-right mt-1">
+                <div class="text-right mt-1 rtl:text-left">
                     <button type="button" onclick="forgotPassword()" class="text-[10px] text-brandGold hover:underline" data-i18n="forgot_password">Forgot Password?</button>
                 </div>
             </div>
@@ -155,7 +192,7 @@
             <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
         </div>
 
-        <button type="button" onclick="googleAuth()" class="mt-5 w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-brandBlue dark:text-white p-3.5 md:p-4 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm flex items-center justify-center gap-3 text-sm md:text-base">
+        <button type="button" onclick="googleAuth()" class="mt-5 w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-brandBlue dark:text-slate-200 p-3.5 md:p-4 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm flex items-center justify-center gap-3 text-sm md:text-base">
             <svg class="w-5 h-5" viewBox="0 0 48 48" aria-hidden="true">
                 <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303C33.766 32.653 29.201 36 24 36c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.954 4 4 12.954 4 24s8.954 20 20 20 20-8.954 20-20c0-1.341-.138-2.651-.389-3.917z"/>
                 <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 16.108 19.01 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4c-7.681 0-14.344 4.327-17.694 10.691z"/>
@@ -171,7 +208,7 @@
 
         <div class="mt-8 pt-6 border-t border-gray-100 dark:border-gray-800 text-center">
             <p class="text-[10px] text-gray-400 uppercase tracking-[0.2em] mb-1 italic" data-i18n="premium_home_glassware">Premium Home Glassware</p>
-            <p class="text-xl font-black text-brandBlue dark:text-brandGold font-arabic" dir="rtl">ال عاشور عدس</p>
+            <p class="text-xl font-black text-[#163159] dark:text-brandGold font-arabic" dir="rtl">ال عاشور عدس</p>
         </div>
 
         <div class="mt-6 text-center">
@@ -181,6 +218,9 @@
 
     <script src="locales-data.js"></script>
     <script src="i18n.js"></script>
+    <!-- Toast Notifications Container -->
+    <div id="toast-container" class="fixed top-24 right-4 z-[200] flex flex-col gap-3 pointer-events-none"></div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -201,6 +241,43 @@
         const db = getFirestore(app);
         const googleProvider = new GoogleAuthProvider();
 
+        // --- Custom Toast Notification ---
+        window.showToast = (message, type = 'success') => {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            const isError = type === 'error';
+            
+            toast.className = `
+                pointer-events-auto flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl 
+                transform translate-x-full transition-all duration-500 ease-[cubic-bezier(0.68,-0.55,0.265,1.55)]
+                backdrop-blur-md border border-white/10 min-w-[280px]
+                ${isError ? 'bg-red-500/90 text-white' : 'bg-brandGold/90 text-brandBlue'}
+            `;
+            
+            toast.innerHTML = `
+                <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${isError ? 'bg-white/20' : 'bg-brandBlue/10'}">
+                    ${isError 
+                        ? '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>'
+                        : '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>'
+                    }
+                </div>
+                <div class="flex-1 font-bold text-sm tracking-wide">${message}</div>
+            `;
+
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.remove('translate-x-full'), 100);
+
+            const removeToast = () => {
+                toast.classList.add('translate-x-[150%]', 'opacity-0');
+                setTimeout(() => toast.remove(), 500);
+            };
+
+            const timer = setTimeout(removeToast, 4000);
+            toast.onclick = () => { clearTimeout(timer); removeToast(); };
+        };
+
         window.togglePassword = (id) => {
             const input = document.getElementById(id);
             input.type = input.type === 'password' ? 'text' : 'password';
@@ -212,27 +289,42 @@
             const password = document.getElementById('password').value;
             const btn = document.getElementById('submitBtn');
             const err = document.getElementById('errorMessage');
+            const overlay = document.getElementById('loadingOverlay');
 
-            btn.innerText = "Checking...";
+            // Show loading overlay
+            overlay.classList.remove('opacity-0', 'pointer-events-none');
             btn.disabled = true;
             err.classList.add('hidden');
 
             let emailToLogin = identifier;
 
-            // Check if it's a phone number (e.g., only numbers and potentially starts with 0 or +)
-            const isPhone = /^\+?[0-9]{10,15}$/.test(identifier.replace(/\s/g, ''));
-            
-            if (isPhone) {
+            // If not an email (no @), look up by phone or username
+            if (!identifier.includes('@')) {
+                let phoneToTry = identifier;
+                
+                // If it looks like an Egyptian mobile number (e.g., 010..., 011..., 012..., 015...)
+                if (/^01[0-2,5]\d{8}$/.test(identifier)) {
+                    phoneToTry = "+20" + identifier.substring(1);
+                } else if (/^1[0-2,5]\d{8}$/.test(identifier)) {
+                    phoneToTry = "+20" + identifier;
+                }
+
                 try {
-                    const q = query(collection(db, "users"), where("phone", "==", identifier));
-                    const querySnapshot = await getDocs(q);
-                    if (!querySnapshot.empty) {
-                        emailToLogin = querySnapshot.docs[0].data().email;
-                    } else {
-                        // Fallback if phone not found, maybe it's just a weird email/input
+                    // Try looking up by phone
+                    let q = query(collection(db, "users"), where("phone", "==", phoneToTry));
+                    let snap = await getDocs(q);
+                    
+                    if (snap.empty) {
+                        // Try looking up by username
+                        q = query(collection(db, "users"), where("username", "==", identifier));
+                        snap = await getDocs(q);
+                    }
+
+                    if (!snap.empty) {
+                        emailToLogin = snap.docs[0].data().email;
                     }
                 } catch (e) {
-                    console.error("Phone lookup failed:", e);
+                    console.error("Identity lookup failed:", e);
                 }
             }
 
@@ -253,7 +345,8 @@
                     window.location.href = 'index.html';
                 }
             } catch (error) {
-                err.innerText = "Invalid email/phone or password!";
+                document.getElementById('loadingOverlay').classList.add('opacity-0', 'pointer-events-none');
+                err.innerText = "Invalid credentials or password!";
                 err.classList.remove('hidden');
                 btn.innerText = "Login";
                 btn.disabled = false;
@@ -263,18 +356,20 @@
         window.forgotPassword = async () => {
             const email = document.getElementById('loginIdentifier').value;
             if (!email || !email.includes('@')) {
-                alert("Please enter your valid email in the field first.");
+                showToast("Please enter your valid email in the field first.", 'error');
                 return;
             }
             try {
                 await sendPasswordResetEmail(auth, email);
-                alert("Password reset link sent to your email!");
+                showToast("Password reset link sent to your email!");
             } catch (error) {
-                alert("Error: " + error.message);
+                showToast("Error: " + error.message, 'error');
             }
         };
 
         window.googleAuth = async () => {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.classList.remove('opacity-0', 'pointer-events-none');
             try {
                 const result = await signInWithPopup(auth, googleProvider);
                 const user = result.user;
@@ -282,8 +377,28 @@
                 const userDoc = await getDoc(userRef);
 
                 if (!userDoc.exists()) {
+                    // Generate unique username based on name
+                    const baseUsername = (user.displayName || user.email.split('@')[0])
+                        .toLowerCase().replace(/\s+/g, '').substring(0, 15);
+                    let finalUsername = baseUsername;
+                    let isUnique = false;
+                    let counter = 1;
+
+                    while (!isUnique) {
+                        const q = query(collection(db, "users"), where("username", "==", finalUsername));
+                        const snap = await getDocs(q);
+                        if (snap.empty) {
+                            isUnique = true;
+                        } else {
+                            finalUsername = baseUsername + Math.floor(Math.random() * 10000);
+                            counter++;
+                            if (counter > 5) finalUsername = baseUsername + Date.now().toString().slice(-4);
+                        }
+                    }
+
                     await setDoc(userRef, {
                         uid: user.uid,
+                        username: finalUsername,
                         name: user.displayName || 'Google User',
                         email: user.email,
                         phone: user.phoneNumber || '',
@@ -303,7 +418,8 @@
                     window.location.href = 'index.html';
                 }
             } catch (error) {
-                alert("Google sign-in failed: " + error.message);
+                document.getElementById('loadingOverlay').classList.add('opacity-0', 'pointer-events-none');
+                showToast("Google sign-in failed: " + error.message, 'error');
             }
         };
 

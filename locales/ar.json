@@ -27,6 +27,7 @@
   "leave_empty_keep": "* اتركها فارغة للاحتفاظ بكلمة المرور الحالية",
   "cancel": "إلغاء",
   "save_changes": "حفظ التغييرات",
+  "edit_piece": "تعديل القطعة",
   "search_placeholder": "ابحث بالاسم أو التصنيف...",
   "category_all": "التصنيف: الكل",
   "contact_us": "تواصل معنا",
@@ -37,6 +38,8 @@
   "back_to_gallery": "العودة للمعرض",
   "welcome_back": "مرحبًا بعودتك",
   "login_to_account": "سجّل الدخول إلى حسابك",
+  "login_identity": "البريد، الهاتف، أو اسم المستخدم",
+  "email_phone_username_placeholder": "مثال: user123، 010...، أو البريد الإلكتروني",
   "email_or_phone": "البريد أو رقم الهاتف",
   "forgot_password": "هل نسيت كلمة المرور؟",
   "dont_have_account": "ليس لديك حساب؟",
@@ -47,7 +50,10 @@
   "join_us": "انضم لحفظ قطعك المفضلة",
   "already_have_account": "لديك حساب بالفعل؟",
   "login_here": "سجّل الدخول",
+  "username_placeholder": "مثال: name123",
+  "email_placeholder": "مثال: name@example.com",
   "day_mode": "وضع النهار",
   "night_mode": "وضع الليل",
-  "contact_picker_title": "تواصل معنا"
+  "contact_picker_title": "تواصل معنا",
+  "processing": "جاري المعالجة..."
 }

@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>House Of Glass | Join Us</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=2">
+    <link rel="apple-touch-icon" href="logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
     <script>
@@ -11,7 +13,12 @@
             darkMode: 'class',
             theme: {
                 extend: {
-                    colors: { brandBlue: '#0A3654', brandGold: '#C19B4E', darkBg: '#0F172A', darkCard: '#1E293B' },
+                    colors: { 
+                        brandBlue: '#121926', 
+                        brandGold: '#D4AF37', 
+                        darkBg: '#030712', 
+                        darkCard: '#111827' 
+                    },
                     fontFamily: { arabic: ['Almarai', 'Cairo', 'sans-serif'] }
                 }
             }
@@ -19,10 +26,17 @@
 
         // --- Smart Theme Logic ---
         function applySmartTheme() {
+            const isAutoEnabled = localStorage.getItem('autoThemeEnabled') !== 'false';
             const manualTheme = localStorage.getItem('darkMode');
             const overrideTime = localStorage.getItem('themeOverrideTime');
             const now = Date.now();
             
+            if (!isAutoEnabled) {
+                if (manualTheme === 'true') document.documentElement.classList.add('dark');
+                else if (manualTheme === 'false') document.documentElement.classList.remove('dark');
+                return;
+            }
+
             if (overrideTime && (now - overrideTime > 600000)) {
                 localStorage.removeItem('darkMode');
                 localStorage.removeItem('themeOverrideTime');
@@ -45,7 +59,7 @@
         * {
             -webkit-overflow-scrolling: touch;
             scrollbar-width: thin;
-            scrollbar-color: #C19B4E rgba(193, 155, 78, 0.05);
+            scrollbar-color: #D4AF37 rgba(212, 175, 55, 0.05);
         }
         
         /* Professional Scrollbar Styling */
@@ -54,19 +68,19 @@
             height: 10px;
         }
         ::-webkit-scrollbar-track {
-            background: rgba(193, 155, 78, 0.05);
+            background: rgba(212, 175, 55, 0.05);
         }
         ::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, #C19B4E, #a67c3a);
+            background: linear-gradient(180deg, #D4AF37, #B48E3C);
             border-radius: 10px;
             border: 2px solid transparent;
             background-clip: padding-box;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(180deg, #d4ad5a, #C19B4E);
+            background: linear-gradient(180deg, #e5c158, #D4AF37);
         }
         .dark ::-webkit-scrollbar-track {
-            background: rgba(193, 155, 78, 0.08);
+            background: rgba(212, 175, 55, 0.08);
         }
 
         /* Ultra-Realistic Warm Glass & Sunlight Effect */
@@ -96,9 +110,33 @@
             transition: all 0.5s ease;
             image-rendering: -webkit-optimize-contrast;
         }
+
+        @keyframes logo-pulse {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0px rgba(181, 142, 60, 0)); }
+            50% { transform: scale(1.15); filter: drop-shadow(0 0 30px rgba(181, 142, 60, 0.4)); }
+        }
+        .loading-logo {
+            animation: logo-pulse 2s infinite ease-in-out;
+        }
+        @keyframes loading-bar {
+            0% { left: -40%; }
+            100% { left: 110%; }
+        }
     </style>
 </head>
-<body class="bg-gray-50 dark:bg-darkBg font-sans flex items-center justify-center min-h-screen px-4 transition-colors duration-300">
+<body class="bg-white dark:bg-darkBg font-sans flex items-center justify-center min-h-screen px-4 transition-colors duration-300">
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 z-[200] bg-white dark:bg-brandBlue flex flex-col items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="relative flex flex-col items-center">
+            <img src="logo.png" class="h-32 md:h-48 w-auto loading-logo" alt="Loading...">
+            <div class="mt-12 flex flex-col items-center">
+                <div class="w-48 h-1 bg-gray-100 dark:bg-brandGold/10 rounded-full overflow-hidden relative">
+                    <div class="absolute h-full bg-brandGold w-1/3 rounded-full animate-[loading-bar_2s_infinite_ease-in-out]"></div>
+                </div>
+                <p class="mt-6 text-[10px] font-black uppercase text-brandGold tracking-[0.5em] animate-pulse" data-i18n="processing">Processing</p>
+            </div>
+        </div>
+    </div>
 
     <div class="max-w-md w-full bg-white dark:bg-darkCard rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 p-6 md:p-8">
         <div class="flex justify-end mb-2">
@@ -110,28 +148,41 @@
                     <img src="logo.png" alt="Logo" class="h-24 md:h-32 mx-auto transition-transform group-hover:scale-105">
                 </div>
             </a>
-            <h2 class="text-xl md:text-2xl font-bold text-brandBlue dark:text-brandGold" data-i18n="create_account">Create Account</h2>
-            <p class="text-gray-500 dark:text-gray-400 text-xs md:text-sm" data-i18n="join_us">Join us to save your favorite pieces</p>
+            <h2 class="text-xl md:text-2xl font-bold text-brandBlue dark:text-brandGold italic" data-i18n="create_account">Create Account</h2>
+            <p class="text-gray-500 dark:text-slate-400 text-xs md:text-sm" data-i18n="join_us">Join us to save your favorite pieces</p>
         </div>
 
         <form id="signupForm" class="space-y-4">
             <div>
-                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300" data-i18n="full_name">Full Name</label>
-                <input type="text" id="fullName" required class="mt-1 block w-full bg-white border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue">
+                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-slate-300" data-i18n="username">Username</label>
+                <input type="text" id="username" required class="mt-1 block w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue dark:text-slate-200" placeholder="e.g. name123" data-i18n-placeholder="username_placeholder">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-slate-300" data-i18n="first_name">First Name</label>
+                    <input type="text" id="firstName" required class="mt-1 block w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue dark:text-slate-200">
+                </div>
+                <div>
+                    <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-slate-300" data-i18n="last_name">Last Name</label>
+                    <input type="text" id="lastName" required class="mt-1 block w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue dark:text-slate-200">
+                </div>
             </div>
             <div>
-                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300" data-i18n="email_address">Email Address</label>
-                <input type="email" id="email" required class="mt-1 block w-full bg-white border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue">
+                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-slate-300" data-i18n="email_address">Email Address</label>
+                <input type="email" id="email" required class="mt-1 block w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue dark:text-slate-200" placeholder="e.g. name@example.com" data-i18n-placeholder="email_placeholder">
             </div>
             <div>
-                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300" data-i18n="phone_number">Phone Number (Optional)</label>
-                <input type="tel" id="phone" class="mt-1 block w-full bg-white border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue" placeholder="01XXXXXXXXX" data-i18n-placeholder="phone_number">
+                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-slate-300" data-i18n="phone_number">Phone Number (Optional)</label>
+                <div class="mt-1 flex group">
+                    <span class="flex items-center justify-center bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-700 ltr:rounded-l-xl rtl:rounded-r-xl px-3 text-sm text-gray-500 dark:text-slate-400 font-bold tracking-wider">+20</span>
+                    <input type="tel" id="phone" class="flex-1 block bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 ltr:rounded-r-xl rtl:rounded-l-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue dark:text-slate-200" placeholder="01XXXXXXXXX" data-i18n-placeholder="phone_number">
+                </div>
             </div>
             <div>
-                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300" data-i18n="password">Password</label>
-                <div class="relative">
-                    <input type="password" id="password" required class="mt-1 block w-full bg-white border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue pr-10">
-                    <button type="button" onclick="togglePassword('password')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brandGold transition-colors">
+                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-slate-300" data-i18n="password">Password</label>
+                <div class="relative group">
+                    <input type="password" id="password" required class="mt-1 block w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue dark:text-slate-200 transition-all ltr:pr-10 rtl:pl-10" placeholder="••••••••">
+                    <button type="button" onclick="togglePassword('password')" class="absolute ltr:right-3 rtl:left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brandGold transition-colors focus:outline-none">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" id="eye-icon">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -153,7 +204,7 @@
             <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
         </div>
 
-        <button type="button" onclick="googleAuth()" class="mt-5 w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-brandBlue dark:text-white p-3.5 md:p-4 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm flex items-center justify-center gap-3 text-sm md:text-base">
+        <button type="button" onclick="googleAuth()" class="mt-5 w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-brandBlue dark:text-slate-200 p-3.5 md:p-4 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm flex items-center justify-center gap-3 text-sm md:text-base">
             <svg class="w-5 h-5" viewBox="0 0 48 48" aria-hidden="true">
                 <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303C33.766 32.653 29.201 36 24 36c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.954 4 4 12.954 4 24s8.954 20 20 20 20-8.954 20-20c0-1.341-.138-2.651-.389-3.917z"/>
                 <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 16.108 19.01 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4c-7.681 0-14.344 4.327-17.694 10.691z"/>
@@ -166,6 +217,11 @@
         <div class="mt-6 text-center">
             <p class="text-sm text-gray-500"><span data-i18n="already_have_account">Already have an account?</span> <a href="login.html" class="text-brandBlue dark:text-brandGold font-bold hover:underline" data-i18n="login_here">Login here</a></p>
         </div>
+
+        <div class="mt-8 pt-6 border-t border-gray-100 dark:border-gray-800 text-center">
+            <p class="text-[10px] text-gray-400 uppercase tracking-[0.2em] mb-1 italic" data-i18n="premium_home_glassware">Premium Home Glassware</p>
+            <p class="text-xl font-black text-[#163159] dark:text-brandGold font-arabic" dir="rtl">ال عاشور عدس</p>
+        </div>
         
         <div class="mt-6 text-center">
             <a href="index.html" class="text-gray-400 hover:text-brandBlue text-xs transition-colors">← <span data-i18n="back_to_gallery">Back to Gallery</span></a>
@@ -177,7 +233,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // Firebase config here...
         const firebaseConfig = {
@@ -203,25 +259,55 @@
             e.preventDefault();
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
-            const phone = document.getElementById('phone').value;
-            const name = document.getElementById('fullName').value;
+            const username = document.getElementById('username').value.trim();
+            const firstName = document.getElementById('firstName').value.trim();
+            const lastName = document.getElementById('lastName').value.trim();
+            let phone = document.getElementById('phone').value.trim();
+            
+            if (phone) {
+                // Prepend Egypt code and remove leading zero if present
+                phone = "+20" + phone.replace(/^0/, '');
+            }
+            
+            const fullName = `${firstName} ${lastName}`;
             const btn = document.getElementById('submitBtn');
             const err = document.getElementById('errorMessage');
+            const overlay = document.getElementById('loadingOverlay');
 
-            btn.innerText = "Creating...";
+            // Show loading overlay
+            overlay.classList.remove('opacity-0', 'pointer-events-none');
             btn.disabled = true;
             err.classList.add('hidden');
 
             try {
+                // Check if username is unique
+                const usernameQuery = query(collection(db, "users"), where("username", "==", username));
+                const usernameSnap = await getDocs(usernameQuery);
+                if (!usernameSnap.empty) {
+                    throw new Error("Username is already taken. Please choose another one.");
+                }
+
+                // Check if phone is unique (if provided)
+                if (phone) {
+                    const phoneQuery = query(collection(db, "users"), where("phone", "==", phone));
+                    const phoneSnap = await getDocs(phoneQuery);
+                    if (!phoneSnap.empty) {
+                        throw new Error("Phone number is already registered to another account.");
+                    }
+                }
+
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
                 
-                await updateProfile(user, { displayName: name });
+                await updateProfile(user, { displayName: fullName });
                 
                 // Keep isAdmin false by default for customers
                 await setDoc(doc(db, "users", user.uid), {
                     uid: user.uid,
-                    name: name,
+                    username: username,
+                    firstName: firstName,
+                    lastName: lastName,
+                    name: fullName,
                     email: email,
                     phone: phone,
                     favorites: [],
@@ -231,6 +317,7 @@
 
                 window.location.href = 'index.html';
             } catch (error) {
+                document.getElementById('loadingOverlay').classList.add('opacity-0', 'pointer-events-none');
                 err.innerText = error.message;
                 err.classList.remove('hidden');
                 btn.innerText = "Create Account";
@@ -239,6 +326,8 @@
         };
 
         window.googleAuth = async () => {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.classList.remove('opacity-0', 'pointer-events-none');
             try {
                 const result = await signInWithPopup(auth, googleProvider);
                 const user = result.user;
@@ -246,8 +335,28 @@
                 const userDoc = await getDoc(userRef);
 
                 if (!userDoc.exists()) {
+                    // Generate unique username based on name
+                    const baseUsername = (user.displayName || user.email.split('@')[0])
+                        .toLowerCase().replace(/\s+/g, '').substring(0, 15);
+                    let finalUsername = baseUsername;
+                    let isUnique = false;
+                    let counter = 1;
+
+                    while (!isUnique) {
+                        const q = query(collection(db, "users"), where("username", "==", finalUsername));
+                        const snap = await getDocs(q);
+                        if (snap.empty) {
+                            isUnique = true;
+                        } else {
+                            finalUsername = baseUsername + Math.floor(Math.random() * 10000);
+                            counter++;
+                            if (counter > 5) finalUsername = baseUsername + Date.now().toString().slice(-4);
+                        }
+                    }
+
                     await setDoc(userRef, {
                         uid: user.uid,
+                        username: finalUsername,
                         name: user.displayName || 'Google User',
                         email: user.email,
                         phone: user.phoneNumber || '',
@@ -259,6 +368,7 @@
 
                 window.location.href = 'index.html';
             } catch (error) {
+                document.getElementById('loadingOverlay').classList.add('opacity-0', 'pointer-events-none');
                 const err = document.getElementById('errorMessage');
                 err.innerText = error.message;
                 err.classList.remove('hidden');

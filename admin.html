@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>House Of Glass | Admin Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=2">
+    <link rel="apple-touch-icon" href="logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
@@ -13,10 +15,10 @@
             theme: {
                 extend: {
                     colors: {
-                        brandBlue: '#0A3654',
-                        brandGold: '#C19B4E',
-                        darkBg: '#0F172A',
-                        darkCard: '#1E293B'
+                        brandBlue: '#121926',
+                        brandGold: '#D4AF37',
+                        darkBg: '#030712',
+                        darkCard: '#111827'
                     },
                     fontFamily: {
                         arabic: ['Cairo', 'sans-serif'],
@@ -27,10 +29,17 @@
 
         // --- Smart Theme Logic ---
         function applySmartTheme() {
+            const isAutoEnabled = localStorage.getItem('autoThemeEnabled') !== 'false';
             const manualTheme = localStorage.getItem('darkMode');
             const overrideTime = localStorage.getItem('themeOverrideTime');
             const now = Date.now();
             
+            if (!isAutoEnabled) {
+                if (manualTheme === 'true') document.documentElement.classList.add('dark');
+                else if (manualTheme === 'false') document.documentElement.classList.remove('dark');
+                return;
+            }
+
             if (overrideTime && (now - overrideTime > 600000)) {
                 localStorage.removeItem('darkMode');
                 localStorage.removeItem('themeOverrideTime');
@@ -53,7 +62,7 @@
         * {
             -webkit-overflow-scrolling: touch;
             scrollbar-width: thin;
-            scrollbar-color: #C19B4E rgba(193, 155, 78, 0.05);
+            scrollbar-color: #D4AF37 rgba(212, 175, 55, 0.05);
         }
         .group:hover .admin-actions { opacity: 1; }
         .modal { transition: opacity 0.25s ease; }
@@ -64,8 +73,8 @@
         /* Spotify-style Dragging Effects */
         .sortable-ghost {
             opacity: 0.15;
-            background: #C19B4E33 !important;
-            border: 1px dashed #C19B4E !important;
+            background: #D4AF3733 !important;
+            border: 1px dashed #D4AF37 !important;
         }
         .sortable-chosen {
             opacity: 1;
@@ -78,6 +87,17 @@
             opacity: 0 !important;
         }
         #catAdminList.is-dragging {
+            user-select: none !important;
+        }
+        #catAdminList.is-dragging * {
+            user-select: none !important;
+        }
+        .drag-handle {
+            touch-action: none;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+        .group\/cat {
             user-select: none;
         }
         #catAdminList.is-dragging .group\/cat {
@@ -90,19 +110,19 @@
             height: 10px;
         }
         ::-webkit-scrollbar-track {
-            background: rgba(193, 155, 78, 0.05);
+            background: rgba(212, 175, 55, 0.05);
         }
         ::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, #C19B4E, #a67c3a);
+            background: linear-gradient(180deg, #D4AF37, #B48E3C);
             border-radius: 10px;
             border: 2px solid transparent;
             background-clip: padding-box;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(180deg, #d4ad5a, #C19B4E);
+            background: linear-gradient(180deg, #e5c158, #D4AF37);
         }
         .dark ::-webkit-scrollbar-track {
-            background: rgba(193, 155, 78, 0.08);
+            background: rgba(212, 175, 55, 0.08);
         }
 
         /* Professional Scrollbar Styling - Categories List */
@@ -110,23 +130,23 @@
             width: 8px;
         }
         #catAdminList::-webkit-scrollbar-track {
-            background: rgba(193, 155, 78, 0.05);
+            background: rgba(212, 175, 55, 0.05);
             border-radius: 10px;
         }
         #catAdminList::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, #C19B4E, #a67c3a);
+            background: linear-gradient(180deg, #D4AF37, #B48E3C);
             border-radius: 10px;
             border: 2px solid transparent;
             background-clip: padding-box;
         }
         #catAdminList::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(180deg, #d4ad5a, #C19B4E);
+            background: linear-gradient(180deg, #e5c158, #D4AF37);
             border-radius: 10px;
             border: 2px solid transparent;
             background-clip: padding-box;
         }
         .dark #catAdminList::-webkit-scrollbar-track {
-            background: rgba(193, 155, 78, 0.1);
+            background: rgba(212, 175, 55, 0.1);
         }
 
         /* Ultra-Realistic Warm Glass & Sunlight Effect */
@@ -134,7 +154,7 @@
             0%, 100% { 
                 filter: 
                     drop-shadow(0 0 1px rgba(255, 236, 180, 0.8)) 
-                    drop-shadow(0 0 8px rgba(193, 155, 78, 0.3))
+                    drop-shadow(0 0 8px rgba(212, 175, 55, 0.3))
                     brightness(1.15) contrast(1.1); 
             }
             50% { 
@@ -160,12 +180,159 @@
             transition: all 0.5s ease;
             image-rendering: -webkit-optimize-contrast;
         }
+
+        /* Modern Toast Notification */
+        #toast-container {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            pointer-events: none;
+        }
+        .toast {
+            background: rgba(18, 25, 38, 0.95);
+            backdrop-filter: blur(8px);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 100px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+            opacity: 0;
+            transform: translateY(1rem);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .dark .toast {
+            background: rgba(17, 24, 39, 0.98);
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .toast-icon {
+            color: #D4AF37;
+        }
+
+        /* Reorder Mode Styles */
+        .reorder-row {
+            display: flex;
+            overflow-x: auto;
+            gap: 1rem;
+            padding: 1rem 0;
+            scrollbar-width: thin;
+        }
+        .reorder-card {
+            flex: 0 0 150px;
+            cursor: grab;
+            user-select: none;
+            position: relative;
+        }
+        .reorder-card:active {
+            cursor: grabbing;
+        }
+        .reorder-card img {
+            width: 100%;
+            height: 100px;
+            object-fit: contain;
+            background: #f3f4f6;
+            border-radius: 0.75rem;
+            pointer-events: none;
+        }
+        .dark .reorder-card img {
+            background: #1f2937;
+        }
+        .sortable-ghost-product {
+            opacity: 0.4;
+            transform: scale(0.95);
+        }
+
+        /* Cinematic Scrolling Title */
+        .title-container {
+            overflow: hidden;
+            width: 100%;
+            mask-image: linear-gradient(to right, black 85%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+        }
+        
+        .title-slide {
+            display: block;
+            width: max-content;
+            transition: transform 0.3s ease;
+        }
+
+        .group:hover .title-slide {
+            animation: marqueeTitle 6s linear infinite;
+            padding-left: 20px;
+        }
+
+        @keyframes marqueeTitle {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-100%); }
+        }
+        
+        .group:hover .title-container {
+            mask-image: none;
+            -webkit-mask-image: none;
+        }
+
+        /* Admin toolbar expansion behavior */
+        #adminToolbar {
+            width: 56px;
+            max-width: 100%;
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+            flex-shrink: 0;
+            margin-left: auto;
+        }
+        #adminToolbar.expanded {
+            width: min(560px, calc(100% - 2.5rem));
+        }
+        #adminToolbar #toolbarActions {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateX(16px);
+            transition: opacity 0.3s ease, transform 0.35s ease;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+        }
+        #adminToolbar.expanded #toolbarActions {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(0);
+            overflow-x: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        #adminToolbar.expanded #toolbarActions::-webkit-scrollbar {
+            display: none;
+        }
+        @media (max-width: 640px) {
+            #adminToolbar.expanded {
+                position: absolute;
+                right: 1rem;
+                width: calc(100% - 2rem);
+                z-index: 60;
+                top: 50%;
+                transform: translateY(-50%);
+                margin-left: 0;
+            }
+            #adminToolbar #toolbarActions {
+                gap: 0.375rem !important; /* Tighten for mobile */
+                padding-left: 0.5rem !important;
+                padding-right: 0.75rem !important;
+            }
+        }
     </style>
 </head>
-<body class="bg-gray-50 dark:bg-darkBg font-sans transition-colors duration-300 overflow-x-hidden">
+<body class="bg-white dark:bg-darkBg font-sans transition-colors duration-300 overflow-x-hidden">
 
-    <header class="bg-white dark:bg-[#20293D] border-b dark:border-gray-800 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 h-16 md:h-20 flex justify-between items-center">
+    <header class="bg-white dark:bg-brandBlue border-b dark:border-gray-800 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 h-16 md:h-20 flex justify-between items-center relative">
             <div class="flex items-center space-x-2 md:space-x-4">
                 <a href="index.html" class="flex items-center space-x-2 md:space-x-3 group">
                     <div class="shine-effect rounded-lg">
@@ -178,62 +345,59 @@
                 </a>
             </div>
             
-            <div id="adminToolbar" class="flex items-center bg-gray-50 dark:bg-gray-800/90 backdrop-blur-md border dark:border-gray-700 rounded-full p-1 transition-all duration-500 ease-in-out relative h-[56px]" style="max-width: 56px;">
-                <button onclick="toggleToolbar()" class="sticky left-0 w-[46px] h-[46px] flex-shrink-0 flex items-center justify-center rounded-full bg-brandBlue text-white hover:bg-brandGold transition-all z-20 shadow-lg">
+            <div id="adminToolbar" class="flex items-center bg-gray-50 dark:bg-gray-800/90 backdrop-blur-md border dark:border-gray-700 rounded-full p-1 transition-all duration-500 ease-in-out relative h-[56px]">
+                <button onclick="toggleToolbar()" class="relative w-[46px] h-[46px] flex-shrink-0 flex items-center justify-center rounded-full bg-brandBlue text-white hover:bg-brandGold transition-all z-20 shadow-lg">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 transform transition-transform duration-500" id="toolbarIcon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                     </svg>
                 </button>
-                <div class="flex items-center gap-2 pl-3 pr-4 opacity-0 pointer-events-none transition-all duration-300" id="toolbarActions">
+                <div class="flex items-center gap-1.5 md:gap-2 pl-2 md:pl-3 pr-3 md:pr-4 flex-nowrap" id="toolbarActions">
                     <!-- Modern Sun/Moon Icon -->
-                    <button onclick="toggleDarkMode()" class="w-10 h-10 rounded-full bg-white dark:bg-darkCard text-gray-600 dark:text-gray-300 hover:text-brandGold shadow-sm flex items-center justify-center transition-all group" title="Theme">
-                        <div class="relative w-6 h-6">
+                    <button onclick="toggleDarkMode()" class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white dark:bg-darkCard text-gray-600 dark:text-gray-300 hover:text-brandGold shadow-sm flex items-center justify-center transition-all group shrink-0" title="Theme">
+                        <div class="relative w-5 h-5 md:w-6 md:h-6">
                             <!-- Sun -->
-                            <svg xmlns="http://www.w3.org/2000/svg" class="absolute inset-0 h-6 w-6 dark:hidden text-amber-500 transition-transform group-hover:rotate-45" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="absolute inset-0 h-5 w-5 md:h-6 md:w-6 dark:hidden text-amber-500 transition-transform group-hover:rotate-45" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <circle cx="12" cy="12" r="4" stroke-width="2"></circle>
                                 <path stroke-linecap="round" stroke-width="2" d="M12 2v2m0 16v2m8-10h2M2 12h2m14.14-7.07l-1.41 1.41M4.93 19.07l1.41-1.41M19.07 19.07l-1.41-1.41M4.93 4.93l1.41 1.41" />
                             </svg>
                             <!-- Moon -->
-                            <svg xmlns="http://www.w3.org/2000/svg" class="absolute inset-0 h-6 w-6 hidden dark:block text-yellow-500 transition-transform group-hover:-rotate-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="absolute inset-0 h-5 w-5 md:h-6 md:w-6 hidden dark:block text-yellow-500 transition-transform group-hover:-rotate-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 6l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2z M5 8l1 1 1 .5-1 .5-1 1-.5-1-1-.5 1-.5 .5-1z" />
                             </svg>
                         </div>
                     </button>
-                    <button id="manageUsersBtn" onclick="openUsersModal()" class="hidden bg-brandGold/10 p-2.5 rounded-full text-brandGold hover:bg-brandGold hover:text-white transition-all shadow-sm" title="Team">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                    <button id="manageUsersBtn" onclick="openUsersModal()" class="hidden bg-brandGold/10 p-2 md:p-2.5 rounded-full text-brandGold hover:bg-brandGold hover:text-white transition-all shadow-sm shrink-0" title="Team">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                     </button>
-                    <button onclick="openSettingsModal()" class="p-2.5 rounded-full bg-white dark:bg-darkCard text-gray-600 dark:text-gray-300 hover:text-brandBlue shadow-sm" title="Settings">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /></svg>
+                    <button onclick="openSettingsModal()" class="bg-brandGold/10 p-2 md:p-2.5 rounded-full text-brandGold hover:bg-brandGold hover:text-white transition-all shadow-sm shrink-0" title="Settings">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
                     </button>
-                    <button onclick="openCategoryModal()" class="whitespace-nowrap px-3 py-2 rounded-full border border-brandGold text-brandGold text-xs font-bold hover:bg-brandGold hover:text-white transition-all" data-i18n="categories">Categories</button>
-                    <button onclick="openModal()" class="whitespace-nowrap px-4 py-2 rounded-full bg-brandBlue text-white text-xs font-bold shadow-md hover:scale-105 transition-all" data-i18n="add_product">+ Add Product</button>
-                    <a href="index.html" class="p-2.5 rounded-full bg-white dark:bg-darkCard text-gray-600 dark:text-gray-300 hover:text-brandGold shadow-sm" title="View Site">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                    <button onclick="openCategoryModal()" class="whitespace-nowrap px-2 md:px-3 py-1.5 md:py-2 rounded-full border border-brandGold text-brandGold text-[10px] md:text-xs font-bold hover:bg-brandGold hover:text-white transition-all shrink-0" data-i18n="categories">Categories</button>
+                    <button onclick="openReorderModal()" class="whitespace-nowrap px-2 md:px-3 py-1.5 md:py-2 rounded-full border border-brandGold text-brandGold text-[10px] md:text-xs font-bold hover:bg-brandGold hover:text-white transition-all shrink-0">Reorder Rows</button>
+                    <button onclick="openModal()" class="whitespace-nowrap px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-brandBlue text-white text-[10px] md:text-xs font-bold shadow-md hover:scale-105 transition-all shrink-0" data-i18n="add_product">+ Add Product</button>
+                    <a href="index.html" class="bg-brandGold/10 p-1 rounded-full text-brandGold hover:bg-brandGold hover:text-white transition-all shadow-sm shrink-0" title="View Site">
+                        <img src="favicon.svg?v=2" alt="View Site" class="h-8 w-8 md:h-9 md:w-9" />
                     </a>
-                    <button onclick="logout()" class="p-2.5 rounded-full text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors" title="Logout">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                    <button onclick="logout()" class="p-2 md:p-2.5 rounded-full text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors shrink-0" title="Logout">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
                     </button>
                 </div>
             </div>
             <script>
                 function toggleToolbar() {
                     const toolbar = document.getElementById('adminToolbar');
-                    const actions = document.getElementById('toolbarActions');
                     const icon = document.getElementById('toolbarIcon');
-                    // If not 56px, it means it is OPEN. So we Close it.
-                    if (toolbar.style.maxWidth !== '56px') {
-                        toolbar.style.maxWidth = '56px';
-                        actions.style.opacity = '0';
-                        actions.style.pointerEvents = 'none';
-                        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />';
-                        icon.classList.remove('rotate-0');
-                    } else {
-                        // Open: Expand to max width allowed by screen
-                        toolbar.style.maxWidth = window.innerWidth < 640 ? '90vw' : '800px'; 
-                        actions.style.opacity = '1';
-                        actions.style.pointerEvents = 'auto';
+                    const actions = document.getElementById('toolbarActions');
+                    const isOpen = toolbar.classList.toggle('expanded');
+                    if (isOpen) {
                         icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />';
+                        requestAnimationFrame(() => actions.scrollLeft = 0);
+                    } else {
+                        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />';
                     }
                 }
             </script>
@@ -258,7 +422,18 @@
             </div>
         </div>
 
-        <div id="product-grid" class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-8"></div>
+        <div id="product-grid" class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-8">
+            <!-- Loading Skeleton -->
+            <div class="loading-skeleton col-span-full flex flex-col items-center justify-center py-20">
+                <img src="logo.png" class="h-20 md:h-24 w-auto mb-6 animate-pulse opacity-60" alt="Loading...">
+                <div class="flex gap-2">
+                    <div class="w-2 h-2 bg-brandGold rounded-full animate-bounce" style="animation-delay: 0s"></div>
+                    <div class="w-2 h-2 bg-brandGold rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                    <div class="w-2 h-2 bg-brandGold rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                </div>
+                <p class="mt-4 text-xs text-gray-400 dark:text-gray-500 uppercase tracking-widest" data-i18n="loading">Loading Products...</p>
+            </div>
+        </div>
     </main>
 
     <footer class="bg-gray-100 dark:bg-darkCard border-t dark:border-gray-800 py-8 mt-12">
@@ -316,9 +491,17 @@
     <div id="usersModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-[120]">
         <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50" onclick="closeUsersModal()"></div>
         <div class="modal-container bg-white dark:bg-darkCard w-11/12 md:max-w-2xl mx-auto rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col h-[80vh]">
-            <div class="p-6 border-b dark:border-gray-700 flex justify-between items-center">
-                <h2 class="text-xl font-black text-brandBlue dark:text-brandGold uppercase">Manage Permissions</h2>
-                <button onclick="closeUsersModal()" class="text-gray-400">✕</button>
+            <div class="p-6 border-b dark:border-gray-700 flex flex-col gap-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-xl font-black text-brandBlue dark:text-brandGold uppercase">Manage Permissions</h2>
+                    <button onclick="closeUsersModal()" class="text-gray-400">✕</button>
+                </div>
+                <div class="relative">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input type="text" id="userSearchInput" placeholder="Search by name or email..." class="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-brandGold outline-none dark:text-white" oninput="renderUsers()">
+                </div>
             </div>
             <div class="flex-grow overflow-y-auto p-6">
                 <table class="w-full">
@@ -326,13 +509,35 @@
                         <tr>
                             <th class="px-4 py-3 text-left">Member Info</th>
                             <th class="px-4 py-3 text-left">Access Level</th>
-                            <th class="px-4 py-3 text-right">Update Role</th>
+                            <th class="px-4 py-3 text-center">Update Role</th>
+                            <th class="px-4 py-3 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="usersList" class="divide-y dark:divide-gray-700 text-sm">
                         <!-- Users here -->
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Confirmation Modal -->
+    <div id="confirmModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-[200] transition-all duration-300">
+        <div class="modal-overlay absolute w-full h-full bg-gray-900/60 backdrop-blur-sm" onclick="closeConfirmModal()"></div>
+        <div class="modal-container bg-white dark:bg-darkCard w-[90%] max-w-sm mx-auto rounded-3xl shadow-2xl z-50 overflow-hidden transform scale-95 transition-transform duration-300">
+            <div class="p-8 text-center">
+                <div id="confirmIconContainer" class="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg id="confirmIcon" class="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <h3 id="confirmTitle" class="text-xl font-black text-brandBlue dark:text-brandGold uppercase italic mb-2">Are you sure?</h3>
+                <p id="confirmMessage" class="text-sm text-gray-500 dark:text-gray-400 mb-8 leading-relaxed">This action cannot be undone.</p>
+                
+                <div class="flex gap-3">
+                    <button onclick="closeConfirmModal()" class="flex-1 px-4 py-3 bg-gray-50 dark:bg-gray-800 text-gray-500 font-bold text-xs rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all uppercase tracking-widest">Cancel</button>
+                    <button id="confirmActionBtn" class="flex-1 px-4 py-3 bg-red-500 text-white font-bold text-xs rounded-xl hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all uppercase tracking-widest">Yes, Delete</button>
+                </div>
             </div>
         </div>
     </div>
@@ -353,6 +558,27 @@
                 <div id="catAdminList" class="space-y-1.5 max-h-64 overflow-y-auto pr-2 custom-scroll">
                     <!-- Categories list here -->
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Reorder Modal -->
+    <div id="reorderModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-[115] overflow-hidden">
+        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-60 backdrop-blur-sm" onclick="closeReorderModal()"></div>
+        <div class="modal-container bg-white dark:bg-darkCard w-full md:w-[95%] lg:w-[90%] h-[90vh] mx-auto rounded-3xl shadow-2xl z-50 overflow-hidden flex flex-col">
+            <div class="px-6 py-4 border-b dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
+                <div class="flex flex-col">
+                    <h2 class="text-xl font-black text-brandBlue dark:text-brandGold uppercase italic tracking-tighter">Homepage Row Reordering</h2>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Drag pieces to change their order in horizontal rows</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button id="saveReorderBtn" onclick="saveNewProductOrder()" class="px-6 py-2 bg-brandGold text-white rounded-full text-xs font-black uppercase tracking-widest shadow-lg shadow-brandGold/20 hover:scale-105 transition-all">Save Changes</button>
+                    <button onclick="closeReorderModal()" class="text-gray-400 hover:text-red-500 transition-colors p-2 text-xl font-bold">✕</button>
+                </div>
+            </div>
+            
+            <div id="reorderContainer" class="flex-grow overflow-y-auto p-6 space-y-12">
+                <!-- Rows will be injected here -->
             </div>
         </div>
     </div>
@@ -395,13 +621,26 @@
         </div>
     </div>
 
+    <!-- History Modal -->
+    <div id="historyModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-[120]">
+        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50 backdrop-blur-sm" onclick="closeHistoryModal()"></div>
+        <div class="modal-container bg-white dark:bg-darkCard w-full max-w-lg mx-4 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[80vh]">
+            <div class="p-4 border-b dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
+                <h3 class="text-lg font-bold text-brandBlue dark:text-brandGold">Edit History</h3>
+                <button onclick="closeHistoryModal()" class="text-gray-400 hover:text-red-500 text-xl font-bold">✕</button>
+            </div>
+            <div id="historyList" class="overflow-y-auto p-4 space-y-3 custom-scroll">
+                <!-- History Items Injected Here -->
+            </div>
+        </div>
+    </div>
+
     <script src="locales-data.js"></script>
     <script src="i18n.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp, setDoc, getDoc, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp, setDoc, getDoc, where, onSnapshot, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getStorage, ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyA_oTePhmWmzuOcZDmc_-7bhoAVbYVhH3Q",
@@ -416,7 +655,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
-        const storage = getStorage(app);
 
         let products = [];
         let categories = [];
@@ -424,8 +662,10 @@
         let allUsers = [];
         let siteSettings = { whatsapp: '', facebook: '', maps: '' };
         let userRole = 'moderator';
+        let currentUser = null;
 
         onAuthStateChanged(auth, async (user) => {
+            currentUser = user; // Capture current user for history tracking
             if (!user) {
                 window.location.href = 'login.html';
                 return;
@@ -448,33 +688,58 @@
 
         async function loadData() {
             try {
-                // Load Settings from settings/contact
-                const settingsSnap = await getDoc(doc(db, "settings", "contact"));
-                if (settingsSnap.exists()) {
-                    siteSettings = settingsSnap.data();
-                }
+                // Load Settings - Live Listener
+                onSnapshot(doc(db, "settings", "contact"), (settingsSnap) => {
+                    if (settingsSnap.exists()) {
+                        siteSettings = settingsSnap.data();
+                    }
+                });
 
-                // Load Categories (Fetch all then sort in JS for safety with old data)
-                const catSnapshot = await getDocs(collection(db, "categories"));
-                categoriesData = catSnapshot.docs.map((doc, idx) => {
-                    const data = doc.data();
-                    return { 
-                        id: doc.id, 
-                        name: data.name, 
-                        order: data.order !== undefined ? data.order : idx 
-                    };
+                // Load Categories - Live Listener
+                onSnapshot(collection(db, "categories"), (catSnapshot) => {
+                    categoriesData = catSnapshot.docs.map((doc, idx) => {
+                        const data = doc.data();
+                        return { 
+                            id: doc.id, 
+                            name: data.name, 
+                            order: data.order !== undefined ? data.order : idx 
+                        };
+                    });
+                    
+                    // Final sort
+                    categoriesData.sort((a, b) => a.order - b.order);
+                    categories = categoriesData.map(c => c.name);
+                    
+                    renderCategoriesInUI();
+                    filterAdminProducts();
                 });
                 
-                // Final sort
-                categoriesData.sort((a, b) => a.order - b.order);
-                categories = categoriesData.map(c => c.name);
-                
-                // Load Products
-                const prodSnapshot = await getDocs(query(collection(db, "products"), orderBy("createdAt", "desc")));
-                products = prodSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                // Load Products - Live Listener
+                onSnapshot(collection(db, "products"), (prodSnapshot) => {
+                    products = prodSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    // Sort locally to handle missing order fields gracefully
+                    products.sort((a, b) => {
+                        const orderA = a.order !== undefined ? a.order : 999999;
+                        const orderB = b.order !== undefined ? b.order : 999999;
+                        if (orderA !== orderB) return orderA - orderB;
+                        const timeA = a.createdAt?.toMillis() || 0;
+                        const timeB = b.createdAt?.toMillis() || 0;
+                        return timeB - timeA;
+                    });
+                    filterAdminProducts();
 
-                renderProducts();
-                renderCategoriesInUI();
+                    // Handle direct edit link (?edit=ID)
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const editId = urlParams.get('edit');
+                    if (editId && !window.autoEditHandled) {
+                        window.editProduct(editId);
+                        window.autoEditHandled = true;
+                        // Clean URL without refresh
+                        const newUrl = window.location.pathname;
+                        window.history.replaceState({}, document.title, newUrl);
+                    }
+                });
+
             } catch (error) {
                 console.error("Error loading data:", error);
             }
@@ -599,7 +864,7 @@
             if (newName && newName.trim() !== "" && newName !== oldName) {
                 const cleanName = newName.trim();
                 if (categories.includes(cleanName)) {
-                    alert("Category name already exists!");
+                    showToast("Category name already exists!", 'error');
                     return;
                 }
 
@@ -617,11 +882,11 @@
                         const updates = prodSnapshot.docs.map(d => updateDoc(doc(db, "products", d.id), { category: cleanName }));
                         await Promise.all(updates);
 
-                        alert("Category updated successfully!");
+                        showToast("Category updated successfully!");
                         loadData();
                     } catch (e) {
                         console.error("Error updating category:", e);
-                        alert("Error updating category: " + e.message);
+                        showToast(`Error: ${e.message}`, 'error');
                     }
                 }
             }
@@ -642,6 +907,10 @@
             const grid = document.getElementById('product-grid');
             grid.innerHTML = '';
             
+            // Remove loading skeleton
+            const loadingSkeleton = document.querySelector('.loading-skeleton');
+            if (loadingSkeleton) loadingSkeleton.remove();
+            
             if(list.length === 0) {
                 grid.innerHTML = `<div class="col-span-full text-center py-20 text-gray-400 font-bold">No products found matching your criteria.</div>`;
                 return;
@@ -652,21 +921,27 @@
                 card.className = 'group relative bg-white dark:bg-darkCard rounded-xl md:rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden';
                 card.innerHTML = `
                     <div class="relative h-40 md:h-48 bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
-                        <img src="${p.images[0]}" class="w-full h-full object-contain p-2 transition-transform group-hover:scale-105">
+                        <img src="${p.images[0]}" class="w-full h-full object-contain p-6 transition-transform group-hover:scale-105">
                         <div class="absolute top-2 left-2 bg-brandGold text-white text-[7px] md:text-[8px] font-black uppercase tracking-widest px-1.5 md:px-2 py-0.5 md:py-1 rounded-full shadow-lg">${p.category}</div>
                         
                         <!-- Desktop Actions (Hover) -->
                         <div class="hidden md:flex admin-actions opacity-0 absolute inset-0 bg-brandBlue/70 backdrop-blur-sm transition-all items-center justify-center space-x-3 group-hover:opacity-100">
-                            <button onclick="editProduct('${p.id}')" class="bg-white text-brandBlue p-3 rounded-full shadow-xl hover:scale-110 transition-transform font-bold">✎</button>
-                            <button onclick="deleteProduct('${p.id}')" class="bg-red-500 text-white p-3 rounded-full shadow-xl hover:scale-110 transition-transform">✕</button>
+                            <button onclick="editProduct('${p.id}')" class="bg-white text-brandBlue p-3 rounded-full shadow-xl hover:scale-110 transition-transform font-bold" title="Edit">✎</button>
+                            <button onclick="showHistory('${p.id}')" class="bg-brandGold text-white p-3 rounded-full shadow-xl hover:scale-110 transition-transform font-bold" title="History">ℹ</button>
+                            <button onclick="deleteProduct('${p.id}')" class="bg-red-500 text-white p-3 rounded-full shadow-xl hover:scale-110 transition-transform" title="Delete">✕</button>
                         </div>
                     </div>
-                    <div class="p-3 md:p-4 border-t dark:border-gray-800 flex items-center justify-between">
-                        <h3 class="font-bold text-brandBlue dark:text-brandGold truncate uppercase text-[10px] md:text-sm tracking-tight flex-grow">${p.name}</h3>
+                    <div class="p-3 md:p-4 border-t dark:border-gray-800 flex items-center justify-between overflow-hidden">
+                        <div class="title-container flex-grow mr-2">
+                            <h3 class="title-slide font-bold text-brandBlue dark:text-brandGold uppercase text-[10px] md:text-sm tracking-tight whitespace-nowrap">${p.name}</h3>
+                        </div>
                         <!-- Mobile Actions (Always visible) -->
                         <div class="flex md:hidden items-center space-x-1 ml-2">
                             <button onclick="editProduct('${p.id}')" class="text-brandBlue dark:text-brandGold p-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                            </button>
+                            <button onclick="showHistory('${p.id}')" class="text-brandGold p-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                             </button>
                             <button onclick="deleteProduct('${p.id}')" class="text-red-500 p-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -677,6 +952,112 @@
                 grid.appendChild(card);
             });
         }
+
+        let reorderSortables = [];
+
+        window.openReorderModal = function() {
+            document.getElementById('reorderModal').classList.remove('opacity-0', 'pointer-events-none');
+            document.body.classList.add('modal-active');
+            renderReorderRows();
+        };
+
+        window.closeReorderModal = function() {
+            document.getElementById('reorderModal').classList.add('opacity-0', 'pointer-events-none');
+            document.body.classList.remove('modal-active');
+            // Destroy sortables to prevent memory leaks
+            reorderSortables.forEach(s => s.destroy());
+            reorderSortables = [];
+        };
+
+        function renderReorderRows() {
+            const container = document.getElementById('reorderContainer');
+            container.innerHTML = '';
+            reorderSortables.forEach(s => s.destroy());
+            reorderSortables = [];
+
+            // Sort categories by their order
+            const sortedCats = [...categoriesData].sort((a, b) => a.order - b.order);
+
+            sortedCats.forEach(cat => {
+                const catName = cat.name;
+                const catProducts = products.filter(p => p.category === catName);
+                if (catProducts.length === 0) return;
+
+                const section = document.createElement('div');
+                section.className = 'space-y-4 bg-gray-50/50 dark:bg-gray-800/30 p-4 rounded-2xl border border-gray-100 dark:border-gray-800';
+                section.innerHTML = `
+                    <div class="flex items-center justify-between border-b dark:border-gray-700/50 pb-2 mb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-brandGold animate-pulse"></span>
+                            <h3 class="text-sm font-black text-brandBlue dark:text-brandGold uppercase tracking-tighter italic">${catName}</h3>
+                        </div>
+                        <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">${catProducts.length} pieces</span>
+                    </div>
+                    <div id="reorder-row-${cat.id}" class="reorder-row custom-scroll flex overflow-x-auto gap-4 py-2">
+                        ${catProducts.map(p => `
+                            <div data-id="${p.id}" class="reorder-card bg-white dark:bg-gray-800 p-3 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:border-brandGold transition-all flex-shrink-0 w-32 md:w-40">
+                                <div class="bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden mb-2">
+                                    <img src="${p.images[0]}" alt="${p.name}" class="w-full h-24 md:h-32 object-contain p-4">
+                                </div>
+                                <p class="text-[9px] md:text-[10px] font-black text-brandBlue dark:text-gray-300 truncate w-full px-1 text-center italic uppercase tracking-tighter">${p.name}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(section);
+
+                const rowEl = section.querySelector('.reorder-row');
+                const sortable = new Sortable(rowEl, {
+                    animation: 250,
+                    ghostClass: 'sortable-ghost-product',
+                    direction: 'horizontal',
+                    forceFallback: true,
+                    fallbackOnBody: false,
+                    scroll: rowEl,
+                    onStart: function() {
+                        rowEl.classList.add('is-dragging-row');
+                    },
+                    onEnd: function() {
+                        rowEl.classList.remove('is-dragging-row');
+                    }
+                });
+                reorderSortables.push(sortable);
+            });
+        }
+
+        window.saveNewProductOrder = async function() {
+            const btn = document.getElementById('saveReorderBtn');
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = "SAVING...";
+
+            try {
+                const rows = document.querySelectorAll('.reorder-row');
+                let allUpdates = [];
+                let globalOrder = 0;
+
+                // We want to maintain a global order across all products
+                // based on the category order first, then product order within category
+                rows.forEach(row => {
+                    const cards = Array.from(row.querySelectorAll('.reorder-card'));
+                    cards.forEach(card => {
+                        const pid = card.dataset.id;
+                        allUpdates.push(updateDoc(doc(db, "products", pid), { order: globalOrder }));
+                        globalOrder++;
+                    });
+                });
+
+                await Promise.all(allUpdates);
+                showToast("New row order saved successfully!");
+                closeReorderModal();
+            } catch (err) {
+                console.error("Error saving order:", err);
+                showToast("Failed to save order: " + err.message, "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = originalText;
+            }
+        };
 
         window.openModal = function(isEdit = false) {
             document.getElementById('modalTitle').innerText = isEdit ? 'Update Piece' : 'Add New Piece';
@@ -769,10 +1150,11 @@
         };
 
         // Helper to Compress Images before saving to Firestore (Avoiding Storage Bucket dependency)
-        function compressImage(base64Str, maxWidth = 1000, maxHeight = 1000) {
-            return new Promise((resolve) => {
+        function compressImage(base64Str, maxWidth = 600, maxHeight = 600) {
+            return new Promise((resolve, reject) => {
                 let img = new Image();
                 img.src = base64Str;
+                img.onerror = () => reject(new Error("Unrecognized image format. Please use standard JPG, PNG or WEBP."));
                 img.onload = () => {
                     let canvas = document.createElement('canvas');
                     let width = img.width;
@@ -791,9 +1173,11 @@
                     }
                     canvas.width = width;
                     canvas.height = height;
-                    let ctx = canvas.getContext('2d');
+                    let ctx = canvas.getContext('2d', { alpha: false });
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(0, 0, width, height);
                     ctx.drawImage(img, 0, 0, width, height);
-                    resolve(canvas.toDataURL('image/jpeg', 0.7)); // Compress to 70% quality JPEG
+                    resolve(canvas.toDataURL('image/jpeg', 0.4)); // Ultra-efficient 40% quality for high capacity
                 };
             });
         }
@@ -817,11 +1201,9 @@
                     const isMain = row.querySelector('input[type="radio"]').checked;
                     
                     if(url) {
-                        // Check if it's a new Base64 image
-                        if(url.startsWith('data:image')) {
-                            // Update text to show progress
-                            submitBtn.innerText = `Compressing Image ${i+1}/${rows.length}...`;
-                            // Compress and use Base64 directly
+                        // Check for any Data URL (catching mislabeled images like application/octet-stream)
+                        if(url.startsWith('data:')) {
+                            submitBtn.innerText = `Compressing ${i+1}/${rows.length}...`;
                             url = await compressImage(url);
                         }
                         
@@ -835,7 +1217,13 @@
                     imgs.unshift(main); // Move main image to index 0
                 }
 
-                submitBtn.innerText = "Saving Data...";
+                // Final size check for Firestore (1MB document limit)
+                const totalSize = JSON.stringify(imgs).length;
+                if (totalSize > 950000) {
+                    throw new Error("Total data size is still too large. Please upload fewer images or lower resolution files.");
+                }
+
+                submitBtn.innerText = "Finalizing...";
                 const data = {
                     name: document.getElementById('pName').value,
                     category: document.getElementById('pCategory').value,
@@ -844,19 +1232,62 @@
                     updatedAt: serverTimestamp()
                 };
 
-                if(id) await updateDoc(doc(db, "products", id), data);
-                else { 
+                // Track Detailed History
+                let changeLog = [];
+                const oldProduct = id ? products.find(p => p.id === id) : null;
+                
+                if (oldProduct) {
+                    if (oldProduct.name !== data.name) changeLog.push(`Name changed: "${oldProduct.name}" → "${data.name}"`);
+                    if (oldProduct.category !== data.category) changeLog.push(`Category changed: "${oldProduct.category}" → "${data.category}"`);
+                    if (oldProduct.desc !== data.desc) {
+                         const esc = (s) => s ? s.replace(/</g, "&lt;").replace(/>/g, "&gt;") : "<i>(empty)</i>";
+                         changeLog.push(`
+                            <div class="mt-1 ml-2 border-l-2 border-gray-200 pl-2">
+                                <div class="text-[9px] text-red-500 font-bold mb-0.5">WAS:</div>
+                                <div class="text-[9px] text-gray-500 italic mb-1 trim-text">${esc(oldProduct.desc)}</div>
+                                <div class="text-[9px] text-green-600 font-bold mb-0.5">BECAME:</div>
+                                <div class="text-[9px] text-gray-700 italic">${esc(data.desc)}</div>
+                            </div>
+                         `);
+                    }
+                    
+                    // Simple image check
+                    const oldImgs = JSON.stringify(oldProduct.images || []);
+                    const newImgs = JSON.stringify(data.images);
+                    if (oldImgs !== newImgs) changeLog.push(`Images updated (${oldProduct.images.length} → ${data.images.length})`);
+                } else {
+                    changeLog.push("Product created");
+                }
+
+                const editInfo = {
+                    editor: currentUser ? (currentUser.email || currentUser.uid) : 'Unknown',
+                    timestamp: Date.now(),
+                    action: id ? 'update' : 'create',
+                    details: changeLog
+                };
+
+                if(id) {
+                    // Start Update
+                    await updateDoc(doc(db, "products", id), {
+                        ...data,
+                        editHistory: arrayUnion(editInfo) 
+                    });
+                } else { 
                     data.createdAt = serverTimestamp(); 
+                    data.editHistory = [editInfo];
+                    // Set default order to be at the end
+                    const maxOrder = products.length > 0 ? Math.max(...products.map(p => p.order || 0)) : 0;
+                    data.order = maxOrder + 1;
                     await addDoc(collection(db, "products"), data); 
                 }
                 
                 window.closeModal();
                 loadData();
-                alert("Product saved successfully!");
+                showToast("Product saved successfully!");
                 
             } catch (err) {
                 console.error("Error in save process:", err);
-                alert(`Error saving product: ${err.message}`);
+                showToast(`Error: ${err.message}`, 'error');
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerText = originalBtnText;
@@ -868,13 +1299,30 @@
             document.getElementById('usersModal').classList.remove('opacity-0', 'pointer-events-none');
             const snap = await getDocs(collection(db, "users"));
             allUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            renderUsers();
+            window.renderUsers();
         };
         window.closeUsersModal = () => document.getElementById('usersModal').classList.add('opacity-0', 'pointer-events-none');
 
-        function renderUsers() {
+        window.renderUsers = function() {
             const list = document.getElementById('usersList');
-            list.innerHTML = allUsers.map(u => `
+            const searchQuery = document.getElementById('userSearchInput').value.toLowerCase();
+            
+            // Define role weights for sorting
+            const roleWeights = { 'admin': 1, 'moderator': 2, 'customer': 3 };
+
+            const filteredUsers = allUsers.filter(u => 
+                (u.name || '').toLowerCase().includes(searchQuery) || 
+                (u.email || '').toLowerCase().includes(searchQuery) ||
+                (u.username || '').toLowerCase().includes(searchQuery) ||
+                (u.phone || '').includes(searchQuery)
+            ).sort((a, b) => {
+                const weightA = roleWeights[a.role] || 4;
+                const weightB = roleWeights[b.role] || 4;
+                if (weightA !== weightB) return weightA - weightB;
+                return (a.name || '').localeCompare(b.name || '');
+            });
+
+            list.innerHTML = filteredUsers.map(u => `
                 <tr class="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                     <td class="px-4 py-4">
                         <div class="flex items-center">
@@ -883,7 +1331,13 @@
                             </div>
                             <div>
                                 <p class="font-bold text-brandBlue dark:text-brandGold text-xs truncate max-w-[150px]">${u.name || 'Unknown User'}</p>
-                                <p class="text-[10px] text-gray-400 font-medium">${u.email || u.id.substring(0,10)}</p>
+                                <div class="flex flex-col gap-0.5 mt-1">
+                                    <p class="text-[10px] text-gray-400 font-medium">${u.email || u.id.substring(0,10)}</p>
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        ${u.username ? `<span class="text-[9px] bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-500 font-bold italic">@${u.username}</span>` : ''}
+                                        ${u.phone ? `<span class="text-[9px] text-brandGold font-black tracking-tighter">${u.phone}</span>` : ''}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </td>
@@ -892,22 +1346,87 @@
                             ${u.role}
                         </span>
                     </td>
-                    <td class="px-4 py-4 text-right">
-                        <select onchange="updateUserRole('${u.id}', this.value)" class="text-[10px] font-bold border dark:border-gray-600 rounded-lg p-2 outline-none bg-white dark:bg-gray-800 dark:text-white cursor-pointer hover:border-brandGold transition-all">
-                            <option value="customer" ${u.role==='customer'?'selected':''}>Customer</option>
-                            <option value="moderator" ${u.role==='moderator'?'selected':''}>Moderator</option>
-                            <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+                    <td class="px-4 py-4 text-center">
+                        <select onchange="window.updateUserRole('${u.id}', this.value)" class="text-[10px] font-bold border dark:border-gray-600 rounded-lg p-2 outline-none bg-white dark:bg-gray-800 dark:text-white cursor-pointer hover:border-brandGold transition-all">
+                            <option value="customer" ${u.role === 'customer' ? 'selected' : ''}>Customer</option>
+                            <option value="moderator" ${u.role === 'moderator' ? 'selected' : ''}>Moderator</option>
+                            <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>
                         </select>
+                    </td>
+                    <td class="px-4 py-4 text-right">
+                        <button onclick="window.deleteUserAdmin('${u.id}', '${u.name || u.email}')" class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-all" title="Delete User">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
                     </td>
                 </tr>
             `).join('');
         }
 
+        window.deleteUserAdmin = async (uid, name) => {
+            showConfirmModal({
+                title: "Delete User?",
+                message: `Are you sure you want to delete "${name}"? This will remove their Firestore data forever.`,
+                icon: "delete",
+                confirmText: "Yes, Delete",
+                onConfirm: async () => {
+                    try {
+                        await deleteDoc(doc(db, "users", uid));
+                        window.openUsersModal(); // Refresh list
+                    } catch (error) {
+                        showToast(`Error: ${error.message}`, 'error');
+                    }
+                }
+            });
+        };
+
         window.updateUserRole = async (uid, newRole) => {
-            if(confirm(`Promote/Demote user to ${newRole}?`)) {
-                await updateDoc(doc(db, "users", uid), { role: newRole });
-                window.openUsersModal();
+            showConfirmModal({
+                title: "Change Role?",
+                message: `Change user's access level to ${newRole.toUpperCase()}?`,
+                icon: "warning",
+                confirmText: "Confirm Change",
+                onConfirm: async () => {
+                    await updateDoc(doc(db, "users", uid), { role: newRole });
+                    window.openUsersModal();
+                }
+            });
+        };
+
+        window.showConfirmModal = ({ title, message, icon, confirmText, onConfirm }) => {
+            const modal = document.getElementById('confirmModal');
+            document.getElementById('confirmTitle').innerText = title;
+            document.getElementById('confirmMessage').innerText = message;
+            document.getElementById('confirmActionBtn').innerText = confirmText;
+            
+            const iconContainer = document.getElementById('confirmIconContainer');
+            if (icon === 'delete') {
+                iconContainer.className = "w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4";
+                document.getElementById('confirmActionBtn').className = "flex-1 px-4 py-3 bg-red-500 text-white font-bold text-xs rounded-xl hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all uppercase tracking-widest";
+            } else {
+                iconContainer.className = "w-16 h-16 bg-brandGold/10 rounded-full flex items-center justify-center mx-auto mb-4";
+                document.getElementById('confirmActionBtn').className = "flex-1 px-4 py-3 bg-brandGold text-white font-bold text-xs rounded-xl hover:bg-brandGold/80 shadow-lg shadow-brandGold/20 transition-all uppercase tracking-widest";
             }
+
+            const btn = document.getElementById('confirmActionBtn');
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            newBtn.onclick = () => {
+                onConfirm();
+                closeConfirmModal();
+            };
+
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.querySelector('.modal-container').classList.remove('scale-95');
+            modal.querySelector('.modal-container').classList.add('scale-100');
+        };
+
+        window.closeConfirmModal = () => {
+            const modal = document.getElementById('confirmModal');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.querySelector('.modal-container').classList.remove('scale-100');
+            modal.querySelector('.modal-container').classList.add('scale-95');
         };
 
         // Settings
@@ -921,6 +1440,39 @@
         };
         window.closeSettingsModal = () => document.getElementById('settingsModal').classList.add('opacity-0', 'pointer-events-none');
         
+        // Custom Toast Notification System
+        window.showToast = (message, type = 'success') => {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                document.body.appendChild(container);
+            }
+
+            const toast = document.createElement('div');
+            toast.className = `toast font-sans text-xs font-bold uppercase tracking-widest`;
+            
+            const icon = type === 'success' 
+                ? '<svg class="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>'
+                : '<svg class="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>';
+
+            toast.innerHTML = `
+                <span class="flex items-center justify-center">${icon}</span>
+                <span class="pt-0.5">${message}</span>
+            `;
+
+            container.appendChild(toast);
+            
+            // Trigger animation
+            setTimeout(() => toast.classList.add('show'), 100);
+            
+            // Auto remove
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 400);
+            }, 3000);
+        };
+
         window.saveSettings = async () => {
             const data = {
                 whatsapp: document.getElementById('waPhoneInput').value,
@@ -930,7 +1482,7 @@
                 maps: document.getElementById('mapLinkInput').value
             };
             await setDoc(doc(db, "settings", "contact"), data);
-            alert("Settings updated!");
+            showToast("Settings updated!");
             window.closeSettingsModal();
             loadData();
         };
@@ -962,6 +1514,82 @@
             document.body.style.overflow = '';
             document.body.style.position = '';
             document.body.style.width = '';
+        };
+
+        window.closeHistoryModal = () => {
+             document.getElementById('historyModal').classList.add('opacity-0', 'pointer-events-none');
+        };
+
+        window.showHistory = async (pid) => {
+            const p = products.find(x => x.id === pid);
+            if(!p) return;
+
+            const list = document.getElementById('historyList');
+            list.innerHTML = '<div class="text-center py-4 text-gray-400">Loading...</div>';
+            document.getElementById('historyModal').classList.remove('opacity-0', 'pointer-events-none');
+
+            // Fetch latest doc to be sure
+            try {
+                const docSnap = await getDoc(doc(db, "products", pid));
+                if(docSnap.exists()) {
+                    const data = docSnap.data();
+                    const history = data.editHistory || [];
+                    
+                    // Add creation time as first event if history is empty or just to be comprehensive
+                    if (history.length === 0 && data.createdAt) {
+                         // Fallback for old products
+                         list.innerHTML = `<div class="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-center text-xs text-gray-500">No edit history recorded for this item yet.</div>`;
+                         return;
+                    }
+
+                    // Sort by timestamp descending
+                    history.sort((a,b) => b.timestamp - a.timestamp);
+
+                    list.innerHTML = history.map((h, index) => {
+                         const time = new Date(h.timestamp).toLocaleString();
+                         const uniqueId = `details-${h.timestamp}-${index}`; // unique ID for toggling
+                         
+                         let detailsHtml = '';
+                         if (h.details && h.details.length > 0) {
+                             detailsHtml = `
+                                <div class="mt-2 text-[10px] text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 p-2 rounded border border-gray-100 dark:border-gray-700 hidden" id="${uniqueId}">
+                                    <p class="font-bold mb-1 border-b border-gray-100 dark:border-gray-700 pb-1">Changes:</p>
+                                    <ul class="list-disc list-inside space-y-0.5">
+                                        ${h.details.map(d => `<li>${d}</li>`).join('')}
+                                    </ul>
+                                </div>
+                                <button onclick="document.getElementById('${uniqueId}').classList.toggle('hidden')" class="mt-2 text-[9px] font-bold text-brandBlue dark:text-brandGold hover:underline flex items-center gap-1 bg-brandBlue/5 dark:bg-brandGold/10 px-2 py-1 rounded-md transition-colors">
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                    View Edits
+                                </button>
+                             `;
+                         }
+
+                         return `
+                            <div class="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl border border-gray-100 dark:border-gray-700">
+                                <div class="w-8 h-8 rounded-full bg-brandGold/10 text-brandGold flex items-center justify-center font-bold text-xs shrink-0">
+                                    ${h.editor ? h.editor[0].toUpperCase() : '?'}
+                                </div>
+                                <div class="flex-grow">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <p class="text-xs font-bold text-brandBlue dark:text-gray-200">${h.editor}</p>
+                                            <p class="text-[10px] text-gray-400 mt-0.5">${time}</p>
+                                        </div>
+                                        <span class="inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${h.action === 'create' ? 'bg-green-100 text-green-600' : 'bg-blue-50 text-blue-500'}">
+                                            ${h.action}
+                                        </span>
+                                    </div>
+                                    ${detailsHtml}
+                                </div>
+                            </div>
+                         `;
+                    }).join('');
+                }
+            } catch(e) {
+                console.error(e);
+                list.innerHTML = '<div class="text-red-500 text-center text-sm">Error loading history</div>';
+            }
         };
 
 
