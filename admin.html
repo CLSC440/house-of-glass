@@ -1361,11 +1361,13 @@
             const rows = Array.from(document.querySelectorAll('#imageInputs > div'));
             let imgs = [];
             let mainIdx = 0;
+            const imageMap = new Map();
 
             try {
                 for (let i = 0; i < rows.length; i++) {
                     const row = rows[i];
                     let url = row.querySelector('.pImageUrl').value;
+                    const originalUrl = url;
                     const isMain = row.querySelector('input[type="radio"]').checked;
                     
                     // If we have a pending file upload (from input[type=file])
@@ -1386,6 +1388,7 @@
                     
                     if(url) {
                         imgs.push(url);
+                        if (originalUrl !== url) imageMap.set(originalUrl, url);
                         if(isMain) mainIdx = imgs.length - 1;
                     }
                 }
@@ -1403,7 +1406,10 @@
                     const row = vRows[i];
                     let vName = row.querySelector('.vName').value.trim();
                     let vStock = row.querySelector('.vStock').checked;
-                    let vImgs = Array.from(row.querySelectorAll('.vImageUrl')).map(inp => inp.value).filter(u => u !== '');
+                    let vImgs = Array.from(row.querySelectorAll('.vImageUrl')).map(inp => {
+                        const val = inp.value;
+                        return imageMap.has(val) ? imageMap.get(val) : val;
+                    }).filter(u => u !== '');
 
                     if (vName) {
                         variants.push({
