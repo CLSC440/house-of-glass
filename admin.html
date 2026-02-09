@@ -1181,9 +1181,21 @@
                     const row = btn.closest('.variant-row');
                     const urlInput = row.querySelector('.vImageUrl');
                     urlInput.value = src;
-                    window.updatePreview(urlInput);
+                    
+                    // Manually trigger preview update logic to avoid selector issues
+                    const preview = row.querySelector('.img-preview');
+                    const placeholder = row.querySelector('div.absolute'); // Safer selector
+                    
+                    if (preview && src) {
+                        preview.src = src;
+                        preview.classList.remove('hidden');
+                        if(placeholder) placeholder.classList.add('hidden');
+                    }
+
+                    // Remove popup
                     popover.remove();
-                    overlay.remove();
+                    const ov = document.querySelector('.gallery-picker-overlay');
+                    if(ov) ov.remove();
                 };
                 popover.appendChild(img);
             });
