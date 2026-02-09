@@ -598,6 +598,9 @@
                     </div>
                     <div class="w-12 h-1 bg-brandGold rounded-full"></div>
                     <p id="detailDesc" class="text-xs md:text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium"></p>
+                    <div id="detailVariants" class="mt-4 hidden animate-fade-in-up">
+                        <!-- Variants injected via JS -->
+                    </div>
                 </div>
                 <div class="mt-6 md:mt-10">
                     <a id="enquiryBtn" href="#" target="_blank" class="flex items-center justify-center space-x-2 w-full bg-[#25D366] text-white py-2.5 md:py-4 rounded-xl font-bold hover:bg-opacity-90 transition-all shadow-lg text-xs md:text-base">
@@ -1840,11 +1843,76 @@
 
             document.getElementById('detailTitle').innerText = currentProduct.name;
             document.getElementById('detailDesc').innerText = currentProduct.desc;
+            
+            // Handle Variants
+            const vContainer = document.getElementById('detailVariants');
+            vContainer.innerHTML = '';
+            vContainer.classList.add('hidden');
+            
+            // Default Enquiry Message
+            let message = `مرحباً ال عاشور عدس، أود الاستفسار عن منتج: ${currentProduct.name}\n\nالوصف:\n${currentProduct.desc}`;
+            
+            if (currentProduct.variants && currentProduct.variants.length > 0) {
+                vContainer.classList.remove('hidden');
+                
+                const title = document.createElement('p');
+                title.className = 'text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider';
+                title.innerText = 'Available Options:';
+                vContainer.appendChild(title);
+
+                const chipsContainer = document.createElement('div');
+                chipsContainer.className = 'flex flex-wrap gap-2';
+                vContainer.appendChild(chipsContainer);
+
+                currentProduct.variants.forEach((v, idx) => {
+                    const chip = document.createElement('button');
+                    chip.className = `px-4 py-2 rounded-lg text-xs font-bold border transition-all flex items-center gap-2 ${idx === -1 ? 'bg-brandGold text-white border-brandGold' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-brandGold'}`;
+                    
+                    // Status dot
+                    const dot = `<span class="w-2 h-2 rounded-full ${v.inStock ? 'bg-green-500' : 'bg-red-500'}"></span>`;
+                    chip.innerHTML = `${dot} ${v.name}`;
+                    
+                    if(!v.inStock) {
+                        chip.classList.add('opacity-60');
+                        chip.title = "Currently Unavailable";
+                    }
+
+                    chip.onclick = () => {
+                        // Reset all chips
+                        const allChips = chipsContainer.querySelectorAll('button');
+                        allChips.forEach(c => c.classList.remove('ring-2', 'ring-brandGold', 'bg-brandGold/10'));
+                        
+                        // Active state
+                        chip.classList.add('ring-2', 'ring-brandGold', 'bg-brandGold/10');
+                        
+                        // Update Image if variant has one
+                        if (v.image) {
+                            const img = document.getElementById('mainDetailImg');
+                            img.style.opacity = '0';
+                            setTimeout(() => {
+                                img.src = v.image;
+                                img.style.opacity = '1';
+                                isZoomed = false;
+                                img.style.transform = 'scale(1)';
+                            }, 150);
+                        }
+
+                        // Update WhatsApp Message
+                        const vMsg = `مرحباً ال عاشور عدس، أود الاستفسار عن منتج: ${currentProduct.name} (Option: ${v.name})\n\nالوصف:\n${currentProduct.desc}`;
+                        document.getElementById('enquiryBtn').href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(vMsg)}`;
+                        
+                        // Update Stock Status visually near button?
+                        // (Implemented via red/green dot on chip)
+                    };
+                    
+                    chipsContainer.appendChild(chip);
+                });
+            }
+
             updateDetailImage(0);
             updateModalFavBtn();
             
             const enquiryBtn = document.getElementById('enquiryBtn');
-            const message = `مرحباً ال عاشور عدس، أود الاستفسار عن منتج: ${currentProduct.name}\n\nالوصف:\n${currentProduct.desc}`;
             enquiryBtn.href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
 
             renderThumbnails();
