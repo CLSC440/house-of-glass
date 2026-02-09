@@ -1866,9 +1866,8 @@
 
                 currentProduct.variants.forEach((v, idx) => {
                     const chip = document.createElement('button');
-                    chip.className = `px-4 py-2 rounded-lg text-xs font-bold border transition-all flex items-center gap-2 ${idx === -1 ? 'bg-brandGold text-white border-brandGold' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-brandGold'}`;
+                    chip.className = `px-4 py-2 rounded-lg text-xs font-bold border transition-all flex items-center gap-2 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-brandGold`;
                     
-                    // Status dot
                     const dot = `<span class="w-2 h-2 rounded-full ${v.inStock ? 'bg-green-500' : 'bg-red-500'}"></span>`;
                     chip.innerHTML = `${dot} ${v.name}`;
                     
@@ -1878,41 +1877,26 @@
                     }
 
                     chip.onclick = () => {
-                        // Check if this variant's image is part of the main gallery
                         const imgIdx = currentProduct.images.indexOf(v.image);
 
                         if (imgIdx !== -1) {
                             // If found in gallery, treat it like a thumbnail click
-                            // This ensures full UI sync (Main Image, Thumbnail, Chip)
                             updateDetailImage(imgIdx);
                         } else {
-                            // If NOT in gallery (custom upload), we must handle it manually
-                            
-                            // 1. Deselect all thumbnails (visual clean up)
+                            // If NOT in gallery (custom upload), handle manual sync
                             currentImgIdx = -1;
                             renderThumbnails(); 
-
-                            // 2. Highlight only this chip
-                            const allChips = chipsContainer.querySelectorAll('button');
-                            allChips.forEach(c => c.classList.remove('ring-2', 'ring-brandGold', 'bg-brandGold/10'));
-                            chip.classList.add('ring-2', 'ring-brandGold', 'bg-brandGold/10');
+                            syncVariantHighlight(v.image);
                             
-                            // 3. Update Main Image directly
-                            if (v.image) {
-                                const img = document.getElementById('mainDetailImg');
-                                img.style.opacity = '0';
-                                setTimeout(() => {
-                                    img.src = v.image;
-                                    img.style.opacity = '1';
-                                    isZoomed = false;
-                                    img.style.transform = 'scale(1)';
-                                }, 150);
-                            }
+                            const img = document.getElementById('mainDetailImg');
+                            img.style.opacity = '0';
+                            setTimeout(() => {
+                                img.src = v.image;
+                                img.style.opacity = '1';
+                                isZoomed = false;
+                                img.style.transform = 'scale(1)';
+                            }, 150);
                         }
-
-                        // Update WhatsApp Message
-                        const vMsg = `مرحباً ال عاشور عدس، أود الاستفسار عن منتج: ${currentProduct.name} (Option: ${v.name})\n\nالوصف:\n${currentProduct.desc}`;
-                        document.getElementById('enquiryBtn').href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(vMsg)}`;
                     };
                     
                     chipsContainer.appendChild(chip);
@@ -1921,9 +1905,6 @@
 
             updateDetailImage(0);
             updateModalFavBtn();
-            
-            const enquiryBtn = document.getElementById('enquiryBtn');
-            enquiryBtn.href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
 
             renderThumbnails();
 
@@ -1986,43 +1967,51 @@
             img.style.transform = 'scale(1)';
             img.style.cursor = 'zoom-in';
             
+            // 1. Sync Thumbnails immediately
+            renderThumbnails();
+
+            // 2. Sync Variant Selection immediately
+            syncVariantHighlight(targetSrc);
+
+            // 3. Update Main Image with transition
             img.style.opacity = '0';
             setTimeout(() => {
                 img.src = targetSrc;
                 img.style.opacity = '1';
-                renderThumbnails(); // Refresh to update active border
+            }, 150);
+        }
 
-                // Auto-select Variant if image matches
-                if (currentProduct.variants && currentProduct.variants.length > 0) {
-                    const chipsContainer = document.querySelector('#detailVariants > div'); // The chips container
-                    if (chipsContainer) {
-                        const allChips = chipsContainer.querySelectorAll('button');
-                        let matched = false;
+        // Dedicated helper to sync variant chips based on an image URL
+        function syncVariantHighlight(imageUrl) {
+            if (!currentProduct.variants || currentProduct.variants.length === 0) return;
+            
+            const vContainer = document.getElementById('detailVariants');
+            const chipsContainer = vContainer.querySelector('div.flex.flex-wrap');
+            if (!chipsContainer) return;
 
-                        // First reset all chips
-                        allChips.forEach(c => c.classList.remove('ring-2', 'ring-brandGold', 'bg-brandGold/10'));
-                        
-                        // Default enquiry
-                         let message = `مرحباً ال عاشور عدس، أود الاستفسار عن منتج: ${currentProduct.name}\n\nالوصف:\n${currentProduct.desc}`;
+            const allChips = chipsContainer.querySelectorAll('button');
+            let matched = false;
 
-                        // Find match
-                        currentProduct.variants.forEach((v, vIdx) => {
-                            if (v.image === targetSrc && !matched) {
-                                matched = true;
-                                const chip = allChips[vIdx];
-                                if (chip) {
-                                    chip.classList.add('ring-2', 'ring-brandGold', 'bg-brandGold/10');
-                                    // Update Enquiry Message
-                                    message = `مرحباً ال عاشور عدس، أود الاستفسار عن منتج: ${currentProduct.name} (Option: ${v.name})\n\nالوصف:\n${currentProduct.desc}`;
-                                }
-                            }
-                        });
+            // Reset all
+            allChips.forEach(c => c.classList.remove('ring-2', 'ring-brandGold', 'bg-brandGold/10'));
+            
+            // Default enquiry
+            let message = `مرحباً ال عاشور عدس، أود الاستفسار عن منتج: ${currentProduct.name}\n\nالوصف:\n${currentProduct.desc}`;
 
-                        document.getElementById('enquiryBtn').href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+            // Find and highlight matching variant
+            currentProduct.variants.forEach((v, vIdx) => {
+                // Use includes to be slightly more flexible with Cloudinary optimization params if any
+                if (v.image && (v.image === imageUrl || imageUrl.includes(v.image)) && !matched) {
+                    matched = true;
+                    const chip = allChips[vIdx];
+                    if (chip) {
+                        chip.classList.add('ring-2', 'ring-brandGold', 'bg-brandGold/10');
+                        message = `مرحباً ال عاشور عدس، أود الاستفسار عن منتج: ${currentProduct.name} (Option: ${v.name})\n\nالوصف:\n${currentProduct.desc}`;
                     }
                 }
+            });
 
-            }, 150);
+            document.getElementById('enquiryBtn').href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
         }
 
         function renderThumbnails() {
