@@ -584,7 +584,7 @@
                 <div id="swipeArea" class="flex-grow flex items-center justify-center p-8 md:p-24 touch-pan-y h-[32vh] md:h-auto">
                     <img id="mainDetailImg" src="" class="max-w-full max-h-full object-contain rounded-xl select-none transition-transform duration-300">
                 </div>
-                <div id="thumbnailBar" class="h-24 md:h-96 bg-white/40 dark:bg-darkCard/40 backdrop-blur-md border-t dark:border-gray-700/50 flex space-x-3 md:space-x-5 p-3 md:pt-12 md:pb-40 overflow-x-auto hide-scroll justify-center items-center">
+                <div id="thumbnailBar" class="h-20 md:h-28 bg-white/40 dark:bg-darkCard/40 backdrop-blur-md border-t dark:border-gray-700/50 flex space-x-2 md:space-x-4 p-2 md:p-4 overflow-x-auto hide-scroll items-center justify-start">
                     <!-- Thumbnails will go here -->
                 </div>
             </div>
@@ -2016,12 +2016,17 @@
 
         function renderThumbnails() {
             const thumbBar = document.getElementById('thumbnailBar');
+            if(!thumbBar) return;
             thumbBar.innerHTML = '';
+            
+            if(!currentProduct || !currentProduct.images) return;
+
             currentProduct.images.forEach((img, idx) => {
+                if(!img) return; // Skip empty images
                 const t = document.createElement('img');
                 t.src = img;
-                // Enhanced for Desktop: Larger, better padding, and no clipping for scale effect
-                t.className = `h-14 w-14 md:h-24 md:w-24 object-contain p-2 md:p-3 bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl cursor-pointer border-2 transition-all flex-shrink-0 ${idx === currentImgIdx ? 'border-brandGold scale-110 shadow-xl' : 'border-transparent opacity-70 hover:opacity-100 hover:scale-105'}`;
+                // Adjusted sizes for the new bar height
+                t.className = `h-12 w-12 md:h-20 md:w-20 object-contain p-1.5 md:p-2 bg-white dark:bg-gray-800 rounded-lg md:rounded-xl cursor-pointer border-2 transition-all flex-shrink-0 ${idx === currentImgIdx ? 'border-brandGold scale-105 shadow-md' : 'border-transparent opacity-60 hover:opacity-100 hover:scale-105'}`;
                 t.onclick = () => updateDetailImage(idx);
                 thumbBar.appendChild(t);
             });
