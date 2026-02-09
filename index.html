@@ -1879,17 +1879,25 @@
 
                     chip.onclick = () => {
                         // Check if this variant's image is part of the main gallery
-                        // If so, we use the central updateDetailImage to keep thumbs in sync
                         const imgIdx = currentProduct.images.indexOf(v.image);
 
                         if (imgIdx !== -1) {
+                            // If found in gallery, treat it like a thumbnail click
+                            // This ensures full UI sync (Main Image, Thumbnail, Chip)
                             updateDetailImage(imgIdx);
                         } else {
-                            // Manual update for non-gallery images
+                            // If NOT in gallery (custom upload), we must handle it manually
+                            
+                            // 1. Deselect all thumbnails (visual clean up)
+                            currentImgIdx = -1;
+                            renderThumbnails(); 
+
+                            // 2. Highlight only this chip
                             const allChips = chipsContainer.querySelectorAll('button');
                             allChips.forEach(c => c.classList.remove('ring-2', 'ring-brandGold', 'bg-brandGold/10'));
                             chip.classList.add('ring-2', 'ring-brandGold', 'bg-brandGold/10');
                             
+                            // 3. Update Main Image directly
                             if (v.image) {
                                 const img = document.getElementById('mainDetailImg');
                                 img.style.opacity = '0';
@@ -1900,13 +1908,6 @@
                                     img.style.transform = 'scale(1)';
                                 }, 150);
                             }
-                            
-                            // Deselect all thumbnails since we are off-gallery
-                            const thumbBar = document.getElementById('thumbnailBar');
-                            Array.from(thumbBar.children).forEach(t => {
-                                t.classList.remove('border-brandGold', 'scale-110', 'shadow-xl');
-                                t.classList.add('border-transparent', 'opacity-70');
-                            });
                         }
 
                         // Update WhatsApp Message
