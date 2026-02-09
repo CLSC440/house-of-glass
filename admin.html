@@ -1149,37 +1149,29 @@
             }
         };
 
-        // Helper to Compress Images before saving to Firestore (Avoiding Storage Bucket dependency)
-        function compressImage(base64Str, maxWidth = 600, maxHeight = 600) {
-            return new Promise((resolve, reject) => {
-                let img = new Image();
-                img.src = base64Str;
-                img.onerror = () => reject(new Error("Unrecognized image format. Please use standard JPG, PNG or WEBP."));
-                img.onload = () => {
-                    let canvas = document.createElement('canvas');
-                    let width = img.width;
-                    let height = img.height;
+        // Cloudinary Configuration
+        const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dbr22ce0m/image/upload";
+        const CLOUDINARY_PRESET = "house_of_glass";
 
-                    if (width > height) {
-                        if (width > maxWidth) {
-                            height *= maxWidth / width;
-                            width = maxWidth;
-                        }
-                    } else {
-                        if (height > maxHeight) {
-                            width *= maxHeight / height;
-                            height = maxHeight;
-                        }
-                    }
-                    canvas.width = width;
-                    canvas.height = height;
-                    let ctx = canvas.getContext('2d', { alpha: false });
-                    ctx.fillStyle = '#FFFFFF';
-                    ctx.fillRect(0, 0, width, height);
-                    ctx.drawImage(img, 0, 0, width, height);
-                    resolve(canvas.toDataURL('image/jpeg', 0.4)); // Ultra-efficient 40% quality for high capacity
-                };
-            });
+        async function uploadToCloudinary(file) {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("upload_preset", CLOUDINARY_PRESET);
+
+            try {
+                const response = await fetch(CLOUDINARY_URL, {
+                    method: "POST",
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error("Cloudinary upload failed");
+
+                const data = await response.json();
+                return data.secure_url; // Returns the optimized HTTPS URL
+            } catch (error) {
+                console.error("Cloudinary Error:", error);
+                throw error;
+            }
         }
 
         document.getElementById('productForm').onsubmit = async (e) => {
@@ -1200,13 +1192,23 @@
                     let url = row.querySelector('input[type="text"]').value;
                     const isMain = row.querySelector('input[type="radio"]').checked;
                     
+                    // If we have a pending file upload (from input[type=file])
+                    const fileInput = row.querySelector('input[type="file"]');
+                    if (fileInput.files.length > 0) {
+                        submitBtn.innerText = `Uploading ${i+1}/${rows.length}...`;
+                        // Upload raw file to Cloudinary directly
+                        url = await uploadToCloudinary(fileInput.files[0]);
+                    } 
+                    // Fallback: If user pasted a base64 string directly (rare, but handle just in case)
+                    else if (url && url.startsWith('data:')) {
+                         submitBtn.innerText = `Uploading ${i+1}/${rows.length}...`;
+                         // Convert base64 data URI to blob/file for upload
+                         const res = await fetch(url);
+                         const blob = await res.blob();
+                         url = await uploadToCloudinary(blob);
+                    }
+                    
                     if(url) {
-                        // Check for any Data URL (catching mislabeled images like application/octet-stream)
-                        if(url.startsWith('data:')) {
-                            submitBtn.innerText = `Compressing ${i+1}/${rows.length}...`;
-                            url = await compressImage(url);
-                        }
-                        
                         imgs.push(url);
                         if(isMain) mainIdx = imgs.length - 1;
                     }
@@ -1217,10 +1219,11 @@
                     imgs.unshift(main); // Move main image to index 0
                 }
 
-                // Final size check for Firestore (1MB document limit)
+                // Firestore document limit is 1MB - With Cloudinary URLs this is virtually unlimited
+                // but let's keep a sanity check just in case
                 const totalSize = JSON.stringify(imgs).length;
                 if (totalSize > 950000) {
-                    throw new Error("Total data size is still too large. Please upload fewer images or lower resolution files.");
+                    throw new Error("Too many images/data. Please try uploading fewer images.");
                 }
 
                 submitBtn.innerText = "Finalizing...";
