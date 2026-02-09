@@ -1745,6 +1745,15 @@
 
                     <div class="absolute top-3 left-3 bg-brandGold/90 text-white text-[8px] md:text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-widest shadow-lg shadow-brandGold/20">${p.category}</div>
                     <div class="absolute bottom-3 right-3 bg-black/60 text-white text-[8px] md:text-[10px] px-3 py-1 rounded-full backdrop-blur-md font-bold">${p.images.length} Photos</div>
+                    
+                    ${p.inStock === false ? `
+                    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm z-[25] flex flex-col items-center justify-center text-center p-4 transition-all duration-500 group-hover:bg-black/70">
+                        <div class="border-2 border-brandGold/50 px-4 py-2 rounded-xl">
+                            <span class="block text-white text-xs md:text-sm font-black uppercase tracking-widest mb-1">Out of stock</span>
+                            <span class="block text-brandGold text-[10px] md:text-[8px] font-bold font-arabic capitalize">غير متاح حاليا!</span>
+                        </div>
+                    </div>
+                    ` : ''}
                 </div>
                 <div class="p-4 md:p-6 bg-white dark:bg-transparent overflow-hidden">
                     <div class="title-container mb-1">
@@ -1753,6 +1762,10 @@
                     <p class="text-brandGold/80 dark:text-brandGold/60 text-[10px] md:text-xs font-bold italic tracking-wide">View masterpiece <span class="group-hover:translate-x-1 inline-block transition-transform">→</span></p>
                 </div>
             `;
+
+            if (p.inStock === false) {
+                card.querySelector('.product-card-img').style.filter = 'grayscale(100%)';
+            }
 
             // Quick Edit button for Staff
             if (userRole === 'admin' || userRole === 'moderator') {
@@ -1884,21 +1897,33 @@
                     }
 
                     chip.onclick = () => {
-                        const imgIdx = currentProduct.images.indexOf(v.image);
+                        const vImgs = Array.isArray(v.images) ? v.images : (v.image ? [v.image] : []);
+                        if (vImgs.length === 0) return;
 
-                        if (imgIdx !== -1) {
+                        // Try to find if any of the variant images are already in the gallery
+                        let galleryIdx = -1;
+                        for(const url of vImgs) {
+                            const idx = currentProduct.images.indexOf(url);
+                            if(idx !== -1) {
+                                galleryIdx = idx;
+                                break;
+                            }
+                        }
+
+                        if (galleryIdx !== -1) {
                             // If found in gallery, treat it like a thumbnail click
-                            updateDetailImage(imgIdx);
+                            updateDetailImage(galleryIdx);
                         } else {
-                            // If NOT in gallery (custom upload), handle manual sync
+                            // If NOT in gallery (custom upload), handle manual sync using first variant image
+                            const firstImg = vImgs[0];
                             currentImgIdx = -1;
                             renderThumbnails(); 
-                            syncVariantHighlight(v.image);
+                            syncVariantHighlight(firstImg);
                             
                             const img = document.getElementById('mainDetailImg');
                             img.style.opacity = '0';
                             setTimeout(() => {
-                                img.src = v.image;
+                                img.src = firstImg;
                                 img.style.opacity = '1';
                                 isZoomed = false;
                                 img.style.transform = 'scale(1)';
@@ -1990,39 +2015,57 @@
 
         // Dedicated helper to sync variant chips based on an image URL
         function syncVariantHighlight(imageUrl) {
-            if (!currentProduct.variants || currentProduct.variants.length === 0) return;
-            
             const vContainer = document.getElementById('detailVariants');
             const chipsContainer = vContainer.querySelector('div.flex.flex-wrap');
             const overlay = document.getElementById('outOfStockOverlay');
             const mainImg = document.getElementById('mainDetailImg');
+            
+            // Reset state
+            overlay.classList.add('opacity-0');
+            overlay.classList.remove('opacity-100');
+            mainImg.style.filter = 'none';
+
+            // Global Out of Stock check
+            const isGloballyOOS = currentProduct.inStock === false;
+            if (isGloballyOOS) {
+                overlay.classList.remove('opacity-0');
+                overlay.classList.add('opacity-100');
+                mainImg.style.filter = 'grayscale(100%) brightness(0.7)';
+            }
+
+            if (!currentProduct.variants || currentProduct.variants.length === 0) {
+                let msg = `مرحباً ال عاشور عدس، أود الاستفسار عن منتج: ${currentProduct.name}\n\nالوصف:\n${currentProduct.desc}`;
+                if(isGloballyOOS) msg += "\n(Note: This product shows as currently out of stock)";
+                document.getElementById('enquiryBtn').href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(msg)}`;
+                return;
+            }
             
             if (!chipsContainer) return;
 
             const allChips = chipsContainer.querySelectorAll('button');
             let matched = false;
 
-            // Reset all
+            // Reset all chips
             allChips.forEach(c => c.classList.remove('ring-2', 'ring-brandGold', 'bg-brandGold/10'));
-            overlay.classList.add('opacity-0');
-            overlay.classList.remove('opacity-100');
-            mainImg.style.filter = 'none';
             
             // Default enquiry
             let message = `مرحباً ال عاشور عدس، أود الاستفسار عن منتج: ${currentProduct.name}\n\nالوصف:\n${currentProduct.desc}`;
+            if(isGloballyOOS) message += "\n(Note: This product shows as currently out of stock)";
 
             // Find and highlight matching variant
             currentProduct.variants.forEach((v, vIdx) => {
-                // Use includes to be slightly more flexible with Cloudinary optimization params if any
-                if (v.image && (v.image === imageUrl || imageUrl.includes(v.image)) && !matched) {
+                const vImgs = Array.isArray(v.images) ? v.images : (v.image ? [v.image] : []);
+                const isMatch = vImgs.some(img => img === imageUrl || imageUrl.includes(img));
+
+                if (isMatch && !matched) {
                     matched = true;
                     const chip = allChips[vIdx];
                     if (chip) {
                         chip.classList.add('ring-2', 'ring-brandGold', 'bg-brandGold/10');
                         message = `مرحباً ال عاشور عدس، أود الاستفسار عن منتج: ${currentProduct.name} (Option: ${v.name})\n\nالوصف:\n${currentProduct.desc}`;
                         
-                        // Handle Out of Stock Visuals
-                        if (!v.inStock) {
+                        // Handle Variant-specific Out of Stock Visuals (if not already globally OOS)
+                        if (!isGloballyOOS && !v.inStock) {
                             overlay.classList.remove('opacity-0');
                             overlay.classList.add('opacity-100');
                             mainImg.style.filter = 'grayscale(100%) brightness(0.7)';
