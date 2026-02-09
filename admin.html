@@ -1160,17 +1160,18 @@
                                     .filter(val => val && val.length > 0);
             
             if(mainImages.length === 0) {
-                // Assuming showToast exists globally as per other functions
                 window.showToast("No main images available! Add images above first.", "error");
                 return;
             }
 
             const popover = document.createElement('div');
-            popover.className = 'gallery-picker-popup absolute z-[200] bg-white dark:bg-gray-800 border dark:border-gray-600 shadow-xl rounded-xl p-2 grid grid-cols-4 gap-2 w-64 animate-fade-in-up';
-            // Position above the button
-            popover.style.bottom = '100%';
-            popover.style.right = '0';
-            popover.style.marginBottom = '8px';
+            popover.className = 'gallery-picker-popup fixed z-[200] bg-white dark:bg-gray-800 border dark:border-gray-600 shadow-[0_10px_40px_rgba(0,0,0,0.2)] rounded-xl p-2 grid grid-cols-4 gap-2 w-64 animate-fade-in-up';
+            
+            // Calculate absolute position to escape stacking context
+            const rect = btn.getBoundingClientRect();
+            popover.style.left = (rect.left + rect.width / 2 - 128) + 'px'; // Center horizontally (w-64 = 256px / 2 = 128px)
+            popover.style.top = (rect.top - 8) + 'px';
+            popover.style.transform = 'translateY(-100%)';
             
             mainImages.forEach(src => {
                 const img = document.createElement('img');
@@ -1181,21 +1182,9 @@
                     const row = btn.closest('.variant-row');
                     const urlInput = row.querySelector('.vImageUrl');
                     urlInput.value = src;
-                    
-                    // Manually trigger preview update logic to avoid selector issues
-                    const preview = row.querySelector('.img-preview');
-                    const placeholder = row.querySelector('div.absolute'); // Safer selector
-                    
-                    if (preview && src) {
-                        preview.src = src;
-                        preview.classList.remove('hidden');
-                        if(placeholder) placeholder.classList.add('hidden');
-                    }
-
-                    // Remove popup
+                    window.updatePreview(urlInput);
                     popover.remove();
-                    const ov = document.querySelector('.gallery-picker-overlay');
-                    if(ov) ov.remove();
+                    overlay.remove();
                 };
                 popover.appendChild(img);
             });
@@ -1208,7 +1197,7 @@
             };
 
             document.body.appendChild(overlay);
-            btn.parentElement.appendChild(popover);
+            document.body.appendChild(popover);
         };
 
         window.updatePreview = function(input) {
