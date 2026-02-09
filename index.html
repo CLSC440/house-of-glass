@@ -1969,6 +1969,7 @@
             if (!currentProduct || !currentProduct.images[idx]) return;
             currentImgIdx = idx;
             const img = document.getElementById('mainDetailImg');
+            const targetSrc = currentProduct.images[idx];
             
             // Reset zoom
             isZoomed = false;
@@ -1977,9 +1978,40 @@
             
             img.style.opacity = '0';
             setTimeout(() => {
-                img.src = currentProduct.images[idx];
+                img.src = targetSrc;
                 img.style.opacity = '1';
                 renderThumbnails(); // Refresh to update active border
+
+                // Auto-select Variant if image matches
+                if (currentProduct.variants && currentProduct.variants.length > 0) {
+                    const chipsContainer = document.querySelector('#detailVariants > div'); // The chips container
+                    if (chipsContainer) {
+                        const allChips = chipsContainer.querySelectorAll('button');
+                        let matched = false;
+
+                        // First reset all chips
+                        allChips.forEach(c => c.classList.remove('ring-2', 'ring-brandGold', 'bg-brandGold/10'));
+                        
+                        // Default enquiry
+                         let message = `مرحباً ال عاشور عدس، أود الاستفسار عن منتج: ${currentProduct.name}\n\nالوصف:\n${currentProduct.desc}`;
+
+                        // Find match
+                        currentProduct.variants.forEach((v, vIdx) => {
+                            if (v.image === targetSrc && !matched) {
+                                matched = true;
+                                const chip = allChips[vIdx];
+                                if (chip) {
+                                    chip.classList.add('ring-2', 'ring-brandGold', 'bg-brandGold/10');
+                                    // Update Enquiry Message
+                                    message = `مرحباً ال عاشور عدس، أود الاستفسار عن منتج: ${currentProduct.name} (Option: ${v.name})\n\nالوصف:\n${currentProduct.desc}`;
+                                }
+                            }
+                        });
+
+                        document.getElementById('enquiryBtn').href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+                    }
+                }
+
             }, 150);
         }
 
