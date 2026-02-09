@@ -1878,31 +1878,40 @@
                     }
 
                     chip.onclick = () => {
-                        // Reset all chips
-                        const allChips = chipsContainer.querySelectorAll('button');
-                        allChips.forEach(c => c.classList.remove('ring-2', 'ring-brandGold', 'bg-brandGold/10'));
-                        
-                        // Active state
-                        chip.classList.add('ring-2', 'ring-brandGold', 'bg-brandGold/10');
-                        
-                        // Update Image if variant has one
-                        if (v.image) {
-                            const img = document.getElementById('mainDetailImg');
-                            img.style.opacity = '0';
-                            setTimeout(() => {
-                                img.src = v.image;
-                                img.style.opacity = '1';
-                                isZoomed = false;
-                                img.style.transform = 'scale(1)';
-                            }, 150);
+                        // Check if this variant's image is part of the main gallery
+                        // If so, we use the central updateDetailImage to keep thumbs in sync
+                        const imgIdx = currentProduct.images.indexOf(v.image);
+
+                        if (imgIdx !== -1) {
+                            updateDetailImage(imgIdx);
+                        } else {
+                            // Manual update for non-gallery images
+                            const allChips = chipsContainer.querySelectorAll('button');
+                            allChips.forEach(c => c.classList.remove('ring-2', 'ring-brandGold', 'bg-brandGold/10'));
+                            chip.classList.add('ring-2', 'ring-brandGold', 'bg-brandGold/10');
+                            
+                            if (v.image) {
+                                const img = document.getElementById('mainDetailImg');
+                                img.style.opacity = '0';
+                                setTimeout(() => {
+                                    img.src = v.image;
+                                    img.style.opacity = '1';
+                                    isZoomed = false;
+                                    img.style.transform = 'scale(1)';
+                                }, 150);
+                            }
+                            
+                            // Deselect all thumbnails since we are off-gallery
+                            const thumbBar = document.getElementById('thumbnailBar');
+                            Array.from(thumbBar.children).forEach(t => {
+                                t.classList.remove('border-brandGold', 'scale-110', 'shadow-xl');
+                                t.classList.add('border-transparent', 'opacity-70');
+                            });
                         }
 
                         // Update WhatsApp Message
                         const vMsg = `مرحباً ال عاشور عدس، أود الاستفسار عن منتج: ${currentProduct.name} (Option: ${v.name})\n\nالوصف:\n${currentProduct.desc}`;
                         document.getElementById('enquiryBtn').href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(vMsg)}`;
-                        
-                        // Update Stock Status visually near button?
-                        // (Implemented via red/green dot on chip)
                     };
                     
                     chipsContainer.appendChild(chip);
