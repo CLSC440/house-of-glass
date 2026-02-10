@@ -1059,22 +1059,24 @@
                     ghostClass: 'sortable-ghost-product',
                     chosenClass: 'sortable-chosen-product',
                     direction: 'horizontal',
-                    scroll: rowEl, // Specific scroll target
-                    bubbleScroll: false, // Don't scroll parent
-                    scrollSensitivity: 35,
-                    scrollSpeed: 15,
-                    forceFallback: true, // More reliable scrolling on mobile
+                    scroll: true,
+                    bubbleScroll: false, // Prevent the entire window from scrolling
+                    scrollSensitivity: 50,
+                    scrollSpeed: 10,
+                    forceFallback: true, // Use custom drag logic for better control
                     fallbackOnBody: true,
                     delay: 150, 
                     delayOnTouchOnly: true,
-                    touchStartThreshold: 10,
+                    touchStartThreshold: 5, 
                     onStart: function() {
                         rowEl.classList.add('is-dragging-row');
                         document.body.style.overflow = 'hidden'; 
+                        document.body.style.touchAction = 'none'; // Lock all touch actions except dragging
                     },
                     onEnd: function() {
                         rowEl.classList.remove('is-dragging-row');
                         document.body.style.overflow = '';
+                        document.body.style.touchAction = '';
                     }
                 });
                 reorderSortables.push(sortable);
