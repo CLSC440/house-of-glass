@@ -68,6 +68,10 @@
         }
         .modal { transition: opacity 0.25s ease; }
         body.modal-active { overflow: hidden; }
+        .hide-scroll {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
         .hide-scroll::-webkit-scrollbar { display: none; }
         
         /* Professional Scrollbar Styling - Global */
@@ -592,7 +596,7 @@
                     </div>
                 </div>
                 <!-- Floating Thumbnails Bar -->
-                <div id="thumbnailBar" class="absolute bottom-4 left-1/2 -translate-x-1/2 w-max max-w-[90%] h-16 md:h-20 bg-white/30 dark:bg-black/30 backdrop-blur-xl rounded-2xl border border-white/30 dark:border-white/10 flex space-x-2 md:space-x-4 p-2 overflow-x-auto hide-scroll items-center justify-center z-20 shadow-2xl transition-all duration-300">
+                <div id="thumbnailBar" class="absolute bottom-4 left-1/2 -translate-x-1/2 w-max max-w-[95%] h-16 md:h-20 bg-white/40 dark:bg-black/40 backdrop-blur-xl rounded-2xl border border-white/30 dark:border-white/10 flex space-x-2 md:space-x-4 px-4 overflow-x-auto hide-scroll items-center justify-start z-20 shadow-2xl transition-all duration-300">
                     <!-- Thumbnails will go here -->
                 </div>
             </div>
