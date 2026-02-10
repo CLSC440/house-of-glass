@@ -1033,6 +1033,9 @@
                     forceFallback: true,
                     fallbackOnBody: false,
                     scroll: rowEl,
+                    delay: 150, // Small delay to allow scrolling on mobile
+                    delayOnTouchOnly: true,
+                    touchStartThreshold: 10, // Prevents accidental drag when swiping
                     onStart: function() {
                         rowEl.classList.add('is-dragging-row');
                     },
