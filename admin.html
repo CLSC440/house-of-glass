@@ -1058,27 +1058,26 @@
                     animation: 250,
                     ghostClass: 'sortable-ghost-product',
                     chosenClass: 'sortable-chosen-product',
+                    dragClass: 'sortable-drag-product',
                     direction: 'horizontal',
-                    forceFallback: true, // ensure touch uses fallback (fixes row scrolling on drag)
-                    fallbackOnBody: true,
+                    forceFallback: true,          // Always use the clone for touch to avoid native scrolling
+                    fallbackOnBody: false,        // Keep the drag confined to the row area
                     fallbackClass: 'sortable-fallback',
-                    fallbackTolerance: 6,
-                    scroll: true,
-                    bubbleScroll: true,
-                    scrollSensitivity: 40,
-                    scrollSpeed: 8,
-                    delay: 120, // short hold to distinguish from scroll
+                    scroll: rowEl,                // Only scroll the row, not the page
+                    bubbleScroll: false,
+                    scrollSensitivity: 60,
+                    scrollSpeed: 15,
+                    delay: 120,                   // Small hold to distinguish from swipe
                     delayOnTouchOnly: true,
-                    touchStartThreshold: 3,
+                    touchStartThreshold: 5,
                     onStart: function() {
                         rowEl.classList.add('is-dragging-row');
-                        rowEl.dataset.prevOverflow = rowEl.style.overflowX;
-                        rowEl.style.overflowX = 'hidden'; // stop row from sliding with finger
+                        rowEl.style.touchAction = 'none'; // Stop the row from panning while dragging
                         document.body.style.overflow = 'hidden';
                     },
                     onEnd: function() {
                         rowEl.classList.remove('is-dragging-row');
-                        rowEl.style.overflowX = rowEl.dataset.prevOverflow || '';
+                        rowEl.style.touchAction = '';
                         document.body.style.overflow = '';
                     }
                 });
