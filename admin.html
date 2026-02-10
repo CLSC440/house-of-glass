@@ -1042,9 +1042,9 @@
                     </div>
                     <div id="reorder-row-${cat.id}" class="reorder-row custom-scroll flex overflow-x-auto gap-4 py-2">
                         ${catProducts.map(p => `
-                            <div data-id="${p.id}" class="reorder-card bg-white dark:bg-gray-800 p-3 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:border-brandGold transition-all flex-shrink-0 w-32 md:w-40 relative">
-                                <div class="absolute top-2 right-2 z-10 text-gray-400 drag-handle cursor-grab active:cursor-grabbing p-1 hover:text-brandGold transition-colors md:opacity-0 md:group-hover:opacity-100">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <div data-id="${p.id}" class="reorder-card bg-white dark:bg-gray-800 p-3 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:border-brandGold transition-all flex-shrink-0 w-32 md:w-40 relative group/pcard">
+                                <div class="absolute top-2 right-2 z-10 text-gray-400 drag-handle cursor-grab active:cursor-grabbing p-2 hover:text-brandGold transition-colors md:opacity-0 md:group-hover/pcard:opacity-100 bg-white/80 dark:bg-gray-800/80 rounded-lg">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
                                     </svg>
                                 </div>
