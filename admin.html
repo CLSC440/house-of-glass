@@ -76,39 +76,37 @@
             background: #D4AF3733 !important;
             border: 1px dashed #D4AF37 !important;
         }
-        .sortable-ghost-product {
-            opacity: 0.3 !important;
-            background: rgba(212, 175, 55, 0.1) !important;
-            border: 3px solid #D4AF37 !important;
-            border-radius: 1.25rem !important;
-            box-shadow: inset 0 0 25px rgba(212, 175, 55, 0.2);
+        .sortable-chosen {
+            opacity: 1;
         }
-        .sortable-ghost-product * {
-            opacity: 0.2 !important;
+        .sortable-drag {
+            opacity: 0 !important; /* Hide the floating drag element */
+            pointer-events: none !important;
         }
-        .sortable-chosen-product {
-            opacity: 1 !important;
-            border: 3px solid #D4AF37 !important;
-            box-shadow: 0 0 40px rgba(212, 175, 55, 0.45) !important;
-            border-radius: 1.25rem !important;
-            transform: scale(1.05) !important;
-            z-index: 50 !important;
+        .dark .sortable-drag {
+            opacity: 0 !important;
         }
-        .sortable-drag-product {
-            opacity: 0.95 !important;
-            transform: none !important;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
-            cursor: grabbing !important;
-            border-radius: 1rem !important;
+        #catAdminList.is-dragging {
+            user-select: none !important;
+        }
+        #catAdminList.is-dragging * {
+            user-select: none !important;
+        }
+        .drag-handle {
+            touch-action: none;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+        .group\/cat {
+            user-select: none;
+        }
+        #catAdminList.is-dragging .group\/cat {
+            transition: transform 0.18s cubic-bezier(0.2, 1, 0.2, 1);
         }
 
-        /* Moving Clone */
-        .sortable-fallback {
-            opacity: 1 !important;
-            transform: scale(1.02) !important;
-            z-index: 9999 !important;
-            pointer-events: none;
-        }
+        /* Professional Scrollbar Styling - Global */
+        ::-webkit-scrollbar {
+            width: 10px;
             height: 10px;
         }
         ::-webkit-scrollbar-track {
@@ -265,8 +263,8 @@
             z-index: 50 !important;
         }
         .sortable-drag-product {
-            opacity: 0.9 !important;
-            transform: none !important;
+            opacity: 0.95 !important;
+            transform: scale(1.03) !important;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
             cursor: grabbing !important;
             border-radius: 1rem !important;
@@ -278,6 +276,7 @@
             transform: scale(1.02) !important;
             z-index: 9999 !important;
             pointer-events: none;
+            border-radius: 1.1rem !important;
         }
 
         /* Cinematic Scrolling Title */
@@ -1056,40 +1055,30 @@
                 container.appendChild(section);
 
                 const rowEl = section.querySelector('.reorder-row');
-                const touchDrag = (event) => {
-                    const state = rowEl.__dragScrollState;
-                    if (!state) return;
-                    const touch = event.touches ? event.touches[0] : event;
-                    const deltaX = state.startX - touch.clientX;
-                    rowEl.scrollLeft = state.startScroll + deltaX;
-                    event.preventDefault();
-                };
-                rowEl.addEventListener('touchmove', touchDrag, { passive: false });
                 const sortable = new Sortable(rowEl, {
                     animation: 250,
                     ghostClass: 'sortable-ghost-product',
                     chosenClass: 'sortable-chosen-product',
+                    dragClass: 'sortable-drag-product',
                     direction: 'horizontal',
+                    forceFallback: true,            // Ensure the item follows the finger on touch
+                    fallbackOnBody: true,
+                    fallbackClass: 'sortable-fallback',
+                    fallbackTolerance: 3,
                     scroll: true,
                     bubbleScroll: true,
-                    scrollSensitivity: 50,
-                    scrollSpeed: 10,
-                    delay: 150, 
+                    scrollSensitivity: 80,
+                    scrollSpeed: 14,
+                    delay: 140,                     // Small press delay so scroll still works
                     delayOnTouchOnly: true,
-                    touchStartThreshold: 5, 
-                    onStart: function(evt) {
+                    touchStartThreshold: 4,
+                    onStart: function() {
                         rowEl.classList.add('is-dragging-row');
-                        const pointer = evt.originalEvent && (evt.originalEvent.touches ? evt.originalEvent.touches[0] : evt.originalEvent);
-                        rowEl.__dragScrollState = {
-                            startX: pointer ? pointer.clientX : 0,
-                            startScroll: rowEl.scrollLeft
-                        };
-                        document.body.style.overflow = 'hidden'; 
+                        document.body.style.overflow = 'hidden';
                     },
                     onEnd: function() {
                         rowEl.classList.remove('is-dragging-row');
                         document.body.style.overflow = '';
-                        rowEl.__dragScrollState = null;
                     }
                 });
                 reorderSortables.push(sortable);
