@@ -1042,7 +1042,12 @@
                     </div>
                     <div id="reorder-row-${cat.id}" class="reorder-row custom-scroll flex overflow-x-auto gap-4 py-2">
                         ${catProducts.map(p => `
-                            <div data-id="${p.id}" class="reorder-card bg-white dark:bg-gray-800 p-3 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:border-brandGold transition-all flex-shrink-0 w-32 md:w-40">
+                            <div data-id="${p.id}" class="reorder-card bg-white dark:bg-gray-800 p-3 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:border-brandGold transition-all flex-shrink-0 w-32 md:w-40 relative">
+                                <div class="absolute top-2 right-2 z-10 text-gray-400 drag-handle cursor-grab active:cursor-grabbing p-1 hover:text-brandGold transition-colors md:opacity-0 md:group-hover:opacity-100">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
+                                    </svg>
+                                </div>
                                 <div class="bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden mb-2">
                                     <img src="${p.images[0]}" alt="${p.name}" class="w-full h-24 md:h-32 object-contain p-4">
                                 </div>
@@ -1056,28 +1061,23 @@
                 const rowEl = section.querySelector('.reorder-row');
                 const sortable = new Sortable(rowEl, {
                     animation: 250,
+                    handle: '.drag-handle',
                     ghostClass: 'sortable-ghost-product',
                     chosenClass: 'sortable-chosen-product',
-                    dragClass: 'sortable-drag-product',
                     direction: 'horizontal',
-                    forceFallback: true,          // Always use the clone for touch to avoid native scrolling
-                    fallbackOnBody: false,        // Keep the drag confined to the row area
-                    fallbackClass: 'sortable-fallback',
-                    scroll: rowEl,                // Only scroll the row, not the page
-                    bubbleScroll: false,
-                    scrollSensitivity: 60,
-                    scrollSpeed: 15,
-                    delay: 120,                   // Small hold to distinguish from swipe
-                    delayOnTouchOnly: true,
-                    touchStartThreshold: 5,
+                    forceFallback: true,
+                    fallbackOnBody: false,
+                    scroll: rowEl,
+                    scrollSensitivity: 100,
+                    scrollSpeed: 20,
+                    delay: 0,
+                    touchStartThreshold: 3, 
                     onStart: function() {
                         rowEl.classList.add('is-dragging-row');
-                        rowEl.style.touchAction = 'none'; // Stop the row from panning while dragging
-                        document.body.style.overflow = 'hidden';
+                        document.body.style.overflow = 'hidden'; 
                     },
                     onEnd: function() {
                         rowEl.classList.remove('is-dragging-row');
-                        rowEl.style.touchAction = '';
                         document.body.style.overflow = '';
                     }
                 });
