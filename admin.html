@@ -222,11 +222,13 @@
             display: flex;
             overflow-x: auto;
             gap: 1rem;
-            padding: 1rem 0;
+            padding: 1.5rem 1rem;
             scrollbar-width: thin;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-x;
         }
         .reorder-card {
-            flex: 0 0 150px;
+            flex: 0 0 auto;
             cursor: grab;
             user-select: none;
             position: relative;
@@ -1012,9 +1014,9 @@
                         </div>
                         <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">${catProducts.length} pieces</span>
                     </div>
-                    <div id="reorder-row-${cat.id}" class="reorder-row custom-scroll flex overflow-x-auto gap-4 py-2">
+                    <div id="reorder-row-${cat.id}" class="reorder-row custom-scroll">
                         ${catProducts.map(p => `
-                            <div data-id="${p.id}" class="reorder-card bg-white dark:bg-gray-800 p-3 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:border-brandGold transition-all flex-shrink-0 w-32 md:w-40">
+                            <div data-id="${p.id}" class="reorder-card bg-white dark:bg-gray-800 p-3 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:border-brandGold transition-all w-32 md:w-40 flex-shrink-0">
                                 <div class="bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden mb-2">
                                     <img src="${p.images[0]}" alt="${p.name}" class="w-full h-24 md:h-32 object-contain p-4">
                                 </div>
@@ -1032,7 +1034,10 @@
                     direction: 'horizontal',
                     forceFallback: true,
                     fallbackOnBody: false,
-                    scroll: rowEl,
+                    scroll: true,
+                    delay: 150,
+                    delayOnTouchOnly: true,
+                    touchStartThreshold: 5,
                     onStart: function() {
                         rowEl.classList.add('is-dragging-row');
                     },
