@@ -263,19 +263,22 @@
             z-index: 50 !important;
         }
         .sortable-drag-product {
-            opacity: 0.9 !important;
-            transform: none !important;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+            opacity: 1 !important;
+            transform: scale(1.05) !important;
+            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.4) !important;
             cursor: grabbing !important;
-            border-radius: 1rem !important;
+            border: 2px solid #D4AF37 !important;
+            border-radius: 1.25rem !important;
+            z-index: 9999 !important;
         }
 
-        /* Moving Clone */
+        /* Moving Clone - This is the one following the finger */
         .sortable-fallback {
             opacity: 1 !important;
-            transform: scale(1.02) !important;
-            z-index: 9999 !important;
+            transform: scale(1.05) !important;
+            z-index: 10000 !important;
             pointer-events: none;
+            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.5) !important;
         }
 
         /* Cinematic Scrolling Title */
@@ -1058,27 +1061,26 @@
                     animation: 250,
                     ghostClass: 'sortable-ghost-product',
                     chosenClass: 'sortable-chosen-product',
+                    dragClass: 'sortable-drag-product',
+                    fallbackClass: 'sortable-fallback',
                     direction: 'horizontal',
+                    forceFallback: true,        // Best for following finger on mobile
+                    fallbackOnBody: true,       // Move freely outside the container
+                    swapThreshold: 0.65,        // More accurate swapping
+                    invertSwap: true,           // Better horizontal logic
                     scroll: true,
-                    scrollSensitivity: 100, // Start scrolling earlier
-                    scrollSpeed: 20,
-                    bubbleScroll: false,
-                    invertSwap: true, // Better for horizontal lists
-                    swapThreshold: 0.5,
-                    forceFallback: true, 
-                    fallbackOnBody: true,
-                    delay: 150, 
+                    scrollSensitivity: 30,      // Smaller = trigger later
+                    scrollSpeed: 5,           // Slower scroll for more control
+                    delay: 200, 
                     delayOnTouchOnly: true,
                     touchStartThreshold: 5, 
                     onStart: function() {
                         rowEl.classList.add('is-dragging-row');
                         document.body.style.overflow = 'hidden'; 
-                        document.body.style.touchAction = 'none'; 
                     },
                     onEnd: function() {
                         rowEl.classList.remove('is-dragging-row');
                         document.body.style.overflow = '';
-                        document.body.style.touchAction = '';
                     }
                 });
                 reorderSortables.push(sortable);
