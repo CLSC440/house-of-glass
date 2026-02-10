@@ -1060,10 +1060,12 @@
                     chosenClass: 'sortable-chosen-product',
                     direction: 'horizontal',
                     scroll: true,
-                    bubbleScroll: false, // Prevent the entire window from scrolling
-                    scrollSensitivity: 50,
-                    scrollSpeed: 10,
-                    forceFallback: true, // Use custom drag logic for better control
+                    scrollSensitivity: 100, // Start scrolling earlier
+                    scrollSpeed: 20,
+                    bubbleScroll: false,
+                    invertSwap: true, // Better for horizontal lists
+                    swapThreshold: 0.5,
+                    forceFallback: true, 
                     fallbackOnBody: true,
                     delay: 150, 
                     delayOnTouchOnly: true,
@@ -1071,7 +1073,7 @@
                     onStart: function() {
                         rowEl.classList.add('is-dragging-row');
                         document.body.style.overflow = 'hidden'; 
-                        document.body.style.touchAction = 'none'; // Lock all touch actions except dragging
+                        document.body.style.touchAction = 'none'; 
                     },
                     onEnd: function() {
                         rowEl.classList.remove('is-dragging-row');
