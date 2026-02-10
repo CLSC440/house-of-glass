@@ -591,7 +591,7 @@
                         </div>
                     </div>
                 </div>
-                <div id="thumbnailBar" class="h-20 md:h-28 bg-white/40 dark:bg-darkCard/40 backdrop-blur-md border-t dark:border-gray-700/50 flex space-x-2 md:space-x-4 p-2 md:p-4 overflow-x-auto hide-scroll items-center justify-start">
+                <div id="thumbnailBar" class="h-20 md:h-28 bg-white/40 dark:bg-darkCard/40 backdrop-blur-md border-t dark:border-gray-700/50 flex space-x-2 md:space-x-4 p-2 md:p-4 overflow-x-auto hide-scroll items-center justify-center">
                     <!-- Thumbnails will go here -->
                 </div>
             </div>
@@ -2082,11 +2082,19 @@
                 if(!img) return; // Skip empty images
                 const t = document.createElement('img');
                 t.src = img;
-                // Adjusted sizes for the new bar height
-                t.className = `h-12 w-12 md:h-20 md:w-20 object-contain p-1.5 md:p-2 bg-white dark:bg-gray-800 rounded-lg md:rounded-xl cursor-pointer border-2 transition-all flex-shrink-0 ${idx === currentImgIdx ? 'border-brandGold scale-105 shadow-md' : 'border-transparent opacity-60 hover:opacity-100 hover:scale-105'}`;
+                // Larger sizes to fill the bar better
+                t.className = `h-14 w-14 md:h-24 md:w-24 object-contain p-1 md:p-1.5 bg-white dark:bg-gray-800 rounded-lg md:rounded-xl cursor-pointer border-2 transition-all flex-shrink-0 ${idx === currentImgIdx ? 'border-brandGold scale-105 shadow-md opacity-100' : 'border-transparent opacity-50 hover:opacity-100 hover:scale-105'}`;
                 t.onclick = () => updateDetailImage(idx);
                 thumbBar.appendChild(t);
             });
+
+            // Adjust centering vs scrolling
+            if (thumbBar.scrollWidth > thumbBar.clientWidth) {
+                thumbBar.classList.replace('justify-center', 'justify-start');
+            } else {
+                thumbBar.classList.replace('justify-start', 'justify-center');
+            }
+
             // Auto scroll to active thumbnail
             const activeThumb = thumbBar.children[currentImgIdx];
             if (activeThumb) {
