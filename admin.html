@@ -1061,14 +1061,14 @@
                     chosenClass: 'sortable-chosen-product',
                     dragClass: 'sortable-drag-product',
                     direction: 'horizontal',
-                    forceFallback: true,            // Ensure the item follows the finger on touch
+                    forceFallback: true,            // Item stays under the finger
                     fallbackOnBody: true,
                     fallbackClass: 'sortable-fallback',
-                    fallbackTolerance: 3,
-                    scroll: true,
-                    bubbleScroll: true,
-                    scrollSensitivity: 80,
-                    scrollSpeed: 14,
+                    fallbackTolerance: 2,
+                    scroll: rowEl,                  // Limit auto-scroll to the row only
+                    bubbleScroll: false,            // Prevent parent/body auto-scroll runaway
+                    scrollSensitivity: 35,
+                    scrollSpeed: 8,
                     delay: 140,                     // Small press delay so scroll still works
                     delayOnTouchOnly: true,
                     touchStartThreshold: 4,
