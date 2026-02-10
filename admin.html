@@ -246,8 +246,36 @@
             background: #1f2937;
         }
         .sortable-ghost-product {
-            opacity: 0.4;
-            transform: scale(0.95);
+            opacity: 0.3 !important;
+            background: rgba(212, 175, 55, 0.1) !important;
+            border: 3px solid #D4AF37 !important;
+            border-radius: 1.25rem !important;
+        }
+        .sortable-ghost-product * {
+            opacity: 0.2 !important;
+        }
+        .sortable-chosen-product {
+            opacity: 1 !important;
+            border: 3px solid #D4AF37 !important;
+            box-shadow: 0 0 40px rgba(212, 175, 55, 0.5) !important;
+            border-radius: 1.25rem !important;
+            transform: scale(1.05) !important;
+            z-index: 50 !important;
+        }
+        .sortable-drag-product {
+            opacity: 0.9 !important;
+            transform: none !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+            cursor: grabbing !important;
+            border-radius: 1rem !important;
+        }
+
+        /* Moving Clone */
+        .sortable-fallback {
+            opacity: 1 !important;
+            transform: scale(1.02) !important;
+            z-index: 9999 !important;
+            pointer-events: none;
         }
 
         /* Cinematic Scrolling Title */
@@ -1029,18 +1057,22 @@
                 const sortable = new Sortable(rowEl, {
                     animation: 250,
                     ghostClass: 'sortable-ghost-product',
+                    chosenClass: 'sortable-chosen-product',
                     direction: 'horizontal',
-                    forceFallback: true,
-                    fallbackOnBody: false,
-                    scroll: rowEl,
-                    delay: 150, // Small delay to allow scrolling on mobile
+                    scroll: true,
+                    bubbleScroll: true,
+                    scrollSensitivity: 50,
+                    scrollSpeed: 10,
+                    delay: 150, 
                     delayOnTouchOnly: true,
-                    touchStartThreshold: 10, // Prevents accidental drag when swiping
+                    touchStartThreshold: 5, 
                     onStart: function() {
                         rowEl.classList.add('is-dragging-row');
+                        document.body.style.overflow = 'hidden'; 
                     },
                     onEnd: function() {
                         rowEl.classList.remove('is-dragging-row');
+                        document.body.style.overflow = '';
                     }
                 });
                 reorderSortables.push(sortable);
