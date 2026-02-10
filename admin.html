@@ -903,7 +903,9 @@
             const cat = document.getElementById('adminCategoryFilter').value;
             
             const filtered = products.filter(p => {
-                const matchesSearch = p.name.toLowerCase().includes(search) || (p.desc && p.desc.toLowerCase().includes(search));
+                const matchesSearch = p.name.toLowerCase().includes(search) 
+                    || (p.desc && p.desc.toLowerCase().includes(search))
+                    || (p.code && p.code.toLowerCase().includes(search));
                 const matchesCat = cat === 'All' || p.category === cat;
                 return matchesSearch && matchesCat;
             });
