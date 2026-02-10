@@ -596,7 +596,7 @@
                     </div>
                 </div>
                 <!-- Floating Thumbnails Bar -->
-                <div id="thumbnailBar" class="absolute bottom-4 left-1/2 -translate-x-1/2 w-max max-w-[95%] h-16 md:h-20 bg-white/40 dark:bg-black/40 backdrop-blur-xl rounded-2xl border border-white/30 dark:border-white/10 flex space-x-2 md:space-x-4 px-4 overflow-x-auto hide-scroll items-center justify-start z-20 shadow-2xl transition-all duration-300">
+                <div id="thumbnailBar" class="absolute left-3 top-1/2 -translate-y-1/2 w-14 h-auto max-h-[60%] flex flex-col space-y-2 p-1 overflow-y-auto overflow-x-hidden md:left-1/2 md:top-auto md:bottom-4 md:-translate-x-1/2 md:translate-y-0 md:w-max md:max-w-[95%] md:h-20 md:flex-row md:space-x-4 md:px-4 md:overflow-x-auto md:overflow-y-hidden md:items-center md:justify-start bg-transparent md:bg-white/40 md:dark:bg-black/40 backdrop-blur-xl rounded-2xl border border-white/30 dark:border-white/10 z-20 shadow-2xl transition-all duration-300 hide-scroll">
                     <!-- Thumbnails will go here -->
                 </div>
             </div>
@@ -1928,6 +1928,8 @@
                                 img.style.opacity = '1';
                                 isZoomed = false;
                                 img.style.transform = 'scale(1)';
+                                const tBar = document.getElementById('thumbnailBar');
+                                if(tBar) tBar.classList.remove('opacity-0', 'pointer-events-none');
                             }, 150);
                         }
                     };
@@ -1994,11 +1996,13 @@
             currentImgIdx = idx;
             const img = document.getElementById('mainDetailImg');
             const targetSrc = currentProduct.images[idx];
+            const tBar = document.getElementById('thumbnailBar');
             
             // Reset zoom
             isZoomed = false;
             img.style.transform = 'scale(1)';
             img.style.cursor = 'zoom-in';
+            if(tBar) tBar.classList.remove('opacity-0', 'pointer-events-none');
             
             // 1. Sync Thumbnails immediately
             renderThumbnails();
@@ -2178,12 +2182,14 @@
             // Click to toggle zoom
             mainImg.addEventListener('click', function(e) {
                 e.stopPropagation();
+                const tBar = document.getElementById('thumbnailBar');
                 if (isZoomed) {
                     isZoomed = false;
                     mainImg.style.transform = "scale(1)";
                     mainImg.style.cursor = "zoom-in";
                     mainImg.classList.add('transition-transform');
                     mainImg.classList.add('duration-300');
+                    if(tBar) tBar.classList.remove('opacity-0', 'pointer-events-none');
                     setTimeout(() => {
                         if(!isZoomed) mainImg.style.transformOrigin = "center center"; 
                     }, 300);
@@ -2195,6 +2201,7 @@
                     
                     mainImg.style.transform = "scale(3)";
                     mainImg.style.cursor = "zoom-out";
+                    if(tBar) tBar.classList.add('opacity-0', 'pointer-events-none');
                     
                     const rect = swipeContainer.getBoundingClientRect();
                     const x = ((e.clientX - rect.left) / rect.width) * 100;
