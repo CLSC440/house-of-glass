@@ -1059,13 +1059,15 @@
                     ghostClass: 'sortable-ghost-product',
                     chosenClass: 'sortable-chosen-product',
                     direction: 'horizontal',
-                    scroll: true,
-                    bubbleScroll: true,
-                    scrollSensitivity: 50,
-                    scrollSpeed: 10,
+                    scroll: rowEl, // Specific scroll target
+                    bubbleScroll: false, // Don't scroll parent
+                    scrollSensitivity: 35,
+                    scrollSpeed: 15,
+                    forceFallback: true, // More reliable scrolling on mobile
+                    fallbackOnBody: true,
                     delay: 150, 
                     delayOnTouchOnly: true,
-                    touchStartThreshold: 5, 
+                    touchStartThreshold: 10,
                     onStart: function() {
                         rowEl.classList.add('is-dragging-row');
                         document.body.style.overflow = 'hidden'; 
