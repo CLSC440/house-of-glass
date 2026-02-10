@@ -607,7 +607,7 @@
         <div class="absolute w-full h-full bg-black/60 backdrop-blur-sm" onclick="closeUserSettingsModal()"></div>
         <div class="bg-white dark:bg-darkCard w-11/12 max-w-md mx-auto rounded-3xl shadow-2xl z-[110] overflow-hidden relative border border-gray-100 dark:border-gray-800">
             <div class="p-6 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
-                <h2 class="text-xl font-black text-brandBlue dark:text-brandGold uppercase italic tracking-tight" data-i18n="account_settings">Account Settings</h2>
+                <h2 class="text-xl font-black text-brandBlue dark:text-brandGold uppercase italic tracking-tight" data-i18n="settings_title">Account Settings</h2>
                 <button onclick="closeUserSettingsModal()" class="text-gray-400 hover:text-red-500 transition-colors bg-white dark:bg-gray-700 p-2 rounded-full shadow-sm">✕</button>
             </div>
             
@@ -631,25 +631,25 @@
 
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-xs font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-1" data-i18n="username">Username</label>
+                        <label class="block text-xs font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-1" data-i18n="settings_username">Username</label>
                         <input type="text" id="settingsUsername" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brandGold outline-none dark:text-white">
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-xs font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-1" data-i18n="first_name">First Name</label>
+                            <label class="block text-xs font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-1" data-i18n="settings_first_name">First Name</label>
                             <input type="text" id="settingsFirstName" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brandGold outline-none dark:text-white">
                         </div>
                         <div>
-                            <label class="block text-xs font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-1" data-i18n="last_name">Last Name</label>
+                            <label class="block text-xs font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-1" data-i18n="settings_last_name">Last Name</label>
                             <input type="text" id="settingsLastName" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brandGold outline-none dark:text-white">
                         </div>
                     </div>
                     <div>
-                        <label class="block text-xs font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-1" data-i18n="email_address">Email Address</label>
+                        <label class="block text-xs font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-1" data-i18n="settings_email">Email Address</label>
                         <input type="email" id="settingsEmail" class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm text-gray-500 dark:text-gray-400 outline-none" readonly>
                     </div>
                     <div>
-                        <label class="block text-xs font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-1" data-i18n="phone_number">Phone Number</label>
+                        <label class="block text-xs font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-1" data-i18n="settings_phone">Phone Number</label>
                         <div class="flex group">
                             <span class="inline-flex items-center justify-center bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-700 ltr:rounded-l-xl rtl:rounded-r-xl px-3 text-sm text-gray-500 dark:text-gray-400 font-bold tracking-wider">+20</span>
                             <input type="tel" id="settingsPhone" class="flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 ltr:rounded-r-xl rtl:rounded-l-xl p-3 text-sm focus:ring-2 focus:ring-brandGold outline-none dark:text-white" placeholder="01XXXXXXXXX">
@@ -657,7 +657,7 @@
                     </div>
                     
                     <div class="pt-4 border-t dark:border-gray-700">
-                        <label class="block text-xs font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-1" data-i18n="change_password">Change Password</label>
+                        <label class="block text-xs font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-1" data-i18n="settings_change_pass">Change Password</label>
                         <div class="relative group">
                             <input type="password" id="settingsNewPassword" placeholder="New Password" data-i18n-placeholder="new_password" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brandGold outline-none dark:text-white mb-2 ltr:pr-10 rtl:pl-10">
                             <button type="button" onclick="togglePassword('settingsNewPassword')" class="absolute ltr:right-3 rtl:left-3 top-[43%] -translate-y-1/2 text-gray-400 hover:text-brandGold transition-colors focus:outline-none">
@@ -672,7 +672,7 @@
 
                     <!-- Appearance Settings -->
                     <div class="pt-4 border-t dark:border-gray-700">
-                        <label class="block text-xs font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-3">Appearance</label>
+                        <label class="block text-xs font-black text-brandBlue dark:text-brandGold uppercase tracking-widest mb-3" data-i18n="appearance">Appearance</label>
                         
                         <!-- Manual Theme Toggle -->
                         <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700 mb-2">
@@ -712,9 +712,9 @@
                             <svg class="w-3.5 h-3.5 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
-                            Delete Account
+                            <span data-i18n="delete_account">Delete Account</span>
                         </button>
-                        <p class="text-[9px] text-gray-400 text-center mt-2 italic shadow-sm">This action is permanent and cannot be undone.</p>
+                        <p class="text-[9px] text-gray-400 text-center mt-2 italic shadow-sm" data-i18n="delete_warning">This action is permanent and cannot be undone.</p>
                     </div>
                 </div>
 
