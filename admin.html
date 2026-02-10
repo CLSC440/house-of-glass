@@ -247,36 +247,33 @@
         }
         .sortable-ghost-product {
             opacity: 0.3 !important;
-            background: rgba(212, 175, 55, 0.12) !important;
+            background: rgba(212, 175, 55, 0.1) !important;
             border: 3px solid #D4AF37 !important;
             border-radius: 1.25rem !important;
         }
         .sortable-ghost-product * {
-            opacity: 0 !important;
+            opacity: 0.2 !important;
         }
         .sortable-chosen-product {
             opacity: 1 !important;
             border: 3px solid #D4AF37 !important;
             box-shadow: 0 0 40px rgba(212, 175, 55, 0.5) !important;
             border-radius: 1.25rem !important;
-            transform: scale(1.02) !important;
+            transform: scale(1.05) !important;
             z-index: 50 !important;
         }
-        /* Hide the floating clone visuals; keep only the ghost moving */
         .sortable-drag-product {
-            opacity: 0 !important;
+            opacity: 0.9 !important;
             transform: none !important;
-            box-shadow: none !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+            cursor: grabbing !important;
+            border-radius: 1rem !important;
         }
 
         /* Moving Clone */
         .sortable-fallback {
-            opacity: 0.6 !important;
-            background: rgba(212, 175, 55, 0.15) !important;
-            border: 3px solid #D4AF37 !important;
-            border-radius: 1.2rem !important;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
-            transform: scale(1.0) !important;
+            opacity: 1 !important;
+            transform: scale(1.02) !important;
             z-index: 9999 !important;
             pointer-events: none;
         }
@@ -1058,28 +1055,30 @@
 
                 const rowEl = section.querySelector('.reorder-row');
                 const sortable = new Sortable(rowEl, {
-                    animation: 200,
+                    animation: 250,
                     ghostClass: 'sortable-ghost-product',
                     chosenClass: 'sortable-chosen-product',
-                    dragClass: 'sortable-drag-product',
                     direction: 'horizontal',
-                    forceFallback: true,
+                    forceFallback: true, // ensure touch uses fallback (fixes row scrolling on drag)
                     fallbackOnBody: true,
                     fallbackClass: 'sortable-fallback',
-                    fallbackTolerance: 1,
-                    scroll: rowEl,
-                    bubbleScroll: false,
-                    scrollSensitivity: 24,
-                    scrollSpeed: 6,
-                    delay: 120,
+                    fallbackTolerance: 6,
+                    scroll: true,
+                    bubbleScroll: true,
+                    scrollSensitivity: 40,
+                    scrollSpeed: 8,
+                    delay: 120, // short hold to distinguish from scroll
                     delayOnTouchOnly: true,
                     touchStartThreshold: 3,
                     onStart: function() {
                         rowEl.classList.add('is-dragging-row');
+                        rowEl.dataset.prevOverflow = rowEl.style.overflowX;
+                        rowEl.style.overflowX = 'hidden'; // stop row from sliding with finger
                         document.body.style.overflow = 'hidden';
                     },
                     onEnd: function() {
                         rowEl.classList.remove('is-dragging-row');
+                        rowEl.style.overflowX = rowEl.dataset.prevOverflow || '';
                         document.body.style.overflow = '';
                     }
                 });
