@@ -822,7 +822,7 @@
     <script src="i18n.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, getDocs, doc, onSnapshot, query, orderBy, getDoc, updateDoc, arrayUnion, arrayRemove, deleteDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, doc, onSnapshot, query, orderBy, getDoc, updateDoc, arrayUnion, arrayRemove, deleteDoc, addDoc, serverTimestamp, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getAuth, onAuthStateChanged, signOut, updatePassword, deleteUser } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = {
@@ -838,6 +838,18 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
+
+        // Enable Offline Persistence for faster loads
+        enableIndexedDbPersistence(db)
+            .catch((err) => {
+                if (err.code == 'failed-precondition') {
+                    // Multiple tabs open, persistence can only be enabled in one tab at a a time.
+                    console.warn("Persistence failed: Multiple tabs open");
+                } else if (err.code == 'unimplemented') {
+                    // The current browser does not support all of the features required to enable persistence
+                    console.warn("Persistence not supported by browser");
+                }
+            });
 
         // --- Custom Toast Notification ---
         window.showToast = (message, type = 'success') => {
@@ -2247,6 +2259,21 @@
         });
 
         loadData();
+        
+        // Safety Timeout to handle hanging loads
+        setTimeout(() => {
+            const skeleton = document.querySelector('.loading-skeleton');
+            if(skeleton) {
+                skeleton.innerHTML = `
+                    <div class="text-center p-8 bg-white/5 rounded-xl border border-red-500/30">
+                         <svg class="w-12 h-12 text-red-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                         <p class="text-gray-400 mb-2 font-bold uppercase tracking-widest text-xs">Connection is taking too long...</p>
+                         <p class="text-brandGold mb-6 font-bold font-arabic">الاتصال يستغرق وقتًا طويلاً...</p>
+                         <button onclick="window.location.reload()" class="bg-brandGold text-white px-6 py-2 rounded-lg font-bold hover:bg-opacity-90 transition-opacity uppercase tracking-widest text-xs">Reload Page | إعادة تحميل</button>
+                    </div>
+                `;
+            }
+        }, 12000); // 12 seconds timeout
 
         // 📽️ Cinematic Auto-Scroll Controller
         let activeAutoScrolls = new Map();
