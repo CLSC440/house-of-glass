@@ -506,8 +506,9 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Product Code (Optional)</label>
-                        <input type="text" id="pCode" class="w-full border dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg p-2 focus:ring-brandGold outline-none" placeholder="e.g. M-01, STAR-55">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Product Code (Unique ID)</label>
+                        <input type="text" id="pCode" class="w-full border dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg p-2 focus:ring-brandGold outline-none uppercase tracking-widest font-bold bg-white" placeholder="e.g. M-01, STAR-55" required oninput="validateCode(this)">
+                        <p id="codeError" class="text-[10px] text-red-500 font-bold mt-1 hidden">❌ Code already exists!</p>
                     </div>
 
                     <div class="flex items-center space-x-3 bg-gray-50 dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700">
@@ -657,6 +658,33 @@
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300" data-i18n="whatsapp_phone">WhatsApp Phone Number</label>
                         <p class="text-[10px] text-gray-400 mb-1">Include country code (e.g., 201234567890)</p>
                         <input type="text" id="waPhoneInput" placeholder="2010XXXXXXXX" class="w-full border dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded p-2 text-sm outline-none focus:ring-brandGold">
+                    </div>
+
+                    <!-- Migration Tool -->
+                    <div class="pt-4 border-t dark:border-gray-700">
+                        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">System Tools</label>
+                        <div class="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
+                            <div class="flex items-start gap-3">
+                                <div class="p-2 bg-blue-100 dark:bg-blue-800 rounded-lg text-blue-600 dark:text-blue-300">
+                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-bold text-brandBlue dark:text-gray-200">Migrate Images to Cloud</h4>
+                                    <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">
+                                        Scan all products for old cached images (Base64) and upload them to cloud storage. Required for 3rd-party integrations (HG System).
+                                    </p>
+                                    <button id="migrationBtn" onclick="runImageMigration()" class="mt-3 px-3 py-1.5 bg-brandBlue text-white text-[10px] font-bold uppercase tracking-widest rounded-lg shadow-md hover:bg-opacity-90 transition-all flex items-center gap-2">
+                                        Start Migration
+                                    </button>
+                                    <div id="migrationProgress" class="hidden mt-2">
+                                        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mb-1">
+                                            <div class="bg-green-500 h-1.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                        </div>
+                                        <p class="text-[9px] text-gray-500 font-mono text-right">0%</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300" data-i18n="calling_phone">Calling Phone Number(s)</label>
@@ -1029,6 +1057,11 @@
                                 <span>Images: <span class="text-gray-600 dark:text-gray-300 font-bold">${(p.images || []).length}</span></span>
                                 <span>Code: <span class="text-brandBlue dark:text-brandGold font-black tracking-widest">${p.code || '-'}</span></span>
                             </div>
+                            <!-- DC Data Container -->
+                            ${p.code ? `<div class="dc-data-wrapper mt-2 pt-2 border-t border-dashed border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]" data-code="${p.code}">
+                                <div class="col-span-2 text-gray-400 italic animate-pulse">Syncing with system...</div>
+                            </div>` : ''}
+
                             <!-- Mobile Actions (Visible) -->
                              <div class="flex md:hidden items-center gap-3 mt-2">
                                 <button onclick="editProduct('${p.id}')" class="text-brandBlue dark:text-brandGold text-[10px] font-black uppercase hover:underline flex items-center gap-1">
@@ -1086,6 +1119,8 @@
                 }
                 grid.appendChild(card);
             });
+            
+            if(window.fetchAdminLivePricing) setTimeout(window.fetchAdminLivePricing, 100);
         }
 
         let reorderSortables = [];
@@ -1480,8 +1515,34 @@
             }
         }
 
+        window.validateCode = function(input) {
+            const val = input.value.trim();
+            const currentId = document.getElementById('productId').value;
+            const err = document.getElementById('codeError');
+            
+            const exists = products.find(p => p.code === val && p.id !== currentId);
+            if(exists) {
+                err.innerText = `❌ Code "${val}" taken by "${exists.name}"`;
+                err.classList.remove('hidden');
+                input.classList.add('border-red-500', 'bg-red-50');
+                return false;
+            } else {
+                err.classList.add('hidden');
+                input.classList.remove('border-red-500', 'bg-red-50');
+                return true;
+            }
+        };
+
         document.getElementById('productForm').onsubmit = async (e) => {
             e.preventDefault();
+
+            // Validate Code
+            const codeInput = document.getElementById('pCode');
+            if(!window.validateCode(codeInput)) {
+                showToast("Please fix the Product Code error", "error");
+                return;
+            }
+
             const submitBtn = e.target.querySelector('button[type="submit"]');
             const originalBtnText = submitBtn.innerText;
             submitBtn.disabled = true;
@@ -1562,7 +1623,7 @@
                     name: document.getElementById('pName').value,
                     category: document.getElementById('pCategory').value,
                     desc: document.getElementById('pDesc').value,
-                    code: document.getElementById('pCode').value,
+                    code: document.getElementById('pCode').value.trim(),
                     inStock: document.getElementById('pInStock').checked,
                     images: imgs,
                     variants: variants,
@@ -1826,6 +1887,97 @@
             loadData();
         };
 
+        window.runImageMigration = async function() {
+            const btn = document.getElementById('migrationBtn');
+            const progressContainer = document.getElementById('migrationProgress');
+            const progressBar = progressContainer.querySelector('div > div');
+            const progressText = progressContainer.querySelector('p');
+            
+            if(!confirm("Start migrating old images to Cloudinary? This might take a few minutes depending on connection speed.")) return;
+
+            btn.disabled = true;
+            btn.innerText = "Scanning...";
+            progressContainer.classList.remove('hidden');
+
+            try {
+                // Fetch all products first
+                const snapshot = await getDocs(collection(db, "products"));
+                const total = snapshot.docs.length;
+                let processed = 0;
+                let updatedCount = 0;
+
+                for (const docSnap of snapshot.docs) {
+                    const p = docSnap.data();
+                    let needsUpdate = false;
+                    let newImages = [...(p.images || [])];
+                    let newVariants = p.variants ? JSON.parse(JSON.stringify(p.variants)) : [];
+
+                    // 1. Check Main Images
+                    for(let i=0; i<newImages.length; i++) {
+                        if(newImages[i] && newImages[i].startsWith('data:')) {
+                            progressText.innerText = `Uploading image for: ${p.name}...`;
+                            // Convert Base64 to Blob
+                            const res = await fetch(newImages[i]);
+                            const blob = await res.blob();
+                            // Upload
+                            const url = await uploadToCloudinary(blob);
+                            newImages[i] = url;
+                            needsUpdate = true;
+                        }
+                    }
+
+                    // 2. Check Variant Images
+                    if (newVariants.length > 0) {
+                        for(let v of newVariants) {
+                            if(v.images && v.images.length > 0) {
+                                for(let j=0; j<v.images.length; j++) {
+                                    if(v.images[j] && v.images[j].startsWith('data:')) {
+                                        progressText.innerText = `Uploading variant for: ${p.name}...`;
+                                        const res = await fetch(v.images[j]);
+                                        const blob = await res.blob();
+                                        const url = await uploadToCloudinary(blob);
+                                        v.images[j] = url;
+                                        needsUpdate = true;
+                                    }
+                                }
+                            } else if (v.image && v.image.startsWith('data:')) {
+                                // Legacy single image string support
+                                progressText.innerText = `Uploading variant for: ${p.name}...`;
+                                const res = await fetch(v.image);
+                                const blob = await res.blob();
+                                const url = await uploadToCloudinary(blob);
+                                v.image = url;
+                                if(!v.images) v.images = [url];
+                                needsUpdate = true;
+                            }
+                        }
+                    }
+
+                    if (needsUpdate) {
+                        await updateDoc(doc(db, "products", docSnap.id), {
+                            images: newImages,
+                            variants: newVariants
+                        });
+                        updatedCount++;
+                    }
+
+                    processed++;
+                    const pct = Math.round((processed / total) * 100);
+                    progressBar.style.width = `${pct}%`;
+                    progressText.innerText = `${pct}% (${processed}/${total})`;
+                }
+
+                showToast(`Migration Complete! Updated ${updatedCount} products.`);
+                btn.innerText = "Done";
+                
+            } catch (err) {
+                console.error("Migration Error:", err);
+                showToast(`Migration Failed: ${err.message}`, 'error');
+                btn.innerText = "Retry";
+                btn.disabled = false;
+            }
+        };
+
         window.toggleDarkMode = function() {
             const isDark = document.documentElement.classList.toggle('dark');
             localStorage.setItem('darkMode', isDark);
@@ -1931,6 +2083,76 @@
             }
         };
 
+        window.fetchAdminLivePricing = async function() {
+            const wrappers = document.querySelectorAll('.dc-data-wrapper');
+            if (wrappers.length === 0) return;
+
+            try {
+                const res = await fetch("https://glass-system-backend.onrender.com/public/products");
+                if (!res.ok) throw new Error("Failed to connect to DC");
+                
+                const data = await res.json();
+                const priceMap = {};
+                
+                if (Array.isArray(data)) {
+                    data.forEach(item => {
+                        // Priority to Barcode as per user screenshot (90000059)
+                        // Also support product_code (snake_case)
+                        const rawCode = item.barcode || item.code || item.product_code || item.productCode || item.sku || item.id;
+                        if (rawCode) {
+                            priceMap[String(rawCode).trim()] = item;
+                        }
+                    });
+                }
+
+                wrappers.forEach(el => {
+                    const code = String(el.dataset.code).trim();
+                    if (priceMap[code]) {
+                        const info = priceMap[code];
+                        
+                        // Extract fields mapping to the JSON structure provided
+                        // JSON: { retail_price: "100.00", wholesale_price: "350.00", discount_amount: "5" ... }
+                        const price = info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || 0;
+                        const wholesale = info.wholesale_price || info.wholesalePrice || 0;
+                        const discount = info.discount_amount || info.discount || 0;
+
+                        // Calculate Price After Discount
+                        const pVal = parseFloat(price) || 0;
+                        const dVal = parseFloat(discount) || 0;
+                        const finalPrice = (pVal - dVal).toFixed(2);
+                        
+                        el.innerHTML = `
+                            <div class="col-span-2 flex items-center justify-between gap-4">
+                                <div class="flex flex-col">
+                                    <span class="text-[8px] text-gray-400 uppercase font-bold">Net | Disc.</span>
+                                    <div class="font-bold truncate text-[10px]">
+                                        <span class="text-green-600 text-xs">${finalPrice}</span>
+                                        <span class="text-gray-300 mx-0.5">|</span>
+                                        <span class="text-red-500">${discount}</span>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col">
+                                    <span class="text-[8px] text-gray-400 uppercase font-bold">Retail</span>
+                                    <span class="font-bold text-gray-800 dark:text-gray-200">${price}</span>
+                                </div>
+                                <div class="flex flex-col text-right">
+                                    <span class="text-[8px] text-gray-400 uppercase font-bold">Wholesale</span>
+                                    <span class="font-bold text-brandGold">${wholesale}</span>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                         el.innerHTML = `<div class="col-span-2 text-red-400 text-[9px] italic flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 bg-red-400 rounded-full inline-block"></span> Not linked
+                         </div>`;
+                    }
+                });
+
+            } catch (e) {
+                console.warn("DC Fetch Error:", e);
+                wrappers.forEach(el => el.innerHTML = `<div class="col-span-2 text-red-500 text-[9px]">System Offline</div>`);
+            }
+        };
 
     </script>
 </body>

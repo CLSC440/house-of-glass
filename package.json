@@ -1,0 +1,14 @@
+{
+  "name": "gallery-website",
+  "version": "1.0.0",
+  "description": "Static Gallery with Serverless API",
+  "scripts": {
+    "start": "python -m http.server 8000"
+  },
+  "dependencies": {
+    "firebase-admin": "^11.5.0"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
