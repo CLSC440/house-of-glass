@@ -655,8 +655,11 @@
             <div class="w-full md:w-1/2 p-5 md:p-8 flex flex-col justify-between overflow-y-auto">
                 <div class="space-y-4 md:space-y-6">
                     <div class="flex items-center justify-between">
-                        <h2 id="detailTitle" class="text-lg md:text-2xl font-black text-brandBlue dark:text-slate-100 uppercase italic tracking-tighter"></h2>
-                        <!-- Desktop close button removed from here, integrated into image section -->
+                        <h2 id="detailTitle" class="text-lg md:text-2xl font-black text-brandBlue dark:text-slate-100 uppercase italic tracking-tighter flex-1"></h2>
+                        <!-- Favorite button next to title -->
+                        <button id="detailFavBtn" class="hidden p-2 rounded-full hover:scale-110 active:scale-95 transition-all text-gray-400" onclick="toggleFavorite(event, currentProduct?.id).then(()=>updateModalFavBtn())">
+                            <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                        </button>
                     </div>
                     <div class="w-12 h-1 bg-brandGold rounded-full"></div>
                     <p id="detailDesc" class="text-xs md:text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium"></p>
@@ -2662,11 +2665,19 @@
             const enquiryBtn = document.getElementById('enquiryBtn');
             const btnContainer = enquiryBtn.parentElement;
             
-            // Remove existing buttons (fav & edit & cart)
-            const oldFav = btnContainer.querySelector('.modal-fav-btn');
-            if(oldFav) oldFav.remove();
+            // Update the fav button next to the title
+            const detailFavBtn = document.getElementById('detailFavBtn');
+            if (detailFavBtn) {
+                detailFavBtn.classList.remove('hidden');
+                detailFavBtn.className = `p-2 rounded-full hover:scale-110 active:scale-95 transition-all ${isFav ? 'text-red-500' : 'text-gray-400'}`;
+                detailFavBtn.id = 'detailFavBtn';
+            }
+
+            // Remove existing buttons (edit, wholesale, cart)
             const oldEdit = btnContainer.querySelector('.modal-edit-btn');
             if(oldEdit) oldEdit.remove();
+            const oldWholesale = btnContainer.querySelector('.modal-wholesale-btn');
+            if(oldWholesale) oldWholesale.remove();
             const oldCart = btnContainer.querySelector('.modal-cart-btn');
             if(oldCart) oldCart.remove();
 
@@ -2686,14 +2697,20 @@
                 btnContainer.insertBefore(editBtn, enquiryBtn);
             }
 
-            const favBtn = document.createElement('button');
-            favBtn.className = `modal-fav-btn p-3 md:p-4 rounded-xl bg-gray-50 dark:bg-gray-800 transition-all border border-gray-100 dark:border-gray-700 hover:scale-105 active:scale-95 ${isFav ? 'text-red-500 shadow-lg shadow-red-500/10' : 'text-gray-400'}`;
-            favBtn.innerHTML = `<svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`;
-            favBtn.onclick = async (e) => {
-                await toggleFavorite(e, currentProduct.id);
-                updateModalFavBtn();
+            // Wholesale icon button (replaces old fav position)
+            const wholesaleBtn = document.createElement('button');
+            wholesaleBtn.className = "modal-wholesale-btn p-3 md:p-4 rounded-xl bg-brandGold/10 text-brandGold transition-all border border-brandGold/30 hover:bg-brandGold hover:text-white hover:scale-105 active:scale-95";
+            wholesaleBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                </svg>
+            `;
+            wholesaleBtn.title = "Add to Wholesale Cart";
+            wholesaleBtn.onclick = () => {
+                addToWholesaleCart(currentProduct.id, currentVariantIdx);
             };
             
+            // Cart icon button
             const cartBtn = document.createElement('button');
             cartBtn.className = "modal-cart-btn p-3 md:p-4 rounded-xl bg-brandBlue text-white transition-all border border-brandGold shadow-lg shadow-brandBlue/20 hover:scale-105 active:scale-95";
             cartBtn.innerHTML = `
@@ -2703,17 +2720,17 @@
             `;
             cartBtn.title = "Add to Cart";
             cartBtn.onclick = () => {
-                // Add currently selected variant or null
                 addToCart(currentProduct.id, currentVariantIdx);
+                setTimeout(() => openCart(), 350);
             };
 
             btnContainer.className = "flex items-center space-x-3 mt-6 md:mt-10";
             enquiryBtn.classList.remove('w-full');
             enquiryBtn.classList.add('flex-1');
             
-            // Order: Edit -> Fav -> Cart -> WhatsApp
+            // Order: Edit -> Wholesale -> Cart -> WhatsApp
             btnContainer.insertBefore(cartBtn, enquiryBtn);
-            btnContainer.insertBefore(favBtn, cartBtn); // Fav before Cart
+            btnContainer.insertBefore(wholesaleBtn, cartBtn);
         }
 
         let isZoomed = false;
