@@ -3263,8 +3263,22 @@
                 })),
                 orderDate: new Date().toISOString(),
                 source: "Gallery Website",
-                orderType: "wholesale"
+                orderType: "wholesale",
+                status: "pending"
             };
+
+            // Fetch user phone & role from Firestore
+            if (currentUser) {
+                try {
+                    const uDoc = await getDoc(doc(db, "users", currentUser.uid));
+                    if (uDoc.exists()) {
+                        const ud = uDoc.data();
+                        orderData.customer.phone = ud.phone || '';
+                        orderData.customer.role = ud.role || 'customer';
+                        orderData.customer.name = ud.name || orderData.customer.name;
+                    }
+                } catch(e) { console.warn("Could not fetch user details for order", e); }
+            }
 
             if (!confirm("Proceed with wholesale checkout? This will send your wholesale order to our system.")) return;
 
@@ -3272,8 +3286,9 @@
             btn.innerHTML = `<span class="animate-pulse">Processing...</span>`;
 
             try {
-                console.log("Creating Wholesale Order for HG System:", orderData);
-                await new Promise(r => setTimeout(r, 1500));
+                // Save order to Firestore
+                await addDoc(collection(db, "orders"), orderData);
+                console.log("Wholesale Order saved to Firestore:", orderData);
 
                 window.showToast("Wholesale order placed successfully!");
                 wholesaleCart = [];
@@ -3317,18 +3332,33 @@
                     uid: currentUser.uid,
                     name: currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'Guest'),
                     email: currentUser.email,
-                    // phone: ... (fetch from profile if needed)
                 } : { name: "Guest User" },
                 items: cart.map(item => ({
                     productId: item.productId,
                     name: item.name,
                     variant: item.variantName,
                     quantity: item.quantity,
+                    price: item.price,
                     image: item.image
                 })),
                 orderDate: new Date().toISOString(),
-                source: "Gallery Website"
+                source: "Gallery Website",
+                orderType: "retail",
+                status: "pending"
             };
+
+            // Fetch user phone & role from Firestore
+            if (currentUser) {
+                try {
+                    const uDoc = await getDoc(doc(db, "users", currentUser.uid));
+                    if (uDoc.exists()) {
+                        const ud = uDoc.data();
+                        orderData.customer.phone = ud.phone || '';
+                        orderData.customer.role = ud.role || 'customer';
+                        orderData.customer.name = ud.name || orderData.customer.name;
+                    }
+                } catch(e) { console.warn("Could not fetch user details for order", e); }
+            }
 
             // Confirmation (Native for now, can be modal)
             if(!confirm("Proceed to checkout? This will send your order to our system.")) return;
@@ -3337,27 +3367,9 @@
             btn.innerHTML = `<span class="animate-pulse">Processing...</span>`;
 
             try {
-                // --- API Call Simulation ---
-                // Since I don't have the real API yet, I'll log it and show success.
-                console.log("Creating Order for HG System:", orderData);
-                
-                // UNCOMMENT AND CONFIGURE WHEN YOU HAVE THE REAL API:
-                /*
-                const response = await fetch(HG_API_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${HG_API_KEY}`
-                    },
-                    body: JSON.stringify(orderData)
-                });
-                
-                if (!response.ok) throw new Error("Failed to create order");
-                const result = await response.json();
-                */
-                
-                // Mock delay
-                await new Promise(r => setTimeout(r, 1500));
+                // Save order to Firestore
+                await addDoc(collection(db, "orders"), orderData);
+                console.log("Retail Order saved to Firestore:", orderData);
                 
                 // Success
                 window.showToast("Order placed successfully! We have received your invoice.");
