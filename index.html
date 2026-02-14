@@ -613,7 +613,7 @@
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-3">
                                 <div class="flex flex-col">
-                                    <span class="text-[8px] text-gray-400 uppercase font-bold tracking-wider">Net Price</span>
+                                    <span class="text-[8px] text-gray-400 uppercase font-bold tracking-wider">Pack. Price<br>سعر العبوة</span>
                                     <span id="detailNetPrice" class="text-lg font-black text-green-600">--</span>
                                 </div>
                                 <span class="text-gray-300 dark:text-gray-600 text-lg font-light">|</span>
@@ -633,21 +633,6 @@
                         </div>
                     </div>
 
-                    <!-- Add to Cart Button for CST. Retail (under price) -->
-                    <div id="detailRetailCartBtn" class="hidden mt-3">
-                        <div class="flex items-stretch gap-2">
-                            <div class="flex items-center bg-gray-100 dark:bg-gray-800 border-2 border-brandBlue/30 dark:border-brandGold/30 rounded-xl overflow-hidden">
-                                <button onclick="var i=document.getElementById('retailQtyInput'); var v=parseInt(i.value)||1; if(v>1){i.value=v-1;}" class="w-9 h-full flex items-center justify-center text-brandBlue dark:text-brandGold hover:bg-brandBlue/10 dark:hover:bg-brandGold/10 font-black text-lg transition-colors">−</button>
-                                <input id="retailQtyInput" type="number" value="1" min="1" class="w-12 text-center bg-transparent text-brandBlue dark:text-brandGold font-black text-sm border-x border-brandBlue/20 dark:border-brandGold/20 py-3 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
-                                <button onclick="var i=document.getElementById('retailQtyInput'); var v=parseInt(i.value)||1; i.value=v+1;" class="w-9 h-full flex items-center justify-center text-brandBlue dark:text-brandGold hover:bg-brandBlue/10 dark:hover:bg-brandGold/10 font-black text-lg transition-colors">+</button>
-                            </div>
-                            <button id="retailCartOrderBtn" class="flex-1 py-3 bg-brandGold text-brandBlue border-2 border-brandGold rounded-xl font-black text-xs uppercase tracking-widest hover:bg-brandGold/90 active:scale-95 active:brightness-110 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brandGold/20">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                                <span>ADD TO CART | اضف للعربة</span>
-                            </button>
-                        </div>
-                    </div>
-
                     <!-- Add to Wholesale Order Button -->
                     <div id="detailWholesaleBtn" class="hidden mt-3">
                         <div class="flex items-stretch gap-2">
@@ -659,6 +644,21 @@
                             <button id="wholesaleOrderBtn" class="flex-1 py-3 bg-brandGold/10 text-brandGold border-2 border-brandGold/30 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-brandGold hover:text-white transition-all flex items-center justify-center gap-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
                                 <span>Add to Wholesale | اضف كرتونة</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Add to Cart Button (for CST. Retail & CST. Wholesale) -->
+                    <div id="detailRetailCartBtn" class="hidden mt-3">
+                        <div class="flex items-stretch gap-2">
+                            <div class="flex items-center bg-gray-100 dark:bg-gray-800 border-2 border-green-500/30 rounded-xl overflow-hidden">
+                                <button onclick="var i=document.getElementById('retailQtyInput'); var v=parseInt(i.value)||1; if(v>1){i.value=v-1;}" class="w-9 h-full flex items-center justify-center text-green-600 hover:bg-green-500/10 font-black text-lg transition-colors">−</button>
+                                <input id="retailQtyInput" type="number" value="1" min="1" class="w-12 text-center bg-transparent text-green-600 font-black text-sm border-x border-green-500/20 py-3 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+                                <button onclick="var i=document.getElementById('retailQtyInput'); var v=parseInt(i.value)||1; i.value=v+1;" class="w-9 h-full flex items-center justify-center text-green-600 hover:bg-green-500/10 font-black text-lg transition-colors">+</button>
+                            </div>
+                            <button id="retailCartOrderBtn" class="flex-1 py-3 bg-green-600/10 text-green-500 border-2 border-green-500/30 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-green-600 hover:text-white active:scale-95 active:brightness-110 transition-all flex items-center justify-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                <span>ADD TO CART | اضف للعربة</span>
                             </button>
                         </div>
                     </div>
@@ -2198,6 +2198,7 @@
             const priceSection = document.getElementById('detailPriceSection');
             priceSection.classList.add('hidden');
             const isRetailUser = (userRole === 'customer');
+            const isWholesaleUser = (userRole === 'cst_wholesale');
             if (currentProduct.code && window._dcPriceMap) {
                 const code = String(currentProduct.code).trim();
                 const info = window._dcPriceMap[code];
@@ -2209,13 +2210,17 @@
                     const dVal = parseFloat(disc) || 0;
                     const net = (pVal - dVal).toFixed(2);
                     
-                    // Hide Net Price, Discount, and Wholesale from CST. Retail
+                    // CST. Retail: hide Net, Discount, Wholesale → show only Retail (as "Price")
+                    // CST. Wholesale: hide Retail, Discount → show only Net + Wholesale
+                    // Admin/Moderator: show all
                     document.getElementById('detailNetPrice').parentElement.style.display = isRetailUser ? 'none' : '';
-                    document.getElementById('detailDiscount').parentElement.style.display = isRetailUser ? 'none' : '';
+                    document.getElementById('detailDiscount').parentElement.style.display = (isRetailUser || isWholesaleUser) ? 'none' : '';
                     document.getElementById('detailWholesalePrice').parentElement.style.display = isRetailUser ? 'none' : '';
-                    // Hide the separator pipe next to net price for retail
+                    document.getElementById('detailRetailPriceWrap').style.display = isWholesaleUser ? 'none' : '';
+
+                    // Hide the separator pipe for retail & wholesale
                     const priceSeparators = priceSection.querySelectorAll('span.text-gray-300');
-                    priceSeparators.forEach(sep => sep.style.display = isRetailUser ? 'none' : '');
+                    priceSeparators.forEach(sep => sep.style.display = (isRetailUser || isWholesaleUser) ? 'none' : '');
 
                     // For CST. Retail: show retail price in green, no line-through
                     const retailPriceEl = document.getElementById('detailRetailPrice');
@@ -2235,11 +2240,12 @@
                 }
             }
 
-            // Show/hide retail Add to Cart button (for CST. Retail under price)
+            // Show/hide retail Add to Cart button (for CST. Retail AND CST. Wholesale)
             const retailCartBtn = document.getElementById('detailRetailCartBtn');
             const retailCartOrderBtn = document.getElementById('retailCartOrderBtn');
+            const hasPriceData = currentProduct.code && window._dcPriceMap && window._dcPriceMap[String(currentProduct.code).trim()];
             if (retailCartBtn) {
-                if (isRetailUser && currentProduct.code && window._dcPriceMap && window._dcPriceMap[String(currentProduct.code).trim()]) {
+                if ((isRetailUser || isWholesaleUser) && hasPriceData) {
                     retailCartBtn.classList.remove('hidden');
                     const qtyInput = document.getElementById('retailQtyInput');
                     if (qtyInput) qtyInput.value = 1;
@@ -2262,7 +2268,7 @@
             const wholesaleBtn = document.getElementById('detailWholesaleBtn');
             const wholesaleOrderBtn = document.getElementById('wholesaleOrderBtn');
             if (wholesaleBtn) {
-                if (!isRetailUser && currentProduct.code && window._dcPriceMap && window._dcPriceMap[String(currentProduct.code).trim()]) {
+                if (!isRetailUser && hasPriceData) {
                     wholesaleBtn.classList.remove('hidden');
                     if (wholesaleOrderBtn) {
                         wholesaleOrderBtn.onclick = () => {
@@ -2904,6 +2910,7 @@
                 
                 // Build variants list HTML
                 const isRetailCartUser = (userRole === 'customer');
+                const isWholesaleCartUser = (userRole === 'cst_wholesale');
                 const variantsHtml = group.variants.map(v => {
                     const lineTotal = (v.price * v.quantity).toFixed(2);
                     
@@ -2922,6 +2929,41 @@
                     }
                     const netLineTotal = (netPrice * v.quantity).toFixed(2);
 
+                    // Build price columns based on role
+                    let priceColumnsHtml = '';
+                    if (isRetailCartUser) {
+                        // CST. Retail: Price | السعر with green total
+                        priceColumnsHtml = `<div class="flex flex-col flex-1">
+                                <span class="text-[8px] text-brandGold uppercase font-bold">Price | السعر</span>
+                                <span class="text-sm font-black text-green-600">${v.quantity > 1 ? `<span class="text-brandGold">${v.price.toFixed(2)}</span> <span class="text-brandBlue dark:text-white">×</span> <span class="text-brandGold">${v.quantity}</span> <span class="text-brandBlue dark:text-white">=</span> ${lineTotal} EGP` : `${lineTotal} EGP`}</span>
+                            </div>`;
+                    } else if (isWholesaleCartUser) {
+                        // CST. Wholesale: Pack. Price only (wholesale goes in wholesale cart)
+                        priceColumnsHtml = `<div class="flex flex-col flex-1">
+                                <span class="text-[8px] text-green-500 uppercase font-bold">Pack. Price | سعر العبوة</span>
+                                <span class="text-sm font-black text-green-600">${v.quantity > 1 ? `<span class="text-green-600">${netPrice.toFixed(2)}</span> <span class="text-brandBlue dark:text-white">×</span> <span class="text-green-600">${v.quantity}</span> <span class="text-brandBlue dark:text-white">=</span> ${netLineTotal} EGP` : `${netLineTotal} EGP`}</span>
+                            </div>`;
+                    } else {
+                        // Admin/Moderator: show all
+                        priceColumnsHtml = `<div class="flex flex-col">
+                                <span class="text-[8px] text-gray-400 uppercase font-bold">Pack. Price | سعر العبوة</span>
+                                <span class="text-sm font-black text-green-600">${netLineTotal} EGP</span>
+                            </div>
+                            <span class="text-gray-300 dark:text-gray-600 font-light">|</span>
+                            <div class="flex flex-col">
+                                <span class="text-[8px] text-gray-400 uppercase font-bold">Discount</span>
+                                <span class="text-sm font-black text-red-500">${discount}</span>
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-[8px] text-gray-400 uppercase font-bold">Retail</span>
+                                <span class="text-sm font-bold text-gray-500">${lineTotal} EGP</span>
+                            </div>
+                            <div class="flex flex-col text-right">
+                                <span class="text-[8px] text-gray-400 uppercase font-bold">Wholesale</span>
+                                <span class="text-sm font-bold text-brandGold">${(wholesale * v.quantity).toFixed(2)} EGP</span>
+                            </div>`;
+                    }
+
                     return `
                     <div class="mt-3 pl-2 border-l-2 border-brandGold/20">
                         <div class="flex items-center justify-between mb-2">
@@ -2937,26 +2979,7 @@
                         </div>
                         ${v.price > 0 ? `
                         <div class="flex items-center justify-between gap-4 p-2 rounded-lg bg-white/50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
-                            ${!isRetailCartUser ? `<div class="flex flex-col">
-                                <span class="text-[8px] text-gray-400 uppercase font-bold">Net Price</span>
-                                <span class="text-sm font-black text-green-600">${netLineTotal} EGP</span>
-                            </div>
-                            <span class="text-gray-300 dark:text-gray-600 font-light">|</span>
-                            <div class="flex flex-col">
-                                <span class="text-[8px] text-gray-400 uppercase font-bold">Discount</span>
-                                <span class="text-sm font-black text-red-500">${discount}</span>
-                            </div>` : ''}
-                            ${isRetailCartUser ? `<div class="flex flex-col flex-1">
-                                <span class="text-[8px] text-brandGold uppercase font-bold">Price | السعر</span>
-                                <span class="text-sm font-black text-green-600">${v.quantity > 1 ? `<span class="text-brandGold">${v.price.toFixed(2)}</span> <span class="text-brandBlue dark:text-white">×</span> <span class="text-brandGold">${v.quantity}</span> <span class="text-brandBlue dark:text-white">=</span> ${lineTotal} EGP` : `${lineTotal} EGP`}</span>
-                            </div>` : `<div class="flex flex-col">
-                                <span class="text-[8px] text-gray-400 uppercase font-bold">Retail</span>
-                                <span class="text-sm font-bold text-gray-500">${lineTotal} EGP</span>
-                            </div>
-                            <div class="flex flex-col text-right">
-                                <span class="text-[8px] text-gray-400 uppercase font-bold">Wholesale</span>
-                                <span class="text-sm font-bold text-brandGold">${(wholesale * v.quantity).toFixed(2)} EGP</span>
-                            </div>`}
+                            ${priceColumnsHtml}
                         </div>
                         ` : ''}
                     </div>
@@ -3001,6 +3024,9 @@
                     if (userRole === 'customer') {
                         // CST. Retail: show only retail total in green
                         totalPriceEl.innerHTML = `<span class="text-green-600">${retailTotal.toFixed(2)} EGP</span>`;
+                    } else if (userRole === 'cst_wholesale') {
+                        // CST. Wholesale: show pack price total in green
+                        totalPriceEl.innerHTML = `<span class="text-green-600">${netTotal.toFixed(2)} EGP</span>`;
                     } else {
                         const saved = retailTotal - netTotal;
                         totalPriceEl.innerHTML = saved > 0
@@ -3174,13 +3200,9 @@
                         </div>
                         ${v.price > 0 ? `
                         <div class="flex items-center justify-between gap-4 p-2 rounded-lg bg-white/50 dark:bg-gray-800/50 border border-brandGold/20">
-                            <div class="flex flex-col">
-                                <span class="text-[8px] text-gray-400 uppercase font-bold">Wholesale Price</span>
-                                <span class="text-sm font-black text-brandGold">${v.price.toFixed(2)} EGP</span>
-                            </div>
-                            <div class="flex flex-col text-right">
-                                <span class="text-[8px] text-gray-400 uppercase font-bold">Line Total</span>
-                                <span class="text-sm font-black text-brandGold">${lineTotal} EGP</span>
+                            <div class="flex flex-col flex-1">
+                                <span class="text-[8px] text-brandGold uppercase font-bold">Wholesale | \u0627\u0644\u0643\u0631\u062a\u0648\u0646\u0629</span>
+                                <span class="text-sm font-black text-brandGold">${v.quantity > 1 ? `${v.price.toFixed(2)} \u00d7 ${v.quantity} = ${lineTotal} EGP` : `${lineTotal} EGP`}</span>
                             </div>
                         </div>
                         ` : ''}
