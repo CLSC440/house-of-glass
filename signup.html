@@ -215,7 +215,14 @@
         </button>
 
         <div class="mt-6 text-center">
-            <p class="text-sm text-gray-500"><span data-i18n="already_have_account">Already have an account?</span> <a href="login.html" class="text-brandBlue dark:text-brandGold font-bold hover:underline" data-i18n="login_here">Login here</a></p>
+            <p class="text-sm text-gray-500"><span data-i18n="already_have_account">Already have an account?</span> <a id="loginLink" href="login.html" class="text-brandBlue dark:text-brandGold font-bold hover:underline" data-i18n="login_here">Login here</a></p>
+            <script>
+                // Pass redirect param to login page
+                (function() {
+                    const rp = new URLSearchParams(window.location.search).get('redirect');
+                    if (rp) document.getElementById('loginLink').href = 'login.html?redirect=' + encodeURIComponent(rp);
+                })();
+            </script>
         </div>
 
         <div class="mt-8 pt-6 border-t border-gray-100 dark:border-gray-800 text-center">
@@ -315,7 +322,8 @@
                     createdAt: new Date()
                 });
 
-                window.location.href = 'index.html';
+                const redirectParam = new URLSearchParams(window.location.search).get('redirect');
+                window.location.href = redirectParam === 'checkout' ? 'index.html?action=checkout' : 'index.html';
             } catch (error) {
                 document.getElementById('loadingOverlay').classList.add('opacity-0', 'pointer-events-none');
                 err.innerText = error.message;
@@ -366,7 +374,8 @@
                     });
                 }
 
-                window.location.href = 'index.html';
+                const redirectParam = new URLSearchParams(window.location.search).get('redirect');
+                window.location.href = redirectParam === 'checkout' ? 'index.html?action=checkout' : 'index.html';
             } catch (error) {
                 document.getElementById('loadingOverlay').classList.add('opacity-0', 'pointer-events-none');
                 const err = document.getElementById('errorMessage');

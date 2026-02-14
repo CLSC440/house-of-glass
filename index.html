@@ -1415,6 +1415,22 @@
                 userFavorites = userData.favorites;
                 userRole = userData.role;
 
+                // Check if there's a pending checkout after login/signup
+                const urlAction = new URLSearchParams(window.location.search).get('action');
+                const hasPendingCheckout = localStorage.getItem('pendingCheckout') === 'true' || urlAction === 'checkout';
+                if (hasPendingCheckout) {
+                    localStorage.removeItem('pendingCheckout');
+                    // Clean up URL param
+                    if (urlAction) {
+                        const cleanUrl = window.location.pathname;
+                        window.history.replaceState({}, '', cleanUrl);
+                    }
+                    setTimeout(() => {
+                        openCart();
+                        window.showToast('Welcome back! Continue with your order.', 'success');
+                    }, 800);
+                }
+
                 const displayRole = userRole === 'customer' ? 'CST. Retail' : 
                                    (userRole === 'cst_wholesale' ? 'CST. Wholesale' : userRole);
 
@@ -3257,6 +3273,14 @@
             const originalText = btn.innerHTML;
             
             if (cart.length === 0) return;
+
+            // If user is not logged in, redirect to login page
+            if (!currentUser) {
+                localStorage.setItem('pendingCheckout', 'true');
+                closeCart();
+                window.location.href = 'login.html?redirect=checkout';
+                return;
+            }
             
             // 1. Gather Order Data
             // We need Customer Info. If logged in, use that. If not, maybe ask? 

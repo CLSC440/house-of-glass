@@ -203,7 +203,14 @@
         </button>
 
         <div class="mt-6 text-center">
-            <p class="text-sm text-gray-500"><span data-i18n="dont_have_account">Don't have an account?</span> <a href="signup.html" class="text-brandBlue dark:text-brandGold font-bold hover:underline" data-i18n="create_one">Create one</a></p>
+            <p class="text-sm text-gray-500"><span data-i18n="dont_have_account">Don't have an account?</span> <a id="signupLink" href="signup.html" class="text-brandBlue dark:text-brandGold font-bold hover:underline" data-i18n="create_one">Create one</a></p>
+            <script>
+                // Pass redirect param to signup page
+                (function() {
+                    const rp = new URLSearchParams(window.location.search).get('redirect');
+                    if (rp) document.getElementById('signupLink').href = 'signup.html?redirect=' + encodeURIComponent(rp);
+                })();
+            </script>
         </div>
 
         <div class="mt-8 pt-6 border-t border-gray-100 dark:border-gray-800 text-center">
@@ -336,13 +343,14 @@
                 const userDoc = await getDoc(doc(db, "users", user.uid));
                 const userData = userDoc.data();
 
+                const redirectParam = new URLSearchParams(window.location.search).get('redirect');
                 if (userData && (userData.role === 'admin' || userData.role === 'moderator')) {
                     sessionStorage.setItem('isAdmin', 'true');
                     sessionStorage.setItem('userRole', userData.role);
                     window.location.href = 'admin.html';
                 } else {
                     sessionStorage.removeItem('isAdmin');
-                    window.location.href = 'index.html';
+                    window.location.href = redirectParam === 'checkout' ? 'index.html?action=checkout' : 'index.html';
                 }
             } catch (error) {
                 document.getElementById('loadingOverlay').classList.add('opacity-0', 'pointer-events-none');
@@ -409,13 +417,14 @@
                 }
 
                 const data = (await getDoc(userRef)).data();
+                const redirectParam = new URLSearchParams(window.location.search).get('redirect');
                 if (data && (data.role === 'admin' || data.role === 'moderator')) {
                     sessionStorage.setItem('isAdmin', 'true');
                     sessionStorage.setItem('userRole', data.role);
                     window.location.href = 'admin.html';
                 } else {
                     sessionStorage.removeItem('isAdmin');
-                    window.location.href = 'index.html';
+                    window.location.href = redirectParam === 'checkout' ? 'index.html?action=checkout' : 'index.html';
                 }
             } catch (error) {
                 document.getElementById('loadingOverlay').classList.add('opacity-0', 'pointer-events-none');
