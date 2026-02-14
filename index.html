@@ -1082,15 +1082,35 @@
         // --- Notifications System ---
         function startNotificationsListener(uid) {
             if (notifUnsubscribe) notifUnsubscribe();
+            // Simple query without orderBy to avoid needing composite index
             const q = query(
                 collection(db, "notifications"),
-                where("userId", "==", uid),
-                orderBy("createdAt", "desc")
+                where("userId", "==", uid)
             );
             notifUnsubscribe = onSnapshot(q, (snapshot) => {
+                const prevIds = new Set(userNotifications.map(n => n.id));
                 userNotifications = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                // Sort client-side by createdAt descending
+                userNotifications.sort((a, b) => {
+                    const aTime = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+                    const bTime = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+                    return bTime - aTime;
+                });
                 renderNotifications();
                 updateNotifBadge();
+
+                // Show toast for new unread notifications
+                userNotifications.forEach(n => {
+                    if (!n.read && !prevIds.has(n.id)) {
+                        window.showToast(n.title || 'New notification | إشعار جديد');
+                    }
+                });
+            }, (error) => {
+                console.error("Notifications listener error:", error);
+                // If composite index needed, the error message contains the creation link
+                if (error.message && error.message.includes('index')) {
+                    console.warn("Firestore composite index needed. Check the error above for the link.");
+                }
             });
         }
 
@@ -1132,17 +1152,29 @@
             container.innerHTML = userNotifications.map(n => {
                 const isUnread = !n.read;
                 const timeAgo = n.createdAt ? getTimeAgo(n.createdAt.toDate ? n.createdAt.toDate() : new Date(n.createdAt)) : '';
+                
+                // Icon & color based on type
+                let iconColor = isUnread ? 'bg-green-500/10 text-green-500' : 'bg-gray-100 dark:bg-gray-800 text-gray-400';
+                let iconSvg = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>';
+                if (n.type === 'order_completed') {
+                    iconColor = isUnread ? 'bg-blue-500/10 text-blue-500' : 'bg-gray-100 dark:bg-gray-800 text-gray-400';
+                    iconSvg = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>';
+                } else if (n.type === 'order_cancelled') {
+                    iconColor = isUnread ? 'bg-red-500/10 text-red-500' : 'bg-gray-100 dark:bg-gray-800 text-gray-400';
+                    iconSvg = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>';
+                }
+                
                 return `
                 <div class="px-4 py-3 flex items-start gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${isUnread ? 'bg-brandGold/5' : ''}" onclick="window.markNotificationRead('${n.id}')">
-                    <div class="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center ${isUnread ? 'bg-green-500/10 text-green-500' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'}">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                    <div class="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center ${iconColor}">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">${iconSvg}</svg>
                     </div>
                     <div class="flex-1 min-w-0">
                         <p class="text-xs font-bold text-brandBlue dark:text-white ${isUnread ? '' : 'opacity-60'}">${n.title || ''}</p>
                         <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed whitespace-pre-line">${n.message || ''}</p>
                         <p class="text-[9px] text-gray-400 mt-1 uppercase tracking-widest">${timeAgo}</p>
                     </div>
-                    ${isUnread ? '<div class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0 mt-1.5"></div>' : ''}
+                    ${isUnread ? `<div class="w-2 h-2 rounded-full ${n.type === 'order_cancelled' ? 'bg-red-500' : n.type === 'order_completed' ? 'bg-blue-500' : 'bg-green-500'} flex-shrink-0 mt-1.5"></div>` : ''}
                 </div>`;
             }).join('');
         }

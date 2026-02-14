@@ -2506,15 +2506,65 @@
                     const order = allOrders.find(o => o.id === orderId);
                     if (order && order.customer?.uid) {
                         const totalItems = (order.items || []).reduce((s, i) => s + (i.quantity || 0), 0);
-                        await addDoc(collection(db, "notifications"), {
-                            userId: order.customer.uid,
-                            type: 'order_confirmed',
-                            title: 'Order Received | تم استلام طلبك',
-                            message: `Your order (${totalItems} items) has been received and is under review.\nتم استلام طلبك (${totalItems} منتج) وهو تحت المراجعة الآن.`,
-                            orderId: orderId,
-                            read: false,
-                            createdAt: serverTimestamp()
-                        });
+                        try {
+                            await addDoc(collection(db, "notifications"), {
+                                userId: order.customer.uid,
+                                type: 'order_confirmed',
+                                title: 'Order Received | تم استلام طلبك',
+                                message: `Your order (${totalItems} items) has been received and is under review.\nتم استلام طلبك (${totalItems} منتج) وهو تحت المراجعة الآن.`,
+                                orderId: orderId,
+                                read: false,
+                                createdAt: serverTimestamp()
+                            });
+                            console.log("✅ Notification sent to customer:", order.customer.uid);
+                            window.showToast?.("Order confirmed & customer notified ✓");
+                        } catch(notifErr) {
+                            console.error("Failed to send notification:", notifErr);
+                            window.showToast?.("Order confirmed but notification failed!", "error");
+                        }
+                    } else {
+                        console.warn("⚠ Order confirmed but no customer UID found - notification not sent", order?.customer);
+                        window.showToast?.("Order confirmed (guest order - no notification sent)");
+                    }
+                } else if (newStatus === 'completed') {
+                    // Notify customer when order is completed
+                    const order = allOrders.find(o => o.id === orderId);
+                    if (order && order.customer?.uid) {
+                        const totalItems = (order.items || []).reduce((s, i) => s + (i.quantity || 0), 0);
+                        try {
+                            await addDoc(collection(db, "notifications"), {
+                                userId: order.customer.uid,
+                                type: 'order_completed',
+                                title: 'Order Completed | تم اكتمال طلبك',
+                                message: `Your order (${totalItems} items) has been completed successfully! Thank you.\nتم اكتمال طلبك (${totalItems} منتج) بنجاح! شكراً لك.`,
+                                orderId: orderId,
+                                read: false,
+                                createdAt: serverTimestamp()
+                            });
+                            window.showToast?.("Order completed & customer notified ✓");
+                        } catch(notifErr) {
+                            console.error("Failed to send notification:", notifErr);
+                        }
+                    }
+                } else if (newStatus === 'cancelled') {
+                    // Notify customer when order is cancelled
+                    const order = allOrders.find(o => o.id === orderId);
+                    if (order && order.customer?.uid) {
+                        const totalItems = (order.items || []).reduce((s, i) => s + (i.quantity || 0), 0);
+                        try {
+                            await addDoc(collection(db, "notifications"), {
+                                userId: order.customer.uid,
+                                type: 'order_cancelled',
+                                title: 'Order Cancelled | تم إلغاء طلبك',
+                                message: `Your order (${totalItems} items) has been cancelled. Contact us for details.\nتم إلغاء طلبك (${totalItems} منتج). تواصل معنا لمزيد من التفاصيل.`,
+                                orderId: orderId,
+                                read: false,
+                                createdAt: serverTimestamp()
+                            });
+                            window.showToast?.("Order cancelled & customer notified");
+                        } catch(notifErr) {
+                            console.error("Failed to send notification:", notifErr);
+                        }
                     }
                 }
             } catch(e) {
