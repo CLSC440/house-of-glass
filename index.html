@@ -387,6 +387,14 @@
                     <span id="cartCount" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center opacity-0 transform scale-0 transition-all duration-300">0</span>
                 </button>
 
+                <!-- Notifications Bell -->
+                <button id="notifBellBtn" onclick="window.toggleNotifications()" class="relative p-2 text-brandBlue dark:text-brandGold hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors group hidden" title="Notifications">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 md:h-7 md:w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                    <span id="notifBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center opacity-0 transform scale-0 transition-all duration-300">0</span>
+                </button>
+
                  <!-- Wholesale Cart Button (hidden for CST. Retail) -->
                  <button id="wholesaleCartBtn" onclick="openWholesaleCart()" class="relative p-2 text-brandGold hover:bg-brandGold/10 rounded-lg transition-colors group hidden" title="Wholesale Order">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 md:h-7 md:w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -969,11 +977,27 @@
     <!-- Toast Notifications Container -->
     <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-[200] flex flex-col items-center gap-3 pointer-events-none"></div>
 
+    <!-- Notifications Dropdown Panel -->
+    <div id="notifPanel" class="hidden fixed top-20 right-4 md:right-8 w-80 md:w-96 max-h-[70vh] bg-white dark:bg-darkCard rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 z-[160] overflow-hidden flex flex-col">
+        <div class="p-4 border-b dark:border-gray-700 flex items-center justify-between">
+            <h3 class="text-sm font-black text-brandBlue dark:text-brandGold uppercase tracking-widest">Notifications | الإشعارات</h3>
+            <button onclick="window.markAllNotificationsRead()" class="text-[10px] font-bold text-brandGold hover:underline uppercase tracking-widest">Mark all read</button>
+        </div>
+        <div id="notifList" class="flex-1 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
+            <div class="flex flex-col items-center justify-center py-12 text-gray-400 opacity-60">
+                <svg class="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                <p class="text-xs font-bold uppercase tracking-widest">No notifications</p>
+                <p class="text-[10px] mt-1">لا توجد إشعارات</p>
+            </div>
+        </div>
+    </div>
+    <div id="notifOverlay" class="hidden fixed inset-0 z-[155]" onclick="window.closeNotifications()"></div>
+
     <script src="locales-data.js"></script>
     <script src="i18n.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, getDocs, doc, onSnapshot, query, orderBy, getDoc, updateDoc, arrayUnion, arrayRemove, deleteDoc, addDoc, serverTimestamp, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, doc, onSnapshot, query, orderBy, getDoc, updateDoc, arrayUnion, arrayRemove, deleteDoc, addDoc, serverTimestamp, enableIndexedDbPersistence, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getAuth, onAuthStateChanged, signOut, updatePassword, deleteUser } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = {
@@ -1052,6 +1076,121 @@
         let currentUser = null;
         let userFavorites = [];
         let userRole = 'customer';
+        let userNotifications = [];
+        let notifUnsubscribe = null;
+
+        // --- Notifications System ---
+        function startNotificationsListener(uid) {
+            if (notifUnsubscribe) notifUnsubscribe();
+            const q = query(
+                collection(db, "notifications"),
+                where("userId", "==", uid),
+                orderBy("createdAt", "desc")
+            );
+            notifUnsubscribe = onSnapshot(q, (snapshot) => {
+                userNotifications = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderNotifications();
+                updateNotifBadge();
+            });
+        }
+
+        function stopNotificationsListener() {
+            if (notifUnsubscribe) { notifUnsubscribe(); notifUnsubscribe = null; }
+            userNotifications = [];
+            updateNotifBadge();
+        }
+
+        function updateNotifBadge() {
+            const badge = document.getElementById('notifBadge');
+            const unread = userNotifications.filter(n => !n.read).length;
+            if (badge) {
+                if (unread > 0) {
+                    badge.textContent = unread > 9 ? '9+' : unread;
+                    badge.classList.remove('opacity-0', 'scale-0');
+                    badge.classList.add('opacity-100', 'scale-100');
+                } else {
+                    badge.classList.add('opacity-0', 'scale-0');
+                    badge.classList.remove('opacity-100', 'scale-100');
+                }
+            }
+        }
+
+        function renderNotifications() {
+            const container = document.getElementById('notifList');
+            if (!container) return;
+
+            if (userNotifications.length === 0) {
+                container.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-12 text-gray-400 opacity-60">
+                    <svg class="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                    <p class="text-xs font-bold uppercase tracking-widest">No notifications</p>
+                    <p class="text-[10px] mt-1">\u0644\u0627 \u062a\u0648\u062c\u062f \u0625\u0634\u0639\u0627\u0631\u0627\u062a</p>
+                </div>`;
+                return;
+            }
+
+            container.innerHTML = userNotifications.map(n => {
+                const isUnread = !n.read;
+                const timeAgo = n.createdAt ? getTimeAgo(n.createdAt.toDate ? n.createdAt.toDate() : new Date(n.createdAt)) : '';
+                return `
+                <div class="px-4 py-3 flex items-start gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${isUnread ? 'bg-brandGold/5' : ''}" onclick="window.markNotificationRead('${n.id}')">
+                    <div class="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center ${isUnread ? 'bg-green-500/10 text-green-500' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'}">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold text-brandBlue dark:text-white ${isUnread ? '' : 'opacity-60'}">${n.title || ''}</p>
+                        <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed whitespace-pre-line">${n.message || ''}</p>
+                        <p class="text-[9px] text-gray-400 mt-1 uppercase tracking-widest">${timeAgo}</p>
+                    </div>
+                    ${isUnread ? '<div class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0 mt-1.5"></div>' : ''}
+                </div>`;
+            }).join('');
+        }
+
+        function getTimeAgo(date) {
+            const now = new Date();
+            const diff = Math.floor((now - date) / 1000);
+            if (diff < 60) return 'Just now';
+            if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+            if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+            if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+            return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+        }
+
+        window.toggleNotifications = function() {
+            const panel = document.getElementById('notifPanel');
+            const overlay = document.getElementById('notifOverlay');
+            if (!panel) return;
+            const isOpen = !panel.classList.contains('hidden');
+            if (isOpen) {
+                window.closeNotifications();
+            } else {
+                panel.classList.remove('hidden');
+                overlay.classList.remove('hidden');
+            }
+        };
+
+        window.closeNotifications = function() {
+            const panel = document.getElementById('notifPanel');
+            const overlay = document.getElementById('notifOverlay');
+            if (panel) panel.classList.add('hidden');
+            if (overlay) overlay.classList.add('hidden');
+        };
+
+        window.markNotificationRead = async function(notifId) {
+            try {
+                await updateDoc(doc(db, "notifications", notifId), { read: true });
+            } catch(e) { console.error("Error marking notification read:", e); }
+        };
+
+        window.markAllNotificationsRead = async function() {
+            const unread = userNotifications.filter(n => !n.read);
+            for (const n of unread) {
+                try {
+                    await updateDoc(doc(db, "notifications", n.id), { read: true });
+                } catch(e) { console.error("Error marking notification read:", e); }
+            }
+        };
 
         const grid = document.getElementById('product-grid');
         const modal = document.getElementById('detailModal');
@@ -1417,6 +1556,11 @@
                 userFavorites = userData.favorites;
                 userRole = userData.role;
 
+                // Start notifications listener
+                const notifBell = document.getElementById('notifBellBtn');
+                if (notifBell) notifBell.classList.remove('hidden');
+                startNotificationsListener(user.uid);
+
                 // Check if there's a pending checkout after login/signup
                 const urlAction = new URLSearchParams(window.location.search).get('action');
                 const hasPendingCheckout = localStorage.getItem('pendingCheckout') === 'true' || urlAction === 'checkout';
@@ -1511,6 +1655,13 @@
             } else {
                 userFavorites = [];
                 userRole = 'customer';
+
+                // Stop notifications & hide bell
+                stopNotificationsListener();
+                const notifBell = document.getElementById('notifBellBtn');
+                if (notifBell) notifBell.classList.add('hidden');
+                window.closeNotifications();
+
                 headerNav.innerHTML = `${homeLink} <a href="login.html" class="text-brandGold hover:text-brandBlue dark:hover:text-white px-1 py-1 text-sm font-bold transition-colors" data-i18n="login_signup">Login / Sign Up</a>`;
                 
                 // Show header login capsule on mobile with same styling as profile capsule

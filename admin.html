@@ -2500,6 +2500,23 @@
         window.updateOrderStatus = async function(orderId, newStatus) {
             try {
                 await updateDoc(doc(db, "orders", orderId), { status: newStatus });
+
+                // Send notification to the customer when order is confirmed
+                if (newStatus === 'confirmed') {
+                    const order = allOrders.find(o => o.id === orderId);
+                    if (order && order.customer?.uid) {
+                        const totalItems = (order.items || []).reduce((s, i) => s + (i.quantity || 0), 0);
+                        await addDoc(collection(db, "notifications"), {
+                            userId: order.customer.uid,
+                            type: 'order_confirmed',
+                            title: 'Order Received | تم استلام طلبك',
+                            message: `Your order (${totalItems} items) has been received and is under review.\nتم استلام طلبك (${totalItems} منتج) وهو تحت المراجعة الآن.`,
+                            orderId: orderId,
+                            read: false,
+                            createdAt: serverTimestamp()
+                        });
+                    }
+                }
             } catch(e) {
                 console.error("Error updating order status:", e);
                 alert("Failed to update order status.");
