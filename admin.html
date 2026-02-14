@@ -2180,6 +2180,8 @@
         // ========== ORDERS MANAGEMENT ==========
         let allOrders = [];
         let currentOrderFilter = 'all';
+        let orderSearchTerm = '';
+        let orderDateFilter = '';
         let ordersUnsubscribe = null;
 
         window.openOrdersModal = function() {
@@ -2204,7 +2206,10 @@
         }
 
         // Start listener on page load for badge count
-        setTimeout(() => startOrdersListener(), 2000);
+        setTimeout(() => {
+            startOrdersListener();
+            initializeDateFilter();
+        }, 2000);
 
         function updateOrdersBadge() {
             const pending = allOrders.filter(o => o.status === 'pending').length;
@@ -2250,6 +2255,30 @@
             if (currentOrderFilter === 'retail') filtered = allOrders.filter(o => o.orderType === 'retail');
             else if (currentOrderFilter === 'wholesale') filtered = allOrders.filter(o => o.orderType === 'wholesale');
             else if (currentOrderFilter === 'pending') filtered = allOrders.filter(o => o.status === 'pending');
+
+            // Apply search filter
+            if (orderSearchTerm.trim()) {
+                const term = orderSearchTerm.trim().toLowerCase();
+                filtered = filtered.filter(o => {
+                    const c = o.customer || {};
+                    return (c.name || '').toLowerCase().includes(term) ||
+                           (c.email || '').toLowerCase().includes(term) ||
+                           (c.phone || '').toLowerCase().includes(term) ||
+                           (c.uid || '').toLowerCase().includes(term);
+                });
+            }
+
+            // Apply date filter
+            if (orderDateFilter) {
+                filtered = filtered.filter(o => {
+                    if (!o.orderDate) return false;
+                    const d = new Date(o.orderDate);
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    return `${y}-${m}-${day}` === orderDateFilter;
+                });
+            }
 
             const subtitle = document.getElementById('ordersSubtitle');
             if (subtitle) subtitle.textContent = `${filtered.length} Order${filtered.length !== 1 ? 's' : ''} | ${allOrders.filter(o => o.status === 'pending').length} Pending`;
@@ -2331,10 +2360,15 @@
                             <p class="text-sm font-black ${isWholesale ? 'text-brandGold' : 'text-green-600'} mt-1">${totalPrice.toFixed(2)} EGP</p>
                         </div>
                     </div>
-                    <!-- Items -->
+                    <!-- Items (collapsible) -->
                     <div class="px-4 py-2">
-                        <p class="text-[9px] text-gray-400 uppercase font-bold tracking-widest mb-1">${totalQty} Items | \u0639\u0628\u0648\u0629</p>
-                        ${itemsHtml}
+                        <button onclick="toggleOrderItems('${order.id}')" class="w-full flex items-center justify-between group cursor-pointer">
+                            <p class="text-[9px] text-gray-400 uppercase font-bold tracking-widest">${totalQty} Items | \u0639\u0628\u0648\u0629</p>
+                            <svg id="orderArrow_${order.id}" class="w-4 h-4 text-gray-400 group-hover:text-${typeColor} transition-all duration-200 transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        <div id="orderItems_${order.id}" class="hidden mt-1">
+                            ${itemsHtml}
+                        </div>
                     </div>
                     <!-- Actions -->
                     <div class="px-4 py-3 border-t dark:border-gray-700 flex items-center gap-2">
@@ -2350,6 +2384,117 @@
                 </div>`;
             }).join('');
         }
+
+        window.toggleOrderItems = function(orderId) {
+            const itemsDiv = document.getElementById('orderItems_' + orderId);
+            const arrow = document.getElementById('orderArrow_' + orderId);
+            if (!itemsDiv) return;
+            const isHidden = itemsDiv.classList.contains('hidden');
+            if (isHidden) {
+                itemsDiv.classList.remove('hidden');
+                if (arrow) arrow.classList.add('rotate-180');
+            } else {
+                itemsDiv.classList.add('hidden');
+                if (arrow) arrow.classList.remove('rotate-180');
+            }
+        };
+
+        // Date formatting utility
+        function formatDateDisplay(dateStr) {
+            if (!dateStr) return '';
+            // dateStr format: yyyy-mm-dd
+            const [y, m, d] = dateStr.split('-');
+            return `${d}-${m}-${y}`;
+        }
+
+        function parseDateInput(displayStr) {
+            if (!displayStr) return '';
+            // displayStr format: dd-mm-yyyy
+            const parts = displayStr.split('-');
+            if (parts.length !== 3) return '';
+            const [d, m, y] = parts;
+            return `${y}-${m}-${d}`;
+        }
+
+        window.handleDatePicker = function(value) {
+            if (!value) return;
+            // value is yyyy-mm-dd from date picker
+            const displayValue = formatDateDisplay(value);
+            const input = document.getElementById('orderDateDisplay');
+            if (input) input.value = displayValue;
+            orderDateFilter = value;
+            const clearBtn = document.getElementById('dateClearBtn');
+            if (clearBtn) clearBtn.classList.remove('hidden');
+            renderOrders();
+        };
+
+        window.handleDateInput = function(value) {
+            // User typing in dd-mm-yyyy format
+            if (!value) {
+                orderDateFilter = '';
+                const clearBtn = document.getElementById('dateClearBtn');
+                if (clearBtn) clearBtn.classList.add('hidden');
+                renderOrders();
+                return;
+            }
+            const parsed = parseDateInput(value);
+            if (parsed) {
+                orderDateFilter = parsed;
+                const clearBtn = document.getElementById('dateClearBtn');
+                if (clearBtn) clearBtn.classList.remove('hidden');
+                renderOrders();
+            }
+        };
+
+        window.initializeDateFilter = function() {
+            const today = new Date();
+            const y = today.getFullYear();
+            const m = String(today.getMonth() + 1).padStart(2, '0');
+            const d = String(today.getDate()).padStart(2, '0');
+            const todayStr = `${y}-${m}-${d}`;
+            const displayStr = formatDateDisplay(todayStr);
+            const input = document.getElementById('orderDateDisplay');
+            if (input) input.value = displayStr;
+            const hiddenInput = document.getElementById('orderDatePickerInput');
+            if (hiddenInput) hiddenInput.value = todayStr;
+            orderDateFilter = todayStr;
+            const clearBtn = document.getElementById('dateClearBtn');
+            if (clearBtn) clearBtn.classList.remove('hidden');
+        };
+
+        window.filterByDate = function(value) {
+            orderDateFilter = value;
+            const clearBtn = document.getElementById('dateClearBtn');
+            if (clearBtn) clearBtn.classList.toggle('hidden', !value);
+            renderOrders();
+        };
+
+        window.clearDateFilter = function() {
+            orderDateFilter = '';
+            const input = document.getElementById('orderDateDisplay');
+            const pickerInput = document.getElementById('orderDatePickerInput');
+            const clearBtn = document.getElementById('dateClearBtn');
+            if (input) input.value = '';
+            if (pickerInput) pickerInput.value = '';
+            if (clearBtn) clearBtn.classList.add('hidden');
+            renderOrders();
+        };
+
+        window.searchOrders = function(value) {
+            orderSearchTerm = value;
+            const clearBtn = document.getElementById('orderSearchClear');
+            if (clearBtn) clearBtn.classList.toggle('hidden', !value.trim());
+            renderOrders();
+        };
+
+        window.clearOrderSearch = function() {
+            orderSearchTerm = '';
+            const input = document.getElementById('orderSearchInput');
+            const clearBtn = document.getElementById('orderSearchClear');
+            if (input) input.value = '';
+            if (clearBtn) clearBtn.classList.add('hidden');
+            renderOrders();
+        };
 
         window.updateOrderStatus = async function(orderId, newStatus) {
             try {
@@ -2374,12 +2519,31 @@
                     </div>
                     <button onclick="closeOrdersModal()" class="text-gray-400 hover:text-red-500 transition-colors">✕</button>
                 </div>
-                <!-- Filter buttons -->
-                <div class="flex gap-2">
-                    <button onclick="filterOrders('all')" id="filterAll" class="px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border border-brandGold text-brandGold bg-brandGold/10 transition-all">All</button>
-                    <button onclick="filterOrders('retail')" id="filterRetail" class="px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border border-green-500 text-green-500 hover:bg-green-500/10 transition-all">Retail</button>
-                    <button onclick="filterOrders('wholesale')" id="filterWholesale" class="px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border border-brandGold text-brandGold hover:bg-brandGold/10 transition-all">Wholesale</button>
-                    <button onclick="filterOrders('pending')" id="filterPending" class="px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border border-orange-500 text-orange-500 hover:bg-orange-500/10 transition-all">Pending</button>
+                <!-- Filter buttons and Date filter on same line -->
+                <div class="flex items-center justify-between gap-4">
+                    <div class="flex gap-2">
+                        <button onclick="filterOrders('all')" id="filterAll" class="px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border border-brandGold text-brandGold bg-brandGold/10 transition-all">All</button>
+                        <button onclick="filterOrders('retail')" id="filterRetail" class="px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border border-green-500 text-green-500 hover:bg-green-500/10 transition-all">Retail</button>
+                        <button onclick="filterOrders('wholesale')" id="filterWholesale" class="px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border border-brandGold text-brandGold hover:bg-brandGold/10 transition-all">Wholesale</button>
+                        <button onclick="filterOrders('pending')" id="filterPending" class="px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border border-orange-500 text-orange-500 hover:bg-orange-500/10 transition-all">Pending</button>
+                    </div>
+                    <!-- Date filter on right -->
+                    <div class="flex items-center gap-2">
+                        <div class="relative">
+                            <button onclick="document.getElementById('orderDatePickerInput').showPicker()" class="absolute left-3 top-1/2 -translate-y-1/2 z-10 cursor-pointer text-gray-400 hover:text-brandGold transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            </button>
+                            <input type="text" id="orderDateDisplay" placeholder="dd-mm-yyyy" oninput="handleDateInput(this.value)" class="w-48 pl-9 pr-3 py-1.5 rounded-xl text-xs bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-brandBlue dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brandGold/50 focus:border-brandGold transition-all cursor-text">
+                            <input type="date" id="orderDatePickerInput" onchange="handleDatePicker(this.value)" class="hidden">
+                        </div>
+                        <button onclick="clearDateFilter()" id="dateClearBtn" class="hidden px-2 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-red-500/10 text-red-500 border border-red-500/30 hover:bg-red-500 hover:text-white transition-all">✕</button>
+                    </div>
+                </div>
+                <!-- Search bar -->
+                <div class="relative">
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    <input type="text" id="orderSearchInput" oninput="searchOrders(this.value)" placeholder="Search by name, email, phone..." class="w-full pl-9 pr-8 py-2 rounded-xl text-xs bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-brandBlue dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brandGold/50 focus:border-brandGold transition-all">
+                    <button onclick="clearOrderSearch()" id="orderSearchClear" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors hidden text-sm">✕</button>
                 </div>
             </div>
             <div id="ordersListContainer" class="p-6 overflow-y-auto flex-1 space-y-4 custom-scroll">
