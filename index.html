@@ -387,6 +387,14 @@
                     <span id="cartCount" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center opacity-0 transform scale-0 transition-all duration-300">0</span>
                 </button>
 
+                 <!-- Wholesale Cart Button -->
+                 <button onclick="openWholesaleCart()" class="relative p-2 text-brandGold hover:bg-brandGold/10 rounded-lg transition-colors group" title="Wholesale Order">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 md:h-7 md:w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                    </svg>
+                    <span id="wholesaleCartCount" class="absolute -top-1 -right-1 bg-brandGold text-brandBlue text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center opacity-0 transform scale-0 transition-all duration-300">0</span>
+                </button>
+
                 <!-- User Profile Card (Top Bar) -->
                 <div id="headerUserProfile" class="hidden items-center justify-between space-x-3 md:space-x-4 px-4 py-2 md:px-5 md:py-2.5 bg-gray-50 dark:bg-gray-800 rounded-full border border-gray-100 dark:border-gray-700 shadow-[0_12px_30px_rgba(32,41,61,0.15)] min-w-[190px] md:min-w-[220px] w-auto">
                     <!-- Will be populated by JS -->
@@ -598,6 +606,46 @@
                     <p id="detailDesc" class="text-xs md:text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium"></p>
                     <div id="detailVariants" class="mt-4 hidden animate-fade-in-up">
                         <!-- Variants injected via JS -->
+                    </div>
+                    
+                    <!-- Live Price Section -->
+                    <div id="detailPriceSection" class="hidden mt-4 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="flex flex-col">
+                                    <span class="text-[8px] text-gray-400 uppercase font-bold tracking-wider">Net Price</span>
+                                    <span id="detailNetPrice" class="text-lg font-black text-green-600">--</span>
+                                </div>
+                                <span class="text-gray-300 dark:text-gray-600 text-lg font-light">|</span>
+                                <div class="flex flex-col">
+                                    <span class="text-[8px] text-gray-400 uppercase font-bold tracking-wider">Discount</span>
+                                    <span id="detailDiscount" class="text-lg font-black text-red-500">--</span>
+                                </div>
+                            </div>
+                            <div class="flex flex-col text-right">
+                                <span class="text-[8px] text-gray-400 uppercase font-bold tracking-wider">Retail</span>
+                                <span id="detailRetailPrice" class="text-sm font-bold text-gray-400 line-through">--</span>
+                            </div>
+                            <div class="flex flex-col text-right">
+                                <span class="text-[8px] text-gray-400 uppercase font-bold tracking-wider">Wholesale</span>
+                                <span id="detailWholesalePrice" class="text-sm font-bold text-brandGold">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Add to Wholesale Order Button -->
+                    <div id="detailWholesaleBtn" class="hidden mt-3">
+                        <div class="flex items-stretch gap-2">
+                            <div class="flex items-center bg-gray-100 dark:bg-gray-800 border-2 border-brandGold/30 rounded-xl overflow-hidden">
+                                <button onclick="let i=document.getElementById('wholesaleQtyInput'); let v=parseInt(i.value)||1; if(v>1){i.value=v-1;}" class="w-9 h-full flex items-center justify-center text-brandGold hover:bg-brandGold/10 font-black text-lg transition-colors">−</button>
+                                <input id="wholesaleQtyInput" type="number" value="1" min="1" class="w-12 text-center bg-transparent text-brandGold font-black text-sm border-x border-brandGold/20 py-3 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+                                <button onclick="let i=document.getElementById('wholesaleQtyInput'); let v=parseInt(i.value)||1; i.value=v+1;" class="w-9 h-full flex items-center justify-center text-brandGold hover:bg-brandGold/10 font-black text-lg transition-colors">+</button>
+                            </div>
+                            <button id="wholesaleOrderBtn" class="flex-1 py-3 bg-brandGold/10 text-brandGold border-2 border-brandGold/30 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-brandGold hover:text-white transition-all flex items-center justify-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                                <span>Add to Wholesale</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="mt-6 md:mt-10">
@@ -846,7 +894,14 @@
                 <!-- Cart Items Injected Here -->
             </div>
 
-            <div class="p-6 border-t dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+            <div class="p-6 border-t dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 space-y-4">
+                <!-- Cart Total -->
+                <div id="cartTotalSection" class="hidden">
+                    <div class="flex items-center justify-between text-sm">
+                        <span class="text-gray-500 font-bold uppercase tracking-wider">Total</span>
+                        <span id="cartTotalPrice" class="text-xl font-black text-green-600">0.00 EGP</span>
+                    </div>
+                </div>
                 <button onclick="checkout()" id="checkoutBtn" class="w-full py-4 bg-brandBlue text-white rounded-xl font-black text-sm border border-brandGold shadow-lg shadow-brandBlue/20 hover:scale-[1.02] active:scale-[0.98] transition-all uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3">
                     <span>Checkout Order</span>
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
@@ -855,8 +910,46 @@
         </div>
     </div>
 
+    <!-- Wholesale Cart Modal -->
+    <div id="wholesaleCartModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-[140] transition-all duration-300">
+        <div class="absolute w-full h-full bg-black/60 backdrop-blur-sm" onclick="closeWholesaleCart()"></div>
+        <div class="bg-white dark:bg-darkCard w-11/12 max-w-2xl mx-auto rounded-3xl shadow-2xl z-[150] overflow-hidden relative border-2 border-brandGold/40 flex flex-col max-h-[85vh]">
+            <div class="p-6 border-b border-brandGold/20 flex justify-between items-center bg-brandGold/5 dark:bg-brandGold/10">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-brandGold/20 rounded-full flex items-center justify-center text-brandGold">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-black text-brandGold uppercase italic tracking-tight">Wholesale Order</h2>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest" id="wholesaleCartTotalItems">0 Items</p>
+                    </div>
+                </div>
+                <button onclick="closeWholesaleCart()" class="text-gray-400 hover:text-red-500 transition-colors bg-white dark:bg-gray-700 p-2 rounded-full shadow-sm">✕</button>
+            </div>
+            
+            <div id="wholesaleCartItemsList" class="p-6 overflow-y-auto custom-scroll flex-1 space-y-4">
+                <!-- Wholesale Cart Items Injected Here -->
+            </div>
+
+            <div class="p-6 border-t border-brandGold/20 bg-brandGold/5 dark:bg-brandGold/10 space-y-4">
+                <div id="wholesaleCartTotalSection" class="hidden">
+                    <div class="flex items-center justify-between text-sm">
+                        <span class="text-brandGold font-bold uppercase tracking-wider">Total (Wholesale)</span>
+                        <span id="wholesaleCartTotalPrice" class="text-xl font-black text-brandGold">0.00 EGP</span>
+                    </div>
+                </div>
+                <button onclick="wholesaleCheckout()" id="wholesaleCheckoutBtn" class="w-full py-4 bg-brandGold text-brandBlue rounded-xl font-black text-sm border border-brandGold shadow-lg shadow-brandGold/20 hover:scale-[1.02] active:scale-[0.98] transition-all uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3">
+                    <span>Checkout Wholesale</span>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Notifications Container -->
-    <div id="toast-container" class="fixed top-24 right-4 z-[200] flex flex-col gap-3 pointer-events-none"></div>
+    <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-[200] flex flex-col items-center gap-3 pointer-events-none"></div>
 
     <script src="locales-data.js"></script>
     <script src="i18n.js"></script>
@@ -902,7 +995,7 @@
             
             toast.className = `
                 pointer-events-auto flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl 
-                transform translate-x-full transition-all duration-500 ease-[cubic-bezier(0.68,-0.55,0.265,1.55)]
+                transform -translate-y-full opacity-0 transition-all duration-500 ease-[cubic-bezier(0.68,-0.55,0.265,1.55)]
                 backdrop-blur-md border border-white/10 min-w-[280px]
                 ${isError ? 'bg-red-500/90 text-white' : 'bg-brandGold/90 text-brandBlue'}
             `;
@@ -919,12 +1012,12 @@
 
             container.appendChild(toast);
             
-            // Animate In: Force reflow then remove translate
-            setTimeout(() => toast.classList.remove('translate-x-full'), 100);
+            // Animate In: slide down from top
+            setTimeout(() => { toast.classList.remove('-translate-y-full'); toast.classList.remove('opacity-0'); }, 100);
 
             // Auto Remove
             const removeToast = () => {
-                toast.classList.add('translate-x-[150%]', 'opacity-0');
+                toast.classList.add('-translate-y-full', 'opacity-0');
                 setTimeout(() => toast.remove(), 500);
             };
 
@@ -1541,6 +1634,9 @@
 
                 console.log("Prices loaded:", Object.keys(priceMap).length, "items");
 
+                // Store globally so detail modal can access it
+                window._dcPriceMap = priceMap;
+
                 // Update UI
                 priceTags.forEach(el => {
                     const code = String(el.dataset.code).trim();
@@ -2053,6 +2149,47 @@
             document.getElementById('detailTitle').innerText = currentProduct.name;
             document.getElementById('detailDesc').innerText = currentProduct.desc;
             
+            // Show Live Price inside detail modal
+            const priceSection = document.getElementById('detailPriceSection');
+            priceSection.classList.add('hidden');
+            if (currentProduct.code && window._dcPriceMap) {
+                const code = String(currentProduct.code).trim();
+                const info = window._dcPriceMap[code];
+                if (info) {
+                    const retail = info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || 0;
+                    const disc = info.discount_amount || info.discount || 0;
+                    const wholesale = info.wholesale_price || info.wholesalePrice || 0;
+                    const pVal = parseFloat(retail) || 0;
+                    const dVal = parseFloat(disc) || 0;
+                    const net = (pVal - dVal).toFixed(2);
+                    
+                    document.getElementById('detailNetPrice').innerText = net + ' EGP';
+                    document.getElementById('detailDiscount').innerText = disc;
+                    document.getElementById('detailRetailPrice').innerText = retail + ' EGP';
+                    document.getElementById('detailWholesalePrice').innerText = wholesale + ' EGP';
+                    priceSection.classList.remove('hidden');
+                }
+            }
+
+            // Show/hide wholesale button & wire onclick
+            const wholesaleBtn = document.getElementById('detailWholesaleBtn');
+            const wholesaleOrderBtn = document.getElementById('wholesaleOrderBtn');
+            if (wholesaleBtn) {
+                if (currentProduct.code && window._dcPriceMap && window._dcPriceMap[String(currentProduct.code).trim()]) {
+                    wholesaleBtn.classList.remove('hidden');
+                    if (wholesaleOrderBtn) {
+                        wholesaleOrderBtn.onclick = () => {
+                            const qtyInput = document.getElementById('wholesaleQtyInput');
+                            const qty = Math.max(1, parseInt(qtyInput?.value) || 1);
+                            addToWholesaleCart(currentProduct.id, currentVariantIdx, qty);
+                            if (qtyInput) qtyInput.value = 1;
+                        };
+                    }
+                } else {
+                    wholesaleBtn.classList.add('hidden');
+                }
+            }
+            
             // Handle Variants
             const vContainer = document.getElementById('detailVariants');
             vContainer.innerHTML = '';
@@ -2558,11 +2695,21 @@
                 existingItem.quantity += 1;
                 window.showToast("Quantity updated in cart!");
             } else {
+                // Get live price from DC system
+                let itemPrice = 0;
+                if (product.code && window._dcPriceMap) {
+                    const code = String(product.code).trim();
+                    const info = window._dcPriceMap[code];
+                    if (info) {
+                        itemPrice = parseFloat(info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || 0);
+                    }
+                }
+
                 cart.push({
                     cartId: cartItemId,
                     productId: product.id,
                     name: product.name,
-                    price: 0, 
+                    price: itemPrice, 
                     image: variant && (variant.image || (variant.images && variant.images[0])) ? (variant.image || variant.images[0]) : (product.images[0] || ''),
                     variantName: variant ? variant.name : null,
                     quantity: 1,
@@ -2636,6 +2783,10 @@
                     <p class="font-bold uppercase tracking-widest">Your cart is empty</p>
                 </div>`;
                 document.getElementById('checkoutBtn').disabled = true;
+                const emptyTotal = document.getElementById('cartTotalSection');
+                if (emptyTotal) emptyTotal.classList.add('hidden');
+                const emptyPrice = document.getElementById('cartTotalPrice');
+                if (emptyPrice) emptyPrice.textContent = '0.00 EGP';
                 return;
             }
 
@@ -2661,21 +2812,61 @@
                 div.className = 'bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700';
                 
                 // Build variants list HTML
-                const variantsHtml = group.variants.map(v => `
-                    <div class="flex items-center justify-between mt-3 pl-2 border-l-2 border-brandGold/20">
-                        <div class="flex flex-col">
+                const variantsHtml = group.variants.map(v => {
+                    const lineTotal = (v.price * v.quantity).toFixed(2);
+                    
+                    // Lookup discount from DC
+                    const prod = products.find(p => p.id === v.productId);
+                    let discount = 0;
+                    let netPrice = v.price;
+                    let wholesale = 0;
+                    if (prod && prod.code && window._dcPriceMap) {
+                        const info = window._dcPriceMap[String(prod.code).trim()];
+                        if (info) {
+                            discount = parseFloat(info.discount_amount || info.discount || 0);
+                            netPrice = v.price - discount;
+                            wholesale = parseFloat(info.wholesale_price || info.wholesalePrice || 0);
+                        }
+                    }
+                    const netLineTotal = (netPrice * v.quantity).toFixed(2);
+
+                    return `
+                    <div class="mt-3 pl-2 border-l-2 border-brandGold/20">
+                        <div class="flex items-center justify-between mb-2">
                             <span class="text-[10px] md:text-xs text-gray-500 font-black uppercase tracking-widest">${v.variantName || 'Standard'}</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <div class="flex items-center bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-600 scale-90 origin-right">
-                                <button onclick="updateCartQuantity(${v.originalIdx}, -1)" class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-brandBlue font-bold">-</button>
-                                <span class="text-xs font-bold w-4 text-center dark:text-white">${v.quantity}</span>
-                                <button onclick="updateCartQuantity(${v.originalIdx}, 1)" class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-brandBlue font-bold">+</button>
+                            <div class="flex items-center gap-3">
+                                <div class="flex items-center bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-600 scale-90 origin-right">
+                                    <button onclick="updateCartQuantity(${v.originalIdx}, -1)" class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-brandBlue font-bold">-</button>
+                                    <span class="text-xs font-bold w-4 text-center dark:text-white">${v.quantity}</span>
+                                    <button onclick="updateCartQuantity(${v.originalIdx}, 1)" class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-brandBlue font-bold">+</button>
+                                </div>
+                                <button onclick="removeFromCart(${v.originalIdx})" class="text-xs text-red-400 hover:text-red-500">✕</button>
                             </div>
-                            <button onclick="removeFromCart(${v.originalIdx})" class="text-xs text-red-400 hover:text-red-500">✕</button>
                         </div>
+                        ${v.price > 0 ? `
+                        <div class="flex items-center justify-between gap-4 p-2 rounded-lg bg-white/50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
+                            <div class="flex flex-col">
+                                <span class="text-[8px] text-gray-400 uppercase font-bold">Net Price</span>
+                                <span class="text-sm font-black text-green-600">${netLineTotal} EGP</span>
+                            </div>
+                            <span class="text-gray-300 dark:text-gray-600 font-light">|</span>
+                            <div class="flex flex-col">
+                                <span class="text-[8px] text-gray-400 uppercase font-bold">Discount</span>
+                                <span class="text-sm font-black text-red-500">${discount}</span>
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-[8px] text-gray-400 uppercase font-bold">Retail</span>
+                                <span class="text-sm font-bold text-gray-500">${lineTotal} EGP</span>
+                            </div>
+                            <div class="flex flex-col text-right">
+                                <span class="text-[8px] text-gray-400 uppercase font-bold">Wholesale</span>
+                                <span class="text-sm font-bold text-brandGold">${(wholesale * v.quantity).toFixed(2)} EGP</span>
+                            </div>
+                        </div>
+                        ` : ''}
                     </div>
-                `).join('');
+                `;
+                }).join('');
 
                 div.innerHTML = `
                     <div class="flex items-start gap-4 mb-2">
@@ -2694,10 +2885,286 @@
                 `;
                 list.appendChild(div);
             });
+
+            // Calculate and display total
+            const totalSection = document.getElementById('cartTotalSection');
+            const totalPriceEl = document.getElementById('cartTotalPrice');
+            if (totalSection && totalPriceEl) {
+                let retailTotal = 0;
+                let netTotal = 0;
+                cart.forEach(item => {
+                    retailTotal += item.price * item.quantity;
+                    let disc = 0;
+                    const prod = products.find(p => p.id === item.productId);
+                    if (prod && prod.code && window._dcPriceMap) {
+                        const info = window._dcPriceMap[String(prod.code).trim()];
+                        if (info) disc = parseFloat(info.discount_amount || info.discount || 0);
+                    }
+                    netTotal += (item.price - disc) * item.quantity;
+                });
+                if (retailTotal > 0) {
+                    const saved = retailTotal - netTotal;
+                    totalPriceEl.innerHTML = saved > 0
+                        ? `<span class="text-sm text-gray-400 mr-2">${retailTotal.toFixed(2)}</span> ${netTotal.toFixed(2)} EGP <span class="text-red-500 text-sm font-bold ml-2">-${saved.toFixed(2)}</span>`
+                        : `${retailTotal.toFixed(2)} EGP`;
+                    totalSection.classList.remove('hidden');
+                } else {
+                    totalSection.classList.add('hidden');
+                }
+            }
         }
 
         // Initialize Cart UI on load
         updateCartUI();
+
+        // --- Wholesale Cart Logic ---
+        let wholesaleCart = JSON.parse(localStorage.getItem('houseOfGlassWholesaleCart')) || [];
+
+        window.addToWholesaleCart = function(productId, variantIdx = null, qty = 1) {
+            const product = products.find(p => p.id === productId);
+            if (!product) return;
+
+            let variant = null;
+            if (variantIdx !== null && product.variants && product.variants[variantIdx]) {
+                variant = product.variants[variantIdx];
+            } else if (product.variants && product.variants.length > 0 && variantIdx === null) {
+                variant = product.variants[0];
+            }
+
+            if (product.inStock === false) {
+                window.showToast("Product is out of stock", "error");
+                return;
+            }
+            if (variant && variant.inStock === false) {
+                window.showToast(`Selected option (${variant.name}) is out of stock`, "error");
+                return;
+            }
+
+            const cartItemId = variant ? `${product.id}-${variant.name.replace(/\s+/g, '_')}` : product.id;
+            const existingItem = wholesaleCart.find(item => item.cartId === cartItemId);
+
+            if (existingItem) {
+                existingItem.quantity += qty;
+                window.showToast(`Quantity updated to ${existingItem.quantity} in wholesale order!`, "success");
+            } else {
+                let itemPrice = 0;
+                if (product.code && window._dcPriceMap) {
+                    const code = String(product.code).trim();
+                    const info = window._dcPriceMap[code];
+                    if (info) {
+                        itemPrice = parseFloat(info.wholesale_price || info.wholesalePrice || 0);
+                    }
+                }
+
+                wholesaleCart.push({
+                    cartId: cartItemId,
+                    productId: product.id,
+                    name: product.name,
+                    price: itemPrice,
+                    image: variant && (variant.image || (variant.images && variant.images[0])) ? (variant.image || variant.images[0]) : (product.images[0] || ''),
+                    variantName: variant ? variant.name : null,
+                    quantity: qty,
+                    addedAt: Date.now()
+                });
+                window.showToast(`Added ${qty} to wholesale order!`, "success");
+            }
+
+            saveWholesaleCart();
+            updateWholesaleCartUI();
+        };
+
+        window.removeFromWholesaleCart = function(index) {
+            wholesaleCart.splice(index, 1);
+            saveWholesaleCart();
+            updateWholesaleCartUI();
+        };
+
+        window.updateWholesaleCartQuantity = function(index, change) {
+            if (wholesaleCart[index]) {
+                wholesaleCart[index].quantity += change;
+                if (wholesaleCart[index].quantity <= 0) {
+                    wholesaleCart.splice(index, 1);
+                }
+                saveWholesaleCart();
+                updateWholesaleCartUI();
+            }
+        };
+
+        function saveWholesaleCart() {
+            localStorage.setItem('houseOfGlassWholesaleCart', JSON.stringify(wholesaleCart));
+        }
+
+        window.openWholesaleCart = function() {
+            updateWholesaleCartUI();
+            document.getElementById('wholesaleCartModal').classList.remove('opacity-0', 'pointer-events-none');
+            document.body.classList.add('modal-active');
+        };
+
+        window.closeWholesaleCart = function() {
+            document.getElementById('wholesaleCartModal').classList.add('opacity-0', 'pointer-events-none');
+            document.body.classList.remove('modal-active');
+        };
+
+        function updateWholesaleCartUI() {
+            const count = wholesaleCart.reduce((sum, item) => sum + item.quantity, 0);
+            const badge = document.getElementById('wholesaleCartCount');
+            if (badge) {
+                badge.innerText = count;
+                if (count > 0) {
+                    badge.classList.remove('opacity-0', 'scale-0');
+                } else {
+                    badge.classList.add('opacity-0', 'scale-0');
+                }
+            }
+
+            if (document.getElementById('wholesaleCartTotalItems')) {
+                document.getElementById('wholesaleCartTotalItems').innerText = `${count} Items`;
+            }
+
+            const list = document.getElementById('wholesaleCartItemsList');
+            if (!list) return;
+
+            if (wholesaleCart.length === 0) {
+                list.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-12 text-gray-400 opacity-60">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-16 h-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                    </svg>
+                    <p class="font-bold uppercase tracking-widest">No wholesale items</p>
+                </div>`;
+                document.getElementById('wholesaleCheckoutBtn').disabled = true;
+                const emptyWTotal = document.getElementById('wholesaleCartTotalSection');
+                if (emptyWTotal) emptyWTotal.classList.add('hidden');
+                const emptyWPrice = document.getElementById('wholesaleCartTotalPrice');
+                if (emptyWPrice) emptyWPrice.textContent = '0.00 EGP';
+                return;
+            }
+
+            document.getElementById('wholesaleCheckoutBtn').disabled = false;
+            list.innerHTML = '';
+
+            const grouped = {};
+            wholesaleCart.forEach((item, originalIdx) => {
+                if (!grouped[item.productId]) {
+                    grouped[item.productId] = { info: item, variants: [] };
+                }
+                grouped[item.productId].variants.push({ ...item, originalIdx });
+            });
+
+            Object.values(grouped).forEach(group => {
+                const mainItem = group.info;
+                const div = document.createElement('div');
+                div.className = 'bg-brandGold/5 dark:bg-brandGold/10 p-4 rounded-xl border border-brandGold/20';
+
+                const variantsHtml = group.variants.map(v => {
+                    const lineTotal = (v.price * v.quantity).toFixed(2);
+                    return `
+                    <div class="mt-3 pl-2 border-l-2 border-brandGold/30">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] md:text-xs text-gray-500 font-black uppercase tracking-widest">${v.variantName || 'Standard'}</span>
+                            <div class="flex items-center gap-3">
+                                <div class="flex items-center bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-600 scale-90 origin-right">
+                                    <button onclick="updateWholesaleCartQuantity(${v.originalIdx}, -1)" class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-brandGold font-bold">-</button>
+                                    <span class="text-xs font-bold w-4 text-center dark:text-white">${v.quantity}</span>
+                                    <button onclick="updateWholesaleCartQuantity(${v.originalIdx}, 1)" class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-brandGold font-bold">+</button>
+                                </div>
+                                <button onclick="removeFromWholesaleCart(${v.originalIdx})" class="text-xs text-red-400 hover:text-red-500">✕</button>
+                            </div>
+                        </div>
+                        ${v.price > 0 ? `
+                        <div class="flex items-center justify-between gap-4 p-2 rounded-lg bg-white/50 dark:bg-gray-800/50 border border-brandGold/20">
+                            <div class="flex flex-col">
+                                <span class="text-[8px] text-gray-400 uppercase font-bold">Wholesale Price</span>
+                                <span class="text-sm font-black text-brandGold">${v.price.toFixed(2)} EGP</span>
+                            </div>
+                            <div class="flex flex-col text-right">
+                                <span class="text-[8px] text-gray-400 uppercase font-bold">Line Total</span>
+                                <span class="text-sm font-black text-brandGold">${lineTotal} EGP</span>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>`;
+                }).join('');
+
+                div.innerHTML = `
+                    <div class="flex items-start gap-4 mb-2">
+                        <div class="w-16 h-16 bg-white dark:bg-gray-700 rounded-lg p-2 flex-shrink-0 border border-brandGold/20">
+                            <img src="${mainItem.image}" class="w-full h-full object-contain">
+                        </div>
+                        <div class="flex-grow pt-1">
+                            <h4 class="font-black text-brandGold text-sm md:text-base leading-tight">${mainItem.name}</h4>
+                            <p class="text-[9px] text-gray-400 uppercase tracking-widest mt-1">${group.variants.length} Option${group.variants.length > 1 ? 's' : ''} Selected</p>
+                        </div>
+                    </div>
+                    <div class="space-y-1">${variantsHtml}</div>
+                `;
+                list.appendChild(div);
+            });
+
+            // Calculate wholesale total
+            const totalSection = document.getElementById('wholesaleCartTotalSection');
+            const totalPriceEl = document.getElementById('wholesaleCartTotalPrice');
+            if (totalSection && totalPriceEl) {
+                let total = 0;
+                wholesaleCart.forEach(item => { total += item.price * item.quantity; });
+                if (total > 0) {
+                    totalPriceEl.textContent = `${total.toFixed(2)} EGP`;
+                    totalSection.classList.remove('hidden');
+                } else {
+                    totalSection.classList.add('hidden');
+                }
+            }
+        }
+
+        updateWholesaleCartUI();
+
+        window.wholesaleCheckout = async function() {
+            const btn = document.getElementById('wholesaleCheckoutBtn');
+            const originalText = btn.innerHTML;
+
+            if (wholesaleCart.length === 0) return;
+
+            const orderData = {
+                customer: currentUser ? {
+                    uid: currentUser.uid,
+                    name: currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'Guest'),
+                    email: currentUser.email,
+                } : { name: "Guest User" },
+                items: wholesaleCart.map(item => ({
+                    productId: item.productId,
+                    name: item.name,
+                    variant: item.variantName,
+                    quantity: item.quantity,
+                    wholesalePrice: item.price,
+                    image: item.image
+                })),
+                orderDate: new Date().toISOString(),
+                source: "Gallery Website",
+                orderType: "wholesale"
+            };
+
+            if (!confirm("Proceed with wholesale checkout? This will send your wholesale order to our system.")) return;
+
+            btn.disabled = true;
+            btn.innerHTML = `<span class="animate-pulse">Processing...</span>`;
+
+            try {
+                console.log("Creating Wholesale Order for HG System:", orderData);
+                await new Promise(r => setTimeout(r, 1500));
+
+                window.showToast("Wholesale order placed successfully!");
+                wholesaleCart = [];
+                saveWholesaleCart();
+                updateWholesaleCartUI();
+                closeWholesaleCart();
+            } catch (error) {
+                console.error("Wholesale Checkout Error:", error);
+                window.showToast("Failed to place wholesale order. Please try again.", "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        };
 
         // --- Checkout & HG System Integration ---
         window.checkout = async function() {
