@@ -1708,7 +1708,7 @@
             const searchQuery = document.getElementById('userSearchInput').value.toLowerCase();
             
             // Define role weights for sorting
-            const roleWeights = { 'admin': 1, 'moderator': 2, 'customer': 3 };
+            const roleWeights = { 'admin': 1, 'moderator': 2, 'cst_wholesale': 3, 'customer': 4 };
 
             const filteredUsers = allUsers.filter(u => 
                 (u.name || '').toLowerCase().includes(searchQuery) || 
@@ -1716,13 +1716,31 @@
                 (u.username || '').toLowerCase().includes(searchQuery) ||
                 (u.phone || '').includes(searchQuery)
             ).sort((a, b) => {
-                const weightA = roleWeights[a.role] || 4;
-                const weightB = roleWeights[b.role] || 4;
+                const weightA = roleWeights[a.role] || 5;
+                const weightB = roleWeights[b.role] || 5;
                 if (weightA !== weightB) return weightA - weightB;
                 return (a.name || '').localeCompare(b.name || '');
             });
 
-            list.innerHTML = filteredUsers.map(u => `
+            list.innerHTML = filteredUsers.map(u => {
+                // Determine display role and style
+                let displayRole = u.role;
+                let roleStyle = 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-600';
+                
+                if (u.role === 'admin') {
+                    displayRole = 'Admin';
+                    roleStyle = 'bg-red-50 dark:bg-red-900/20 text-red-500 border border-red-100 dark:border-red-900/30';
+                } else if (u.role === 'moderator') {
+                    displayRole = 'Moderator';
+                    roleStyle = 'bg-brandGold/10 text-brandGold border border-brandGold/20';
+                } else if (u.role === 'cst_wholesale') {
+                    displayRole = 'CST. Wholesale';
+                    roleStyle = 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/30';
+                } else if (u.role === 'customer') {
+                    displayRole = 'CST. Retail';
+                }
+
+                return `
                 <tr class="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                     <td class="px-4 py-4">
                         <div class="flex items-center">
@@ -1742,13 +1760,14 @@
                         </div>
                     </td>
                     <td class="px-4 py-4">
-                        <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter ${u.role === 'admin' ? 'bg-red-50 dark:bg-red-900/20 text-red-500 border border-red-100 dark:border-red-900/30' : (u.role === 'moderator' ? 'bg-brandGold/10 text-brandGold border border-brandGold/20' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-600')}">
-                            ${u.role}
+                        <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter ${roleStyle}">
+                            ${displayRole}
                         </span>
                     </td>
                     <td class="px-4 py-4 text-center">
                         <select onchange="window.updateUserRole('${u.id}', this.value)" class="text-[10px] font-bold border dark:border-gray-600 rounded-lg p-2 outline-none bg-white dark:bg-gray-800 dark:text-white cursor-pointer hover:border-brandGold transition-all">
-                            <option value="customer" ${u.role === 'customer' ? 'selected' : ''}>Customer</option>
+                            <option value="customer" ${u.role === 'customer' ? 'selected' : ''}>CST. Retail</option>
+                            <option value="cst_wholesale" ${u.role === 'cst_wholesale' ? 'selected' : ''}>CST. Wholesale</option>
                             <option value="moderator" ${u.role === 'moderator' ? 'selected' : ''}>Moderator</option>
                             <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>
                         </select>
@@ -1761,7 +1780,7 @@
                         </button>
                     </td>
                 </tr>
-            `).join('');
+            `}).join('');
         }
 
         window.deleteUserAdmin = async (uid, name) => {
