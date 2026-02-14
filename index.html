@@ -3282,7 +3282,11 @@
                 } catch(e) { console.warn("Could not fetch user details for order", e); }
             }
 
-            if (!confirm("Proceed with wholesale checkout? This will send your wholesale order to our system.")) return;
+            if (!await showCheckoutConfirm({
+                title: 'Wholesale Checkout | \u0625\u062a\u0645\u0627\u0645 \u0637\u0644\u0628 \u0627\u0644\u062c\u0645\u0644\u0629',
+                message: 'This will send your wholesale order to our system.\n\u0633\u064a\u062a\u0645 \u0625\u0631\u0633\u0627\u0644 \u0637\u0644\u0628 \u0627\u0644\u062c\u0645\u0644\u0629 \u0627\u0644\u062e\u0627\u0635 \u0628\u0643 \u0625\u0644\u0649 \u0627\u0644\u0646\u0638\u0627\u0645.',
+                type: 'wholesale'
+            })) return;
 
             btn.disabled = true;
             btn.innerHTML = `<span class="animate-pulse">Processing...</span>`;
@@ -3362,8 +3366,11 @@
                 } catch(e) { console.warn("Could not fetch user details for order", e); }
             }
 
-            // Confirmation (Native for now, can be modal)
-            if(!confirm("Proceed to checkout? This will send your order to our system.")) return;
+            if (!await showCheckoutConfirm({
+                title: 'Checkout | \u0625\u062a\u0645\u0627\u0645 \u0627\u0644\u0637\u0644\u0628',
+                message: 'This will send your order to our system.\n\u0633\u064a\u062a\u0645 \u0625\u0631\u0633\u0627\u0644 \u0637\u0644\u0628\u0643 \u0625\u0644\u0649 \u0627\u0644\u0646\u0638\u0627\u0645.',
+                type: 'retail'
+            })) return;
 
             btn.disabled = true;
             btn.innerHTML = `<span class="animate-pulse">Processing...</span>`;
@@ -3432,6 +3439,69 @@
                 activeAutoScrolls.set(row.id, animId);
             });
         }
+    </script>
+
+    <!-- Checkout Confirmation Modal -->
+    <div id="checkoutConfirmModal" class="fixed inset-0 z-[200] flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="resolveCheckoutConfirm(false)"></div>
+        <div id="checkoutConfirmContent" class="relative bg-white dark:bg-[#111827] rounded-2xl shadow-2xl w-11/12 max-w-md p-6 transform scale-95 transition-all duration-300 border border-gray-200 dark:border-gray-700">
+            <div class="flex flex-col items-center text-center">
+                <div id="checkoutConfirmIcon" class="w-16 h-16 rounded-full flex items-center justify-center mb-4"></div>
+                <h3 id="checkoutConfirmTitle" class="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight mb-2"></h3>
+                <p id="checkoutConfirmMsg" class="text-sm text-gray-500 dark:text-gray-400 mb-6 whitespace-pre-line"></p>
+                <div class="flex gap-3 w-full">
+                    <button onclick="resolveCheckoutConfirm(false)" class="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest bg-gray-100 dark:bg-gray-800 text-gray-500 border border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all">Cancel | إلغاء</button>
+                    <button id="checkoutConfirmOk" onclick="resolveCheckoutConfirm(true)" class="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let checkoutConfirmResolver = null;
+
+        function showCheckoutConfirm({ title, message, type = 'wholesale' }) {
+            return new Promise(resolve => {
+                checkoutConfirmResolver = resolve;
+                const modal = document.getElementById('checkoutConfirmModal');
+                const content = document.getElementById('checkoutConfirmContent');
+                const icon = document.getElementById('checkoutConfirmIcon');
+                const titleEl = document.getElementById('checkoutConfirmTitle');
+                const msgEl = document.getElementById('checkoutConfirmMsg');
+                const okBtn = document.getElementById('checkoutConfirmOk');
+
+                titleEl.textContent = title;
+                msgEl.textContent = message;
+
+                if (type === 'wholesale') {
+                    icon.className = 'w-16 h-16 rounded-full flex items-center justify-center mb-4 bg-brandGold/10';
+                    icon.innerHTML = '<svg class="w-8 h-8 text-brandGold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>';
+                    okBtn.className = 'flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest bg-brandGold text-white hover:bg-brandGold/80 transition-all';
+                    okBtn.textContent = 'Confirm | \u062a\u0623\u0643\u064a\u062f';
+                } else {
+                    icon.className = 'w-16 h-16 rounded-full flex items-center justify-center mb-4 bg-green-500/10';
+                    icon.innerHTML = '<svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>';
+                    okBtn.className = 'flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest bg-green-500 text-white hover:bg-green-600 transition-all';
+                    okBtn.textContent = 'Confirm | \u062a\u0623\u0643\u064a\u062f';
+                }
+
+                modal.classList.remove('opacity-0', 'pointer-events-none');
+                modal.classList.add('opacity-100', 'pointer-events-auto');
+                setTimeout(() => content.classList.remove('scale-95'), 10);
+            });
+        }
+
+        window.resolveCheckoutConfirm = function(val) {
+            const modal = document.getElementById('checkoutConfirmModal');
+            const content = document.getElementById('checkoutConfirmContent');
+            content.classList.add('scale-95');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.classList.remove('opacity-100', 'pointer-events-auto');
+            if (checkoutConfirmResolver) {
+                checkoutConfirmResolver(val);
+                checkoutConfirmResolver = null;
+            }
+        };
     </script>
 </body>
 </html>
