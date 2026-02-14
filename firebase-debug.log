@@ -1,0 +1,31 @@
+[debug] [2026-02-14T18:22:25.963Z] ----------------------------------------------------------------------
+[debug] [2026-02-14T18:22:25.968Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Mohamed\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy
+[debug] [2026-02-14T18:22:25.968Z] CLI Version:   15.5.1
+[debug] [2026-02-14T18:22:25.968Z] Platform:      win32
+[debug] [2026-02-14T18:22:25.969Z] Node Version:  v22.13.1
+[debug] [2026-02-14T18:22:25.969Z] Time:          Sat Feb 14 2026 20:22:25 GMT+0200 (Eastern European Standard Time)
+[debug] [2026-02-14T18:22:25.969Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-02-14T18:22:28.977Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-02-14T18:22:28.977Z] > authorizing via signed-in user (hadisalah07@gmail.com)
+[debug] [2026-02-14T18:22:28.977Z] [iam] checking project houseofglass-440 for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2026-02-14T18:22:28.979Z] Checked if tokens are valid: true, expires at: 1771095979819
+[debug] [2026-02-14T18:22:28.979Z] Checked if tokens are valid: true, expires at: 1771095979819
+[debug] [2026-02-14T18:22:28.981Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/houseofglass-440:testIamPermissions [none]
+[debug] [2026-02-14T18:22:28.981Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/houseofglass-440:testIamPermissions  x-goog-user-project=houseofglass-440
+[debug] [2026-02-14T18:22:28.981Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/houseofglass-440:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-02-14T18:22:29.995Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/houseofglass-440:testIamPermissions 200
+[debug] [2026-02-14T18:22:29.995Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/houseofglass-440:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-02-14T18:22:29.996Z] Checked if tokens are valid: true, expires at: 1771095979819
+[debug] [2026-02-14T18:22:29.996Z] Checked if tokens are valid: true, expires at: 1771095979819
+[debug] [2026-02-14T18:22:29.996Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/houseofglass-440 [none]
+[debug] [2026-02-14T18:22:30.498Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/houseofglass-440 200
+[debug] [2026-02-14T18:22:30.498Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/houseofglass-440 {"projectId":"houseofglass-440","projectNumber":"73082039144","displayName":"HouseOfGlass","name":"projects/houseofglass-440","resources":{"hostingSite":"houseofglass-440"},"state":"ACTIVE","etag":"1_54cb1906-402e-42ea-aa23-960cdb038d70"}
+[info] 
+[info] === Deploying to 'houseofglass-440'...
+[info] 
+[info] i  deploying hosting 
+[debug] [2026-02-14T18:22:30.505Z] Checked if tokens are valid: true, expires at: 1771095979819
+[debug] [2026-02-14T18:22:30.505Z] Checked if tokens are valid: true, expires at: 1771095979819
+[debug] [2026-02-14T18:22:30.505Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/houseofglass-440/versions [none]
+[debug] [2026-02-14T18:22:30.505Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/houseofglass-440/versions {"status":"CREATED","labels":{"deployment-tool":"cli-firebase"}}
