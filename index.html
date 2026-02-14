@@ -2697,19 +2697,22 @@
                 btnContainer.insertBefore(editBtn, enquiryBtn);
             }
 
-            // Wholesale icon button (replaces old fav position)
-            const wholesaleBtn = document.createElement('button');
-            wholesaleBtn.className = "modal-wholesale-btn p-3 md:p-4 rounded-xl bg-brandGold/10 text-brandGold transition-all border border-brandGold/30 hover:bg-brandGold hover:text-white hover:scale-105 active:scale-95";
-            wholesaleBtn.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                </svg>
-            `;
-            wholesaleBtn.title = "Add to Wholesale Cart";
-            wholesaleBtn.onclick = () => {
-                addToWholesaleCart(currentProduct.id, currentVariantIdx);
-                setTimeout(() => openWholesaleCart(), 350);
-            };
+            // Wholesale icon button - hidden for CST. Retail
+            if (userRole !== 'customer') {
+                const wholesaleBtn = document.createElement('button');
+                wholesaleBtn.className = "modal-wholesale-btn p-3 md:p-4 rounded-xl bg-brandGold/10 text-brandGold transition-all border border-brandGold/30 hover:bg-brandGold hover:text-white hover:scale-105 active:scale-95";
+                wholesaleBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                    </svg>
+                `;
+                wholesaleBtn.title = "Add to Wholesale Cart";
+                wholesaleBtn.onclick = () => {
+                    addToWholesaleCart(currentProduct.id, currentVariantIdx);
+                    setTimeout(() => openWholesaleCart(), 350);
+                };
+                btnContainer.insertBefore(wholesaleBtn, enquiryBtn);
+            }
             
             // Cart icon button
             const cartBtn = document.createElement('button');
@@ -2731,7 +2734,6 @@
             
             // Order: Edit -> Wholesale -> Cart -> WhatsApp
             btnContainer.insertBefore(cartBtn, enquiryBtn);
-            btnContainer.insertBefore(wholesaleBtn, cartBtn);
         }
 
         let isZoomed = false;
