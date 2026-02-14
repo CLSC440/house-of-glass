@@ -2708,6 +2708,7 @@
             wholesaleBtn.title = "Add to Wholesale Cart";
             wholesaleBtn.onclick = () => {
                 addToWholesaleCart(currentProduct.id, currentVariantIdx);
+                setTimeout(() => openWholesaleCart(), 350);
             };
             
             // Cart icon button
