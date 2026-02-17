@@ -322,7 +322,7 @@
         .category-row-container {
             display: flex;
             overflow-x: auto;
-            scroll-behavior: smooth;
+            /* scroll-behavior: smooth; Removed to prevent stuck feeling during manual scroll */
             gap: 1.5rem;
             padding: 1rem 1px;
             -webkit-overflow-scrolling: touch;
@@ -964,7 +964,9 @@
                         <p class="text-[9px] text-brandGold font-bold uppercase tracking-widest" id="cartCategoryCount"></p>
                     </div>
                 </div>
-                <button onclick="closeCart()" class="text-gray-400 hover:text-red-500 transition-colors bg-white dark:bg-gray-700 p-2 rounded-full shadow-sm">✕</button>
+                <button onclick="closeCart()" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors bg-white dark:bg-gray-700 rounded-full shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
             </div>
             
             <div id="cartItemsList" class="p-6 overflow-y-auto custom-scroll flex-1 space-y-4">
@@ -1003,7 +1005,9 @@
                         <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest" id="wholesaleCartTotalItems">0 Items</p>
                     </div>
                 </div>
-                <button onclick="closeWholesaleCart()" class="text-gray-400 hover:text-red-500 transition-colors bg-white dark:bg-gray-700 p-2 rounded-full shadow-sm">✕</button>
+                <button onclick="closeWholesaleCart()" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors bg-white dark:bg-gray-700 rounded-full shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
             </div>
             
             <div id="wholesaleCartItemsList" class="p-6 overflow-y-auto custom-scroll flex-1 space-y-4">
@@ -1034,7 +1038,9 @@
             <h3 class="text-sm font-black text-brandBlue dark:text-brandGold uppercase tracking-widest">Notifications | الإشعارات</h3>
             <div class="flex items-center gap-3">
                 <button onclick="window.markAllNotificationsRead()" class="text-[10px] font-bold text-brandGold hover:underline uppercase tracking-widest">Mark all read</button>
-                <button onclick="window.closeNotifications()" class="md:hidden text-gray-400 hover:text-red-500 transition-colors text-lg font-bold">✕</button>
+                <button onclick="window.closeNotifications()" class="md:hidden w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors bg-white dark:bg-gray-700 rounded-full shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
             </div>
         </div>
         <div id="notifList" class="flex-1 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
@@ -2292,13 +2298,36 @@
                     `;
 
                     const rowContainer = rowWrapper.querySelector('.category-row-container');
-                    catProducts.forEach((p, pIdx) => {
-                        const card = createProductCard(p, pIdx);
-                        card.classList.add('category-card');
-                        card.classList.remove('reveal');
-                        rowContainer.appendChild(card);
-                    });
+                    
+                    const populateRow = (isClone = false) => {
+                        catProducts.forEach((p, pIdx) => {
+                            const card = createProductCard(p, pIdx);
+                            card.classList.add('category-card');
+                            card.classList.remove('reveal');
+                            if (isClone) card.setAttribute('aria-hidden', 'true');
+                            rowContainer.appendChild(card);
+                        });
+                        // Add Separator Line only if more than 1 product
+                        if (catProducts.length > 1) {
+                            const separator = document.createElement('div');
+                            // Use fixed width instead of margins for predictable infinite scroll math
+                            // Added self-center to align it perfectly in the vertical middle of the row
+                            separator.className = 'flex-shrink-0 w-12 h-64 flex justify-center items-center self-center';
+                            separator.innerHTML = `
+                                <div class="relative w-[2px] h-full flex items-center justify-center">
+                                    <!-- Backlight (Glow behind the line) -->
+                                    <div class="absolute w-16 h-[110%] bg-brandGold/10 dark:bg-brandGold/30 blur-2xl rounded-full pointer-events-none"></div>
+                                    <!-- The Actual Line -->
+                                    <div class="relative w-full h-full bg-brandGold/40 dark:bg-brandGold/90 rounded-full"></div>
+                                </div>
+                            `;
+                            if (isClone) separator.setAttribute('aria-hidden', 'true');
+                            rowContainer.appendChild(separator);
+                        }
+                    };
 
+                    populateRow();
+                    
                     grid.appendChild(rowWrapper);
                 });
 
@@ -3684,6 +3713,7 @@
             rows.forEach(row => {
                 let isPaused = false;
                 let scrollSpeed = 0.5; // Cinematic speed (pixels per frame)
+                const computedGap = parseFloat(window.getComputedStyle(row).gap) || 24; // Calculate gap once
                 
                 const setPause = (val) => isPaused = val;
                 
@@ -3695,15 +3725,52 @@
                 }, {passive: true});
 
                 function step() {
-                    // Don't auto-scroll if manually scrolling or paused
-                    if (!isPaused && !row.dataset.manualScrolling) {
-                        row.style.scrollBehavior = 'auto';
-                        row.scrollLeft += scrollSpeed;
+                    // Check minimum items requirement
+                    const isMobile = window.innerWidth < 768;
+                    const minItems = isMobile ? 1 : 3;
+                    if (row.children.length <= minItems) {
+                        const animId = requestAnimationFrame(step);
+                        activeAutoScrolls.set(row.id, animId);
+                        return;
+                    }
+
+                    row.style.scrollBehavior = 'auto';
+
+                    // --- Seamless Infinite Loop Logic (Recycling) ---
+                    // Forward: recycle first item to end
+                    const firstChild = row.firstElementChild;
+                    if (firstChild) {
+                        const style = window.getComputedStyle(firstChild);
+                        const margin = parseFloat(style.marginLeft || 0) + parseFloat(style.marginRight || 0);
+                        const itemWidth = firstChild.offsetWidth + margin + computedGap;
                         
-                        // Loop logic (Infinite feel)
-                        if (row.scrollLeft >= (row.scrollWidth - row.clientWidth - 1)) {
-                            row.scrollLeft = 0;
+                        const maxScroll = row.scrollWidth - row.clientWidth;
+                        
+                        // Trigger recycling
+                        if (row.scrollLeft >= itemWidth) {
+                            row.appendChild(firstChild);
+                            row.scrollLeft -= itemWidth;
+                        } else if (maxScroll > 0 && row.scrollLeft >= maxScroll - 1) {
+                            row.appendChild(firstChild);
+                            row.scrollLeft = Math.max(0, row.scrollLeft - itemWidth);
                         }
+                    }
+
+                    // Backward: recycle last item to front
+                    if (row.scrollLeft <= 2) {
+                        const lastChild = row.lastElementChild;
+                        if (lastChild) {
+                            const style = window.getComputedStyle(lastChild);
+                            const margin = parseFloat(style.marginLeft || 0) + parseFloat(style.marginRight || 0);
+                            const lastWidth = lastChild.offsetWidth + margin + computedGap;
+                            row.prepend(lastChild);
+                            row.scrollLeft += lastWidth;
+                        }
+                    }
+
+                    // --- Auto-scroll increment (only when NOT paused) ---
+                    if (!isPaused && !row.dataset.manualScrolling) {
+                        row.scrollLeft += scrollSpeed;
                     }
                     const animId = requestAnimationFrame(step);
                     activeAutoScrolls.set(row.id, animId);
