@@ -2732,6 +2732,22 @@
             document.body.classList.add('modal-active');
         }
 
+        function resolveVariantForCart(product, variantIdx) {
+            if (!product) return null;
+            if (variantIdx !== null && product.variants && product.variants[variantIdx]) {
+                return product.variants[variantIdx];
+            }
+            if (product.variants && product.variants.length > 0 && variantIdx === null) {
+                return product.variants[0];
+            }
+            return null;
+        }
+
+        function getCartItemId(product, variantIdx) {
+            const variant = resolveVariantForCart(product, variantIdx);
+            return variant ? `${product.id}-${variant.name.replace(/\s+/g, '_')}` : product.id;
+        }
+
         function updateModalFavBtn() {
             if (!currentProduct) return;
             const isFav = userFavorites.includes(currentProduct.id);
@@ -2781,6 +2797,12 @@
                 `;
                 wholesaleBtn.title = "Add to Wholesale Cart";
                 wholesaleBtn.onclick = () => {
+                    const cartItemId = getCartItemId(currentProduct, currentVariantIdx);
+                    const exists = wholesaleCart.find(item => item.cartId === cartItemId);
+                    if (exists) {
+                        openWholesaleCart();
+                        return;
+                    }
                     addToWholesaleCart(currentProduct.id, currentVariantIdx);
                     setTimeout(() => openWholesaleCart(), 350);
                 };
@@ -2797,6 +2819,12 @@
             `;
             cartBtn.title = "Add to Cart";
             cartBtn.onclick = () => {
+                const cartItemId = getCartItemId(currentProduct, currentVariantIdx);
+                const exists = cart.find(item => item.cartId === cartItemId);
+                if (exists) {
+                    openCart();
+                    return;
+                }
                 addToCart(currentProduct.id, currentVariantIdx);
                 setTimeout(() => openCart(), 350);
             };
