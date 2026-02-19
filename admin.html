@@ -1288,7 +1288,7 @@
             document.getElementById('imageInputs').appendChild(div);
         };
 
-        window.addVariantInput = function(name = '', urls = [], inStock = true) {
+        window.addVariantInput = function(name = '', urls = [], inStock = true, barcode = '') {
             // Support old data where urls might be a single string
             if (typeof urls === 'string' && urls !== '') {
                 urls = [urls];
@@ -1306,6 +1306,10 @@
                         <span class="text-xs font-bold text-gray-500 dark:text-gray-400">In Stock</span>
                     </label>
                     <button type="button" onclick="this.closest('.variant-row').remove()" class="text-red-500 hover:text-red-600 p-2">✕</button>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <input type="text" placeholder="Barcode (optional)" value="${barcode}" class="vBarcode flex-grow block text-sm border dark:border-gray-600 dark:bg-gray-900 dark:text-white rounded p-1.5 focus:ring-brandGold outline-none">
                 </div>
 
                 <div class="variant-images-container flex flex-wrap gap-2">
@@ -1480,7 +1484,7 @@
                 // Load Variants
                 document.getElementById('variantInputs').innerHTML = '';
                 if(p.variants && p.variants.length > 0) {
-                    p.variants.forEach(v => window.addVariantInput(v.name, v.images || v.image, v.inStock));
+                    p.variants.forEach(v => window.addVariantInput(v.name, v.images || v.image, v.inStock, v.barcode || ''));
                 }
 
                 window.openModal(true);
@@ -1601,6 +1605,7 @@
                     const row = vRows[i];
                     let vName = row.querySelector('.vName').value.trim();
                     let vStock = row.querySelector('.vStock').checked;
+                    let vBarcode = row.querySelector('.vBarcode') ? row.querySelector('.vBarcode').value.trim() : '';
                     let vImgs = Array.from(row.querySelectorAll('.vImageUrl')).map(inp => {
                         const val = inp.value;
                         return imageMap.has(val) ? imageMap.get(val) : val;
@@ -1610,7 +1615,8 @@
                         variants.push({
                             name: vName,
                             images: vImgs,
-                            inStock: vStock
+                            inStock: vStock,
+                            barcode: vBarcode
                         });
                     }
                 }

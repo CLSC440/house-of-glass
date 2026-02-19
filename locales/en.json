@@ -72,5 +72,13 @@
     "settings_email": "Email Address | البريد الالكترونى",
     "settings_phone": "Phone Number | رقم الهاتف",
     "settings_first_name": "First Name | الاسم الاول",
-    "settings_title": "Account Settings | اعدادات الحساب"
+    "settings_title": "Account Settings | اعدادات الحساب",
+    "reset_password": "Reset Password",
+    "enter_new_password": "Enter your new password",
+    "verify_email": "Verify Email",
+    "confirm_password": "Confirm Password",
+    "password_requirements": "At least 6 characters",
+    "back_to_login": "Back to Login",
+    "email": "Email Address",
+    "back": "Back"
 }
