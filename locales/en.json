@@ -80,5 +80,11 @@
     "password_requirements": "At least 6 characters",
     "back_to_login": "Back to Login",
     "email": "Email Address",
-    "back": "Back"
+    "back": "Back",
+    "check_email": "Check Your Email",
+    "reset_link_sent": "We've sent a password reset link to your email address",
+    "email_instructions": "Click the link in your email to continue resetting your password. The link will open this page with the reset code.",
+    "check_spam": "Haven't received it? Check your spam folder.",
+    "resend_email": "Resend Email",
+    "change_email": "Change Email"
 }
