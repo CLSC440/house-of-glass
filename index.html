@@ -1905,6 +1905,50 @@
         };
 
 
+        let dcPriceMapCache = null;
+        let dcPriceMapCacheTime = 0;
+        let dcPriceMapPromise = null;
+        const DC_PRICE_TTL_MS = 120000;
+
+        async function getDcPriceMap(force = false) {
+            const now = Date.now();
+            if (!force && dcPriceMapCache && (now - dcPriceMapCacheTime < DC_PRICE_TTL_MS)) {
+                return dcPriceMapCache;
+            }
+            if (!force && dcPriceMapPromise) return dcPriceMapPromise;
+
+            dcPriceMapPromise = (async () => {
+                const res = await fetch("https://glass-system-backend.onrender.com/public/products");
+                if (!res.ok) throw new Error("Failed to connect to DC");
+
+                const data = await res.json();
+                const priceMap = {};
+                if (Array.isArray(data)) {
+                    data.forEach(item => {
+                        // Updated Matching Logic:
+                        // 1. Check 'barcode' (Matches user's 90000059)
+                        // 2. Check 'product_code' (Matches "58")
+                        // 3. Fallback to standard keys
+                        const rawCode = item.barcode || item.code || item.product_code || item.productCode || item.sku || item.id; 
+                        if (rawCode) {
+                            priceMap[String(rawCode).trim()] = item;
+                        }
+                    });
+                }
+
+                dcPriceMapCache = priceMap;
+                dcPriceMapCacheTime = Date.now();
+                window._dcPriceMap = priceMap;
+                dcPriceMapPromise = null;
+                return priceMap;
+            })().catch((err) => {
+                dcPriceMapPromise = null;
+                throw err;
+            });
+
+            return dcPriceMapPromise;
+        }
+
         async function fetchLivePricing() {
             // Function to fetch prices from HG System (DC)
             // Endpoint: https://glass-system-backend.onrender.com/public/products (GET)
@@ -1920,32 +1964,8 @@
             console.log("Fetching live prices from DC...");
             
             try {
-                // We use standard 'fetch' because it is built-in (No extra libraries needed)
-                const res = await fetch("https://glass-system-backend.onrender.com/public/products");
-                
-                if (!res.ok) throw new Error("Failed to connect to DC");
-                
-                const data = await res.json(); 
-                console.log("DC Response Sample:", data[0]); // Debugging: Check the first item structure
-
-                const priceMap = {};
-                if (Array.isArray(data)) {
-                    data.forEach(item => {
-                        // Updated Matching Logic:
-                        // 1. Check 'barcode' (Matches user's 90000059)
-                        // 2. Check 'product_code' (Matches "58")
-                        // 3. Fallback to standard keys
-                        const rawCode = item.barcode || item.code || item.product_code || item.productCode || item.sku || item.id; 
-                        if (rawCode) {
-                            priceMap[String(rawCode).trim()] = item;
-                        }
-                    });
-                }
-
+                const priceMap = await getDcPriceMap();
                 console.log("Prices loaded:", Object.keys(priceMap).length, "items");
-
-                // Store globally so detail modal can access it
-                window._dcPriceMap = priceMap;
 
                 // Update UI
                 priceTags.forEach(el => {
@@ -2473,65 +2493,73 @@
         let touchStartX = 0;
         let touchEndX = 0;
 
-        window.showDetails = function(id) {
-            currentProduct = products.find(prod => prod.id === id);
-            if (!currentProduct) return;
-            currentImgIdx = 0;
-            currentVariantIdx = null; // Reset variant selection
+        function getActivePriceCode() {
+            if (currentProduct && currentProduct.variants && currentVariantIdx !== null) {
+                const v = currentProduct.variants[currentVariantIdx];
+                if (v && v.barcode) return String(v.barcode).trim();
+            }
+            if (currentProduct && currentProduct.code) return String(currentProduct.code).trim();
+            return '';
+        }
 
-            document.getElementById('detailTitle').innerText = currentProduct.name;
-            document.getElementById('detailDesc').innerText = currentProduct.desc;
-            
-            // Show Live Price inside detail modal
+        async function updateDetailPricing() {
             const priceSection = document.getElementById('detailPriceSection');
-            priceSection.classList.add('hidden');
             const isRetailUser = (userRole === 'customer');
             const isWholesaleUser = (userRole === 'cst_wholesale');
-            if (currentProduct.code && window._dcPriceMap) {
-                const code = String(currentProduct.code).trim();
-                const info = window._dcPriceMap[code];
-                if (info) {
-                    const retail = info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || 0;
-                    const disc = info.discount_amount || info.discount || 0;
-                    const wholesale = info.wholesale_price || info.wholesalePrice || 0;
-                    const pVal = parseFloat(retail) || 0;
-                    const dVal = parseFloat(disc) || 0;
-                    const net = (pVal - dVal).toFixed(2);
-                    
-                    // CST. Retail: hide Net, Discount, Wholesale → show only Retail (as "Price")
-                    // CST. Wholesale: hide Retail, Discount → show only Net + Wholesale
-                    // Admin/Moderator: show all
-                    document.getElementById('detailNetPrice').parentElement.style.display = isRetailUser ? 'none' : '';
-                    document.getElementById('detailDiscount').parentElement.style.display = (isRetailUser || isWholesaleUser) ? 'none' : '';
-                    document.getElementById('detailWholesalePrice').parentElement.style.display = isRetailUser ? 'none' : '';
-                    document.getElementById('detailRetailPriceWrap').style.display = isWholesaleUser ? 'none' : '';
+            const priceCode = getActivePriceCode();
+            let hasPriceData = false;
 
-                    // Hide the separator pipe for retail & wholesale
-                    const priceSeparators = priceSection.querySelectorAll('span.text-gray-300');
-                    priceSeparators.forEach(sep => sep.style.display = (isRetailUser || isWholesaleUser) ? 'none' : '');
+            if (priceSection) priceSection.classList.add('hidden');
 
-                    // For CST. Retail: show retail price in green, no line-through
-                    const retailPriceEl = document.getElementById('detailRetailPrice');
-                    if (isRetailUser) {
-                        retailPriceEl.className = 'text-lg font-black text-green-600';
-                        document.getElementById('detailRetailPriceWrap').querySelector('span:first-child').innerHTML = 'Price<br>السعر';
-                    } else {
-                        retailPriceEl.className = 'text-sm font-bold text-gray-400 line-through';
-                        document.getElementById('detailRetailPriceWrap').querySelector('span:first-child').innerHTML = 'Retail<br>العبوة';
+            if (priceCode) {
+                try {
+                    const priceMap = window._dcPriceMap || await getDcPriceMap();
+                    const info = priceMap[priceCode];
+                    if (info) {
+                        const retail = info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || 0;
+                        const disc = info.discount_amount || info.discount || 0;
+                        const wholesale = info.wholesale_price || info.wholesalePrice || 0;
+                        const pVal = parseFloat(retail) || 0;
+                        const dVal = parseFloat(disc) || 0;
+                        const net = (pVal - dVal).toFixed(2);
+
+                        // CST. Retail: hide Net, Discount, Wholesale -> show only Retail (as "Price")
+                        // CST. Wholesale: hide Retail, Discount -> show only Net + Wholesale
+                        // Admin/Moderator: show all
+                        document.getElementById('detailNetPrice').parentElement.style.display = isRetailUser ? 'none' : '';
+                        document.getElementById('detailDiscount').parentElement.style.display = (isRetailUser || isWholesaleUser) ? 'none' : '';
+                        document.getElementById('detailWholesalePrice').parentElement.style.display = isRetailUser ? 'none' : '';
+                        document.getElementById('detailRetailPriceWrap').style.display = isWholesaleUser ? 'none' : '';
+
+                        // Hide the separator pipe for retail & wholesale
+                        const priceSeparators = priceSection.querySelectorAll('span.text-gray-300');
+                        priceSeparators.forEach(sep => sep.style.display = (isRetailUser || isWholesaleUser) ? 'none' : '');
+
+                        // For CST. Retail: show retail price in green, no line-through
+                        const retailPriceEl = document.getElementById('detailRetailPrice');
+                        if (isRetailUser) {
+                            retailPriceEl.className = 'text-lg font-black text-green-600';
+                            document.getElementById('detailRetailPriceWrap').querySelector('span:first-child').innerHTML = 'Price<br>السعر';
+                        } else {
+                            retailPriceEl.className = 'text-sm font-bold text-gray-400 line-through';
+                            document.getElementById('detailRetailPriceWrap').querySelector('span:first-child').innerHTML = 'Retail<br>العبوة';
+                        }
+
+                        document.getElementById('detailNetPrice').innerText = net + ' EGP';
+                        document.getElementById('detailDiscount').innerText = disc;
+                        document.getElementById('detailRetailPrice').innerText = retail + ' EGP';
+                        document.getElementById('detailWholesalePrice').innerText = wholesale + ' EGP';
+                        if (priceSection) priceSection.classList.remove('hidden');
+                        hasPriceData = true;
                     }
-
-                    document.getElementById('detailNetPrice').innerText = net + ' EGP';
-                    document.getElementById('detailDiscount').innerText = disc;
-                    document.getElementById('detailRetailPrice').innerText = retail + ' EGP';
-                    document.getElementById('detailWholesalePrice').innerText = wholesale + ' EGP';
-                    priceSection.classList.remove('hidden');
+                } catch (e) {
+                    // Keep hidden on DC errors
                 }
             }
 
             // Show/hide retail Add to Cart button (for CST. Retail AND CST. Wholesale)
             const retailCartBtn = document.getElementById('detailRetailCartBtn');
             const retailCartOrderBtn = document.getElementById('retailCartOrderBtn');
-            const hasPriceData = currentProduct.code && window._dcPriceMap && window._dcPriceMap[String(currentProduct.code).trim()];
             if (retailCartBtn) {
                 if ((isRetailUser || isWholesaleUser) && hasPriceData) {
                     retailCartBtn.classList.remove('hidden');
@@ -2570,6 +2598,18 @@
                     wholesaleBtn.classList.add('hidden');
                 }
             }
+        }
+
+        window.showDetails = function(id) {
+            currentProduct = products.find(prod => prod.id === id);
+            if (!currentProduct) return;
+            currentImgIdx = 0;
+            currentVariantIdx = null; // Reset variant selection
+
+            document.getElementById('detailTitle').innerText = currentProduct.name;
+            document.getElementById('detailDesc').innerText = currentProduct.desc;
+
+            updateDetailPricing();
             
             // Handle Variants
             const vContainer = document.getElementById('detailVariants');
@@ -2630,6 +2670,8 @@
                             }
                         }
 
+                        updateDetailPricing();
+
                         if (galleryIdx !== -1) {
                             // If found in gallery, treat it like a thumbnail click
                             updateDetailImage(galleryIdx);
@@ -2679,6 +2721,8 @@
             } else {
                 updateDetailImage(0);
             }
+
+            updateDetailPricing();
             
             updateModalFavBtn();
 

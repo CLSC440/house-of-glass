@@ -1308,8 +1308,9 @@
                     <button type="button" onclick="this.closest('.variant-row').remove()" class="text-red-500 hover:text-red-600 p-2">✕</button>
                 </div>
 
-                <div class="flex items-center space-x-2">
-                    <input type="text" placeholder="Barcode (optional)" value="${barcode}" class="vBarcode flex-grow block text-sm border dark:border-gray-600 dark:bg-gray-900 dark:text-white rounded p-1.5 focus:ring-brandGold outline-none">
+                <div class="flex flex-col space-y-1">
+                    <input type="text" placeholder="Barcode (optional)" value="${barcode}" class="vBarcode flex-grow block text-sm border dark:border-gray-600 dark:bg-gray-900 dark:text-white rounded p-1.5 focus:ring-brandGold outline-none" oninput="window.fetchVariantPricing(this)">
+                    <div class="vDcData text-[9px] text-gray-400 italic">Pricing: -</div>
                 </div>
 
                 <div class="variant-images-container flex flex-wrap gap-2">
@@ -1339,6 +1340,10 @@
                 </div>
             `;
             document.getElementById('variantInputs').appendChild(div);
+            const barcodeInput = div.querySelector('.vBarcode');
+            if (barcodeInput && barcodeInput.value) {
+                window.fetchVariantPricing(barcodeInput);
+            }
         };
 
         window.handleVariantFile = async function(input) {
@@ -2112,17 +2117,25 @@
             }
         };
 
-        window.fetchAdminLivePricing = async function() {
-            const wrappers = document.querySelectorAll('.dc-data-wrapper');
-            if (wrappers.length === 0) return;
+        let adminPriceMapCache = null;
+        let adminPriceMapCacheTime = 0;
+        let adminPriceMapPromise = null;
+        const ADMIN_PRICE_TTL_MS = 120000;
 
-            try {
+        async function getAdminPriceMap(force = false) {
+            const now = Date.now();
+            if (!force && adminPriceMapCache && (now - adminPriceMapCacheTime < ADMIN_PRICE_TTL_MS)) {
+                return adminPriceMapCache;
+            }
+            if (!force && adminPriceMapPromise) return adminPriceMapPromise;
+
+            adminPriceMapPromise = (async () => {
                 const res = await fetch("https://glass-system-backend.onrender.com/public/products");
                 if (!res.ok) throw new Error("Failed to connect to DC");
-                
+
                 const data = await res.json();
                 const priceMap = {};
-                
+
                 if (Array.isArray(data)) {
                     data.forEach(item => {
                         // Priority to Barcode as per user screenshot (90000059)
@@ -2133,6 +2146,87 @@
                         }
                     });
                 }
+
+                adminPriceMapCache = priceMap;
+                adminPriceMapCacheTime = Date.now();
+                adminPriceMapPromise = null;
+                return priceMap;
+            })().catch((err) => {
+                adminPriceMapPromise = null;
+                throw err;
+            });
+
+            return adminPriceMapPromise;
+        }
+
+        window.fetchVariantPricing = function(input) {
+            if (!input) return;
+            const row = input.closest('.variant-row');
+            if (!row) return;
+            const infoEl = row.querySelector('.vDcData');
+            const code = input.value.trim();
+
+            if (!code) {
+                if (infoEl) infoEl.innerHTML = 'Pricing: -';
+                return;
+            }
+
+            if (infoEl) {
+                infoEl.classList.add('animate-pulse');
+                infoEl.innerHTML = '<span class="text-gray-400 italic">Syncing...</span>';
+            }
+
+            if (input._variantTimer) clearTimeout(input._variantTimer);
+            input._variantTimer = setTimeout(async () => {
+                try {
+                    const priceMap = await getAdminPriceMap();
+                    const info = priceMap[code];
+
+                    if (infoEl) infoEl.classList.remove('animate-pulse');
+
+                    if (info) {
+                        const price = info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || 0;
+                        const wholesale = info.wholesale_price || info.wholesalePrice || 0;
+                        const discount = info.discount_amount || info.discount || 0;
+                        const pVal = parseFloat(price) || 0;
+                        const dVal = parseFloat(discount) || 0;
+                        const finalPrice = (pVal - dVal).toFixed(2);
+
+                        if (infoEl) {
+                            infoEl.innerHTML = `
+                                <span class="text-[9px] text-gray-400 uppercase font-bold">Net</span>
+                                <span class="ml-1 font-bold text-green-600">${finalPrice}</span>
+                                <span class="mx-1 text-gray-400">|</span>
+                                <span class="text-[9px] text-gray-400 uppercase font-bold">Disc</span>
+                                <span class="ml-1 font-bold text-red-500">${discount}</span>
+                                <span class="mx-2 text-gray-500">/</span>
+                                <span class="text-[9px] text-gray-400 uppercase font-bold">Retail</span>
+                                <span class="ml-1 font-bold text-gray-800 dark:text-gray-200">${price}</span>
+                                <span class="mx-1 text-gray-400">|</span>
+                                <span class="text-[9px] text-gray-400 uppercase font-bold">Wholesale</span>
+                                <span class="ml-1 font-bold text-brandGold">${wholesale}</span>
+                            `;
+                        }
+                    } else {
+                        if (infoEl) {
+                            infoEl.innerHTML = '<span class="text-red-400 italic">Not linked</span>';
+                        }
+                    }
+                } catch (e) {
+                    if (infoEl) {
+                        infoEl.classList.remove('animate-pulse');
+                        infoEl.innerHTML = '<span class="text-red-500">System Offline</span>';
+                    }
+                }
+            }, 250);
+        };
+
+        window.fetchAdminLivePricing = async function() {
+            const wrappers = document.querySelectorAll('.dc-data-wrapper');
+            if (wrappers.length === 0) return;
+
+            try {
+                const priceMap = await getAdminPriceMap();
 
                 wrappers.forEach(el => {
                     const code = String(el.dataset.code).trim();
@@ -2171,9 +2265,9 @@
                             </div>
                         `;
                     } else {
-                         el.innerHTML = `<div class="col-span-2 text-red-400 text-[9px] italic flex items-center gap-1">
+                        el.innerHTML = `<div class="col-span-2 text-red-400 text-[9px] italic flex items-center gap-1">
                             <span class="w-1.5 h-1.5 bg-red-400 rounded-full inline-block"></span> Not linked
-                         </div>`;
+                        </div>`;
                     }
                 });
 
