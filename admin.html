@@ -317,7 +317,7 @@
             margin-left: auto;
         }
         #adminToolbar.expanded {
-            width: min(560px, calc(100% - 2.5rem));
+            width: 720px;
         }
         #adminToolbar #toolbarActions {
             opacity: 0;
@@ -327,6 +327,7 @@
             overflow: hidden;
             display: flex;
             align-items: center;
+            gap: 0.5rem;
         }
         #adminToolbar.expanded #toolbarActions {
             opacity: 1;
@@ -335,6 +336,8 @@
             overflow-x: auto;
             scrollbar-width: none;
             -ms-overflow-style: none;
+            gap: 0.5rem;
+            padding: 0 0.75rem;
         }
         #adminToolbar.expanded #toolbarActions::-webkit-scrollbar {
             display: none;
@@ -350,9 +353,8 @@
                 margin-left: 0;
             }
             #adminToolbar #toolbarActions {
-                gap: 0.375rem !important; /* Tighten for mobile */
-                padding-left: 0.5rem !important;
-                padding-right: 0.75rem !important;
+                gap: 0.375rem !important;
+                padding: 0 0.5rem !important;
             }
         }
     </style>
@@ -447,6 +449,11 @@
             </div>
             
             <div class="w-full md:w-auto flex items-center gap-3">
+                <select id="adminBarcodeFilter" class="w-full md:w-auto px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800 dark:text-white border-transparent focus:border-brandGold focus:ring-0 outline-none cursor-pointer" onchange="filterAdminProducts()">
+                    <option value="all">All Barcodes</option>
+                    <option value="no-product-barcode">No Barcode</option>
+                    <option value="no-variant-barcode">No Variant Barcode</option>
+                </select>
                 <div class="flex bg-gray-50 dark:bg-gray-800 rounded-xl p-1 gap-1 border border-gray-100 dark:border-gray-700">
                     <button onclick="toggleView('grid')" id="viewGridBtn" class="p-2 rounded-lg text-brandBlue dark:text-brandGold bg-white dark:bg-gray-700 shadow-sm transition-all" title="Grid View">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
@@ -485,7 +492,7 @@
 
     <!-- Product Modal -->
     <div id="productModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-[100]">
-        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50"></div>
+        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50" onclick="closeModal()"></div>
         <div class="modal-container bg-white dark:bg-darkCard w-11/12 md:max-w-lg mx-auto rounded shadow-lg z-50 overflow-y-auto max-h-[90vh]">
             <div class="modal-content py-6 px-8 text-left">
                 <div class="flex justify-between items-center pb-4 border-b dark:border-gray-700">
@@ -511,8 +518,9 @@
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Product Code (Unique ID)</label>
-                        <input type="text" id="pCode" class="w-full border dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg p-2 focus:ring-brandGold outline-none uppercase tracking-widest font-bold bg-white" placeholder="e.g. M-01, STAR-55" required oninput="validateCode(this)">
+                        <input type="text" id="pCode" class="w-full border dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg p-2 focus:ring-brandGold outline-none uppercase tracking-widest font-bold bg-white" placeholder="e.g. M-01, STAR-55" required oninput="validateCode(this); window.checkProductCodeDuplicate(this)">
                         <p id="codeError" class="text-[10px] text-red-500 font-bold mt-1 hidden">❌ Code already exists!</p>
+                        <div id="pCodeWarn" class="text-[9px] text-amber-600 font-bold mt-1 hidden"></div>
                     </div>
 
                     <div class="flex items-center space-x-3 bg-gray-50 dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700">
@@ -933,13 +941,23 @@
         window.filterAdminProducts = function() {
             const search = document.getElementById('adminSearch').value.toLowerCase();
             const cat = document.getElementById('adminCategoryFilter').value;
+            const barcodeFilter = document.getElementById('adminBarcodeFilter')?.value || 'all';
             
             const filtered = products.filter(p => {
                 const matchesSearch = p.name.toLowerCase().includes(search) 
                     || (p.desc && p.desc.toLowerCase().includes(search))
                     || (p.code && p.code.toLowerCase().includes(search));
                 const matchesCat = cat === 'All' || p.category === cat;
-                return matchesSearch && matchesCat;
+                const productHasBarcode = p.code && String(p.code).trim() !== '';
+                const variantsHaveBarcode = (p.variants || []).some(v => v.barcode && String(v.barcode).trim() !== '');
+                let matchesBarcodeFilter = true;
+                if (barcodeFilter === 'no-product-barcode') {
+                    matchesBarcodeFilter = !productHasBarcode;
+                } else if (barcodeFilter === 'no-variant-barcode') {
+                    const hasVariants = Array.isArray(p.variants) && p.variants.length > 0;
+                    matchesBarcodeFilter = hasVariants && !variantsHaveBarcode;
+                }
+                return matchesSearch && matchesCat && matchesBarcodeFilter;
             });
             
             renderProducts(filtered);
@@ -1065,6 +1083,18 @@
                             ${p.code ? `<div class="dc-data-wrapper mt-2 pt-2 border-t border-dashed border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]" data-code="${p.code}">
                                 <div class="col-span-2 text-gray-400 italic animate-pulse">Syncing with system...</div>
                             </div>` : ''}
+
+                            ${p.variants && p.variants.length > 0 ? `
+                                <div class="mt-2">
+                                    <button onclick="toggleVariantPricing('${p.id}')" class="text-[10px] font-bold text-brandBlue dark:text-brandGold hover:underline flex items-center gap-1 bg-brandBlue/5 dark:bg-brandGold/10 px-2 py-1 rounded-md transition-colors">
+                                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                                        Variants Pricing
+                                    </button>
+                                    <div id="variant-panel-${p.id}" class="variant-panel hidden mt-2 p-2 rounded-lg bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700 text-[10px]">
+                                        <div class="text-gray-400 italic">Loading variants...</div>
+                                    </div>
+                                </div>
+                            ` : ''}
 
                             <!-- Mobile Actions (Visible) -->
                              <div class="flex md:hidden items-center gap-3 mt-2">
@@ -1257,6 +1287,14 @@
                 document.getElementById('variantInputs').innerHTML = ''; // Clear variants
                 addImageInput();
             }
+            // Add ESC key listener
+            const escListener = function(e) {
+                if (e.key === 'Escape') {
+                    closeModal();
+                    document.removeEventListener('keydown', escListener);
+                }
+            };
+            document.addEventListener('keydown', escListener);
         };
 
         window.closeModal = function() {
@@ -1309,7 +1347,8 @@
                 </div>
 
                 <div class="flex flex-col space-y-1">
-                    <input type="text" placeholder="Barcode (optional)" value="${barcode}" class="vBarcode flex-grow block text-sm border dark:border-gray-600 dark:bg-gray-900 dark:text-white rounded p-1.5 focus:ring-brandGold outline-none" oninput="window.fetchVariantPricing(this)">
+                    <input type="text" placeholder="Barcode (optional)" value="${barcode}" class="vBarcode flex-grow block text-sm border dark:border-gray-600 dark:bg-gray-900 dark:text-white rounded p-1.5 focus:ring-brandGold outline-none" oninput="window.fetchVariantPricing(this); window.checkVariantBarcodeDuplicate(this)">
+                    <div class="vBarcodeWarn hidden text-[9px] text-amber-600 font-bold"></div>
                     <div class="vDcData text-[9px] text-gray-400 italic">Pricing: -</div>
                 </div>
 
@@ -1343,6 +1382,7 @@
             const barcodeInput = div.querySelector('.vBarcode');
             if (barcodeInput && barcodeInput.value) {
                 window.fetchVariantPricing(barcodeInput);
+                window.checkVariantBarcodeDuplicate(barcodeInput);
             }
         };
 
@@ -2221,6 +2261,80 @@
             }, 250);
         };
 
+        window.checkVariantBarcodeDuplicate = function(input) {
+            if (!input) return;
+            const row = input.closest('.variant-row');
+            if (!row) return;
+            const warn = row.querySelector('.vBarcodeWarn');
+            const code = input.value.trim();
+
+            if (!warn || !code) {
+                if (warn) warn.classList.add('hidden');
+                return;
+            }
+
+            const currentProductId = document.getElementById('productId')?.value || '';
+            let found = null;
+
+            products.forEach(p => {
+                (p.variants || []).forEach(v => {
+                    if (!v || !v.barcode) return;
+                    if (String(v.barcode).trim() !== code) return;
+                    if (currentProductId && p.id === currentProductId) return;
+                    if (!found) found = { productName: p.name, variantName: v.name };
+                });
+            });
+
+            if (found) {
+                warn.textContent = `Warning: used in "${found.productName}" - ${found.variantName}`;
+                warn.classList.remove('hidden');
+            } else {
+                warn.classList.add('hidden');
+            }
+        };
+
+        window.checkProductCodeDuplicate = function(input) {
+            if (!input) return;
+            const warn = document.getElementById('pCodeWarn');
+            const code = input.value.trim();
+
+            if (!warn || !code) {
+                if (warn) warn.classList.add('hidden');
+                return;
+            }
+
+            const currentProductId = document.getElementById('productId')?.value || '';
+            let found = null;
+
+            products.forEach(p => {
+                // Check if this product code matches another product's code
+                if (String(p.code || p.product_code || '').trim() === code && 
+                    (!currentProductId || p.id !== currentProductId)) {
+                    if (!found) found = { type: 'product_code', productName: p.name };
+                }
+                
+                // Check if this code matches any variant barcode
+                (p.variants || []).forEach(v => {
+                    if (!v || !v.barcode) return;
+                    if (String(v.barcode).trim() === code && 
+                        (!currentProductId || p.id !== currentProductId)) {
+                        if (!found) found = { type: 'variant_barcode', productName: p.name, variantName: v.name };
+                    }
+                });
+            });
+
+            if (found) {
+                if (found.type === 'variant_barcode') {
+                    warn.textContent = `Warning: used as variant barcode in "${found.productName}" - ${found.variantName}`;
+                } else {
+                    warn.textContent = `Warning: product code already exists for "${found.productName}"`;
+                }
+                warn.classList.remove('hidden');
+            } else {
+                warn.classList.add('hidden');
+            }
+        };
+
         window.fetchAdminLivePricing = async function() {
             const wrappers = document.querySelectorAll('.dc-data-wrapper');
             if (wrappers.length === 0) return;
@@ -2274,6 +2388,88 @@
             } catch (e) {
                 console.warn("DC Fetch Error:", e);
                 wrappers.forEach(el => el.innerHTML = `<div class="col-span-2 text-red-500 text-[9px]">System Offline</div>`);
+            }
+        };
+
+        window.toggleVariantPricing = async function(productId) {
+            const panel = document.getElementById(`variant-panel-${productId}`);
+            if (!panel) return;
+
+            if (!panel.classList.contains('hidden')) {
+                panel.classList.add('hidden');
+                return;
+            }
+
+            panel.classList.remove('hidden');
+
+            if (panel.dataset.loaded === 'true') return;
+
+            const product = products.find(p => p.id === productId);
+            if (!product || !product.variants || product.variants.length === 0) {
+                panel.innerHTML = '<div class="text-gray-400 italic">No variants.</div>';
+                panel.dataset.loaded = 'true';
+                return;
+            }
+
+            panel.innerHTML = '<div class="text-gray-400 italic">Loading variants...</div>';
+
+            try {
+                const priceMap = await getAdminPriceMap();
+                const rows = product.variants.map(v => {
+                    const barcode = v.barcode ? String(v.barcode).trim() : '';
+                    const info = barcode ? priceMap[barcode] : null;
+                    if (!info) {
+                        const msg = barcode ? 'Not linked' : 'No barcode';
+                        return `
+                            <div class="flex items-center justify-between gap-3 py-1 border-b border-gray-100 dark:border-gray-700 last:border-b-0">
+                                <div class="min-w-0">
+                                    <div class="font-bold text-gray-700 dark:text-gray-200 truncate">${v.name || 'Variant'}</div>
+                                    <div class="text-[9px] text-gray-400">Barcode: ${barcode || '-'}</div>
+                                </div>
+                                <div class="text-[9px] font-bold text-red-400 italic">${msg}</div>
+                            </div>
+                        `;
+                    }
+
+                    const price = info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || 0;
+                    const wholesale = info.wholesale_price || info.wholesalePrice || 0;
+                    const discount = info.discount_amount || info.discount || 0;
+                    const pVal = parseFloat(price) || 0;
+                    const dVal = parseFloat(discount) || 0;
+                    const finalPrice = (pVal - dVal).toFixed(2);
+
+                    return `
+                        <div class="flex flex-wrap items-center justify-between gap-3 py-1 border-b border-gray-100 dark:border-gray-700 last:border-b-0">
+                            <div class="min-w-0">
+                                <div class="font-bold text-gray-700 dark:text-gray-200 truncate">${v.name || 'Variant'}</div>
+                                <div class="text-[9px] text-gray-400">Barcode: ${barcode || '-'}</div>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-3">
+                                <div class="flex flex-col">
+                                    <span class="text-[8px] text-gray-400 uppercase font-bold">Net</span>
+                                    <span class="text-green-600 font-bold">${finalPrice}</span>
+                                </div>
+                                <div class="flex flex-col">
+                                    <span class="text-[8px] text-gray-400 uppercase font-bold">Disc</span>
+                                    <span class="text-red-500 font-bold">${discount}</span>
+                                </div>
+                                <div class="flex flex-col">
+                                    <span class="text-[8px] text-gray-400 uppercase font-bold">Retail</span>
+                                    <span class="text-gray-800 dark:text-gray-200 font-bold">${price}</span>
+                                </div>
+                                <div class="flex flex-col">
+                                    <span class="text-[8px] text-gray-400 uppercase font-bold">Wholesale</span>
+                                    <span class="text-brandGold font-bold">${wholesale}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                panel.innerHTML = rows;
+                panel.dataset.loaded = 'true';
+            } catch (e) {
+                panel.innerHTML = '<div class="text-red-500 text-[9px]">System Offline</div>';
             }
         };
 
