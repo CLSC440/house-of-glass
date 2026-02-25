@@ -1913,57 +1913,38 @@
         async function getDcPriceMap(force = false) {
             const now = Date.now();
             if (!force && dcPriceMapCache && (now - dcPriceMapCacheTime < DC_PRICE_TTL_MS)) {
-                console.log('✅ Using cached DC prices');
                 return dcPriceMapCache;
             }
             if (!force && dcPriceMapPromise) return dcPriceMapPromise;
 
             dcPriceMapPromise = (async () => {
-                try {
-                    // Step 1: Collect all product codes from the page
-                    const priceTags = document.querySelectorAll('.dc-price[data-code]');
-                    const codes = Array.from(priceTags)
-                        .map(el => String(el.dataset.code).trim())
-                        .filter(code => code.length > 0);
+                const res = await fetch("https://glass-system-backend.onrender.com/public/products");
+                if (!res.ok) throw new Error("Failed to connect to DC");
 
-                    if (codes.length === 0) {
-                        console.warn('⚠️ No product codes found on page');
-                        return {};
-                    }
-
-                    console.log(`🔄 Fetching prices for ${codes.length} products...`);
-
-                    // Step 2: Send codes to Proxy API
-                    const res = await fetch("/api/pricing-proxy", {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ codes: codes })
+                const data = await res.json();
+                const priceMap = {};
+                if (Array.isArray(data)) {
+                    data.forEach(item => {
+                        // Updated Matching Logic:
+                        // 1. Check 'barcode' (Matches user's 90000059)
+                        // 2. Check 'product_code' (Matches "58")
+                        // 3. Fallback to standard keys
+                        const rawCode = item.barcode || item.code || item.product_code || item.productCode || item.sku || item.id; 
+                        if (rawCode) {
+                            priceMap[String(rawCode).trim()] = item;
+                        }
                     });
-                    if (!res.ok) throw new Error("Proxy Error: " + res.status);
-
-                    const response = await res.json();
-                    const priceMap = {};
-                    
-                    if (response.data && typeof response.data === 'object') {
-                        Object.entries(response.data).forEach(([code, data]) => {
-                            if (data) {
-                                priceMap[String(code).trim().toUpperCase()] = data;
-                            }
-                        });
-                    }
-
-                    dcPriceMapCache = priceMap;
-                    dcPriceMapCacheTime = Date.now();
-                    window._dcPriceMap = priceMap;
-                    console.log(`✅ Cached ${Object.keys(priceMap).length} prices`);
-                    dcPriceMapPromise = null;
-                    return priceMap;
-                } catch (err) {
-                    console.error('❌ getDcPriceMap error:', err);
-                    dcPriceMapPromise = null;
-                    throw err;
                 }
-            })();
+
+                dcPriceMapCache = priceMap;
+                dcPriceMapCacheTime = Date.now();
+                window._dcPriceMap = priceMap;
+                dcPriceMapPromise = null;
+                return priceMap;
+            })().catch((err) => {
+                dcPriceMapPromise = null;
+                throw err;
+            });
 
             return dcPriceMapPromise;
         }
@@ -2392,7 +2373,7 @@
                     <div class="absolute top-3 left-3 bg-brandGold/90 text-white text-[8px] md:text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-widest shadow-lg shadow-brandGold/20">${p.category}</div>
                     <div class="absolute bottom-3 right-3 bg-black/60 text-white text-[8px] md:text-[10px] px-3 py-1 rounded-full backdrop-blur-md font-bold">${p.images.length} Photos</div>
                     
-                    <button onclick="event.stopPropagation(); addToCart('${p.id}')" class="absolute bottom-3 left-3 z-30 p-2 rounded-full bg-brandGold text-brandBlue shadow-lg hover:scale-110 active:scale-95 transition-all opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 duration-300 flex items-center gap-1 pr-3">
+                    <button onclick="event.stopPropagation(); addToCart('${p.id}')" class="absolute bottom-3 left-3 z-30 p-2 rounded-full bg-brandGold text-brandBlue shadow-lg hover:scale-110 active:scale-95 transition-all duration-300 flex items-center gap-1 pr-3">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                         </svg>

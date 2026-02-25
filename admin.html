@@ -2161,70 +2161,38 @@
         let adminPriceMapPromise = null;
         const ADMIN_PRICE_TTL_MS = 120000;
 
-        async function getAdminPriceMap(force = false, requestedCodes = null) {
+        async function getAdminPriceMap(force = false) {
             const now = Date.now();
             if (!force && adminPriceMapCache && (now - adminPriceMapCacheTime < ADMIN_PRICE_TTL_MS)) {
-                console.log('✅ Using cached admin prices');
                 return adminPriceMapCache;
             }
             if (!force && adminPriceMapPromise) return adminPriceMapPromise;
 
             adminPriceMapPromise = (async () => {
-                try {
-                    // Collect codes from the page if not provided
-                    let codes = requestedCodes || [];
-                    
-                    if (!codes || codes.length === 0) {
-                        // Collect from variant barcode fields
-                        const barcodeInputs = document.querySelectorAll('.vBarcode');
-                        codes = Array.from(barcodeInputs)
-                            .map(input => String(input.value).trim())
-                            .filter(code => code.length > 0);
-                        
-                        // Also include product code if in edit mode
-                        const productCodeInput = document.getElementById('pCode');
-                        if (productCodeInput && productCodeInput.value.trim()) {
-                            codes.push(productCodeInput.value.trim());
+                const res = await fetch("https://glass-system-backend.onrender.com/public/products");
+                if (!res.ok) throw new Error("Failed to connect to DC");
+
+                const data = await res.json();
+                const priceMap = {};
+
+                if (Array.isArray(data)) {
+                    data.forEach(item => {
+                        // Priority to Barcode as per user screenshot (90000059)
+                        // Also support product_code (snake_case)
+                        const rawCode = item.barcode || item.code || item.product_code || item.productCode || item.sku || item.id;
+                        if (rawCode) {
+                            priceMap[String(rawCode).trim()] = item;
                         }
-                        
-                        codes = [...new Set(codes)]; // Remove duplicates
-                    }
-
-                    if (codes.length === 0) {
-                        console.warn('⚠️ No product codes found for pricing');
-                        return {};
-                    }
-
-                    console.log(`🔄 Fetching prices for ${codes.length} items from admin...`);
-
-                    const res = await fetch("/api/pricing-proxy", {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ codes: codes })
                     });
-                    if (!res.ok) throw new Error("Proxy Error: " + res.status);
-
-                    const response = await res.json();
-                    const priceMap = {};
-                    
-                    if (response.data && typeof response.data === 'object') {
-                        Object.entries(response.data).forEach(([code, data]) => {
-                            if (data) {
-                                priceMap[String(code).trim().toUpperCase()] = data;
-                            }
-                        });
-                    }
-
-                    adminPriceMapCache = priceMap;
-                    adminPriceMapCacheTime = Date.now();
-                    console.log(`✅ Cached ${Object.keys(priceMap).length} admin prices`);
-                    adminPriceMapPromise = null;
-                    return priceMap;
-                } catch (err) {
-                    console.error('❌ getAdminPriceMap error:', err);
-                    adminPriceMapPromise = null;
-                    throw err;
                 }
+
+                adminPriceMapCache = priceMap;
+                adminPriceMapCacheTime = Date.now();
+                adminPriceMapPromise = null;
+                return priceMap;
+            })().catch((err) => {
+                adminPriceMapPromise = null;
+                throw err;
             });
 
             return adminPriceMapPromise;
