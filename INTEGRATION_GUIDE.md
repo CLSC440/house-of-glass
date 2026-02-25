@@ -90,7 +90,7 @@ We have implemented a dual-provider architecture based on your request.
 ### A. Gallery as Media Provider
 We have created a Vercel Serverless Function to allow the HG System to fetch images by Product Code.
 
-**Endpoint:** `GET /api/media?code=PRODUCT-CODE`
+**Endpoint:** `GET https://house-of-glass-phi.vercel.app/api/media?code=PRODUCT-CODE`
 **Response:**
 ```json
 {

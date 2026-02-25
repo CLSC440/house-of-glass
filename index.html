@@ -1913,38 +1913,57 @@
         async function getDcPriceMap(force = false) {
             const now = Date.now();
             if (!force && dcPriceMapCache && (now - dcPriceMapCacheTime < DC_PRICE_TTL_MS)) {
+                console.log('✅ Using cached DC prices');
                 return dcPriceMapCache;
             }
             if (!force && dcPriceMapPromise) return dcPriceMapPromise;
 
             dcPriceMapPromise = (async () => {
-                const res = await fetch("https://glass-system-backend.onrender.com/public/products");
-                if (!res.ok) throw new Error("Failed to connect to DC");
+                try {
+                    // Step 1: Collect all product codes from the page
+                    const priceTags = document.querySelectorAll('.dc-price[data-code]');
+                    const codes = Array.from(priceTags)
+                        .map(el => String(el.dataset.code).trim())
+                        .filter(code => code.length > 0);
 
-                const data = await res.json();
-                const priceMap = {};
-                if (Array.isArray(data)) {
-                    data.forEach(item => {
-                        // Updated Matching Logic:
-                        // 1. Check 'barcode' (Matches user's 90000059)
-                        // 2. Check 'product_code' (Matches "58")
-                        // 3. Fallback to standard keys
-                        const rawCode = item.barcode || item.code || item.product_code || item.productCode || item.sku || item.id; 
-                        if (rawCode) {
-                            priceMap[String(rawCode).trim()] = item;
-                        }
+                    if (codes.length === 0) {
+                        console.warn('⚠️ No product codes found on page');
+                        return {};
+                    }
+
+                    console.log(`🔄 Fetching prices for ${codes.length} products...`);
+
+                    // Step 2: Send codes to Proxy API
+                    const res = await fetch("/api/pricing-proxy", {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ codes: codes })
                     });
-                }
+                    if (!res.ok) throw new Error("Proxy Error: " + res.status);
 
-                dcPriceMapCache = priceMap;
-                dcPriceMapCacheTime = Date.now();
-                window._dcPriceMap = priceMap;
-                dcPriceMapPromise = null;
-                return priceMap;
-            })().catch((err) => {
-                dcPriceMapPromise = null;
-                throw err;
-            });
+                    const response = await res.json();
+                    const priceMap = {};
+                    
+                    if (response.data && typeof response.data === 'object') {
+                        Object.entries(response.data).forEach(([code, data]) => {
+                            if (data) {
+                                priceMap[String(code).trim().toUpperCase()] = data;
+                            }
+                        });
+                    }
+
+                    dcPriceMapCache = priceMap;
+                    dcPriceMapCacheTime = Date.now();
+                    window._dcPriceMap = priceMap;
+                    console.log(`✅ Cached ${Object.keys(priceMap).length} prices`);
+                    dcPriceMapPromise = null;
+                    return priceMap;
+                } catch (err) {
+                    console.error('❌ getDcPriceMap error:', err);
+                    dcPriceMapPromise = null;
+                    throw err;
+                }
+            })();
 
             return dcPriceMapPromise;
         }
@@ -1961,11 +1980,8 @@
                 if(el.innerText === '...') el.classList.add('animate-pulse');
             });
 
-            console.log("Fetching live prices from DC...");
-            
             try {
                 const priceMap = await getDcPriceMap();
-                console.log("Prices loaded:", Object.keys(priceMap).length, "items");
 
                 // Update UI
                 priceTags.forEach(el => {
@@ -3669,7 +3685,6 @@
             try {
                 // Save order to Firestore
                 await addDoc(collection(db, "orders"), orderData);
-                console.log("Wholesale Order saved to Firestore:", orderData);
 
                 window.showToast("Wholesale order placed successfully!");
                 wholesaleCart = [];
@@ -3700,14 +3715,6 @@
                 return;
             }
             
-            // 1. Gather Order Data
-            // We need Customer Info. If logged in, use that. If not, maybe ask? 
-            // For now, let's assume we send anonymous or logged in user data.
-            
-            // NOTE: Replace with your actual HG System API Key and URL
-            const HG_API_KEY = "YOUR_HG_SYSTEM_API_KEY"; 
-            const HG_API_URL = "https://your-hg-system-url.com/api/orders"; // PLACEHOLDER
-
             const orderData = {
                 customer: currentUser ? {
                     uid: currentUser.uid,
@@ -3753,7 +3760,6 @@
             try {
                 // Save order to Firestore
                 await addDoc(collection(db, "orders"), orderData);
-                console.log("Retail Order saved to Firestore:", orderData);
                 
                 // Success
                 window.showToast("Order placed successfully! We have received your invoice.");
