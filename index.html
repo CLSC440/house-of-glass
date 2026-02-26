@@ -637,6 +637,9 @@
             <div class="w-full md:w-1/2 bg-gray-100 dark:bg-gray-800 relative group overflow-hidden">
                 <div id="swipeArea" class="flex items-center justify-center p-8 md:p-24 touch-pan-y h-[40vh] md:h-full relative">
                     <img id="mainDetailImg" src="" class="max-w-full max-h-full object-contain rounded-xl select-none transition-transform duration-300">
+                    <button id="detailFavBtn" class="hidden absolute top-4 left-4 z-40 bg-white/90 dark:bg-black/50 backdrop-blur-md text-gray-400 w-9 h-9 rounded-full flex items-center justify-center shadow-xl hover:bg-brandGold hover:text-white dark:hover:bg-brandGold transition-all active:scale-95 border border-black/5 dark:border-white/10" onclick="toggleFavorite(event, currentProduct?.id).then(()=>updateModalFavBtn())">
+                        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                    </button>
                     <!-- Out of Stock Overlay -->
                     <div id="outOfStockOverlay" class="absolute inset-0 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300 z-30">
                         <div class="bg-black/40 text-white px-5 py-3 rounded-2xl font-black uppercase tracking-widest shadow-2xl flex flex-col items-center border-2 border-brandGold/60">
@@ -656,10 +659,6 @@
                 <div class="space-y-4 md:space-y-6">
                     <div class="flex items-center justify-between">
                         <h2 id="detailTitle" class="text-lg md:text-2xl font-black text-brandBlue dark:text-slate-100 uppercase italic tracking-tighter flex-1"></h2>
-                        <!-- Favorite button next to title -->
-                        <button id="detailFavBtn" class="hidden p-2 rounded-full hover:scale-110 active:scale-95 transition-all text-gray-400" onclick="toggleFavorite(event, currentProduct?.id).then(()=>updateModalFavBtn())">
-                            <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-                        </button>
                     </div>
                     <div class="w-12 h-1 bg-brandGold rounded-full"></div>
                     <p id="detailDesc" class="text-xs md:text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium"></p>
@@ -2751,11 +2750,11 @@
             const enquiryBtn = document.getElementById('enquiryBtn');
             const btnContainer = enquiryBtn.parentElement;
             
-            // Update the fav button next to the title
+            // Update the fav button on the image corner
             const detailFavBtn = document.getElementById('detailFavBtn');
             if (detailFavBtn) {
                 detailFavBtn.classList.remove('hidden');
-                detailFavBtn.className = `p-2 rounded-full hover:scale-110 active:scale-95 transition-all ${isFav ? 'text-red-500' : 'text-gray-400'}`;
+                detailFavBtn.className = `absolute top-4 left-4 z-40 bg-white/90 dark:bg-black/50 backdrop-blur-md w-9 h-9 rounded-full flex items-center justify-center shadow-xl hover:bg-brandGold hover:text-white dark:hover:bg-brandGold transition-all active:scale-95 border border-black/5 dark:border-white/10 ${isFav ? 'text-red-500' : 'text-gray-400'}`;
                 detailFavBtn.id = 'detailFavBtn';
             }
 
