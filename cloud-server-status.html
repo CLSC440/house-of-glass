@@ -93,7 +93,7 @@
         </div>
 
         <!-- Metrics Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8 lg:mb-12">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8 lg:mb-12">
             <!-- CPU Card -->
             <div class="bg-white dark:bg-darkCard p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 relative overflow-hidden">
                 <div class="flex justify-between items-center mb-4 relative z-10">
@@ -132,6 +132,77 @@
                     <div class="bg-rose-500 h-2 rounded-full transition-all duration-500" id="diskBar" style="width: 0%"></div>
                 </div>
             </div>
+
+            <!-- Network Card -->
+            <div class="bg-white dark:bg-darkCard p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-medium text-gray-500 dark:text-gray-400 text-sm">Network Traffic</h3>
+                    <svg class="w-6 h-6 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                </div>
+                <div class="space-y-3 mt-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-500 font-bold flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500"></span> rx (Download)</span>
+                        <span class="font-black text-brandBlue dark:text-white" id="netRx">-- KB/s</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-500 font-bold flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-indigo-500"></span> tx (Upload)</span>
+                        <span class="font-black text-brandBlue dark:text-white" id="netTx">-- KB/s</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Processes Grids -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-8 lg:mb-12" id="extendedMetricsSection" style="display: none;">
+            
+            <!-- CPU Processes -->
+            <div class="bg-white dark:bg-darkCard rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
+                    <h3 class="font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                        🔥 Top CPU Processes
+                    </h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="uppercase tracking-wider text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 text-[10px]">
+                            <tr>
+                                <th class="px-6 py-3">PID</th>
+                                <th class="px-6 py-3">Name</th>
+                                <th class="px-6 py-3">CPU %</th>
+                                <th class="px-6 py-3">RAM %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cpuProcessesBody" class="divide-y divide-gray-100 dark:divide-gray-800">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- RAM Processes -->
+            <div class="bg-white dark:bg-darkCard rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
+                    <h3 class="font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                        🧠 Top RAM Processes
+                    </h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="uppercase tracking-wider text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 text-[10px]">
+                            <tr>
+                                <th class="px-6 py-3">PID</th>
+                                <th class="px-6 py-3">Name</th>
+                                <th class="px-6 py-3">CPU %</th>
+                                <th class="px-6 py-3">RAM %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ramProcessesBody" class="divide-y divide-gray-100 dark:divide-gray-800">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
 
         <!-- Details Section -->
@@ -212,6 +283,52 @@
                 document.getElementById('diskUsage').innerText = used + ' GB / ' + total + ' GB';
                 document.getElementById('diskPercent').innerText = percent + '% used';
                 document.getElementById('diskBar').style.width = percent + '%';
+            }
+
+            // Extended Metrics (Network & Processes)
+            if(data.extended_metrics) {
+                document.getElementById('extendedMetricsSection').style.display = 'grid';
+
+                // Network
+                if(data.extended_metrics.network) {
+                    document.getElementById('netRx').innerText = (data.extended_metrics.network.rx_kbs || 0) + ' KB/s';
+                    document.getElementById('netTx').innerText = (data.extended_metrics.network.tx_kbs || 0) + ' KB/s';
+                }
+
+                // CPU Processes
+                if(data.extended_metrics.top_cpu && Array.isArray(data.extended_metrics.top_cpu)) {
+                    let cpuRows = '';
+                    data.extended_metrics.top_cpu.forEach(proc => {
+                        cpuRows += `
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                                <td class="px-6 py-3 font-mono text-gray-500">${proc.pid}</td>
+                                <td class="px-6 py-3 font-bold text-gray-800 dark:text-gray-200">${proc.name}</td>
+                                <td class="px-6 py-3 text-awsOrange font-bold">${proc.cpu}%</td>
+                                <td class="px-6 py-3 text-gray-500">${proc.ram}%</td>
+                            </tr>
+                        `;
+                    });
+                    document.getElementById('cpuProcessesBody').innerHTML = cpuRows;
+                }
+
+                // RAM Processes
+                if(data.extended_metrics.top_ram && Array.isArray(data.extended_metrics.top_ram)) {
+                    let ramRows = '';
+                    data.extended_metrics.top_ram.forEach(proc => {
+                        ramRows += `
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                                <td class="px-6 py-3 font-mono text-gray-500">${proc.pid}</td>
+                                <td class="px-6 py-3 font-bold text-gray-800 dark:text-gray-200">${proc.name}</td>
+                                <td class="px-6 py-3 text-gray-500">${proc.cpu}%</td>
+                                <td class="px-6 py-3 text-teal-400 font-bold">${proc.ram}%</td>
+                            </tr>
+                        `;
+                    });
+                    document.getElementById('ramProcessesBody').innerHTML = ramRows;
+                }
+            } else {
+                // Hide if not available
+                document.getElementById('extendedMetricsSection').style.display = 'none';
             }
             
             // Raw JSON View
