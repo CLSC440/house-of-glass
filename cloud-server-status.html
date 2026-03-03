@@ -193,6 +193,16 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Latest Synced Data List -->
+                <div id="recentActivitySection" style="display: none;" class="px-6 pb-6 pt-2">
+                    <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-t border-gray-100 dark:border-gray-800 pt-4 flex items-center gap-2">
+                        🔔 Latest Synced Data
+                    </h4>
+                    <div class="space-y-3" id="recentActivityList">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
             </div>
 
             <!-- CPU Processes -->
@@ -335,6 +345,46 @@
                     document.getElementById('dbTotalRows').innerText = syncInfo.total_rows ? syncInfo.total_rows.toLocaleString() : '0';
                     document.getElementById('dbSize').innerText = syncInfo.db_size || '0 MB';
                     document.getElementById('dbLastSync').innerText = syncInfo.last_sync_time || 'No Sync Yet';
+                }
+
+                // Recent Activity (Latest Synced Data)
+                if(data.extended_metrics.recent_activity && Array.isArray(data.extended_metrics.recent_activity) && data.extended_metrics.recent_activity.length > 0) {
+                    document.getElementById('recentActivitySection').style.display = 'block';
+                    let activityHtml = '';
+                    
+                    data.extended_metrics.recent_activity.forEach(act => {
+                        let borderColor = 'border-gray-300 dark:border-gray-600';
+                        let badgeColor = 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300';
+                        
+                        if(act.action_type === 'Invoice') {
+                            borderColor = 'border-teal-500';
+                            badgeColor = 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400';
+                        } else if(act.action_type === 'Cash In') {
+                            borderColor = 'border-green-500';
+                            badgeColor = 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+                        } else {
+                            borderColor = 'border-rose-500';
+                            badgeColor = 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400';
+                        }
+
+                        activityHtml += `
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border-l-4 ${borderColor} transition-all hover:shadow-sm">
+                                <div class="flex items-center gap-3 mb-2 sm:mb-0">
+                                    <span class="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${badgeColor}">
+                                        ${act.action_type}
+                                    </span>
+                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">${act.description}</span>
+                                </div>
+                                <div class="text-xs text-gray-500 font-mono flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    ${act.time}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    document.getElementById('recentActivityList').innerHTML = activityHtml;
+                } else {
+                    document.getElementById('recentActivitySection').style.display = 'none';
                 }
 
                 // Network
