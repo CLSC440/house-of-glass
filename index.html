@@ -3335,19 +3335,23 @@
                         priceColumnsHtml = `<div class="flex flex-col">
                                 <span class="text-[8px] text-gray-400 uppercase font-bold">Pack. Price | سعر العبوة</span>
                                 <span class="text-sm font-black text-green-600">${netLineTotal} EGP</span>
+                                ${v.quantity > 1 ? `<span class="text-[9px] text-gray-400 font-bold whitespace-nowrap">(${v.quantity} &times; ${netPrice.toFixed(2)})</span>` : ''}
                             </div>
                             <span class="text-gray-300 dark:text-gray-600 font-light">|</span>
-                            <div class="flex flex-col">
+                            <div class="flex flex-col items-center">
                                 <span class="text-[8px] text-gray-400 uppercase font-bold">Discount</span>
-                                <span class="text-sm font-black text-red-500">${discount}</span>
+                                <span class="text-sm font-black text-red-500">${discount > 0 ? (discount * v.quantity).toString().match(/^\d+\.\d{3,}/) ? (discount * v.quantity).toFixed(2) : (discount * v.quantity) : 0}</span>
+                                ${v.quantity > 1 ? `<span class="text-[9px] text-gray-400 font-bold whitespace-nowrap">(${v.quantity} &times; ${discount})</span>` : ''}
                             </div>
                             <div class="flex flex-col">
                                 <span class="text-[8px] text-gray-400 uppercase font-bold">Retail</span>
                                 <span class="text-sm font-bold text-gray-500">${lineTotal} EGP</span>
+                                ${v.quantity > 1 ? `<span class="text-[9px] text-gray-400 font-bold whitespace-nowrap">(${v.quantity} &times; ${v.price.toFixed(2)})</span>` : ''}
                             </div>
                             <div class="flex flex-col text-right">
                                 <span class="text-[8px] text-gray-400 uppercase font-bold">Wholesale</span>
                                 <span class="text-sm font-bold text-brandGold">${(wholesale * v.quantity).toFixed(2)} EGP</span>
+                                ${v.quantity > 1 ? `<span class="text-[9px] text-brandGold/70 font-bold whitespace-nowrap">(${v.quantity} &times; ${wholesale.toFixed(2)})</span>` : ''}
                             </div>`;
                     }
 
