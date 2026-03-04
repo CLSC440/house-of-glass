@@ -3160,9 +3160,10 @@
             } else {
                 // Get live price from DC system
                 let itemPrice = 0;
-                if (product.code && window._dcPriceMap) {
-                    const code = String(product.code).trim();
-                    const info = window._dcPriceMap[code];
+                let priceCode = variant && variant.barcode ? String(variant.barcode).trim() : (product.code ? String(product.code).trim() : '');
+                
+                if (priceCode && window._dcPriceMap) {
+                    const info = window._dcPriceMap[priceCode];
                     if (info) {
                         itemPrice = parseFloat(info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || 0);
                     }
@@ -3285,21 +3286,34 @@
                 const isRetailCartUser = (userRole === 'customer');
                 const isWholesaleCartUser = (userRole === 'cst_wholesale');
                 const variantsHtml = group.variants.map(v => {
-                    const lineTotal = (v.price * v.quantity).toFixed(2);
-                    
-                    // Lookup discount from DC
+                    // Lookup discount and live price from DC
                     const prod = products.find(p => p.id === v.productId);
                     let discount = 0;
-                    let netPrice = v.price;
                     let wholesale = 0;
-                    if (prod && prod.code && window._dcPriceMap) {
-                        const info = window._dcPriceMap[String(prod.code).trim()];
+                    
+                    if (prod && window._dcPriceMap) {
+                        let priceCode = '';
+                        let variantMatch = null;
+                        if (v.variantName && prod.variants) {
+                            variantMatch = prod.variants.find(pv => pv.name === v.variantName);
+                        }
+                        priceCode = variantMatch && variantMatch.barcode ? String(variantMatch.barcode).trim() : (prod.code ? String(prod.code).trim() : '');
+
+                        const info = window._dcPriceMap[priceCode];
                         if (info) {
                             discount = parseFloat(info.discount_amount || info.discount || 0);
-                            netPrice = v.price - discount;
+                            const currentRetail = parseFloat(info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || 0);
+                            if (currentRetail > 0 && v.price !== currentRetail) {
+                                v.price = currentRetail;
+                                cart[v.originalIdx].price = currentRetail;
+                                saveCart(); // Auto update cart price if changed
+                            }
                             wholesale = parseFloat(info.wholesale_price || info.wholesalePrice || 0);
                         }
                     }
+
+                    let netPrice = v.price - discount;
+                    const lineTotal = (v.price * v.quantity).toFixed(2);
                     const netLineTotal = (netPrice * v.quantity).toFixed(2);
 
                     // Build price columns based on role
@@ -3387,9 +3401,16 @@
                     retailTotal += item.price * item.quantity;
                     let disc = 0;
                     const prod = products.find(p => p.id === item.productId);
-                    if (prod && prod.code && window._dcPriceMap) {
-                        const info = window._dcPriceMap[String(prod.code).trim()];
-                        if (info) disc = parseFloat(info.discount_amount || info.discount || 0);
+                    if (prod && window._dcPriceMap) {
+                        let priceCode = '';
+                        let variantMatch = null;
+                        if (item.variantName && prod.variants) {
+                            variantMatch = prod.variants.find(pv => pv.name === item.variantName);
+                        }
+                        priceCode = variantMatch && variantMatch.barcode ? String(variantMatch.barcode).trim() : (prod.code ? String(prod.code).trim() : '');
+                        
+                        const info = window._dcPriceMap[priceCode];
+                        if (info) disc = Math.max(0, parseFloat(info.discount_amount || info.discount || 0));
                     }
                     netTotal += (item.price - disc) * item.quantity;
                 });
@@ -3447,9 +3468,10 @@
                 window.showToast(`Quantity updated to ${existingItem.quantity} in wholesale order!`, "success");
             } else {
                 let itemPrice = 0;
-                if (product.code && window._dcPriceMap) {
-                    const code = String(product.code).trim();
-                    const info = window._dcPriceMap[code];
+                let priceCode = variant && variant.barcode ? String(variant.barcode).trim() : (product.code ? String(product.code).trim() : '');
+                
+                if (priceCode && window._dcPriceMap) {
+                    const info = window._dcPriceMap[priceCode];
                     if (info) {
                         itemPrice = parseFloat(info.wholesale_price || info.wholesalePrice || 0);
                     }
@@ -3557,6 +3579,27 @@
                 div.className = 'bg-brandGold/5 dark:bg-brandGold/10 p-4 rounded-xl border border-brandGold/20';
 
                 const variantsHtml = group.variants.map(v => {
+                    // Update live price from DC system for wholesale
+                    const prod = products.find(p => p.id === v.productId);
+                    if (prod && window._dcPriceMap) {
+                        let priceCode = '';
+                        let variantMatch = null;
+                        if (v.variantName && prod.variants) {
+                            variantMatch = prod.variants.find(pv => pv.name === v.variantName);
+                        }
+                        priceCode = variantMatch && variantMatch.barcode ? String(variantMatch.barcode).trim() : (prod.code ? String(prod.code).trim() : '');
+
+                        const info = window._dcPriceMap[priceCode];
+                        if (info) {
+                            const currentWholesale = parseFloat(info.wholesale_price || info.wholesalePrice || 0);
+                            if (currentWholesale > 0 && v.price !== currentWholesale) {
+                                v.price = currentWholesale;
+                                wholesaleCart[v.originalIdx].price = currentWholesale;
+                                saveWholesaleCart(); // Auto update cart price if changed
+                            }
+                        }
+                    }
+
                     const lineTotal = (v.price * v.quantity).toFixed(2);
                     return `
                     <div class="mt-3 pl-2 border-l-2 border-brandGold/30">
