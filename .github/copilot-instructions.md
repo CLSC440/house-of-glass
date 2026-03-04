@@ -15,3 +15,4 @@ This project is a static gallery website.
 - The gallery is accessible at `http://localhost:8000`.
 - The main file is `index.html`.
 - Styled with Tailwind CSS (CDN).
+

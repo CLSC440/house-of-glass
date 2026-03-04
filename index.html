@@ -2553,11 +2553,11 @@
                 }
             }
 
-            // Show/hide retail Add to Cart button (for CST. Retail AND CST. Wholesale)
+            // Show/hide retail Add to Cart button (for CST. Retail, CST. Wholesale, Admin, Moderator)
             const retailCartBtn = document.getElementById('detailRetailCartBtn');
             const retailCartOrderBtn = document.getElementById('retailCartOrderBtn');
             if (retailCartBtn) {
-                if ((isRetailUser || isWholesaleUser) && hasPriceData) {
+                if ((isRetailUser || isWholesaleUser || userRole === 'admin' || userRole === 'moderator') && hasPriceData) {
                     retailCartBtn.classList.remove('hidden');
                     const qtyInput = document.getElementById('retailQtyInput');
                     if (qtyInput) qtyInput.value = 1;
