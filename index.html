@@ -2361,6 +2361,27 @@
             card.className = 'reveal cursor-pointer group bg-white dark:bg-darkCard/80 backdrop-blur-md rounded-xl md:rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden transition-all duration-700 border border-transparent dark:border-gray-800 hover:border-gray-200';
             card.style.transitionDelay = `${idx * 50}ms`;
             card.onclick = () => showDetails(p.id);
+
+            // Auto image cycle for products that have variants
+            let hasVariants = p.variants && p.variants.length > 0;
+            // Or if you only want to rely on multiple images representing variants, you can also check p.images.length
+            if (hasVariants && p.images && p.images.length > 1) {
+                let currImgIdx = 0;
+                // Start cycling automatically after a short random delay so they don't all flip at the exact same millisecond
+                setTimeout(() => {
+                    setInterval(() => {
+                        const imgEl = card.querySelector('.product-card-img');
+                        if(!imgEl) return;
+                        currImgIdx = (currImgIdx + 1) % p.images.length;
+                        imgEl.style.opacity = '0.7';
+                        setTimeout(() => {
+                            imgEl.src = p.images[currImgIdx];
+                            imgEl.style.opacity = '1';
+                        }, 150);
+                    }, 2000 + Math.random() * 1000); // changes every 2-3 seconds
+                }, 500);
+            }
+
             card.innerHTML = `
                 <div class="overflow-hidden h-44 md:h-72 relative bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center">
                     <img src="${p.images[0] || 'https://via.placeholder.com/800x600?text=No+Image'}" class="product-card-img w-full h-full object-contain p-6 group-hover:scale-110 transition-all duration-500">
