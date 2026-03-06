@@ -627,7 +627,7 @@
     <!-- PRODUCT DETAIL MODAL -->
     <div id="detailModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-[100]">
         <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-80" onclick="closeDetails()"></div>
-        <div class="modal-container bg-white dark:bg-darkCard w-[92%] md:max-w-4xl mx-auto rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col md:flex-row max-h-[96vh] md:max-h-[80vh] transition-all duration-300 transform relative">
+        <div class="modal-container bg-white dark:bg-darkCard w-[92%] md:max-w-4xl mx-auto rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col md:flex-row max-h-[90vh] md:max-h-[80vh] transition-all duration-300 transform relative">
             <!-- Global close button for the card -->
             <button onclick="closeDetails()" class="absolute top-3 right-3 md:top-5 md:right-5 z-[70] bg-white/90 dark:bg-black/50 backdrop-blur-md text-gray-800 dark:text-white w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center shadow-xl hover:bg-brandGold hover:text-white dark:hover:bg-brandGold transition-all active:scale-95 border border-black/5 dark:border-white/10">
                 <svg class="w-5 h-5 md:w-6 md:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -635,7 +635,7 @@
 
             <!-- Image Section -->
             <div class="w-full md:w-1/2 bg-gray-100 dark:bg-gray-800 relative group overflow-hidden">
-                <div id="swipeArea" class="flex items-center justify-center p-4 md:p-24 touch-pan-y h-[45vh] md:h-full relative">
+                <div id="swipeArea" class="flex items-center justify-center p-8 md:p-24 touch-pan-y h-[55vh] md:h-full relative">
                     <img id="mainDetailImg" src="" class="max-w-full max-h-full object-contain rounded-xl select-none transition-transform duration-300">
                     <button id="detailFavBtn" class="hidden absolute top-4 left-4 z-40 bg-white/90 dark:bg-black/50 backdrop-blur-md text-gray-400 w-9 h-9 rounded-full flex items-center justify-center shadow-xl hover:bg-brandGold hover:text-white dark:hover:bg-brandGold transition-all active:scale-95 border border-black/5 dark:border-white/10" onclick="toggleFavorite(event, currentProduct?.id).then(()=>updateModalFavBtn())">
                         <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
@@ -655,7 +655,7 @@
             </div>
 
             <!-- Content Section -->
-            <div class="w-full md:w-1/2 p-5 md:p-8 flex flex-col justify-between overflow-y-auto">
+            <div class="w-full md:w-1/2 p-5 md:p-8 flex flex-col justify-between overflow-y-auto max-h-[35vh] md:max-h-none">
                 <div class="space-y-4 md:space-y-6">
                     <div class="flex items-center justify-between">
                         <h2 id="detailTitle" class="text-lg md:text-2xl font-black text-brandBlue dark:text-slate-100 uppercase italic tracking-tighter flex-1"></h2>
