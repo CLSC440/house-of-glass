@@ -2392,15 +2392,16 @@
                             // Dynamically update price based on variant code
                             if (priceEl && vCode) {
                                 priceEl.dataset.code = String(vCode).trim();
-                                if(window.getDcPriceMap) {
-                                    try {
-                                        const priceMap = await window.getDcPriceMap();
-                                        const info = priceMap[String(vCode).trim()];
-                                        if (info) {
-                                            const price = info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || info.salePrice || 0;
-                                            priceEl.innerText = `${price} EGP`;
-                                        }
-                                    } catch(e) {}
+                                try {
+                                    // Use getDcPriceMap directly since it's in the same script block
+                                    const priceMap = await getDcPriceMap();
+                                    const info = priceMap[String(vCode).trim()];
+                                    if (info) {
+                                        const price = info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || info.salePrice || 0;
+                                        priceEl.innerText = `${price} EGP`;
+                                    }
+                                } catch(e) {
+                                    console.error("Error updating variant price:", e);
                                 }
                             }
                         }, 150);
