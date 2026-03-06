@@ -2362,25 +2362,54 @@
             card.style.transitionDelay = `${idx * 50}ms`;
             card.onclick = () => showDetails(p.id);
 
-            // Auto image cycle for products that have variants
-            let hasVariants = p.variants && p.variants.length > 0;
-            // Or if you only want to rely on multiple images representing variants, you can also check p.images.length
-            if (hasVariants && p.images && p.images.length > 1) {
-                let currImgIdx = 0;
-                // Start cycling automatically after a short random delay so they don't all flip at the exact same millisecond
+            // Auto cycle for products that have variants (cycle thru first image of each variant AND update price)
+            let hasVariants = p.variants && p.variants.length > 1;
+            if (hasVariants) {
+                let currVariantIdx = 0;
+                // Start cycling automatically after a short random delay
                 setTimeout(() => {
-                    setInterval(() => {
+                    setInterval(async () => {
                         const imgEl = card.querySelector('.product-card-img');
+                        const priceEl = card.querySelector('.dc-price');
                         if(!imgEl) return;
-                        currImgIdx = (currImgIdx + 1) % p.images.length;
+                        
+                        currVariantIdx = (currVariantIdx + 1) % p.variants.length;
+                        const v = p.variants[currVariantIdx];
+                        
+                        // Extract variant's specific image (first one)
+                        let vImg = p.images[0];
+                        if (v.images && v.images.length > 0) vImg = v.images[0];
+                        else if (v.image) vImg = v.image;
+
+                        // Identify variant code for pricing
+                        const vCode = v.barcode || v.code || p.code || '';
+
                         imgEl.style.opacity = '0.7';
-                        setTimeout(() => {
-                            imgEl.src = p.images[currImgIdx];
+                        setTimeout(async () => {
+                            imgEl.src = vImg || 'https://via.placeholder.com/800x600?text=No+Image';
                             imgEl.style.opacity = '1';
+                            
+                            // Dynamically update price based on variant code
+                            if (priceEl && vCode) {
+                                priceEl.dataset.code = String(vCode).trim();
+                                if(window.getDcPriceMap) {
+                                    try {
+                                        const priceMap = await window.getDcPriceMap();
+                                        const info = priceMap[String(vCode).trim()];
+                                        if (info) {
+                                            const price = info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || info.salePrice || 0;
+                                            priceEl.innerText = `${price} EGP`;
+                                        }
+                                    } catch(e) {}
+                                }
+                            }
                         }, 150);
-                    }, 2000 + Math.random() * 1000); // changes every 2-3 seconds
+                    }, 3000 + Math.random() * 1500); // changes every 3-4.5 seconds
                 }, 500);
             }
+
+            // Determine initial code for the price tag
+            const initialCode = p.code || (p.variants && p.variants.length > 0 ? (p.variants[0].barcode || p.variants[0].code) : null);
 
             card.innerHTML = `
                 <div class="overflow-hidden h-44 md:h-72 relative bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center">
@@ -2415,7 +2444,7 @@
                     </div>
                     <div class="flex justify-between items-center mt-2">
                         <p class="text-brandGold/80 dark:text-brandGold/60 text-[10px] md:text-xs font-bold italic tracking-wide">View masterpiece <span class="group-hover:translate-x-1 inline-block transition-transform">→</span></p>
-                        ${p.code ? `<span class="dc-price text-xs font-black text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded" data-code="${p.code}">...</span>` : ''}
+                        ${initialCode ? `<span class="dc-price text-xs font-black text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded" data-code="${initialCode}">...</span>` : ''}
                     </div>
                 </div>
             `;
