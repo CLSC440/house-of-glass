@@ -2599,11 +2599,16 @@
                         let disc = parseFloat(info.discount_amount || info.discount || 0);
                         let wholesale = parseFloat(info.wholesale_price || info.wholesalePrice || 0);
 
+                        let retailIncreased = retail;
+                        let wholesaleIncreased = wholesale;
+                        if (globalPriceIncrease > 0) {
+                            retailIncreased = retail * (1 + (globalPriceIncrease / 100));
+                            wholesaleIncreased = wholesale * (1 + (globalPriceIncrease / 100));
+                        }
+
                         if (globalPriceIncrease > 0 && userRole !== 'cst_wholesale') {
-                            retail = retail * (1 + (globalPriceIncrease / 100));
-                            wholesale = wholesale * (1 + (globalPriceIncrease / 100));
-                            // Optional: If you want discount to also scale, but usually discounts are fixed amounts.
-                            // We'll keep disc as it is, or you can scale it too if needed.
+                            retail = retailIncreased;
+                            wholesale = wholesaleIncreased;
                         }
 
                         const pVal = retail || 0;
@@ -2618,24 +2623,37 @@
                         document.getElementById('detailWholesalePrice').parentElement.style.display = isRetailUser ? 'none' : '';
                         document.getElementById('detailRetailPriceWrap').style.display = isWholesaleUser ? 'none' : '';
 
-                        // Hide the separator pipe for retail & wholesale
-                        const priceSeparators = priceSection.querySelectorAll('span.text-gray-300');
-                        priceSeparators.forEach(sep => sep.style.display = (isRetailUser || isWholesaleUser) ? 'none' : '');
-
-                        // For CST. Retail: show retail price in green, no line-through
-                        const retailPriceEl = document.getElementById('detailRetailPrice');
-                        if (isRetailUser) {
-                            retailPriceEl.className = 'text-lg font-black text-green-600';
-                            document.getElementById('detailRetailPriceWrap').querySelector('span:first-child').innerHTML = 'Price<br>السعر';
+                        // Special rendering for Admin to show Price Increase info
+                        if (userRole === 'admin' || userRole === 'moderator') {
+                            const retailWrap = document.getElementById('detailRetailPriceWrap');
+                            const label = retailWrap.querySelector('span:first-child');
+                            if (globalPriceIncrease > 0) {
+                                label.innerHTML = `Retail (+${globalPriceIncrease}%)<br>العبوة`;
+                                document.getElementById('detailRetailPrice').innerHTML = `<span class="text-[10px] text-gray-500 line-through mr-1">${(retailIncreased / (1 + (globalPriceIncrease/100))).toFixed(2)}</span> ${retailIncreased.toFixed(2)} EGP`;
+                                
+                                const wholesaleEl = document.getElementById('detailWholesalePrice');
+                                wholesaleEl.innerHTML = `<span class="text-[10px] text-gray-400 line-through mr-1">${(wholesaleIncreased / (1 + (globalPriceIncrease/100))).toFixed(2)}</span> ${wholesaleIncreased.toFixed(2)} EGP`;
+                            } else {
+                                label.innerHTML = `Retail<br>العبوة`;
+                                document.getElementById('detailRetailPrice').innerText = retail.toFixed(2) + ' EGP';
+                                document.getElementById('detailWholesalePrice').innerText = wholesale.toFixed(2) + ' EGP';
+                            }
                         } else {
-                            retailPriceEl.className = 'text-sm font-bold text-gray-400 line-through';
-                            document.getElementById('detailRetailPriceWrap').querySelector('span:first-child').innerHTML = 'Retail<br>العبوة';
+                            // Standard rendering for other roles
+                            const retailPriceEl = document.getElementById('detailRetailPrice');
+                            if (isRetailUser) {
+                                retailPriceEl.className = 'text-lg font-black text-green-600';
+                                document.getElementById('detailRetailPriceWrap').querySelector('span:first-child').innerHTML = 'Price<br>السعر';
+                            } else {
+                                retailPriceEl.className = 'text-sm font-bold text-gray-400 line-through';
+                                document.getElementById('detailRetailPriceWrap').querySelector('span:first-child').innerHTML = 'Retail<br>العبوة';
+                            }
+                            document.getElementById('detailRetailPrice').innerText = retail.toFixed(2) + ' EGP';
+                            document.getElementById('detailWholesalePrice').innerText = wholesale.toFixed(2) + ' EGP';
                         }
 
                         document.getElementById('detailNetPrice').innerText = net + ' EGP';
                         document.getElementById('detailDiscount').innerText = dVal.toFixed(2);
-                        document.getElementById('detailRetailPrice').innerText = retail.toFixed(2) + ' EGP';
-                        document.getElementById('detailWholesalePrice').innerText = wholesale.toFixed(2) + ' EGP';
                         if (priceSection) priceSection.classList.remove('hidden');
                         hasPriceData = true;
                     }
