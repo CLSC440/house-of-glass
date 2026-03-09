@@ -676,6 +676,11 @@
                         <p class="text-[10px] text-gray-400 mb-1">Include country code (e.g., 201234567890)</p>
                         <input type="text" id="waPhoneInput" placeholder="2010XXXXXXXX" class="w-full border dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded p-2 text-sm outline-none focus:ring-brandGold">
                     </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Global Price Increase (%)</label>
+                        <p class="text-[10px] text-gray-400 mb-1">Add percentage to all prices (e.g., 10 for +10%)</p>
+                        <input type="number" id="priceIncreaseInput" placeholder="0" class="w-full border dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded p-2 text-sm outline-none focus:ring-brandGold">
+                    </div>
 
                     <!-- Migration Tool -->
                     <div class="pt-4 border-t dark:border-gray-700">
@@ -1910,6 +1915,7 @@
         // Settings
         window.openSettingsModal = () => {
             document.getElementById('waPhoneInput').value = siteSettings.whatsapp || '';
+            document.getElementById('priceIncreaseInput').value = siteSettings.priceIncrease || 0;
             document.getElementById('callPhoneInput').value = siteSettings.phone || '';
             document.getElementById('fbLinkInput').value = siteSettings.facebook || '';
             document.getElementById('waChannelInput').value = siteSettings.whatsappChannel || '';
@@ -1954,6 +1960,7 @@
         window.saveSettings = async () => {
             const data = {
                 whatsapp: document.getElementById('waPhoneInput').value,
+                priceIncrease: parseFloat(document.getElementById('priceIncreaseInput').value) || 0,
                 phone: document.getElementById('callPhoneInput').value,
                 facebook: document.getElementById('fbLinkInput').value,
                 whatsappChannel: document.getElementById('waChannelInput').value,

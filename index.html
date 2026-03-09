@@ -1132,6 +1132,7 @@
         let searchQuery = '';
         let whatsappNumber = '201026600350';
         let sitePhones = [];
+        let globalPriceIncrease = 0;
         let currentUser = null;
         let userFavorites = [];
         let userRole = 'customer';
@@ -1972,7 +1973,8 @@
                         const info = priceMap[code];
                         // Support multiple price field names:
                         // 'retail_price' (from JSON screenshot), 'sectorSalesPrice', 'sellingPrice'
-                        const price = info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || info.salePrice || 0;
+                        let price = info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || info.salePrice || 0;
+                        if (globalPriceIncrease > 0) price = price * (1 + (globalPriceIncrease / 100));
                         
                         // Stock might not be in the public feed, check multiple keys
                         const stock = info.stock || info.qty || info.quantity || 1; 
@@ -2016,6 +2018,7 @@
                 onSnapshot(doc(db, "settings", "contact"), (docSnap) => {
                     if (docSnap.exists()) {
                         whatsappNumber = docSnap.data().whatsapp || '201026600350';
+                        globalPriceIncrease = parseFloat(docSnap.data().priceIncrease || 0);
                         const fb = docSnap.data().facebook || '#';
                         const maps = docSnap.data().maps || '#';
                         const waChannel = docSnap.data().whatsappChannel || '#';
@@ -2408,8 +2411,9 @@
                                     const priceMap = await getDcPriceMap();
                                     const info = priceMap[String(vCode).trim()];
                                     if (info) {
-                                        const price = info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || info.salePrice || 0;
-                                        priceEl.innerText = `${price} EGP`;
+                                        let price = info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || info.salePrice || 0;
+                                        if (globalPriceIncrease > 0) price = price * (1 + (globalPriceIncrease / 100));
+                                        priceEl.innerText = `${price.toFixed(2)} EGP`;
                                     }
                                 } catch(e) {
                                     console.error("Error updating variant price:", e);
@@ -3369,13 +3373,17 @@
                         const info = window._dcPriceMap[priceCode];
                         if (info) {
                             discount = parseFloat(info.discount_amount || info.discount || 0);
-                            const currentRetail = parseFloat(info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || 0);
+                            let currentRetail = parseFloat(info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || 0);
+                            if (globalPriceIncrease > 0) currentRetail = currentRetail * (1 + (globalPriceIncrease / 100));
+                            
                             if (currentRetail > 0 && v.price !== currentRetail) {
                                 v.price = currentRetail;
                                 cart[v.originalIdx].price = currentRetail;
                                 saveCart(); // Auto update cart price if changed
                             }
-                            wholesale = parseFloat(info.wholesale_price || info.wholesalePrice || 0);
+                            let currentWholesale = parseFloat(info.wholesale_price || info.wholesalePrice || 0);
+                            if (globalPriceIncrease > 0) currentWholesale = currentWholesale * (1 + (globalPriceIncrease / 100));
+                            wholesale = currentWholesale;
                         }
                     }
 
