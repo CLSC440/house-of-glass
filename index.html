@@ -2627,12 +2627,13 @@
                         if (userRole === 'admin' || userRole === 'moderator') {
                             const retailWrap = document.getElementById('detailRetailPriceWrap');
                             const label = retailWrap.querySelector('span:first-child');
+                            document.getElementById('detailRetailPrice').className = 'text-sm font-bold text-gray-400';
                             if (globalPriceIncrease > 0) {
                                 label.innerHTML = `Retail (+${globalPriceIncrease}%)<br>العبوة`;
-                                document.getElementById('detailRetailPrice').innerHTML = `<span class="text-[10px] text-gray-500 mr-1" style="text-decoration: line-through;">${(retailIncreased / (1 + (globalPriceIncrease/100))).toFixed(2)}</span> ${retailIncreased.toFixed(2)} EGP`;
+                                document.getElementById('detailRetailPrice').innerHTML = `<span class="text-[10px] text-gray-500 line-through mr-1">${(retailIncreased / (1 + (globalPriceIncrease/100))).toFixed(2)}</span> ${retailIncreased.toFixed(2)} EGP`;
                                 
                                 const wholesaleEl = document.getElementById('detailWholesalePrice');
-                                wholesaleEl.innerHTML = `<span class="text-[10px] text-gray-400 mr-1" style="text-decoration: line-through;">${(wholesaleIncreased / (1 + (globalPriceIncrease/100))).toFixed(2)}</span> ${wholesaleIncreased.toFixed(2)} EGP`;
+                                wholesaleEl.innerHTML = `<span class="text-[10px] text-gray-400 line-through mr-1">${(wholesaleIncreased / (1 + (globalPriceIncrease/100))).toFixed(2)}</span> ${wholesaleIncreased.toFixed(2)} EGP`;
                             } else {
                                 label.innerHTML = `Retail<br>العبوة`;
                                 document.getElementById('detailRetailPrice').innerText = retail.toFixed(2) + ' EGP';
