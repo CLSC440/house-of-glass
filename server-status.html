@@ -129,8 +129,11 @@
                     <h3 class="font-medium text-gray-500 dark:text-gray-400 text-sm">Disk Storage</h3>
                     <svg class="w-6 h-6 text-brandGold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
                 </div>
-                <div class="text-3xl font-black text-brandBlue dark:text-white" id="diskUsage">-- GB</div>
-                <p class="text-xs text-gray-400 mt-2" id="diskPercent">Free Space</p>
+                <div class="text-3xl font-black text-brandBlue dark:text-white" id="diskUsage">-- / --</div>
+                <p class="text-xs text-gray-400 mt-2" id="diskPercent">--% used</p>
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-2">
+                    <div class="bg-brandBlue dark:bg-brandGold h-2 rounded-full transition-all duration-500" id="diskBar" style="width: 0%"></div>
+                </div>
             </div>
 
             <!-- Uptime Card -->
@@ -207,9 +210,11 @@
                 document.getElementById('ramBar').style.width = data.ram.percent + '%';
             }
             
-            // data.disk = { free: "120GB" }
+            // data.disk = { used: "255GB", total: "500GB", percent: 51 }
             if(data.disk !== undefined) {
-                document.getElementById('diskUsage').innerText = data.disk.free;
+                document.getElementById('diskUsage').innerText = data.disk.used + ' / ' + data.disk.total;
+                document.getElementById('diskPercent').innerText = data.disk.percent + '% used';
+                document.getElementById('diskBar').style.width = data.disk.percent + '%';
             }
             
             // data.uptime = "14d 5h 20m"
@@ -223,20 +228,45 @@
             document.getElementById('lastUpdatedText').innerText = "Last updated: " + new Date().toLocaleTimeString();
         }
 
+        // Store page load time for uptime calculation
+        const pageLoadTime = Date.now();
+
+        function getLocalUptime() {
+            const now = Date.now();
+            const diff = now - pageLoadTime;
+            
+            const seconds = Math.floor(diff / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            const days = Math.floor(hours / 24);
+            
+            if (days > 0) {
+                return `${days} Days, ${hours % 24} Hours`;
+            } else if (hours > 0) {
+                return `${hours} Hours, ${minutes % 60} Mins`;
+            } else if (minutes > 0) {
+                return `${minutes} Minutes`;
+            } else {
+                return `${seconds} Seconds`;
+            }
+        }
+
         function mockFetchAndRender() {
             // This is just a simulation so the UI looks nice until you add your real API.
             const mockData = {
                 status: "Operational",
-                cpu: Math.floor(Math.random() * 30) + 10, // 10-40%
+                cpu: Math.floor(Math.random() * 30) + 15, // 15-45%
                 ram: {
-                    used: (Math.random() * 2 + 2).toFixed(1) + "GB",
+                    used: "2.6GB",
                     total: "8GB",
-                    percent: Math.floor(Math.random() * 40) + 30
+                    percent: 33
                 },
                 disk: {
-                    free: "245GB"
+                    used: "255GB",
+                    total: "500GB",
+                    percent: 51
                 },
-                uptime: "30 Days, 5 Hours",
+                uptime: getLocalUptime(),
                 servers: [
                     { name: "Database", status: "Healthy", ping: "15ms" },
                     { name: "Storage Box", status: "Healthy", ping: "22ms" },
