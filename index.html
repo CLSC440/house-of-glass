@@ -1974,7 +1974,7 @@
                         // Support multiple price field names:
                         // 'retail_price' (from JSON screenshot), 'sectorSalesPrice', 'sellingPrice'
                         let price = info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || info.salePrice || 0;
-                        if (globalPriceIncrease > 0) price = price * (1 + (globalPriceIncrease / 100));
+                        if (globalPriceIncrease > 0 && userRole !== 'cst_wholesale') price = price * (1 + (globalPriceIncrease / 100));
                         
                         // Stock might not be in the public feed, check multiple keys
                         const stock = info.stock || info.qty || info.quantity || 1; 
@@ -2410,10 +2410,9 @@
                                 try {
                                     // Use getDcPriceMap directly since it's in the same script block
                                     const priceMap = await getDcPriceMap();
-                                    const info = priceMap[String(vCode).trim()];
                                     if (info) {
                                         let price = info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || info.salePrice || 0;
-                                        if (globalPriceIncrease > 0) price = price * (1 + (globalPriceIncrease / 100));
+                                        if (globalPriceIncrease > 0 && userRole !== 'cst_wholesale') price = price * (1 + (globalPriceIncrease / 100));
                                         priceEl.innerText = `${price.toFixed(2)} EGP`;
                                     }
                                 } catch(e) {
@@ -2588,7 +2587,7 @@
                         let disc = parseFloat(info.discount_amount || info.discount || 0);
                         let wholesale = parseFloat(info.wholesale_price || info.wholesalePrice || 0);
 
-                        if (globalPriceIncrease > 0) {
+                        if (globalPriceIncrease > 0 && userRole !== 'cst_wholesale') {
                             retail = retail * (1 + (globalPriceIncrease / 100));
                             wholesale = wholesale * (1 + (globalPriceIncrease / 100));
                             // Optional: If you want discount to also scale, but usually discounts are fixed amounts.
@@ -3383,7 +3382,7 @@
                         if (info) {
                             discount = parseFloat(info.discount_amount || info.discount || 0);
                             let currentRetail = parseFloat(info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || 0);
-                            if (globalPriceIncrease > 0) currentRetail = currentRetail * (1 + (globalPriceIncrease / 100));
+                            if (globalPriceIncrease > 0 && userRole !== 'cst_wholesale') currentRetail = currentRetail * (1 + (globalPriceIncrease / 100));
                             
                             if (currentRetail > 0 && v.price !== currentRetail) {
                                 v.price = currentRetail;
@@ -3391,7 +3390,7 @@
                                 saveCart(); // Auto update cart price if changed
                             }
                             let currentWholesale = parseFloat(info.wholesale_price || info.wholesalePrice || 0);
-                            if (globalPriceIncrease > 0) currentWholesale = currentWholesale * (1 + (globalPriceIncrease / 100));
+                            if (globalPriceIncrease > 0 && userRole !== 'cst_wholesale') currentWholesale = currentWholesale * (1 + (globalPriceIncrease / 100));
                             wholesale = currentWholesale;
                         }
                     }
