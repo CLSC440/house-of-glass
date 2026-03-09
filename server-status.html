@@ -217,8 +217,11 @@
                 document.getElementById('diskBar').style.width = data.disk.percent + '%';
             }
             
-            // data.uptime = "14d 5h 20m"
-            if(data.uptime !== undefined) {
+            // Start live uptime counter based on server's boot uptime_seconds
+            if(data.uptime_seconds !== undefined) {
+                startLiveUptime(data.uptime_seconds);
+            } else if (data.uptime !== undefined) {
+                // Fallback if API hasn't been updated yet
                 document.getElementById('uptime').innerText = data.uptime;
             }
 
@@ -226,6 +229,38 @@
 
             // Update timestamp
             document.getElementById('lastUpdatedText').innerText = "Last updated: " + new Date().toLocaleTimeString();
+        }
+
+        let uptimeInterval = null;
+        
+        function startLiveUptime(initialSeconds) {
+            if (uptimeInterval) clearInterval(uptimeInterval);
+            
+            let currentSeconds = Math.floor(initialSeconds);
+            
+            function updateDisplay() {
+                const days = Math.floor(currentSeconds / 86400);
+                const hours = Math.floor((currentSeconds % 86400) / 3600);
+                const mins = Math.floor((currentSeconds % 3600) / 60);
+                const secs = currentSeconds % 60;
+                
+                let timeStr = "";
+                if (days > 0) {
+                    timeStr = `${days}d ${hours}h ${mins}m ${secs}s`;
+                } else if (hours > 0) {
+                    timeStr = `${hours}h ${mins}m ${secs}s`;
+                } else {
+                    timeStr = `${mins}m ${secs}s`;
+                }
+                
+                document.getElementById('uptime').innerText = timeStr;
+            }
+            
+            updateDisplay(); // update immediately
+            uptimeInterval = setInterval(() => {
+                currentSeconds++;
+                updateDisplay();
+            }, 1000);
         }
 
         // Store page load time for uptime calculation
