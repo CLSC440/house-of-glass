@@ -2081,6 +2081,7 @@
                         return timeB - timeA;
                     });
                     renderProducts();
+                    if(window.fetchLivePricing) setTimeout(window.fetchLivePricing, 300);
                 });
 
             } catch (error) {
