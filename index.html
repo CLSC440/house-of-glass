@@ -1974,6 +1974,13 @@
                         // Support multiple price field names:
                         // 'retail_price' (from JSON screenshot), 'sectorSalesPrice', 'sellingPrice'
                         let price = info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || info.salePrice || 0;
+                        
+                        // Fix for CST Wholesale: Show net price (retail - discount) instead of retail on cards
+                        if (userRole === 'cst_wholesale') {
+                            const disc = parseFloat(info.discount_amount || info.discount || 0);
+                            price = price - disc;
+                        }
+
                         if (globalPriceIncrease > 0 && userRole !== 'cst_wholesale') price = price * (1 + (globalPriceIncrease / 100));
                         
                         // Stock might not be in the public feed, check multiple keys
@@ -2410,8 +2417,13 @@
                                 try {
                                     // Use getDcPriceMap directly since it's in the same script block
                                     const priceMap = await getDcPriceMap();
+                                    const info = priceMap[String(vCode).trim()];
                                     if (info) {
                                         let price = info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || info.salePrice || 0;
+                                        if (userRole === 'cst_wholesale') {
+                                            const disc = parseFloat(info.discount_amount || info.discount || 0);
+                                            price = price - disc;
+                                        }
                                         if (globalPriceIncrease > 0 && userRole !== 'cst_wholesale') price = price * (1 + (globalPriceIncrease / 100));
                                         priceEl.innerText = `${price.toFixed(2)} EGP`;
                                     }
