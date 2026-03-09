@@ -2584,11 +2584,19 @@
                     const priceMap = window._dcPriceMap || await getDcPriceMap();
                     const info = priceMap[priceCode];
                     if (info) {
-                        const retail = info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || 0;
-                        const disc = info.discount_amount || info.discount || 0;
-                        const wholesale = info.wholesale_price || info.wholesalePrice || 0;
-                        const pVal = parseFloat(retail) || 0;
-                        const dVal = parseFloat(disc) || 0;
+                        let retail = parseFloat(info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || 0);
+                        let disc = parseFloat(info.discount_amount || info.discount || 0);
+                        let wholesale = parseFloat(info.wholesale_price || info.wholesalePrice || 0);
+
+                        if (globalPriceIncrease > 0) {
+                            retail = retail * (1 + (globalPriceIncrease / 100));
+                            wholesale = wholesale * (1 + (globalPriceIncrease / 100));
+                            // Optional: If you want discount to also scale, but usually discounts are fixed amounts.
+                            // We'll keep disc as it is, or you can scale it too if needed.
+                        }
+
+                        const pVal = retail || 0;
+                        const dVal = disc || 0;
                         const net = (pVal - dVal).toFixed(2);
 
                         // CST. Retail: hide Net, Discount, Wholesale -> show only Retail (as "Price")
@@ -2614,9 +2622,9 @@
                         }
 
                         document.getElementById('detailNetPrice').innerText = net + ' EGP';
-                        document.getElementById('detailDiscount').innerText = disc;
-                        document.getElementById('detailRetailPrice').innerText = retail + ' EGP';
-                        document.getElementById('detailWholesalePrice').innerText = wholesale + ' EGP';
+                        document.getElementById('detailDiscount').innerText = dVal.toFixed(2);
+                        document.getElementById('detailRetailPrice').innerText = retail.toFixed(2) + ' EGP';
+                        document.getElementById('detailWholesalePrice').innerText = wholesale.toFixed(2) + ' EGP';
                         if (priceSection) priceSection.classList.remove('hidden');
                         hasPriceData = true;
                     }
