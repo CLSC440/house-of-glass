@@ -121,3 +121,139 @@ We have updated the Admin Dashboard (`admin.html`) to enforce:
 *   **Unique** check (prevents duplicate codes).
 
 This ensures the `code` acts as a reliable Primary Key between both systems.
+
+## 6. n8n Integration With Local WhatsApp API
+
+You now have a working self-hosted WhatsApp API behind this public base URL:
+
+- `https://whapp.hg-alshour.online`
+
+### A. Recommended Workflow Shape
+
+Build the n8n workflow in this order:
+
+1. `Schedule Trigger`
+2. `Google Firebase Cloud Firestore`
+3. `Code` (JavaScript)
+4. `HTTP Request`
+
+### B. Firestore Node Setup
+
+Use the Firestore node with these settings:
+
+- **Resource:** `Document`
+- **Operation:** `Get Many`
+- **Collection:** `products`
+
+This returns the product list from Firebase.
+
+### C. Code Node To Pick A Product
+
+Set the `Code` node language to `JavaScript`, then use:
+
+```javascript
+const products = $input.all();
+
+if (!products.length) {
+  throw new Error('No products found in Firestore');
+}
+
+const randomItem = products[Math.floor(Math.random() * products.length)];
+const product = randomItem.json;
+
+const productName = product.name || 'Unnamed Product';
+const productCode = product.code || 'N/A';
+const imageUrl = Array.isArray(product.images) && product.images.length
+  ? product.images[0]
+  : '';
+
+const message = [
+  '✨ منتج جديد من House Of Glass',
+  '',
+  `الاسم: ${productName}`,
+  `الكود: ${productCode}`,
+  product.category ? `القسم: ${product.category}` : null,
+  product.desc ? `الوصف: ${product.desc}` : null,
+].filter(Boolean).join('\n');
+
+return [{
+  json: {
+    productName,
+    productCode,
+    imageUrl,
+    message
+  }
+}];
+```
+
+### D. Send Text Message From n8n
+
+If you want to send text only, add an `HTTP Request` node after the `Code` node:
+
+- **Method:** `POST`
+- **URL:** `https://whapp.hg-alshour.online/api/sendText`
+- **Send Body:** `JSON`
+
+JSON body:
+
+```json
+{
+  "chatId": "201551757258@c.us",
+  "text": "={{ $json.message }}"
+}
+```
+
+### E. Send Image + Caption From n8n
+
+If you want the product image with the message, use:
+
+- **Method:** `POST`
+- **URL:** `https://whapp.hg-alshour.online/api/sendImage`
+- **Send Body:** `JSON`
+
+JSON body:
+
+```json
+{
+  "chatId": "201551757258@c.us",
+  "file": "={{ $json.imageUrl }}",
+  "caption": "={{ $json.message }}"
+}
+```
+
+### F. Chat ID Format
+
+For Egyptian personal numbers, convert the phone number like this:
+
+- Original number: `01551757258`
+- WhatsApp chat ID: `201551757258@c.us`
+
+Rule:
+
+- remove the leading `0`
+- add country code `20`
+- append `@c.us`
+
+### G. Recommended Logic In Production
+
+For a stronger workflow, add these protections later:
+
+1. Filter out products with no image before `sendImage`.
+2. Store the last posted product code in a Data Store or Sheet to avoid repeats.
+3. Add an `IF` node:
+   - if `imageUrl` exists -> call `/api/sendImage`
+   - else -> call `/api/sendText`
+4. Add retry/error handling if WhatsApp is temporarily disconnected.
+
+### H. Quick End-to-End Test
+
+To verify the full n8n path:
+
+1. Run Firestore node and confirm products are returned.
+2. Run Code node and confirm it returns `message` and optionally `imageUrl`.
+3. Run HTTP Request node.
+4. Confirm the WhatsApp number receives the message.
+
+Once this works, your full automation path becomes:
+
+`Firebase products -> n8n -> local WhatsApp API -> WhatsApp delivery`
