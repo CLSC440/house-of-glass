@@ -1161,6 +1161,13 @@
             const matchedProduct = products.find(product => normalizeProductCode(product.code) === normalizeProductCode(requestedCode));
             if (!matchedProduct) return;
 
+            const productModal = document.getElementById('productModal');
+            const isSameProductAlreadyOpen = currentProduct && currentProduct.id === matchedProduct.id && productModal && !productModal.classList.contains('pointer-events-none');
+            if (isSameProductAlreadyOpen) {
+                pendingDeepLinkCode = null;
+                return;
+            }
+
             pendingDeepLinkCode = null;
             window.showDetails(matchedProduct.id);
         }
