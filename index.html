@@ -1134,6 +1134,36 @@
         let sitePhones = [];
         let globalPriceIncrease = 0;
         let currentUser = null;
+        let pendingDeepLinkCode = null;
+
+        function normalizeProductCode(code) {
+            return String(code || '').trim().toLowerCase();
+        }
+
+        function getRequestedProductCode() {
+            return new URLSearchParams(window.location.search).get('code') || '';
+        }
+
+        function updateProductDeepLink(code) {
+            const url = new URL(window.location.href);
+            const normalizedCode = String(code || '').trim();
+
+            if (normalizedCode) url.searchParams.set('code', normalizedCode);
+            else url.searchParams.delete('code');
+
+            window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+        }
+
+        function tryOpenDeepLinkedProduct() {
+            const requestedCode = pendingDeepLinkCode || getRequestedProductCode();
+            if (!requestedCode || !Array.isArray(products) || products.length === 0) return;
+
+            const matchedProduct = products.find(product => normalizeProductCode(product.code) === normalizeProductCode(requestedCode));
+            if (!matchedProduct) return;
+
+            pendingDeepLinkCode = null;
+            window.showDetails(matchedProduct.id);
+        }
         let userFavorites = [];
         let userRole = 'customer';
         let userNotifications = [];
@@ -2089,6 +2119,7 @@
                     });
                     renderProducts();
                     if(window.fetchLivePricing) setTimeout(window.fetchLivePricing, 300);
+                    tryOpenDeepLinkedProduct();
                 });
 
             } catch (error) {
@@ -2711,6 +2742,7 @@
             if (!currentProduct) return;
             currentImgIdx = 0;
             currentVariantIdx = null; // Reset variant selection
+            updateProductDeepLink(currentProduct.code || '');
 
             document.getElementById('detailTitle').innerText = currentProduct.name;
             document.getElementById('detailDesc').innerText = currentProduct.desc;
@@ -3106,6 +3138,7 @@
         window.closeDetails = function() {
             modal.classList.add('opacity-0', 'pointer-events-none');
             document.body.classList.remove('modal-active');
+            updateProductDeepLink('');
             // Reset zoom on close
             const img = document.getElementById('mainDetailImg');
             if(img) {
@@ -3214,6 +3247,21 @@
         document.addEventListener('DOMContentLoaded', () => {
             const toggleEl = document.getElementById('darkToggle');
             if (toggleEl) toggleEl.classList.remove('expanded');
+            pendingDeepLinkCode = getRequestedProductCode();
+        });
+
+        window.addEventListener('popstate', () => {
+            const requestedCode = getRequestedProductCode();
+
+            if (requestedCode) {
+                pendingDeepLinkCode = requestedCode;
+                tryOpenDeepLinkedProduct();
+                return;
+            }
+
+            if (!document.getElementById('productModal').classList.contains('pointer-events-none')) {
+                window.closeDetails();
+            }
         });
 
         loadData();
