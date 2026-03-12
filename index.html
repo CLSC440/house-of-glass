@@ -1135,6 +1135,9 @@
         let globalPriceIncrease = 0;
         let currentUser = null;
         let pendingDeepLinkCode = null;
+        let isAuthResolved = false;
+        let areProductsLoaded = false;
+        let isDeepLinkOpenScheduled = false;
 
         function normalizeProductCode(code) {
             return String(code || '').trim().toLowerCase();
@@ -1170,6 +1173,19 @@
 
             pendingDeepLinkCode = null;
             window.showDetails(matchedProduct.id);
+        }
+
+        function queueDeepLinkedProductOpen() {
+            const requestedCode = pendingDeepLinkCode || getRequestedProductCode();
+            if (!requestedCode || !isAuthResolved || !areProductsLoaded || isDeepLinkOpenScheduled) return;
+
+            isDeepLinkOpenScheduled = true;
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    isDeepLinkOpenScheduled = false;
+                    tryOpenDeepLinkedProduct();
+                });
+            });
         }
         let userFavorites = [];
         let userRole = 'customer';
@@ -1671,6 +1687,7 @@
 
         // Auth listener
         onAuthStateChanged(auth, async (user) => {
+            isAuthResolved = false;
             currentUser = user;
             const sidebarFooter = document.querySelector('#sidebar .border-t');
             const headerNav = document.getElementById('headerNav');
@@ -1859,6 +1876,8 @@
             }
             renderCategories();
             renderProducts();
+            isAuthResolved = true;
+            queueDeepLinkedProductOpen();
         });
 
         window.logout = () => signOut(auth);
@@ -2124,9 +2143,10 @@
                         const timeB = b.createdAt?.toMillis() || 0;
                         return timeB - timeA;
                     });
+                    areProductsLoaded = true;
                     renderProducts();
                     if(window.fetchLivePricing) setTimeout(window.fetchLivePricing, 300);
-                    tryOpenDeepLinkedProduct();
+                    queueDeepLinkedProductOpen();
                 });
 
             } catch (error) {
@@ -3262,7 +3282,7 @@
 
             if (requestedCode) {
                 pendingDeepLinkCode = requestedCode;
-                tryOpenDeepLinkedProduct();
+                queueDeepLinkedProductOpen();
                 return;
             }
 
