@@ -2,40 +2,537 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0; url=https://whapp.hg-alshour.online/dashboard">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>House Of Glass | WhatsApp Redirect</title>
+    <title>House Of Glass | WhatsApp Server</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=2">
+    <link rel="apple-touch-icon" href="logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brandBlue: '#121926',
+                        brandGold: '#D4AF37',
+                        darkBg: '#030712',
+                        darkCard: '#111827'
+                    },
+                    fontFamily: {
+                        arabic: ['Cairo', 'sans-serif'],
+                    }
+                }
+            }
+        };
+
+        function applySmartTheme() {
+            const isAutoEnabled = localStorage.getItem('autoThemeEnabled') !== 'false';
+            const manualTheme = localStorage.getItem('darkMode');
+            const overrideTime = localStorage.getItem('themeOverrideTime');
+            const now = Date.now();
+
+            if (!isAutoEnabled) {
+                if (manualTheme === 'true') document.documentElement.classList.add('dark');
+                else if (manualTheme === 'false') document.documentElement.classList.remove('dark');
+                return;
+            }
+
+            if (overrideTime && (now - overrideTime > 600000)) {
+                localStorage.removeItem('darkMode');
+                localStorage.removeItem('themeOverrideTime');
+            } else if (manualTheme !== null) {
+                if (manualTheme === 'true') document.documentElement.classList.add('dark');
+                else document.documentElement.classList.remove('dark');
+                return;
+            }
+
+            const hour = new Date().getHours();
+            if (hour < 6 || hour >= 18) document.documentElement.classList.add('dark');
+            else document.documentElement.classList.remove('dark');
+        }
+        applySmartTheme();
+    </script>
     <style>
-        body {
-            font-family: 'Cairo', sans-serif;
-            min-height: 100vh;
-            margin: 0;
-            display: grid;
-            place-items: center;
-            background:
-                radial-gradient(circle at top, rgba(212, 175, 55, 0.22), transparent 34%),
-                linear-gradient(135deg, #f7f3e8 0%, #ffffff 45%, #eef2ff 100%);
-            color: #121926;
+        * {
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            scrollbar-color: #D4AF37 rgba(212, 175, 55, 0.08);
+        }
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(212, 175, 55, 0.05);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #D4AF37, #B48E3C);
+            border-radius: 999px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+        .status-dot {
+            width: 0.7rem;
+            height: 0.7rem;
+            border-radius: 999px;
+            display: inline-block;
+        }
+        .status-dot.online {
+            background: #22c55e;
+            box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.14);
+        }
+        .status-dot.waiting {
+            background: #f59e0b;
+            box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.14);
+        }
+        .status-dot.offline {
+            background: #ef4444;
+            box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.12);
+        }
+        .glass-panel {
+            background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,255,255,0.72));
+            border: 1px solid rgba(212,175,55,0.16);
+            box-shadow: 0 22px 60px rgba(18,25,38,0.08);
+            backdrop-filter: blur(16px);
+        }
+        .dark .glass-panel {
+            background: linear-gradient(135deg, rgba(17,24,39,0.96), rgba(17,24,39,0.84));
+            border-color: rgba(212,175,55,0.2);
+            box-shadow: 0 22px 60px rgba(0,0,0,0.35);
         }
     </style>
 </head>
-<body>
-    <main class="w-[min(92vw,42rem)] rounded-[2rem] border border-white/70 bg-white/85 p-8 text-center shadow-2xl backdrop-blur">
-        <p class="text-xs font-black uppercase tracking-[0.35em] text-amber-600">WhatsApp Server</p>
-        <h1 class="mt-3 text-3xl font-black uppercase italic tracking-tight">Redirecting To Dashboard</h1>
-        <p class="mt-4 text-sm leading-7 text-slate-600">
-            The official WhatsApp control panel now runs from the secure server origin to avoid CORS issues and keep the API internal.
-        </p>
-        <div class="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <a href="https://whapp.hg-alshour.online/dashboard" class="rounded-full bg-slate-900 px-6 py-3 text-sm font-black uppercase tracking-[0.25em] text-white no-underline">
-                Open Dashboard
+<body class="bg-white dark:bg-darkBg font-sans transition-colors duration-300 overflow-x-hidden text-brandBlue dark:text-white">
+    <header class="bg-white dark:bg-brandBlue border-b dark:border-gray-800 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 h-16 md:h-20 flex justify-between items-center">
+            <a href="admin.html" class="flex items-center space-x-3 group">
+                <img src="logo.png" alt="Logo" class="h-16 md:h-20 w-auto transition-all group-hover:scale-105">
+                <div class="flex flex-col">
+                    <span class="text-xl md:text-2xl font-black text-brandBlue dark:text-brandGold tracking-tighter leading-none italic uppercase">WhatsApp</span>
+                    <span class="text-[8px] md:text-[10px] text-brandBlue/60 dark:text-brandGold/60 font-medium tracking-[0.2em] uppercase block">Server Dashboard</span>
+                </div>
             </a>
-            <a href="admin.html" class="rounded-full border border-amber-500 px-6 py-3 text-sm font-black uppercase tracking-[0.25em] text-amber-600 no-underline">
-                Back To Admin
-            </a>
+            <div class="flex items-center gap-3">
+                <button onclick="toggleDarkMode()" class="w-11 h-11 rounded-full bg-gray-100 dark:bg-darkCard text-gray-600 dark:text-gray-300 hover:text-brandGold transition-all flex items-center justify-center shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="4" stroke-width="2"></circle><path stroke-linecap="round" stroke-width="2" d="M12 2v2m0 16v2m8-10h2M2 12h2m14.14-7.07l-1.41 1.41M4.93 19.07l1.41-1.41M19.07 19.07l-1.41-1.41M4.93 4.93l1.41 1.41" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+                </button>
+                <a href="admin.html" class="px-4 py-2 rounded-full bg-brandBlue text-white dark:bg-brandGold dark:text-brandBlue text-xs font-black uppercase tracking-widest shadow-lg">Back To Admin</a>
+            </div>
         </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-8 md:py-12 space-y-8">
+        <section class="glass-panel rounded-[2rem] p-6 md:p-8 overflow-hidden relative">
+            <div class="absolute inset-y-0 right-0 w-72 bg-gradient-to-l from-brandGold/10 to-transparent pointer-events-none"></div>
+            <div class="relative flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+                <div class="max-w-2xl space-y-3">
+                    <p class="text-[11px] uppercase tracking-[0.35em] text-brandGold font-black">Local WhatsApp Control</p>
+                    <h1 class="text-3xl md:text-5xl font-black italic uppercase tracking-tighter text-brandBlue dark:text-brandGold">WhatsApp Server</h1>
+                    <p class="text-sm md:text-base text-gray-500 dark:text-gray-400 leading-relaxed">راقب حالة السيرفر المحلي، اعرض QR Code، واختبر إرسال الرسائل والصور قبل ما تربطه مع n8n automation.</p>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 w-full lg:w-auto">
+                    <div class="rounded-2xl bg-white/80 dark:bg-gray-900/70 px-4 py-3 border border-white/70 dark:border-gray-800 min-w-[120px]">
+                        <div class="text-[10px] uppercase tracking-[0.25em] text-gray-400">Server</div>
+                        <div id="serverHealthValue" class="mt-2 text-lg font-black">Checking</div>
+                    </div>
+                    <div class="rounded-2xl bg-white/80 dark:bg-gray-900/70 px-4 py-3 border border-white/70 dark:border-gray-800 min-w-[120px]">
+                        <div class="text-[10px] uppercase tracking-[0.25em] text-gray-400">Session</div>
+                        <div id="sessionStatusValue" class="mt-2 text-lg font-black">Unknown</div>
+                    </div>
+                    <div class="rounded-2xl bg-white/80 dark:bg-gray-900/70 px-4 py-3 border border-white/70 dark:border-gray-800 min-w-[120px]">
+                        <div class="text-[10px] uppercase tracking-[0.25em] text-gray-400">QR</div>
+                        <div id="qrStatusValue" class="mt-2 text-lg font-black">Unknown</div>
+                    </div>
+                    <div class="rounded-2xl bg-white/80 dark:bg-gray-900/70 px-4 py-3 border border-white/70 dark:border-gray-800 min-w-[120px]">
+                        <div class="text-[10px] uppercase tracking-[0.25em] text-gray-400">Last Sync</div>
+                        <div id="lastSyncValue" class="mt-2 text-sm font-black">Waiting</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-6">
+            <div class="glass-panel rounded-[2rem] p-6 md:p-8 space-y-6">
+                <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-[0.3em] text-gray-400">Connection</p>
+                        <h2 class="text-2xl font-black uppercase italic tracking-tighter text-brandBlue dark:text-brandGold mt-2">Server Status</h2>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button id="refreshStatusBtn" onclick="refreshDashboard()" class="px-4 py-2 rounded-full border border-brandGold text-brandGold text-xs font-black uppercase tracking-widest hover:bg-brandGold hover:text-white transition-all">Refresh</button>
+                        <button onclick="openQrPage()" class="px-4 py-2 rounded-full bg-brandBlue text-white dark:bg-brandGold dark:text-brandBlue text-xs font-black uppercase tracking-widest shadow-lg">Open QR Page</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="rounded-3xl bg-white dark:bg-gray-900 p-5 border border-gray-100 dark:border-gray-800 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] uppercase tracking-[0.3em] text-gray-400">API Health</span>
+                            <span id="healthDot" class="status-dot offline"></span>
+                        </div>
+                        <div id="healthText" class="mt-4 text-xl font-black">Offline</div>
+                        <p class="mt-2 text-xs text-gray-400">Reads from <span id="serverBaseInline">https://whapp.hg-alshour.online</span></p>
+                    </div>
+                    <div class="rounded-3xl bg-white dark:bg-gray-900 p-5 border border-gray-100 dark:border-gray-800 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] uppercase tracking-[0.3em] text-gray-400">WhatsApp</span>
+                            <span id="sessionDot" class="status-dot waiting"></span>
+                        </div>
+                        <div id="sessionText" class="mt-4 text-xl font-black">Waiting</div>
+                        <p class="mt-2 text-xs text-gray-400">Ready becomes true after a successful scan.</p>
+                    </div>
+                    <div class="rounded-3xl bg-white dark:bg-gray-900 p-5 border border-gray-100 dark:border-gray-800 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] uppercase tracking-[0.3em] text-gray-400">QR Status</span>
+                            <span id="qrDot" class="status-dot waiting"></span>
+                        </div>
+                        <div id="qrText" class="mt-4 text-xl font-black">Checking</div>
+                        <p class="mt-2 text-xs text-gray-400">If QR is hidden and ready is true, the session is already linked.</p>
+                    </div>
+                </div>
+
+                <div class="rounded-[2rem] bg-gradient-to-br from-brandBlue to-slate-900 text-white p-5 md:p-6 shadow-2xl shadow-brandBlue/20">
+                    <div class="flex flex-col lg:flex-row gap-4 lg:items-end lg:justify-between">
+                        <div class="space-y-2">
+                            <p class="text-[10px] uppercase tracking-[0.35em] text-white/60">Connection Target</p>
+                            <h3 class="text-xl font-black uppercase italic tracking-tighter">Server Endpoint</h3>
+                            <p class="text-sm text-white/70">تقدر تغيّر العنوان لو غيرت الـ IP أو نقلت الخدمة لسيرفر تاني.</p>
+                        </div>
+                        <div class="w-full lg:w-[420px] flex flex-col sm:flex-row gap-3">
+                            <input id="serverBaseInput" type="text" class="flex-1 px-4 py-3 rounded-2xl bg-white/10 border border-white/15 text-sm text-white placeholder:text-white/45 outline-none" placeholder="https://whapp.hg-alshour.online">
+                            <button onclick="saveServerBase()" class="px-5 py-3 rounded-2xl bg-brandGold text-brandBlue text-xs font-black uppercase tracking-widest shadow-lg">Save</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-[2rem] p-6 md:p-8 space-y-6">
+                <div class="flex items-center justify-between gap-3">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-[0.3em] text-gray-400">Authentication</p>
+                        <h2 class="text-2xl font-black uppercase italic tracking-tighter text-brandBlue dark:text-brandGold mt-2">QR Code</h2>
+                    </div>
+                    <button onclick="refreshQrCode()" class="px-4 py-2 rounded-full border border-brandGold text-brandGold text-xs font-black uppercase tracking-widest hover:bg-brandGold hover:text-white transition-all">Reload QR</button>
+                </div>
+                <div class="rounded-[2rem] border border-dashed border-brandGold/35 bg-gray-50/80 dark:bg-gray-900/60 min-h-[420px] flex flex-col items-center justify-center p-5 text-center overflow-hidden">
+                    <img id="qrImage" src="" alt="WhatsApp QR" class="hidden w-full max-w-[320px] rounded-3xl bg-white p-4 shadow-xl shadow-brandBlue/10">
+                    <div id="qrPlaceholder" class="space-y-3 max-w-sm">
+                        <div class="w-20 h-20 mx-auto rounded-full bg-brandGold/10 text-brandGold flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3m0 0v3m0-3L3 8m18-3a2 2 0 00-2-2h-3m0 0v3m0-3l5 5M3 19a2 2 0 002 2h3m0 0v-3m0 3l-5-5m18 3a2 2 0 01-2 2h-3m0 0v-3m0 3l5-5" /></svg>
+                        </div>
+                        <h3 id="qrPlaceholderTitle" class="text-xl font-black uppercase italic tracking-tighter text-brandBlue dark:text-brandGold">Waiting For QR</h3>
+                        <p id="qrPlaceholderText" class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">اضغط Reload QR أو افتح صفحة الـ QR المباشرة لو لسه ما ظهرش الكود.</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-500 dark:text-gray-400">
+                    <div class="rounded-2xl bg-white dark:bg-gray-900 p-4 border border-gray-100 dark:border-gray-800">
+                        <div class="font-black uppercase tracking-[0.22em] text-[10px] text-brandGold mb-2">Direct QR</div>
+                        <a id="directQrLink" href="https://whapp.hg-alshour.online/qr" target="_blank" class="break-all hover:text-brandGold transition-colors">https://whapp.hg-alshour.online/qr</a>
+                    </div>
+                    <div class="rounded-2xl bg-white dark:bg-gray-900 p-4 border border-gray-100 dark:border-gray-800">
+                        <div class="font-black uppercase tracking-[0.22em] text-[10px] text-brandGold mb-2">Health JSON</div>
+                        <a id="healthJsonLink" href="https://whapp.hg-alshour.online/api/health" target="_blank" class="break-all hover:text-brandGold transition-colors">https://whapp.hg-alshour.online/api/health</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-1 xl:grid-cols-[1fr_1fr] gap-6">
+            <div class="glass-panel rounded-[2rem] p-6 md:p-8 space-y-6">
+                <div>
+                    <p class="text-[10px] uppercase tracking-[0.3em] text-gray-400">Testing</p>
+                    <h2 class="text-2xl font-black uppercase italic tracking-tighter text-brandBlue dark:text-brandGold mt-2">Send Text Test</h2>
+                </div>
+                <form id="textTestForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-bold mb-2">Chat ID</label>
+                        <input id="textChatId" type="text" class="w-full px-4 py-3 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 outline-none" placeholder="201001234567@c.us">
+                        <p class="mt-2 text-[11px] text-gray-400">Personal chat example: <span class="font-black">201001234567@c.us</span></p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-2">Message</label>
+                        <textarea id="textMessage" rows="6" class="w-full px-4 py-3 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 outline-none" placeholder="test from whatsapp server dashboard"></textarea>
+                    </div>
+                    <div class="flex flex-wrap gap-3">
+                        <button type="submit" class="px-5 py-3 rounded-2xl bg-brandBlue text-white dark:bg-brandGold dark:text-brandBlue text-xs font-black uppercase tracking-widest shadow-lg">Send Text</button>
+                        <button type="button" onclick="fillTextExample()" class="px-5 py-3 rounded-2xl border border-brandGold text-brandGold text-xs font-black uppercase tracking-widest hover:bg-brandGold hover:text-white transition-all">Load Example</button>
+                    </div>
+                </form>
+                <pre id="textResult" class="rounded-[1.5rem] bg-gray-950 text-green-300 text-xs p-4 overflow-auto min-h-[180px]">Waiting for text test...</pre>
+            </div>
+
+            <div class="glass-panel rounded-[2rem] p-6 md:p-8 space-y-6">
+                <div>
+                    <p class="text-[10px] uppercase tracking-[0.3em] text-gray-400">Testing</p>
+                    <h2 class="text-2xl font-black uppercase italic tracking-tighter text-brandBlue dark:text-brandGold mt-2">Send Image Test</h2>
+                </div>
+                <form id="imageTestForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-bold mb-2">Chat ID</label>
+                        <input id="imageChatId" type="text" class="w-full px-4 py-3 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 outline-none" placeholder="201001234567@c.us">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-2">Image URL</label>
+                        <input id="imageUrl" type="text" class="w-full px-4 py-3 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 outline-none" placeholder="https://...">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-2">Caption</label>
+                        <textarea id="imageCaption" rows="4" class="w-full px-4 py-3 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 outline-none" placeholder="test image from dashboard"></textarea>
+                    </div>
+                    <div class="flex flex-wrap gap-3">
+                        <button type="submit" class="px-5 py-3 rounded-2xl bg-brandBlue text-white dark:bg-brandGold dark:text-brandBlue text-xs font-black uppercase tracking-widest shadow-lg">Send Image</button>
+                        <button type="button" onclick="fillImageExample()" class="px-5 py-3 rounded-2xl border border-brandGold text-brandGold text-xs font-black uppercase tracking-widest hover:bg-brandGold hover:text-white transition-all">Load Example</button>
+                    </div>
+                </form>
+                <pre id="imageResult" class="rounded-[1.5rem] bg-gray-950 text-cyan-300 text-xs p-4 overflow-auto min-h-[180px]">Waiting for image test...</pre>
+            </div>
+        </section>
     </main>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyA_oTePhmWmzuOcZDmc_-7bhoAVbYVhH3Q",
+            authDomain: "houseofglass-440.firebaseapp.com",
+            projectId: "houseofglass-440",
+            storageBucket: "houseofglass-440.firebasestorage.app",
+            messagingSenderId: "73082039144",
+            appId: "1:73082039144:web:0658e54416293334dc84dd",
+            measurementId: "G-S81YY4Z4RM"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const serverBaseInput = document.getElementById('serverBaseInput');
+        const serverBaseInline = document.getElementById('serverBaseInline');
+        const healthDot = document.getElementById('healthDot');
+        const sessionDot = document.getElementById('sessionDot');
+        const qrDot = document.getElementById('qrDot');
+        const healthText = document.getElementById('healthText');
+        const sessionText = document.getElementById('sessionText');
+        const qrText = document.getElementById('qrText');
+        const qrImage = document.getElementById('qrImage');
+        const qrPlaceholder = document.getElementById('qrPlaceholder');
+        const qrPlaceholderTitle = document.getElementById('qrPlaceholderTitle');
+        const qrPlaceholderText = document.getElementById('qrPlaceholderText');
+        const directQrLink = document.getElementById('directQrLink');
+        const healthJsonLink = document.getElementById('healthJsonLink');
+
+        let pollingTimer = null;
+
+        function getServerBase() {
+            return (localStorage.getItem('whatsappServerBase') || 'https://whapp.hg-alshour.online').replace(/\/$/, '');
+        }
+
+        function setServerBaseLinks(base) {
+            serverBaseInput.value = base;
+            serverBaseInline.textContent = base;
+            directQrLink.href = `${base}/qr`;
+            directQrLink.textContent = `${base}/qr`;
+            healthJsonLink.href = `${base}/api/health`;
+            healthJsonLink.textContent = `${base}/api/health`;
+        }
+
+        function setStatus(dot, status) {
+            dot.classList.remove('online', 'waiting', 'offline');
+            dot.classList.add(status);
+        }
+
+        function updateLastSync() {
+            document.getElementById('lastSyncValue').textContent = new Date().toLocaleTimeString();
+        }
+
+        function setServerCards(health) {
+            const online = Boolean(health?.ok);
+            const ready = Boolean(health?.ready);
+            const hasQr = Boolean(health?.hasQr);
+
+            setStatus(healthDot, online ? 'online' : 'offline');
+            setStatus(sessionDot, ready ? 'online' : 'waiting');
+            setStatus(qrDot, hasQr ? 'waiting' : (ready ? 'online' : 'offline'));
+
+            healthText.textContent = online ? 'Online' : 'Offline';
+            sessionText.textContent = ready ? 'Connected' : 'Waiting';
+            qrText.textContent = hasQr ? 'Available' : (ready ? 'Hidden' : 'Unavailable');
+
+            document.getElementById('serverHealthValue').textContent = online ? 'Online' : 'Offline';
+            document.getElementById('sessionStatusValue').textContent = ready ? 'Ready' : 'Waiting';
+            document.getElementById('qrStatusValue').textContent = hasQr ? 'Live' : (ready ? 'Done' : 'None');
+        }
+
+        function showQrImage(src) {
+            qrImage.src = src;
+            qrImage.classList.remove('hidden');
+            qrPlaceholder.classList.add('hidden');
+        }
+
+        function showQrPlaceholder(title, text) {
+            qrImage.classList.add('hidden');
+            qrImage.removeAttribute('src');
+            qrPlaceholder.classList.remove('hidden');
+            qrPlaceholderTitle.textContent = title;
+            qrPlaceholderText.textContent = text;
+        }
+
+        async function fetchJson(url, options) {
+            const response = await fetch(url, options);
+            let body = null;
+            try {
+                body = await response.json();
+            } catch {
+                body = { raw: await response.text().catch(() => '') };
+            }
+            if (!response.ok) {
+                throw new Error(body?.error || body?.message || body?.raw || `Request failed: ${response.status}`);
+            }
+            return body;
+        }
+
+        async function refreshDashboard() {
+            const base = getServerBase();
+            setServerBaseLinks(base);
+            try {
+                const health = await fetchJson(`${base}/api/health`);
+                setServerCards(health);
+                updateLastSync();
+                if (health.hasQr) {
+                    await refreshQrCode(false);
+                } else if (health.ready) {
+                    showQrPlaceholder('Session Connected', 'الربط تم بنجاح. لو حبيت تعمل session جديدة امسح auth data من السيرفر أو أعد الربط.');
+                } else {
+                    showQrPlaceholder('Waiting For QR', 'الخدمة شغالة لكن لسه ما وصلناش لـ QR صالح للعرض. جرب Reload QR.');
+                }
+            } catch (error) {
+                setServerCards({ ok: false, ready: false, hasQr: false });
+                showQrPlaceholder('Server Offline', error.message);
+                document.getElementById('serverHealthValue').textContent = 'Error';
+                document.getElementById('sessionStatusValue').textContent = 'Offline';
+                document.getElementById('qrStatusValue').textContent = 'Error';
+            }
+        }
+
+        async function refreshQrCode(alsoRefreshHealth = true) {
+            const base = getServerBase();
+            if (alsoRefreshHealth) setServerBaseLinks(base);
+            try {
+                const qr = await fetchJson(`${base}/api/qr`);
+                if (qr?.qr) {
+                    showQrImage(qr.qr);
+                    setStatus(qrDot, 'waiting');
+                    qrText.textContent = 'Available';
+                    document.getElementById('qrStatusValue').textContent = 'Live';
+                    updateLastSync();
+                } else {
+                    showQrPlaceholder('QR Missing', 'الـ API رجع بدون صورة QR.');
+                }
+            } catch (error) {
+                if (alsoRefreshHealth) {
+                    await refreshDashboard();
+                    return;
+                }
+                showQrPlaceholder('QR Not Available', error.message);
+            }
+        }
+
+        async function sendRequest(endpoint, payload, targetId) {
+            const base = getServerBase();
+            const target = document.getElementById(targetId);
+            target.textContent = 'Sending...';
+            try {
+                const result = await fetchJson(`${base}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                target.textContent = JSON.stringify(result, null, 2);
+                await refreshDashboard();
+            } catch (error) {
+                target.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        window.fillTextExample = function() {
+            document.getElementById('textMessage').value = 'test from whatsapp server dashboard';
+        };
+
+        window.fillImageExample = function() {
+            document.getElementById('imageUrl').value = 'https://res.cloudinary.com/demo/image/upload/sample.jpg';
+            document.getElementById('imageCaption').value = 'test image from whatsapp server dashboard';
+        };
+
+        window.saveServerBase = function() {
+            const base = serverBaseInput.value.trim().replace(/\/$/, '');
+            if (!base) return;
+            localStorage.setItem('whatsappServerBase', base);
+            setServerBaseLinks(base);
+            refreshDashboard();
+        };
+
+        window.openQrPage = function() {
+            window.open(`${getServerBase()}/qr`, '_blank');
+        };
+
+        window.refreshDashboard = refreshDashboard;
+        window.refreshQrCode = refreshQrCode;
+
+        document.getElementById('textTestForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            await sendRequest('/api/sendText', {
+                chatId: document.getElementById('textChatId').value.trim(),
+                text: document.getElementById('textMessage').value
+            }, 'textResult');
+        });
+
+        document.getElementById('imageTestForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            await sendRequest('/api/sendImage', {
+                chatId: document.getElementById('imageChatId').value.trim(),
+                file: document.getElementById('imageUrl').value.trim(),
+                caption: document.getElementById('imageCaption').value
+            }, 'imageResult');
+        });
+
+        window.toggleDarkMode = function() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('darkMode', isDark);
+            localStorage.setItem('themeOverrideTime', Date.now());
+        };
+
+        window.logout = async function() {
+            await signOut(auth);
+            window.location.href = 'login.html';
+        };
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = 'login.html';
+                return;
+            }
+            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            if (!userDoc.exists()) {
+                window.location.href = 'index.html';
+                return;
+            }
+            const role = userDoc.data().role;
+            if (role !== 'admin' && role !== 'moderator') {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            setServerBaseLinks(getServerBase());
+            fillTextExample();
+            fillImageExample();
+            refreshDashboard();
+            if (pollingTimer) clearInterval(pollingTimer);
+            pollingTimer = setInterval(refreshDashboard, 15000);
+        });
+    </script>
 </body>
 </html>
