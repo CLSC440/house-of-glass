@@ -2116,11 +2116,35 @@
             };
         }
 
+        function refreshRenderedProductCardsStock() {
+            const renderedCards = document.querySelectorAll('[data-product-id]');
+            renderedCards.forEach((cardEl) => {
+                const productId = cardEl.dataset.productId;
+                const product = products.find((item) => item.id === productId);
+                if (!product) return;
+
+                const activeVariantIdx = cardEl.dataset.activeVariantIdx === '' || cardEl.dataset.activeVariantIdx === undefined
+                    ? null
+                    : Number(cardEl.dataset.activeVariantIdx);
+                const stockState = getProductStockState(product, Number.isNaN(activeVariantIdx) ? null : activeVariantIdx);
+                const addBtn = cardEl.querySelector('.card-retail-add-btn');
+                const overlayEl = cardEl.querySelector('.card-stock-overlay');
+
+                if (addBtn) {
+                    addBtn.classList.toggle('hidden', !stockState.retailAvailable);
+                }
+
+                if (overlayEl) {
+                    overlayEl.classList.toggle('hidden', !stockState.globalOutOfStock);
+                }
+            });
+        }
+
         async function refreshLiveStockStatus(force = false) {
             if (!areProductsLoaded) return;
             try {
                 await getDcStockMap(force);
-                renderProducts();
+                refreshRenderedProductCardsStock();
                 if (currentProduct && !modal.classList.contains('opacity-0')) {
                     updateDetailPricing();
                     updateModalFavBtn();
@@ -2583,6 +2607,8 @@
             let activeCardVariantIdx = hasVariants ? 0 : null;
             const stockState = getProductStockState(p, activeCardVariantIdx);
             const card = document.createElement('div');
+            card.dataset.productId = p.id;
+            card.dataset.activeVariantIdx = activeCardVariantIdx === null ? '' : String(activeCardVariantIdx);
             card.className = 'reveal cursor-pointer group bg-white dark:bg-darkCard/80 backdrop-blur-md rounded-xl md:rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden transition-all duration-700 border border-transparent dark:border-gray-800 hover:border-gray-200';
             card.style.transitionDelay = `${idx * 50}ms`;
             card.onclick = () => showDetails(p.id);
