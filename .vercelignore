@@ -1,0 +1,9 @@
+.firebase/
+.venv-1/
+.vscode/
+node_modules/
+.DS_Store
+*.log
+INTEGRATION_GUIDE.md
+README.md
+دليل_المطور_لربط_السيستم.md

@@ -4,3 +4,6 @@ node_modules/
 .vscode/
 .vercel
 .env*.local
+.firebase/
+.venv-1/
+
