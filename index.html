@@ -1875,7 +1875,12 @@
                 window.applyI18n();
             }
             renderCategories();
-            renderProducts();
+            if (!areProductsLoaded) {
+                renderProducts();
+            } else {
+                syncRenderedProductCardsUi();
+                if (window.fetchLivePricing) setTimeout(() => window.fetchLivePricing(), 50);
+            }
             isAuthResolved = true;
             queueDeepLinkedProductOpen();
         });
@@ -2140,11 +2145,56 @@
             });
         }
 
+        function syncRenderedProductCardsMeta() {
+            const renderedCards = document.querySelectorAll('[data-product-id]');
+            renderedCards.forEach((cardEl) => {
+                const productId = cardEl.dataset.productId;
+                const product = products.find((item) => item.id === productId);
+                if (!product) return;
+
+                const isFav = userFavorites.includes(productId);
+                const favBtn = cardEl.querySelector('.card-fav-btn');
+                const mediaEl = cardEl.querySelector('.product-card-media');
+                let editBtn = cardEl.querySelector('.card-quick-edit-btn');
+
+                if (favBtn) {
+                    favBtn.classList.toggle('text-red-500', isFav);
+                    favBtn.classList.toggle('text-gray-400', !isFav);
+                }
+
+                const canQuickEdit = userRole === 'admin' || userRole === 'moderator';
+                if (canQuickEdit && mediaEl && !editBtn) {
+                    editBtn = document.createElement('button');
+                    editBtn.className = 'card-quick-edit-btn absolute top-3 right-12 z-40 p-2 rounded-full bg-brandBlue/90 dark:bg-brandGold/90 text-white backdrop-blur-md shadow-lg hover:scale-110 active:scale-95 transition-all border border-white/20';
+                    editBtn.innerHTML = `
+                        <svg class="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                    `;
+                    editBtn.title = 'Quick Edit';
+                    editBtn.onclick = (event) => {
+                        event.stopPropagation();
+                        window.editProduct(product.id);
+                    };
+                    mediaEl.appendChild(editBtn);
+                }
+
+                if (!canQuickEdit && editBtn) {
+                    editBtn.remove();
+                }
+            });
+        }
+
+        function syncRenderedProductCardsUi() {
+            refreshRenderedProductCardsStock();
+            syncRenderedProductCardsMeta();
+        }
+
         async function refreshLiveStockStatus(force = false) {
             if (!areProductsLoaded) return;
             try {
                 await getDcStockMap(force);
-                refreshRenderedProductCardsStock();
+                syncRenderedProductCardsUi();
                 if (currentProduct && !modal.classList.contains('opacity-0')) {
                     updateDetailPricing();
                     updateModalFavBtn();
@@ -2712,10 +2762,10 @@
             const initialCardImage = getCardVariantImage(activeCardVariantIdx);
 
             card.innerHTML = `
-                <div class="overflow-hidden h-44 md:h-72 relative bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center">
+                <div class="product-card-media overflow-hidden h-44 md:h-72 relative bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center">
                     <img src="${initialCardImage}" class="product-card-img w-full h-full object-contain p-6 group-hover:scale-110 transition-all duration-500">
                     
-                    <button onclick="toggleFavorite(event, '${p.id}')" class="absolute top-3 right-3 z-30 p-2 rounded-full bg-white/90 dark:bg-black/40 backdrop-blur-md shadow-lg hover:scale-110 active:scale-95 transition-all ${isFav ? 'text-red-500' : 'text-gray-400'}">
+                    <button onclick="toggleFavorite(event, '${p.id}')" class="card-fav-btn absolute top-3 right-3 z-30 p-2 rounded-full bg-white/90 dark:bg-black/40 backdrop-blur-md shadow-lg hover:scale-110 active:scale-95 transition-all ${isFav ? 'text-red-500' : 'text-gray-400'}">
                         <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
                     </button>
 
@@ -2770,14 +2820,14 @@
                     e.stopPropagation();
                     window.editProduct(p.id);
                 };
-                editBtn.className = "absolute top-3 right-12 z-40 p-2 rounded-full bg-brandBlue/90 dark:bg-brandGold/90 text-white backdrop-blur-md shadow-lg hover:scale-110 active:scale-95 transition-all border border-white/20";
+                editBtn.className = "card-quick-edit-btn absolute top-3 right-12 z-40 p-2 rounded-full bg-brandBlue/90 dark:bg-brandGold/90 text-white backdrop-blur-md shadow-lg hover:scale-110 active:scale-95 transition-all border border-white/20";
                 editBtn.innerHTML = `
                     <svg class="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                     </svg>
                 `;
                 editBtn.title = "Quick Edit";
-                card.querySelector('.relative').appendChild(editBtn);
+                card.querySelector('.product-card-media').appendChild(editBtn);
             }
 
             // Auto-slide logic
