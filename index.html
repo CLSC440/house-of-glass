@@ -1969,6 +1969,8 @@
         let dcStockMapCacheTime = 0;
         let dcStockMapPromise = null;
         const DC_STOCK_TTL_MS = 120000;
+        const DC_STOCK_POLL_INTERVAL_MS = 30000;
+        let dcStockPollingTimer = null;
 
         async function getDcPriceMap(force = false) {
             const now = Date.now();
@@ -2115,6 +2117,7 @@
         }
 
         async function refreshLiveStockStatus(force = false) {
+            if (!areProductsLoaded) return;
             try {
                 await getDcStockMap(force);
                 renderProducts();
@@ -2125,6 +2128,33 @@
             } catch (err) {
                 console.warn("Stock sync unavailable", err);
             }
+        }
+
+        function stopSmartStockPolling() {
+            if (dcStockPollingTimer) {
+                clearInterval(dcStockPollingTimer);
+                dcStockPollingTimer = null;
+            }
+        }
+
+        function startSmartStockPolling() {
+            stopSmartStockPolling();
+            if (document.visibilityState !== 'visible') return;
+
+            dcStockPollingTimer = setInterval(() => {
+                if (document.visibilityState !== 'visible') return;
+                refreshLiveStockStatus(true);
+            }, DC_STOCK_POLL_INTERVAL_MS);
+        }
+
+        function handleSmartStockVisibility() {
+            if (document.visibilityState === 'visible') {
+                refreshLiveStockStatus(true);
+                startSmartStockPolling();
+                return;
+            }
+
+            stopSmartStockPolling();
         }
 
         async function fetchLivePricing() {
@@ -3463,6 +3493,13 @@
             pendingDeepLinkCode = getRequestedProductCode();
         });
 
+        document.addEventListener('visibilitychange', handleSmartStockVisibility);
+        window.addEventListener('focus', () => {
+            if (document.visibilityState !== 'visible') return;
+            refreshLiveStockStatus(true);
+            startSmartStockPolling();
+        });
+
         window.addEventListener('popstate', () => {
             const requestedCode = getRequestedProductCode();
 
@@ -3478,6 +3515,7 @@
         });
 
         loadData();
+        handleSmartStockVisibility();
         
         // Safety Timeout to handle hanging loads
         setTimeout(() => {

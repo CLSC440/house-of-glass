@@ -106,7 +106,6 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-2">
-                <button id="themeToggle" class="px-4 py-2 rounded-full border border-gray-200 dark:border-gray-700 text-sm font-bold hover:border-brandGold hover:text-brandGold transition-all">Toggle Theme</button>
                 <button id="refreshBtn" class="px-4 py-2 rounded-full bg-brandBlue text-white dark:bg-brandGold dark:text-brandBlue text-sm font-bold hover:opacity-90 transition-all">Refresh Now</button>
                 <a href="index.html" class="px-4 py-2 rounded-full border border-brandGold text-brandGold text-sm font-bold hover:bg-brandGold hover:text-white transition-all">Open Website</a>
             </div>
@@ -138,18 +137,24 @@
                 <div class="flex-1 flex flex-col md:flex-row gap-3">
                     <input id="searchInput" type="text" placeholder="Search by name, code, or barcode" class="flex-1 px-4 py-3 rounded-2xl bg-gray-50 dark:bg-gray-800 border border-transparent focus:border-brandGold outline-none">
                     <select id="statusFilter" class="px-4 py-3 rounded-2xl bg-gray-50 dark:bg-gray-800 border border-transparent focus:border-brandGold outline-none">
-                        <option value="all">All Products</option>
-                        <option value="linked">Linked Only</option>
-                        <option value="missing">Unlinked Only</option>
-                        <option value="inRetail">Showroom Has Stock</option>
-                        <option value="outRetail">Showroom Out of Stock</option>
-                        <option value="inWholesale">Warehouse Has Stock</option>
-                        <option value="outWholesale">Warehouse Out of Stock</option>
+                        <option value="all" data-label="All Products">All Products</option>
+                        <option value="linked" data-label="Linked Only">Linked Only</option>
+                        <option value="missing" data-label="Unlinked Only">Unlinked Only</option>
+                        <option value="inRetail" data-label="Showroom Has Stock">Showroom Has Stock</option>
+                        <option value="outRetail" data-label="Showroom Out of Stock">Showroom Out of Stock</option>
+                        <option value="inWholesale" data-label="Warehouse Has Stock">Warehouse Has Stock</option>
+                        <option value="outWholesale" data-label="Warehouse Out of Stock">Warehouse Out of Stock</option>
                     </select>
                 </div>
-                <div class="text-sm text-gray-500 dark:text-gray-400">
-                    <span>Last Sync:</span>
-                    <span id="lastSyncText" class="font-bold text-brandBlue dark:text-brandGold">-</span>
+                <div class="flex flex-wrap items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+                    <div>
+                        <span>Matching Products:</span>
+                        <span id="filteredCountText" class="font-black text-brandBlue dark:text-brandGold">0</span>
+                    </div>
+                    <div>
+                        <span>Last Sync:</span>
+                        <span id="lastSyncText" class="font-bold text-brandBlue dark:text-brandGold">-</span>
+                    </div>
                 </div>
             </div>
         </section>
@@ -213,13 +218,15 @@
         const statusFilter = document.getElementById('statusFilter');
         const refreshBtn = document.getElementById('refreshBtn');
         const lastSyncText = document.getElementById('lastSyncText');
-        const themeToggle = document.getElementById('themeToggle');
+        const filteredCountText = document.getElementById('filteredCountText');
 
         let products = [];
         let mergedRows = [];
         let stockCache = null;
         let stockCacheTime = 0;
         let stockPromise = null;
+        let lastSyncAt = null;
+        let liveClockTimer = null;
 
         function setLoading(isLoading) {
             loadingState.classList.toggle('hidden', !isLoading);
@@ -343,25 +350,72 @@
             document.getElementById('wholesaleStockStat').textContent = String(wholesaleTotal);
         }
 
+        function rowMatchesStatus(row, statusValue) {
+            if (statusValue === 'linked') return row.linked;
+            if (statusValue === 'missing') return !row.linked;
+            if (statusValue === 'inRetail') return row.retailStock > 0;
+            if (statusValue === 'outRetail') return row.retailStock <= 0;
+            if (statusValue === 'inWholesale') return row.wholesaleStock > 0;
+            if (statusValue === 'outWholesale') return row.wholesaleStock <= 0;
+            return true;
+        }
+
+        function rowMatchesSearch(row, searchValue) {
+            return !searchValue
+                || row.name.toLowerCase().includes(searchValue)
+                || row.code.toLowerCase().includes(searchValue)
+                || String(row.matchedBarcode).toLowerCase().includes(searchValue);
+        }
+
+        function updateFilterOptionCounts() {
+            const searchValue = normalizeCode(searchInput.value).toLowerCase();
+            Array.from(statusFilter.options).forEach((option) => {
+                const baseLabel = option.dataset.label || option.textContent;
+                const count = mergedRows.filter((row) => rowMatchesSearch(row, searchValue) && rowMatchesStatus(row, option.value)).length;
+                option.textContent = `${baseLabel} (${count})`;
+            });
+        }
+
+        function formatElapsedTime(date) {
+            const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+            if (seconds < 5) return 'just now';
+            if (seconds < 60) return `${seconds}s ago`;
+
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `${minutes}m ago`;
+
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return `${hours}h ago`;
+
+            const days = Math.floor(hours / 24);
+            return `${days}d ago`;
+        }
+
+        function renderLiveSyncTime() {
+            if (!lastSyncAt) {
+                lastSyncText.textContent = '-';
+                return;
+            }
+
+            const absoluteTime = lastSyncAt.toLocaleString('en-GB');
+            const relativeTime = formatElapsedTime(lastSyncAt);
+            lastSyncText.textContent = `${absoluteTime} (${relativeTime})`;
+        }
+
+        function ensureLiveSyncClock() {
+            if (liveClockTimer) return;
+            liveClockTimer = setInterval(renderLiveSyncTime, 1000);
+        }
+
         function getFilteredRows() {
             const searchValue = normalizeCode(searchInput.value).toLowerCase();
             const statusValue = statusFilter.value;
 
             return mergedRows.filter((row) => {
-                const matchesSearch = !searchValue
-                    || row.name.toLowerCase().includes(searchValue)
-                    || row.code.toLowerCase().includes(searchValue)
-                    || String(row.matchedBarcode).toLowerCase().includes(searchValue);
+                const matchesSearch = rowMatchesSearch(row, searchValue);
 
                 if (!matchesSearch) return false;
-
-                if (statusValue === 'linked') return row.linked;
-                if (statusValue === 'missing') return !row.linked;
-                if (statusValue === 'inRetail') return row.retailStock > 0;
-                if (statusValue === 'outRetail') return row.retailStock <= 0;
-                if (statusValue === 'inWholesale') return row.wholesaleStock > 0;
-                if (statusValue === 'outWholesale') return row.wholesaleStock <= 0;
-                return true;
+                return rowMatchesStatus(row, statusValue);
             });
         }
 
@@ -378,8 +432,10 @@
         }
 
         function renderRows() {
+            updateFilterOptionCounts();
             const rows = getFilteredRows();
             updateStats(mergedRows);
+            filteredCountText.textContent = String(rows.length);
 
             if (rows.length === 0) {
                 stockTableBody.innerHTML = `
@@ -422,7 +478,9 @@
             loadingState.classList.add('hidden');
             errorState.classList.add('hidden');
             tableWrapper.classList.remove('hidden');
-            lastSyncText.textContent = new Date().toLocaleString('en-GB');
+            lastSyncAt = new Date();
+            renderLiveSyncTime();
+            ensureLiveSyncClock();
         }
 
         async function refreshStock(force = false) {
@@ -442,11 +500,6 @@
             searchInput.addEventListener('input', renderRows);
             statusFilter.addEventListener('change', renderRows);
             refreshBtn.addEventListener('click', () => refreshStock(true));
-            themeToggle.addEventListener('click', () => {
-                const isDark = document.documentElement.classList.toggle('dark');
-                localStorage.setItem('darkMode', String(isDark));
-                localStorage.setItem('themeOverrideTime', String(Date.now()));
-            });
         }
 
         bindEvents();
