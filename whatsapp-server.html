@@ -413,7 +413,7 @@
                 return {
                     ...health,
                     ready: false,
-                    hasQr: true,
+                    hasQr: false,
                     sessionVerified: false,
                     sessionError: error.message
                 };
@@ -422,7 +422,7 @@
             return {
                 ...health,
                 ready: false,
-                hasQr: true,
+                hasQr: false,
                 sessionVerified: false,
                 sessionError: 'Session validation failed'
             };
