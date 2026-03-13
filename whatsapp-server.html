@@ -395,11 +395,45 @@
             return body;
         }
 
+        async function validateSession(base, health) {
+            if (!health?.ok || !health?.ready) {
+                return health;
+            }
+
+            try {
+                const chats = await fetchJson(`${base}/api/chats`);
+                const isSessionVerified = chats?.success === true && Array.isArray(chats?.chats);
+                if (isSessionVerified) {
+                    return {
+                        ...health,
+                        sessionVerified: true
+                    };
+                }
+            } catch (error) {
+                return {
+                    ...health,
+                    ready: false,
+                    hasQr: true,
+                    sessionVerified: false,
+                    sessionError: error.message
+                };
+            }
+
+            return {
+                ...health,
+                ready: false,
+                hasQr: true,
+                sessionVerified: false,
+                sessionError: 'Session validation failed'
+            };
+        }
+
         async function refreshDashboard() {
             const base = getServerBase();
             setServerBaseLinks(base);
             try {
-                const health = await fetchJson(`${base}/api/health`);
+                const rawHealth = await fetchJson(`${base}/api/health`);
+                const health = await validateSession(base, rawHealth);
                 setServerCards(health);
                 updateLastSync();
                 if (health.hasQr) {
@@ -407,7 +441,7 @@
                 } else if (health.ready) {
                     showQrPlaceholder('Session Connected', 'الربط تم بنجاح. لو حبيت تعمل session جديدة امسح auth data من السيرفر أو أعد الربط.');
                 } else {
-                    showQrPlaceholder('Waiting For QR', 'الخدمة شغالة لكن لسه ما وصلناش لـ QR صالح للعرض. جرب Reload QR.');
+                    showQrPlaceholder('Waiting For QR', health.sessionError || 'الخدمة شغالة لكن الجلسة الحالية غير صالحة أو تحتاج إعادة ربط. جرب Reload QR.');
                 }
             } catch (error) {
                 setServerCards({ ok: false, ready: false, hasQr: false });
@@ -455,6 +489,7 @@
                 await refreshDashboard();
             } catch (error) {
                 target.textContent = `Error: ${error.message}`;
+                await refreshDashboard();
             }
         }
 
