@@ -1965,6 +1965,10 @@
         let dcPriceMapCacheTime = 0;
         let dcPriceMapPromise = null;
         const DC_PRICE_TTL_MS = 120000;
+        let dcStockMapCache = null;
+        let dcStockMapCacheTime = 0;
+        let dcStockMapPromise = null;
+        const DC_STOCK_TTL_MS = 120000;
 
         async function getDcPriceMap(force = false) {
             const now = Date.now();
@@ -2003,6 +2007,124 @@
             });
 
             return dcPriceMapPromise;
+        }
+
+        function extractDcStockBuckets(item) {
+            let showroomStock = 0;
+            let warehouseStock = 0;
+
+            (item?.stock_by_warehouse || []).forEach((warehouse) => {
+                const warehouseName = String(warehouse?.warehouse_name || '').replace(/\s+/g, '');
+                const quantity = Number(warehouse?.quantity || 0);
+
+                if (!warehouseName) return;
+
+                if (warehouseName.includes('مخزنالمعرض')) {
+                    showroomStock += quantity;
+                    return;
+                }
+
+                if (warehouseName.includes('المخزنالرئيسي')) {
+                    warehouseStock += quantity;
+                }
+            });
+
+            return { showroomStock, warehouseStock };
+        }
+
+        async function getDcStockMap(force = false) {
+            const now = Date.now();
+            if (!force && dcStockMapCache && (now - dcStockMapCacheTime < DC_STOCK_TTL_MS)) {
+                return dcStockMapCache;
+            }
+            if (!force && dcStockMapPromise) return dcStockMapPromise;
+
+            dcStockMapPromise = (async () => {
+                const res = await fetch("https://glass-system-backend.onrender.com/public/stock");
+                if (!res.ok) throw new Error("Failed to connect to stock endpoint");
+
+                const payload = await res.json();
+                const stockMap = {};
+                const stockItems = Array.isArray(payload?.products) ? payload.products : [];
+
+                stockItems.forEach((item) => {
+                    const rawCode = item.barcode || item.code || item.product_code || item.productCode || item.sku || item.id;
+                    if (!rawCode) return;
+
+                    const code = String(rawCode).trim();
+                    const buckets = extractDcStockBuckets(item);
+                    stockMap[code] = {
+                        barcode: code,
+                        showroomStock: buckets.showroomStock,
+                        warehouseStock: buckets.warehouseStock,
+                        totalStock: Number(item.total_stock || 0)
+                    };
+                });
+
+                dcStockMapCache = stockMap;
+                dcStockMapCacheTime = Date.now();
+                window._dcStockMap = stockMap;
+                dcStockMapPromise = null;
+                return stockMap;
+            })().catch((err) => {
+                dcStockMapPromise = null;
+                throw err;
+            });
+
+            return dcStockMapPromise;
+        }
+
+        function getInventoryCode(product, variantIdx = null) {
+            if (!product) return '';
+            if (variantIdx !== null && product.variants && product.variants[variantIdx]) {
+                const variant = product.variants[variantIdx];
+                if (variant?.barcode) return String(variant.barcode).trim();
+                if (variant?.code) return String(variant.code).trim();
+            }
+            if (product.code) return String(product.code).trim();
+            if (product.variants && product.variants.length > 0) {
+                const firstVariant = product.variants[0];
+                if (firstVariant?.barcode) return String(firstVariant.barcode).trim();
+                if (firstVariant?.code) return String(firstVariant.code).trim();
+            }
+            return '';
+        }
+
+        function getProductStockState(product, variantIdx = null) {
+            const variant = resolveVariantForCart(product, variantIdx);
+            const stockCode = getInventoryCode(product, variantIdx);
+            const stockInfo = stockCode && window._dcStockMap ? window._dcStockMap[stockCode] : null;
+            const hasLinkedStock = Boolean(stockInfo);
+            const showroomStock = hasLinkedStock ? Number(stockInfo.showroomStock || 0) : null;
+            const warehouseStock = hasLinkedStock ? Number(stockInfo.warehouseStock || 0) : null;
+            const baseOutOfStock = product?.inStock === false || (variant && variant.inStock === false);
+            const showroomOutOfStock = hasLinkedStock ? showroomStock <= 0 : false;
+            const warehouseOutOfStock = hasLinkedStock ? warehouseStock <= 0 : false;
+
+            return {
+                stockCode,
+                hasLinkedStock,
+                showroomStock,
+                warehouseStock,
+                showroomOutOfStock,
+                warehouseOutOfStock,
+                retailAvailable: !baseOutOfStock && (!hasLinkedStock || showroomStock > 0),
+                wholesaleAvailable: !baseOutOfStock && (!hasLinkedStock || warehouseStock > 0),
+                globalOutOfStock: baseOutOfStock || (hasLinkedStock && showroomStock <= 0)
+            };
+        }
+
+        async function refreshLiveStockStatus(force = false) {
+            try {
+                await getDcStockMap(force);
+                renderProducts();
+                if (currentProduct && !modal.classList.contains('opacity-0')) {
+                    updateDetailPricing();
+                    updateModalFavBtn();
+                }
+            } catch (err) {
+                console.warn("Stock sync unavailable", err);
+            }
         }
 
         async function fetchLivePricing() {
@@ -2146,6 +2268,7 @@
                     areProductsLoaded = true;
                     renderProducts();
                     if(window.fetchLivePricing) setTimeout(window.fetchLivePricing, 300);
+                    setTimeout(() => refreshLiveStockStatus(false), 350);
                     queueDeepLinkedProductOpen();
                 });
 
@@ -2426,81 +2549,115 @@
 
         function createProductCard(p, idx) {
             const isFav = userFavorites.includes(p.id);
+            const hasVariants = p.variants && p.variants.length > 1;
+            let activeCardVariantIdx = hasVariants ? 0 : null;
+            const stockState = getProductStockState(p, activeCardVariantIdx);
             const card = document.createElement('div');
             card.className = 'reveal cursor-pointer group bg-white dark:bg-darkCard/80 backdrop-blur-md rounded-xl md:rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden transition-all duration-700 border border-transparent dark:border-gray-800 hover:border-gray-200';
             card.style.transitionDelay = `${idx * 50}ms`;
             card.onclick = () => showDetails(p.id);
 
+            const getCardVariantImage = (variantIdx) => {
+                const variant = resolveVariantForCart(p, variantIdx);
+                if (variant?.images && variant.images.length > 0) return variant.images[0];
+                if (variant?.image) return variant.image;
+                return p.images[0] || 'https://via.placeholder.com/800x600?text=No+Image';
+            };
+
+            const applyCardVariantState = async (variantIdx, options = {}) => {
+                const { fade = true } = options;
+                const variant = resolveVariantForCart(p, variantIdx);
+                const variantName = variant?.name || variant?.label || '';
+                const variantCode = getInventoryCode(p, variantIdx);
+                const variantImage = getCardVariantImage(variantIdx);
+                const variantStockState = getProductStockState(p, variantIdx);
+                const imgEl = card.querySelector('.product-card-img');
+                const priceEl = card.querySelector('.dc-price');
+                const badgeEl = card.querySelector('.variant-name-badge');
+                const overlayEl = card.querySelector('.card-stock-overlay');
+                const addBtn = card.querySelector('.card-retail-add-btn');
+
+                activeCardVariantIdx = variantIdx;
+                card.dataset.activeVariantIdx = variantIdx === null ? '' : String(variantIdx);
+
+                if (imgEl) {
+                    if (fade) imgEl.style.opacity = '0.7';
+                    setTimeout(() => {
+                        imgEl.src = variantImage;
+                        imgEl.style.opacity = '1';
+                    }, fade ? 150 : 0);
+                }
+
+                if (badgeEl) {
+                    badgeEl.innerText = variantName;
+                    badgeEl.style.opacity = variantName ? '1' : '0';
+                }
+
+                if (addBtn) {
+                    addBtn.classList.toggle('hidden', !variantStockState.retailAvailable);
+                }
+
+                if (overlayEl) {
+                    overlayEl.classList.toggle('hidden', !variantStockState.globalOutOfStock);
+                }
+
+                if (priceEl) {
+                    if (variantCode) {
+                        priceEl.dataset.code = String(variantCode).trim();
+                        try {
+                            const priceMap = await getDcPriceMap();
+                            const info = priceMap[String(variantCode).trim()];
+                            if (info) {
+                                let price = info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || info.salePrice || 0;
+                                if (userRole === 'cst_wholesale') {
+                                    const disc = parseFloat(info.discount_amount || info.discount || 0);
+                                    price = price - disc;
+                                }
+                                if (globalPriceIncrease > 0 && userRole !== 'cst_wholesale') {
+                                    price = price * (1 + (globalPriceIncrease / 100));
+                                }
+                                priceEl.innerText = `${Number(price).toFixed(2)} EGP`;
+                                priceEl.classList.remove('animate-pulse', 'bg-gray-200', 'text-gray-400', 'opacity-50', 'bg-red-100', 'text-red-500', 'line-through');
+                                priceEl.classList.add('bg-green-100', 'text-green-700');
+                            } else {
+                                priceEl.innerText = 'N/A';
+                                priceEl.classList.remove('animate-pulse', 'bg-green-100', 'text-green-700', 'bg-red-100', 'text-red-500', 'line-through');
+                                priceEl.classList.add('bg-gray-200', 'text-gray-400', 'opacity-50');
+                            }
+                        } catch (e) {
+                            console.error('Error updating variant price:', e);
+                        }
+                    } else {
+                        priceEl.innerText = 'N/A';
+                        delete priceEl.dataset.code;
+                    }
+                }
+            };
+
             // Auto cycle for products that have variants (cycle thru first image of each variant AND update price)
-            let hasVariants = p.variants && p.variants.length > 1;
             if (hasVariants) {
                 let currVariantIdx = 0;
                 // Start cycling automatically after a short random delay
                 setTimeout(() => {
                     setInterval(async () => {
                         const imgEl = card.querySelector('.product-card-img');
-                        const priceEl = card.querySelector('.dc-price');
                         if(!imgEl) return;
-                        
+
                         currVariantIdx = (currVariantIdx + 1) % p.variants.length;
-                        const v = p.variants[currVariantIdx];
-                        
-                        // Extract variant's specific image (first one)
-                        let vImg = p.images[0];
-                        if (v.images && v.images.length > 0) vImg = v.images[0];
-                        else if (v.image) vImg = v.image;
-
-                        // Identify variant code for pricing
-                        const vCode = v.barcode || v.code || p.code || '';
-                        const vName = v.name || v.label || '';
-
-                        imgEl.style.opacity = '0.7';
-                        const badgeEl = card.querySelector('.variant-name-badge');
-                        if (badgeEl) badgeEl.style.opacity = '0';
-
-                        setTimeout(async () => {
-                            imgEl.src = vImg || 'https://via.placeholder.com/800x600?text=No+Image';
-                            imgEl.style.opacity = '1';
-                            
-                            if (badgeEl && vName) {
-                                badgeEl.innerText = vName;
-                                badgeEl.style.opacity = '1';
-                            } else if (badgeEl) {
-                                badgeEl.style.opacity = '0';
-                            }
-
-                            // Dynamically update price based on variant code
-                            if (priceEl && vCode) {
-                                priceEl.dataset.code = String(vCode).trim();
-                                try {
-                                    // Use getDcPriceMap directly since it's in the same script block
-                                    const priceMap = await getDcPriceMap();
-                                    const info = priceMap[String(vCode).trim()];
-                                    if (info) {
-                                        let price = info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || info.salePrice || 0;
-                                        if (userRole === 'cst_wholesale') {
-                                            const disc = parseFloat(info.discount_amount || info.discount || 0);
-                                            price = price - disc;
-                                        }
-                                        if (globalPriceIncrease > 0 && userRole !== 'cst_wholesale') price = price * (1 + (globalPriceIncrease / 100));
-                                        priceEl.innerText = `${price.toFixed(2)} EGP`;
-                                    }
-                                } catch(e) {
-                                    console.error("Error updating variant price:", e);
-                                }
-                            }
-                        }, 150);
+                        await applyCardVariantState(currVariantIdx, { fade: true });
                     }, 3000 + Math.random() * 1500); // changes every 3-4.5 seconds
                 }, 500);
             }
 
             // Determine initial code for the price tag
-            const initialCode = p.code || (p.variants && p.variants.length > 0 ? (p.variants[0].barcode || p.variants[0].code) : null);
-            const initialVariantName = (hasVariants && p.variants[0] && p.variants[0].name) ? p.variants[0].name : '';
+            const initialCode = getInventoryCode(p, activeCardVariantIdx);
+            const initialVariant = resolveVariantForCart(p, activeCardVariantIdx);
+            const initialVariantName = initialVariant?.name || initialVariant?.label || '';
+            const initialCardImage = getCardVariantImage(activeCardVariantIdx);
 
             card.innerHTML = `
                 <div class="overflow-hidden h-44 md:h-72 relative bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center">
-                    <img src="${p.images[0] || 'https://via.placeholder.com/800x600?text=No+Image'}" class="product-card-img w-full h-full object-contain p-6 group-hover:scale-110 transition-all duration-500">
+                    <img src="${initialCardImage}" class="product-card-img w-full h-full object-contain p-6 group-hover:scale-110 transition-all duration-500">
                     
                     <button onclick="toggleFavorite(event, '${p.id}')" class="absolute top-3 right-3 z-30 p-2 rounded-full bg-white/90 dark:bg-black/40 backdrop-blur-md shadow-lg hover:scale-110 active:scale-95 transition-all ${isFav ? 'text-red-500' : 'text-gray-400'}">
                         <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
@@ -2513,21 +2670,19 @@
                     
                     <div class="absolute bottom-3 right-3 bg-black/60 text-white text-[8px] md:text-[10px] px-3 py-1 rounded-full backdrop-blur-md font-bold">${p.images.length} Photos</div>
                     
-                    <button onclick="event.stopPropagation(); addToCart('${p.id}')" class="absolute bottom-3 left-3 z-30 p-2 rounded-full bg-brandGold text-brandBlue shadow-lg hover:scale-110 active:scale-95 transition-all duration-300 flex items-center gap-1 pr-3">
+                    <button class="card-retail-add-btn absolute bottom-3 left-3 z-30 p-2 rounded-full bg-brandGold text-brandBlue shadow-lg hover:scale-110 active:scale-95 transition-all duration-300 flex items-center gap-1 pr-3 ${stockState.retailAvailable ? '' : 'hidden'}">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                         </svg>
                         <span class="text-[9px] font-black uppercase tracking-wider">Add</span>
                     </button>
 
-                    ${p.inStock === false ? `
-                    <div class="absolute inset-0 z-[25] flex flex-col items-center justify-center text-center p-4 transition-all duration-500">
+                    <div class="card-stock-overlay absolute inset-0 z-[25] flex flex-col items-center justify-center text-center p-4 transition-all duration-500 ${stockState.globalOutOfStock ? '' : 'hidden'}">
                         <div class="border-2 border-brandGold/60 bg-black/40 px-4 py-2 rounded-2xl shadow-2xl">
                             <span class="block text-white text-xs md:text-base font-black uppercase tracking-widest mb-0.5 md:mb-1">Out of stock</span>
                             <span class="block text-brandGold text-[8px] md:text-[10px] font-bold font-arabic capitalize">غير متاح حاليا!</span>
                         </div>
                     </div>
-                    ` : ''}
                 </div>
                 <div class="p-4 md:p-6 bg-white dark:bg-transparent overflow-hidden">
                     <div class="title-container mb-1">
@@ -2539,6 +2694,18 @@
                     </div>
                 </div>
             `;
+
+            const cardAddBtn = card.querySelector('.card-retail-add-btn');
+            if (cardAddBtn) {
+                cardAddBtn.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    addToCart(p.id, activeCardVariantIdx);
+                });
+            }
+
+            setTimeout(() => {
+                applyCardVariantState(activeCardVariantIdx, { fade: false });
+            }, 0);
 
             // Quick Edit button for Staff
             if (userRole === 'admin' || userRole === 'moderator') {
@@ -2644,6 +2811,7 @@
             const isRetailUser = (userRole === 'customer');
             const isWholesaleUser = (userRole === 'cst_wholesale');
             const priceCode = getActivePriceCode();
+            const stockState = currentProduct ? getProductStockState(currentProduct, currentVariantIdx) : null;
             let hasPriceData = false;
 
             if (priceSection) priceSection.classList.add('hidden');
@@ -2725,7 +2893,7 @@
             const retailCartBtn = document.getElementById('detailRetailCartBtn');
             const retailCartOrderBtn = document.getElementById('retailCartOrderBtn');
             if (retailCartBtn) {
-                if ((isRetailUser || isWholesaleUser || userRole === 'admin' || userRole === 'moderator') && hasPriceData) {
+                if ((isRetailUser || isWholesaleUser || userRole === 'admin' || userRole === 'moderator') && hasPriceData && stockState?.retailAvailable) {
                     retailCartBtn.classList.remove('hidden');
                     const qtyInput = document.getElementById('retailQtyInput');
                     if (qtyInput) qtyInput.value = 1;
@@ -2748,7 +2916,7 @@
             const wholesaleBtn = document.getElementById('detailWholesaleBtn');
             const wholesaleOrderBtn = document.getElementById('wholesaleOrderBtn');
             if (wholesaleBtn) {
-                if (!isRetailUser && hasPriceData) {
+                if (!isRetailUser && hasPriceData && stockState?.wholesaleAvailable) {
                     wholesaleBtn.classList.remove('hidden');
                     if (wholesaleOrderBtn) {
                         wholesaleOrderBtn.onclick = () => {
@@ -2761,6 +2929,14 @@
                 } else {
                     wholesaleBtn.classList.add('hidden');
                 }
+            }
+
+            const overlay = document.getElementById('outOfStockOverlay');
+            const mainImg = document.getElementById('mainDetailImg');
+            if (overlay && mainImg && stockState) {
+                overlay.classList.toggle('opacity-0', !stockState.globalOutOfStock);
+                overlay.classList.toggle('opacity-100', !!stockState.globalOutOfStock);
+                mainImg.style.filter = stockState.globalOutOfStock ? 'grayscale(25%)' : 'none';
             }
         }
 
@@ -2801,16 +2977,18 @@
                 vContainer.appendChild(chipsContainer);
 
                 currentProduct.variants.forEach((v, idx) => {
+                    const variantStockState = getProductStockState(currentProduct, idx);
+                    const variantUnavailable = !variantStockState.retailAvailable;
                     const chip = document.createElement('button');
                     // Add distinct ID or data attribute for ease of selection
                     chip.dataset.vIdx = idx;
-                    chip.className = `px-4 py-2 rounded-lg text-xs font-bold border transition-all flex items-center gap-2 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-brandGold ${!v.inStock ? 'opacity-60' : ''}`;
+                    chip.className = `px-4 py-2 rounded-lg text-xs font-bold border transition-all flex items-center gap-2 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-brandGold ${variantUnavailable ? 'opacity-60' : ''}`;
                     
-                    const dot = `<span class="w-2 h-2 rounded-full ${v.inStock ? 'bg-green-500' : 'bg-red-500'}"></span>`;
-                    const nameSpan = `<span class="${v.inStock ? '' : 'line-through decoration-red-500/50'}">${v.name}</span>`;
+                    const dot = `<span class="w-2 h-2 rounded-full ${variantUnavailable ? 'bg-red-500' : 'bg-green-500'}"></span>`;
+                    const nameSpan = `<span class="${variantUnavailable ? 'line-through decoration-red-500/50' : ''}">${v.name}</span>`;
                     chip.innerHTML = `${dot} ${nameSpan}`;
                     
-                    if(!v.inStock) {
+                    if (variantUnavailable) {
                         chip.title = "Currently Unavailable";
                     }
 
@@ -2916,6 +3094,7 @@
         function updateModalFavBtn() {
             if (!currentProduct) return;
             const isFav = userFavorites.includes(currentProduct.id);
+            const stockState = getProductStockState(currentProduct, currentVariantIdx);
             const enquiryBtn = document.getElementById('enquiryBtn');
             const btnContainer = enquiryBtn.parentElement;
             
@@ -2952,7 +3131,7 @@
             }
 
             // Wholesale icon button - hidden for CST. Retail
-            if (userRole !== 'customer') {
+            if (userRole !== 'customer' && stockState.wholesaleAvailable) {
                 const wholesaleBtn = document.createElement('button');
                 wholesaleBtn.className = "modal-wholesale-btn p-3 md:p-4 rounded-xl bg-brandGold/10 text-brandGold transition-all border border-brandGold/30 hover:bg-brandGold hover:text-white hover:scale-105 active:scale-95";
                 wholesaleBtn.innerHTML = `
@@ -2975,31 +3154,34 @@
             }
             
             // Cart icon button
-            const cartBtn = document.createElement('button');
-            cartBtn.className = "modal-cart-btn p-3 md:p-4 rounded-xl bg-brandBlue text-white transition-all border border-brandGold shadow-lg shadow-brandBlue/20 hover:scale-105 active:scale-95";
-            cartBtn.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-            `;
-            cartBtn.title = "Add to Cart";
-            cartBtn.onclick = () => {
-                const cartItemId = getCartItemId(currentProduct, currentVariantIdx);
-                const exists = cart.find(item => item.cartId === cartItemId);
-                if (exists) {
-                    openCart();
-                    return;
-                }
-                addToCart(currentProduct.id, currentVariantIdx);
-                setTimeout(() => openCart(), 350);
-            };
+            let cartBtn = null;
+            if (stockState.retailAvailable) {
+                cartBtn = document.createElement('button');
+                cartBtn.className = "modal-cart-btn p-3 md:p-4 rounded-xl bg-brandBlue text-white transition-all border border-brandGold shadow-lg shadow-brandBlue/20 hover:scale-105 active:scale-95";
+                cartBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                `;
+                cartBtn.title = "Add to Cart";
+                cartBtn.onclick = () => {
+                    const cartItemId = getCartItemId(currentProduct, currentVariantIdx);
+                    const exists = cart.find(item => item.cartId === cartItemId);
+                    if (exists) {
+                        openCart();
+                        return;
+                    }
+                    addToCart(currentProduct.id, currentVariantIdx);
+                    setTimeout(() => openCart(), 350);
+                };
+            }
 
             btnContainer.className = "flex items-center space-x-3 mt-6 md:mt-10";
             enquiryBtn.classList.remove('w-full');
             enquiryBtn.classList.add('flex-1');
             
             // Order: Edit -> Wholesale -> Cart -> WhatsApp
-            btnContainer.insertBefore(cartBtn, enquiryBtn);
+            if (cartBtn) btnContainer.insertBefore(cartBtn, enquiryBtn);
         }
 
         let isZoomed = false;
@@ -3037,14 +3219,15 @@
             const chipsContainer = vContainer.querySelector('div.flex.flex-wrap');
             const overlay = document.getElementById('outOfStockOverlay');
             const mainImg = document.getElementById('mainDetailImg');
+            const baseStockState = currentProduct ? getProductStockState(currentProduct, currentVariantIdx) : null;
             
             // Reset state
-            overlay.classList.add('opacity-0');
-            overlay.classList.remove('opacity-100');
-            mainImg.style.filter = 'none';
+            overlay.classList.toggle('opacity-0', !baseStockState?.globalOutOfStock);
+            overlay.classList.toggle('opacity-100', !!baseStockState?.globalOutOfStock);
+            mainImg.style.filter = baseStockState?.globalOutOfStock ? 'grayscale(25%)' : 'none';
 
             // Global Out of Stock check
-            const isGloballyOOS = currentProduct.inStock === false;
+            const isGloballyOOS = !!baseStockState?.globalOutOfStock;
             // ... Logic kept, but removing auto-highlight reset if user manually selected ...
             // ACTUALLY: The image click might want to update the variant selection too?
             // User requirement is about adding to cart.
@@ -3096,10 +3279,13 @@
                         // Sync global state
                         currentVariantIdx = vIdx;
 
+                        const variantStockState = getProductStockState(currentProduct, vIdx);
+
                         // Handle Variant-specific Out of Stock Visuals (if not already globally OOS)
-                        if (!isGloballyOOS && !v.inStock) {
+                        if (!isGloballyOOS && (!v.inStock || variantStockState.globalOutOfStock)) {
                             overlay.classList.remove('opacity-0');
                             overlay.classList.add('opacity-100');
+                            mainImg.style.filter = 'grayscale(25%)';
                         }
                     }
                 }
@@ -3324,9 +3510,9 @@
                 variant = product.variants[0];
             }
             
-            // Check stock
-            if (product.inStock === false) {
-                 window.showToast("Product is out of stock", "error");
+            const stockState = getProductStockState(product, variantIdx);
+            if (product.inStock === false || !stockState.retailAvailable) {
+                 window.showToast("Showroom stock is out of stock", "error");
                  return;
             }
             if (variant && variant.inStock === false) {
@@ -3644,8 +3830,9 @@
                 variant = product.variants[0];
             }
 
-            if (product.inStock === false) {
-                window.showToast("Product is out of stock", "error");
+            const stockState = getProductStockState(product, variantIdx);
+            if (product.inStock === false || !stockState.wholesaleAvailable) {
+                window.showToast("Warehouse stock is out of stock", "error");
                 return;
             }
             if (variant && variant.inStock === false) {

@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>House Of Glass | Stock Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=2">
+    <link rel="apple-touch-icon" href="logo.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brandBlue: '#121926',
+                        brandGold: '#D4AF37',
+                        darkBg: '#030712',
+                        darkCard: '#111827'
+                    },
+                    fontFamily: {
+                        arabic: ['Cairo', 'sans-serif']
+                    }
+                }
+            }
+        };
+
+        function applySmartTheme() {
+            const isAutoEnabled = localStorage.getItem('autoThemeEnabled') !== 'false';
+            const manualTheme = localStorage.getItem('darkMode');
+            const overrideTime = localStorage.getItem('themeOverrideTime');
+            const now = Date.now();
+
+            if (!isAutoEnabled) {
+                if (manualTheme === 'true') document.documentElement.classList.add('dark');
+                else if (manualTheme === 'false') document.documentElement.classList.remove('dark');
+                return;
+            }
+
+            if (overrideTime && (now - overrideTime > 600000)) {
+                localStorage.removeItem('darkMode');
+                localStorage.removeItem('themeOverrideTime');
+            } else if (manualTheme !== null) {
+                if (manualTheme === 'true') document.documentElement.classList.add('dark');
+                else document.documentElement.classList.remove('dark');
+                return;
+            }
+
+            const hour = new Date().getHours();
+            if (hour < 6 || hour >= 18) document.documentElement.classList.add('dark');
+            else document.documentElement.classList.remove('dark');
+        }
+
+        applySmartTheme();
+    </script>
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+        }
+
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: #D4AF37 rgba(212, 175, 55, 0.08);
+        }
+
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(212, 175, 55, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #D4AF37, #B48E3C);
+            border-radius: 10px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+
+        .loading-pulse {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-brandBlue dark:bg-darkBg dark:text-white min-h-screen">
+    <header class="sticky top-0 z-30 border-b border-gray-200/70 dark:border-gray-800 bg-white/90 dark:bg-darkBg/90 backdrop-blur-xl">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div class="flex items-center gap-3">
+                <a href="admin.html" class="w-11 h-11 rounded-full border border-brandGold/30 bg-brandGold/10 text-brandGold flex items-center justify-center hover:bg-brandGold hover:text-white transition-all" title="Back to Admin">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </a>
+                <div>
+                    <p class="text-[11px] uppercase tracking-[0.35em] text-gray-400">Admin Stock Sync</p>
+                    <h1 class="text-2xl md:text-3xl font-black text-brandBlue dark:text-brandGold">Showroom and Warehouse Stock</h1>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+                <button id="themeToggle" class="px-4 py-2 rounded-full border border-gray-200 dark:border-gray-700 text-sm font-bold hover:border-brandGold hover:text-brandGold transition-all">Toggle Theme</button>
+                <button id="refreshBtn" class="px-4 py-2 rounded-full bg-brandBlue text-white dark:bg-brandGold dark:text-brandBlue text-sm font-bold hover:opacity-90 transition-all">Refresh Now</button>
+                <a href="index.html" class="px-4 py-2 rounded-full border border-brandGold text-brandGold text-sm font-bold hover:bg-brandGold hover:text-white transition-all">Open Website</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-6 md:py-10">
+        <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+            <div class="rounded-3xl bg-white dark:bg-darkCard border border-gray-100 dark:border-gray-800 p-5 shadow-sm">
+                <p class="text-xs text-gray-400 mb-2">Website Products</p>
+                <p id="totalProductsStat" class="text-3xl font-black">0</p>
+            </div>
+            <div class="rounded-3xl bg-white dark:bg-darkCard border border-gray-100 dark:border-gray-800 p-5 shadow-sm">
+                <p class="text-xs text-gray-400 mb-2">Linked Products</p>
+                <p id="linkedProductsStat" class="text-3xl font-black text-green-600">0</p>
+            </div>
+            <div class="rounded-3xl bg-white dark:bg-darkCard border border-gray-100 dark:border-gray-800 p-5 shadow-sm">
+                <p class="text-xs text-gray-400 mb-2">Total Showroom Stock</p>
+                <p id="retailStockStat" class="text-3xl font-black text-blue-600">0</p>
+            </div>
+            <div class="rounded-3xl bg-white dark:bg-darkCard border border-gray-100 dark:border-gray-800 p-5 shadow-sm">
+                <p class="text-xs text-gray-400 mb-2">Total Warehouse Stock</p>
+                <p id="wholesaleStockStat" class="text-3xl font-black text-amber-500">0</p>
+            </div>
+        </section>
+
+        <section class="rounded-3xl bg-white dark:bg-darkCard border border-gray-100 dark:border-gray-800 p-4 md:p-5 shadow-sm mb-6">
+            <div class="flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
+                <div class="flex-1 flex flex-col md:flex-row gap-3">
+                    <input id="searchInput" type="text" placeholder="Search by name, code, or barcode" class="flex-1 px-4 py-3 rounded-2xl bg-gray-50 dark:bg-gray-800 border border-transparent focus:border-brandGold outline-none">
+                    <select id="statusFilter" class="px-4 py-3 rounded-2xl bg-gray-50 dark:bg-gray-800 border border-transparent focus:border-brandGold outline-none">
+                        <option value="all">All Products</option>
+                        <option value="linked">Linked Only</option>
+                        <option value="missing">Unlinked Only</option>
+                        <option value="inRetail">Showroom Has Stock</option>
+                        <option value="outRetail">Showroom Out of Stock</option>
+                        <option value="inWholesale">Warehouse Has Stock</option>
+                        <option value="outWholesale">Warehouse Out of Stock</option>
+                    </select>
+                </div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">
+                    <span>Last Sync:</span>
+                    <span id="lastSyncText" class="font-bold text-brandBlue dark:text-brandGold">-</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="rounded-3xl bg-white dark:bg-darkCard border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+            <div id="loadingState" class="px-6 py-16 text-center text-gray-400">
+                <img src="logo.png" alt="Loading" class="w-20 h-20 object-contain mx-auto mb-4 loading-pulse opacity-70">
+                <p class="text-sm font-bold">Loading website products and matching them with system stock...</p>
+            </div>
+
+            <div id="errorState" class="hidden px-6 py-16 text-center">
+                <p id="errorText" class="text-red-500 font-bold"></p>
+            </div>
+
+            <div id="tableWrapper" class="hidden overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-gray-50 dark:bg-gray-800/80 text-gray-500 dark:text-gray-300">
+                        <tr>
+                            <th class="px-4 py-4 text-left font-black">Product</th>
+                            <th class="px-4 py-4 text-left font-black">Code</th>
+                            <th class="px-4 py-4 text-left font-black">System Barcode</th>
+                            <th class="px-4 py-4 text-left font-black">Showroom Stock</th>
+                            <th class="px-4 py-4 text-left font-black">Warehouse Stock</th>
+                            <th class="px-4 py-4 text-left font-black">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stockTableBody" class="divide-y divide-gray-100 dark:divide-gray-800"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getFirestore, collection, onSnapshot, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+        import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+
+        const firebaseConfig = {
+            apiKey: 'AIzaSyA_oTePhmWmzuOcZDmc_-7bhoAVbYVhH3Q',
+            authDomain: 'houseofglass-440.firebaseapp.com',
+            projectId: 'houseofglass-440',
+            storageBucket: 'houseofglass-440.firebasestorage.app',
+            messagingSenderId: '73082039144',
+            appId: '1:73082039144:web:0658e54416293334dc84dd',
+            measurementId: 'G-S81YY4Z4RM'
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        const STOCK_ENDPOINT = 'https://glass-system-backend.onrender.com/public/stock';
+        const STOCK_TTL_MS = 120000;
+
+        const loadingState = document.getElementById('loadingState');
+        const errorState = document.getElementById('errorState');
+        const errorText = document.getElementById('errorText');
+        const tableWrapper = document.getElementById('tableWrapper');
+        const stockTableBody = document.getElementById('stockTableBody');
+        const searchInput = document.getElementById('searchInput');
+        const statusFilter = document.getElementById('statusFilter');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const lastSyncText = document.getElementById('lastSyncText');
+        const themeToggle = document.getElementById('themeToggle');
+
+        let products = [];
+        let mergedRows = [];
+        let stockCache = null;
+        let stockCacheTime = 0;
+        let stockPromise = null;
+
+        function setLoading(isLoading) {
+            loadingState.classList.toggle('hidden', !isLoading);
+            if (isLoading) {
+                errorState.classList.add('hidden');
+                tableWrapper.classList.add('hidden');
+            }
+        }
+
+        function setError(message) {
+            errorText.textContent = message;
+            errorState.classList.remove('hidden');
+            loadingState.classList.add('hidden');
+            tableWrapper.classList.add('hidden');
+        }
+
+        function normalizeCode(value) {
+            return String(value || '').trim();
+        }
+
+        function normalizeWarehouseName(name) {
+            return String(name || '').replace(/\s+/g, '');
+        }
+
+        function getWarehouseBuckets(item) {
+            let retailStock = 0;
+            let wholesaleStock = 0;
+
+            (item?.stock_by_warehouse || []).forEach((warehouse) => {
+                const normalizedName = normalizeWarehouseName(warehouse.warehouse_name);
+                const quantity = Number(warehouse.quantity || 0);
+
+                if (!normalizedName) return;
+
+                if (normalizedName.includes('مخزنالمعرض')) {
+                    retailStock += quantity;
+                    return;
+                }
+
+                if (normalizedName.includes('المخزنالرئيسي')) {
+                    wholesaleStock += quantity;
+                }
+            });
+
+            return { retailStock, wholesaleStock };
+        }
+
+        async function getStockMap(force = false) {
+            const now = Date.now();
+            if (!force && stockCache && now - stockCacheTime < STOCK_TTL_MS) {
+                return stockCache;
+            }
+
+            if (!force && stockPromise) return stockPromise;
+
+            stockPromise = (async () => {
+                const response = await fetch(STOCK_ENDPOINT);
+                if (!response.ok) throw new Error('Unable to connect to the stock server');
+
+                const payload = await response.json();
+                const productList = Array.isArray(payload?.products) ? payload.products : [];
+                const stockMap = {};
+
+                productList.forEach((item) => {
+                    const barcode = normalizeCode(item.barcode || item.code || item.product_code || item.id);
+                    if (!barcode) return;
+
+                    const buckets = getWarehouseBuckets(item);
+                    stockMap[barcode] = {
+                        barcode,
+                        name: item.name || '',
+                        retailStock: buckets.retailStock,
+                        wholesaleStock: buckets.wholesaleStock,
+                        totalStock: Number(item.total_stock || 0)
+                    };
+                });
+
+                stockCache = stockMap;
+                stockCacheTime = Date.now();
+                stockPromise = null;
+                return stockMap;
+            })().catch((error) => {
+                stockPromise = null;
+                throw error;
+            });
+
+            return stockPromise;
+        }
+
+        function buildMergedRows(stockMap) {
+            return products.map((product) => {
+                const code = normalizeCode(product.code);
+                const stockInfo = code ? stockMap[code] : null;
+                const retailStock = stockInfo?.retailStock || 0;
+                const wholesaleStock = stockInfo?.wholesaleStock || 0;
+
+                return {
+                    id: product.id,
+                    name: product.name || 'Unnamed Product',
+                    code,
+                    matchedBarcode: stockInfo?.barcode || '-',
+                    retailStock,
+                    wholesaleStock,
+                    linked: Boolean(stockInfo),
+                    order: Number(product.order || 0)
+                };
+            }).sort((left, right) => {
+                if (left.order !== right.order) return left.order - right.order;
+                return left.name.localeCompare(right.name, 'en');
+            });
+        }
+
+        function updateStats(rows) {
+            const linkedRows = rows.filter((row) => row.linked);
+            const retailTotal = rows.reduce((sum, row) => sum + row.retailStock, 0);
+            const wholesaleTotal = rows.reduce((sum, row) => sum + row.wholesaleStock, 0);
+
+            document.getElementById('totalProductsStat').textContent = String(rows.length);
+            document.getElementById('linkedProductsStat').textContent = String(linkedRows.length);
+            document.getElementById('retailStockStat').textContent = String(retailTotal);
+            document.getElementById('wholesaleStockStat').textContent = String(wholesaleTotal);
+        }
+
+        function getFilteredRows() {
+            const searchValue = normalizeCode(searchInput.value).toLowerCase();
+            const statusValue = statusFilter.value;
+
+            return mergedRows.filter((row) => {
+                const matchesSearch = !searchValue
+                    || row.name.toLowerCase().includes(searchValue)
+                    || row.code.toLowerCase().includes(searchValue)
+                    || String(row.matchedBarcode).toLowerCase().includes(searchValue);
+
+                if (!matchesSearch) return false;
+
+                if (statusValue === 'linked') return row.linked;
+                if (statusValue === 'missing') return !row.linked;
+                if (statusValue === 'inRetail') return row.retailStock > 0;
+                if (statusValue === 'outRetail') return row.retailStock <= 0;
+                if (statusValue === 'inWholesale') return row.wholesaleStock > 0;
+                if (statusValue === 'outWholesale') return row.wholesaleStock <= 0;
+                return true;
+            });
+        }
+
+        function renderStockBadge(quantity, stockType) {
+            if (quantity > 0) {
+                const activeClass = stockType === 'retail'
+                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
+                    : 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300';
+
+                return `<span class="inline-flex min-w-[3rem] justify-center px-3 py-1 rounded-full ${activeClass} font-black">${quantity}</span>`;
+            }
+
+            return '<span class="inline-flex justify-center px-3 py-1 rounded-full bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300 text-xs font-black">Out of Stock</span>';
+        }
+
+        function renderRows() {
+            const rows = getFilteredRows();
+            updateStats(mergedRows);
+
+            if (rows.length === 0) {
+                stockTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="px-4 py-16 text-center text-gray-400 font-bold">No products match the current filters.</td>
+                    </tr>
+                `;
+            } else {
+                stockTableBody.innerHTML = rows.map((row) => {
+                    const statusClass = row.linked
+                        ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300'
+                        : 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300';
+                    const statusText = row.linked ? 'Linked' : 'Unlinked';
+
+                    return `
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                            <td class="px-4 py-4 align-top text-left">
+                                <div class="font-black text-brandBlue dark:text-brandGold">${row.name}</div>
+                            </td>
+                            <td class="px-4 py-4 align-top text-left">
+                                <span class="font-mono font-bold text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-lg">${row.code || '-'}</span>
+                            </td>
+                            <td class="px-4 py-4 align-top text-left">
+                                <span class="font-mono text-xs text-gray-500 dark:text-gray-300">${row.matchedBarcode}</span>
+                            </td>
+                            <td class="px-4 py-4 align-top text-left">
+                                ${renderStockBadge(row.retailStock, 'retail')}
+                            </td>
+                            <td class="px-4 py-4 align-top text-left">
+                                ${renderStockBadge(row.wholesaleStock, 'wholesale')}
+                            </td>
+                            <td class="px-4 py-4 align-top text-left">
+                                <span class="inline-flex px-3 py-1 rounded-full text-xs font-black ${statusClass}">${statusText}</span>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            loadingState.classList.add('hidden');
+            errorState.classList.add('hidden');
+            tableWrapper.classList.remove('hidden');
+            lastSyncText.textContent = new Date().toLocaleString('en-GB');
+        }
+
+        async function refreshStock(force = false) {
+            try {
+                if (products.length === 0) return;
+                setLoading(true);
+                const stockMap = await getStockMap(force);
+                mergedRows = buildMergedRows(stockMap);
+                renderRows();
+            } catch (error) {
+                console.error(error);
+                setError(error.message || 'An error occurred while loading stock');
+            }
+        }
+
+        function bindEvents() {
+            searchInput.addEventListener('input', renderRows);
+            statusFilter.addEventListener('change', renderRows);
+            refreshBtn.addEventListener('click', () => refreshStock(true));
+            themeToggle.addEventListener('click', () => {
+                const isDark = document.documentElement.classList.toggle('dark');
+                localStorage.setItem('darkMode', String(isDark));
+                localStorage.setItem('themeOverrideTime', String(Date.now()));
+            });
+        }
+
+        bindEvents();
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            if (!userDoc.exists()) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const role = userDoc.data().role;
+            if (role !== 'admin' && role !== 'moderator') {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            onSnapshot(collection(db, 'products'), (snapshot) => {
+                products = snapshot.docs.map((document) => ({ id: document.id, ...document.data() }));
+                refreshStock(false);
+            }, (error) => {
+                console.error(error);
+                setError('Unable to read website products from Firebase');
+            });
+        });
+    </script>
+</body>
+</html>
