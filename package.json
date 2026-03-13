@@ -6,11 +6,10 @@
     "start": "python -m http.server 8000"
   },
   "dependencies": {
-    "express": "^5.2.1",
     "firebase-admin": "^11.5.0",
     "pg": "^8.19.0"
   },
   "engines": {
-    "node": "24.x"
+    "node": "22.x"
   }
 }
