@@ -6,4 +6,4 @@ node_modules/
 .env*.local
 .firebase/
 .venv-1/
-
+*.log

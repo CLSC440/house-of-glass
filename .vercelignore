@@ -1,9 +1,10 @@
 .firebase/
 .venv-1/
 .vscode/
+.vercel/
 node_modules/
 .DS_Store
 *.log
-INTEGRATION_GUIDE.md
 README.md
+INTEGRATION_GUIDE.md
 دليل_المطور_لربط_السيستم.md
