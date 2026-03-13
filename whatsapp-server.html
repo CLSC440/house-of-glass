@@ -289,6 +289,37 @@
                 <pre id="imageResult" class="rounded-[1.5rem] bg-gray-950 text-cyan-300 text-xs p-4 overflow-auto min-h-[180px]">Waiting for image test...</pre>
             </div>
         </section>
+
+        <section class="glass-panel rounded-[2rem] p-6 md:p-8 space-y-5">
+            <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+                <div>
+                    <p class="text-[10px] uppercase tracking-[0.3em] text-gray-400">Monitoring</p>
+                    <h2 class="text-2xl font-black uppercase italic tracking-tighter text-brandBlue dark:text-brandGold mt-2">Service Logs</h2>
+                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">متابعة live لآخر logs الخارجة من خدمة WhatsApp نفسها على السيرفر.</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button id="refreshLogsBtn" onclick="refreshLogs()" class="px-4 py-2 rounded-full border border-brandGold text-brandGold text-xs font-black uppercase tracking-widest hover:bg-brandGold hover:text-white transition-all">Refresh Logs</button>
+                    <button id="toggleLogsAutoBtn" onclick="toggleLogsAutoRefresh()" class="px-4 py-2 rounded-full bg-brandBlue text-white dark:bg-brandGold dark:text-brandBlue text-xs font-black uppercase tracking-widest shadow-lg">Auto Refresh On</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-gray-500 dark:text-gray-400">
+                <div class="rounded-2xl bg-white dark:bg-gray-900 p-4 border border-gray-100 dark:border-gray-800">
+                    <div class="font-black uppercase tracking-[0.22em] text-[10px] text-brandGold mb-2">Log Source</div>
+                    <div id="logsSource" class="break-all text-xs text-gray-600 dark:text-gray-300">Waiting...</div>
+                </div>
+                <div class="rounded-2xl bg-white dark:bg-gray-900 p-4 border border-gray-100 dark:border-gray-800">
+                    <div class="font-black uppercase tracking-[0.22em] text-[10px] text-brandGold mb-2">Last Log Update</div>
+                    <div id="logsUpdatedAt" class="text-sm font-black text-brandBlue dark:text-white">Waiting</div>
+                </div>
+                <div class="rounded-2xl bg-white dark:bg-gray-900 p-4 border border-gray-100 dark:border-gray-800">
+                    <div class="font-black uppercase tracking-[0.22em] text-[10px] text-brandGold mb-2">Visible Lines</div>
+                    <div id="logsLineCount" class="text-sm font-black text-brandBlue dark:text-white">0</div>
+                </div>
+            </div>
+
+            <pre id="serviceLogsOutput" class="rounded-[1.5rem] bg-gray-950 text-amber-200 text-xs p-4 overflow-auto min-h-[320px] max-h-[560px] whitespace-pre-wrap break-words">Waiting for service logs...</pre>
+        </section>
     </main>
 
     <script type="module">
@@ -324,8 +355,15 @@
         const qrPlaceholderText = document.getElementById('qrPlaceholderText');
         const directQrLink = document.getElementById('directQrLink');
         const healthJsonLink = document.getElementById('healthJsonLink');
+        const serviceLogsOutput = document.getElementById('serviceLogsOutput');
+        const logsSource = document.getElementById('logsSource');
+        const logsUpdatedAt = document.getElementById('logsUpdatedAt');
+        const logsLineCount = document.getElementById('logsLineCount');
+        const toggleLogsAutoBtn = document.getElementById('toggleLogsAutoBtn');
 
         let pollingTimer = null;
+        let logsPollingTimer = null;
+        let isLogsAutoRefreshEnabled = true;
 
         function getServerBase() {
             return (localStorage.getItem('whatsappServerBase') || 'https://whapp.hg-alshour.online').replace(/\/$/, '');
@@ -347,6 +385,15 @@
 
         function updateLastSync() {
             document.getElementById('lastSyncValue').textContent = new Date().toLocaleTimeString();
+        }
+
+        function renderLogs(logs) {
+            const text = logs?.text?.trim() || 'No logs yet.';
+            serviceLogsOutput.textContent = text;
+            logsSource.textContent = logs?.source || 'Unavailable';
+            logsUpdatedAt.textContent = logs?.updatedAt ? new Date(logs.updatedAt).toLocaleTimeString() : 'Unknown';
+            logsLineCount.textContent = String(logs?.lineCount || 0);
+            serviceLogsOutput.scrollTop = serviceLogsOutput.scrollHeight;
         }
 
         function setServerCards(health) {
@@ -475,6 +522,25 @@
             }
         }
 
+        async function refreshLogs() {
+            const base = getServerBase();
+            try {
+                const logs = await fetchJson(`${base}/api/logs?limit=160`);
+                renderLogs(logs);
+            } catch (error) {
+                serviceLogsOutput.textContent = `Error loading logs: ${error.message}`;
+                logsSource.textContent = `${base}/api/logs`;
+                logsUpdatedAt.textContent = new Date().toLocaleTimeString();
+                logsLineCount.textContent = '0';
+            }
+        }
+
+        function startLogsPolling() {
+            if (logsPollingTimer) clearInterval(logsPollingTimer);
+            if (!isLogsAutoRefreshEnabled) return;
+            logsPollingTimer = setInterval(refreshLogs, 5000);
+        }
+
         async function sendRequest(endpoint, payload, targetId) {
             const base = getServerBase();
             const target = document.getElementById(targetId);
@@ -487,9 +553,11 @@
                 });
                 target.textContent = JSON.stringify(result, null, 2);
                 await refreshDashboard();
+                await refreshLogs();
             } catch (error) {
                 target.textContent = `Error: ${error.message}`;
                 await refreshDashboard();
+                await refreshLogs();
             }
         }
 
@@ -516,6 +584,20 @@
 
         window.refreshDashboard = refreshDashboard;
         window.refreshQrCode = refreshQrCode;
+        window.refreshLogs = refreshLogs;
+        window.toggleLogsAutoRefresh = function() {
+            isLogsAutoRefreshEnabled = !isLogsAutoRefreshEnabled;
+            toggleLogsAutoBtn.textContent = isLogsAutoRefreshEnabled ? 'Auto Refresh On' : 'Auto Refresh Off';
+            toggleLogsAutoBtn.classList.toggle('bg-brandBlue', isLogsAutoRefreshEnabled);
+            toggleLogsAutoBtn.classList.toggle('text-white', isLogsAutoRefreshEnabled);
+            toggleLogsAutoBtn.classList.toggle('dark:bg-brandGold', isLogsAutoRefreshEnabled);
+            toggleLogsAutoBtn.classList.toggle('dark:text-brandBlue', isLogsAutoRefreshEnabled);
+            toggleLogsAutoBtn.classList.toggle('border', !isLogsAutoRefreshEnabled);
+            toggleLogsAutoBtn.classList.toggle('border-brandGold', !isLogsAutoRefreshEnabled);
+            toggleLogsAutoBtn.classList.toggle('text-brandGold', !isLogsAutoRefreshEnabled);
+            toggleLogsAutoBtn.classList.toggle('bg-transparent', !isLogsAutoRefreshEnabled);
+            startLogsPolling();
+        };
 
         document.getElementById('textTestForm').addEventListener('submit', async (event) => {
             event.preventDefault();
@@ -565,8 +647,10 @@
             fillTextExample();
             fillImageExample();
             refreshDashboard();
+            refreshLogs();
             if (pollingTimer) clearInterval(pollingTimer);
             pollingTimer = setInterval(refreshDashboard, 15000);
+            startLogsPolling();
         });
     </script>
 </body>
