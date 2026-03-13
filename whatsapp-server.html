@@ -130,7 +130,7 @@
                 <div class="max-w-2xl space-y-3">
                     <p class="text-[11px] uppercase tracking-[0.35em] text-brandGold font-black">Local WhatsApp Control</p>
                     <h1 class="text-3xl md:text-5xl font-black italic uppercase tracking-tighter text-brandBlue dark:text-brandGold">WhatsApp Server</h1>
-                    <p class="text-sm md:text-base text-gray-500 dark:text-gray-400 leading-relaxed">راقب حالة السيرفر المحلي، اعرض QR Code، واختبر إرسال الرسائل والصور قبل ما تربطه مع n8n automation.</p>
+                    <p class="text-sm md:text-base text-gray-500 dark:text-gray-400 leading-relaxed">Monitor the local server status, display the QR code, and test sending messages and images before connecting it to n8n automation.</p>
                 </div>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 w-full lg:w-auto">
                     <div class="rounded-2xl bg-white/80 dark:bg-gray-900/70 px-4 py-3 border border-white/70 dark:border-gray-800 min-w-[120px]">
@@ -198,7 +198,7 @@
                         <div class="space-y-2">
                             <p class="text-[10px] uppercase tracking-[0.35em] text-white/60">Connection Target</p>
                             <h3 class="text-xl font-black uppercase italic tracking-tighter">Server Endpoint</h3>
-                            <p class="text-sm text-white/70">تقدر تغيّر العنوان لو غيرت الـ IP أو نقلت الخدمة لسيرفر تاني.</p>
+                            <p class="text-sm text-white/70">You can update this address if the IP changes or if you move the service to another server.</p>
                         </div>
                         <div class="w-full lg:w-[420px] flex flex-col sm:flex-row gap-3">
                             <input id="serverBaseInput" type="text" class="flex-1 px-4 py-3 rounded-2xl bg-white/10 border border-white/15 text-sm text-white placeholder:text-white/45 outline-none" placeholder="https://whapp.hg-alshour.online">
@@ -223,7 +223,7 @@
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3m0 0v3m0-3L3 8m18-3a2 2 0 00-2-2h-3m0 0v3m0-3l5 5M3 19a2 2 0 002 2h3m0 0v-3m0 3l-5-5m18 3a2 2 0 01-2 2h-3m0 0v-3m0 3l5-5" /></svg>
                         </div>
                         <h3 id="qrPlaceholderTitle" class="text-xl font-black uppercase italic tracking-tighter text-brandBlue dark:text-brandGold">Waiting For QR</h3>
-                        <p id="qrPlaceholderText" class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">اضغط Reload QR أو افتح صفحة الـ QR المباشرة لو لسه ما ظهرش الكود.</p>
+                        <p id="qrPlaceholderText" class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">Click Reload QR or open the direct QR page if the code has not appeared yet.</p>
                     </div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-500 dark:text-gray-400">
@@ -247,9 +247,15 @@
                 </div>
                 <form id="textTestForm" class="space-y-4">
                     <div>
-                        <label class="block text-sm font-bold mb-2">Chat ID</label>
-                        <input id="textChatId" type="text" class="w-full px-4 py-3 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 outline-none" placeholder="201001234567@c.us">
-                        <p class="mt-2 text-[11px] text-gray-400">Personal chat example: <span class="font-black">201001234567@c.us</span></p>
+                        <label class="block text-sm font-bold mb-2">Phone Number</label>
+                        <div class="flex gap-3">
+                            <select id="textCountryCode" class="px-4 py-3 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 outline-none min-w-[110px]">
+                                <option value="+20" selected>+20 EG</option>
+                                <option value="+1">+1 US</option>
+                            </select>
+                            <input id="textChatId" type="text" inputmode="numeric" class="flex-1 px-4 py-3 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 outline-none" placeholder="01001234567">
+                        </div>
+                        <p class="mt-2 text-[11px] text-gray-400">Enter only the local number. The selected country code and <span class="font-black">@c.us</span> will be added automatically.</p>
                     </div>
                     <div>
                         <label class="block text-sm font-bold mb-2">Message</label>
@@ -270,8 +276,15 @@
                 </div>
                 <form id="imageTestForm" class="space-y-4">
                     <div>
-                        <label class="block text-sm font-bold mb-2">Chat ID</label>
-                        <input id="imageChatId" type="text" class="w-full px-4 py-3 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 outline-none" placeholder="201001234567@c.us">
+                        <label class="block text-sm font-bold mb-2">Phone Number</label>
+                        <div class="flex gap-3">
+                            <select id="imageCountryCode" class="px-4 py-3 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 outline-none min-w-[110px]">
+                                <option value="+20" selected>+20 EG</option>
+                                <option value="+1">+1 US</option>
+                            </select>
+                            <input id="imageChatId" type="text" inputmode="numeric" class="flex-1 px-4 py-3 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 outline-none" placeholder="01001234567">
+                        </div>
+                        <p class="mt-2 text-[11px] text-gray-400">Enter only the local number. The selected country code and <span class="font-black">@c.us</span> will be added automatically.</p>
                     </div>
                     <div>
                         <label class="block text-sm font-bold mb-2">Image URL</label>
@@ -295,7 +308,7 @@
                 <div>
                     <p class="text-[10px] uppercase tracking-[0.3em] text-gray-400">Monitoring</p>
                     <h2 class="text-2xl font-black uppercase italic tracking-tighter text-brandBlue dark:text-brandGold mt-2">Service Logs</h2>
-                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">متابعة live لآخر logs الخارجة من خدمة WhatsApp نفسها على السيرفر.</p>
+                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Live view of the latest logs coming from the WhatsApp service on the server.</p>
                 </div>
                 <div class="flex flex-wrap gap-2">
                     <button id="refreshLogsBtn" onclick="refreshLogs()" class="px-4 py-2 rounded-full border border-brandGold text-brandGold text-xs font-black uppercase tracking-widest hover:bg-brandGold hover:text-white transition-all">Refresh Logs</button>
@@ -486,9 +499,9 @@
                 if (health.hasQr) {
                     await refreshQrCode(false);
                 } else if (health.ready) {
-                    showQrPlaceholder('Session Connected', 'الربط تم بنجاح. لو حبيت تعمل session جديدة امسح auth data من السيرفر أو أعد الربط.');
+                    showQrPlaceholder('Session Connected', 'The session is linked successfully. If you want to create a new session, clear the auth data on the server or relink it.');
                 } else {
-                    showQrPlaceholder('Waiting For QR', health.sessionError || 'الخدمة شغالة لكن الجلسة الحالية غير صالحة أو تحتاج إعادة ربط. جرب Reload QR.');
+                    showQrPlaceholder('Waiting For QR', health.sessionError || 'The service is running, but the current session is invalid or needs to be linked again. Try Reload QR.');
                 }
             } catch (error) {
                 setServerCards({ ok: false, ready: false, hasQr: false });
@@ -511,7 +524,7 @@
                     document.getElementById('qrStatusValue').textContent = 'Live';
                     updateLastSync();
                 } else {
-                    showQrPlaceholder('QR Missing', 'الـ API رجع بدون صورة QR.');
+                    showQrPlaceholder('QR Missing', 'The API responded without a QR image.');
                 }
             } catch (error) {
                 if (alsoRefreshHealth) {
@@ -561,11 +574,43 @@
             }
         }
 
+        function buildChatId(numberValue, countryCode) {
+            const rawValue = String(numberValue || '').trim();
+            if (!rawValue) {
+                throw new Error('Phone number is required');
+            }
+
+            if (/@c\.us$/i.test(rawValue)) {
+                return rawValue;
+            }
+
+            const prefix = String(countryCode || '+20').replace(/\D/g, '');
+            let digits = rawValue.replace(/\D/g, '');
+
+            if (!digits) {
+                throw new Error('Phone number is required');
+            }
+
+            if (digits.startsWith(prefix)) {
+                return `${digits}@c.us`;
+            }
+
+            if (prefix === '20' && digits.startsWith('0')) {
+                digits = digits.slice(1);
+            }
+
+            return `${prefix}${digits}@c.us`;
+        }
+
         window.fillTextExample = function() {
+            document.getElementById('textCountryCode').value = '+20';
+            document.getElementById('textChatId').value = '01001234567';
             document.getElementById('textMessage').value = 'test from whatsapp server dashboard';
         };
 
         window.fillImageExample = function() {
+            document.getElementById('imageCountryCode').value = '+20';
+            document.getElementById('imageChatId').value = '01001234567';
             document.getElementById('imageUrl').value = 'https://res.cloudinary.com/demo/image/upload/sample.jpg';
             document.getElementById('imageCaption').value = 'test image from whatsapp server dashboard';
         };
@@ -602,7 +647,10 @@
         document.getElementById('textTestForm').addEventListener('submit', async (event) => {
             event.preventDefault();
             await sendRequest('/api/sendText', {
-                chatId: document.getElementById('textChatId').value.trim(),
+                chatId: buildChatId(
+                    document.getElementById('textChatId').value,
+                    document.getElementById('textCountryCode').value
+                ),
                 text: document.getElementById('textMessage').value
             }, 'textResult');
         });
@@ -610,7 +658,10 @@
         document.getElementById('imageTestForm').addEventListener('submit', async (event) => {
             event.preventDefault();
             await sendRequest('/api/sendImage', {
-                chatId: document.getElementById('imageChatId').value.trim(),
+                chatId: buildChatId(
+                    document.getElementById('imageChatId').value,
+                    document.getElementById('imageCountryCode').value
+                ),
                 file: document.getElementById('imageUrl').value.trim(),
                 caption: document.getElementById('imageCaption').value
             }, 'imageResult');
@@ -644,8 +695,6 @@
             }
 
             setServerBaseLinks(getServerBase());
-            fillTextExample();
-            fillImageExample();
             refreshDashboard();
             refreshLogs();
             if (pollingTimer) clearInterval(pollingTimer);
