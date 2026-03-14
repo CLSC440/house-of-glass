@@ -726,9 +726,9 @@
                     </div>
                 </div>
                 <div class="mt-6 md:mt-10">
-                    <a id="enquiryBtn" href="#" target="_blank" class="flex items-center justify-center space-x-2 w-full bg-[#25D366] text-white py-2.5 md:py-4 rounded-xl font-bold hover:bg-opacity-90 transition-all shadow-lg text-xs md:text-base">
-                        <svg viewBox="0 0 24 24" class="h-5 w-5 md:h-6 md:w-6" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
-                        <span>Ask on WhatsApp</span>
+                    <a id="enquiryBtn" href="#" target="_blank" class="inline-flex flex-none items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-3.5 py-3 text-sm font-black leading-none text-white shadow-lg transition-all hover:bg-[#20c65a] md:px-4 md:py-3.5 md:text-[15px]">
+                        <svg viewBox="0 0 24 24" class="h-5 w-5 flex-shrink-0 md:h-6 md:w-6" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+                        <span class="whitespace-nowrap">Ask on WhatsApp</span>
                     </a>
                 </div>
             </div>
@@ -3417,9 +3417,9 @@
                 };
             }
 
-            btnContainer.className = "flex items-center space-x-3 mt-6 md:mt-10";
-            enquiryBtn.classList.remove('w-full');
-            enquiryBtn.classList.add('flex-1');
+            btnContainer.className = "mt-6 flex items-center gap-3 md:mt-10";
+            enquiryBtn.classList.remove('w-full', 'flex-1', 'max-w-full');
+            enquiryBtn.classList.add('inline-flex', 'shrink-0', 'flex-none');
             
             // Order: Edit -> Wholesale -> Cart -> WhatsApp
             if (cartBtn) btnContainer.insertBefore(cartBtn, enquiryBtn);
@@ -3747,6 +3747,73 @@
         // --- Shopping Cart Logic ---
         let cart = JSON.parse(localStorage.getItem('houseOfGlassCart')) || [];
 
+        function resolveCartItemContext(item) {
+            const product = products.find((entry) => entry.id === item.productId);
+            if (!product) return { product: null, variantIdx: null, variant: null };
+
+            let variantIdx = null;
+            let variant = null;
+            if (item.variantName && Array.isArray(product.variants)) {
+                variantIdx = product.variants.findIndex((entry) => entry.name === item.variantName || entry.label === item.variantName);
+                if (variantIdx !== -1) {
+                    variant = product.variants[variantIdx];
+                } else {
+                    variantIdx = null;
+                }
+            }
+
+            return { product, variantIdx, variant };
+        }
+
+        function getCartItemStockLimit(item, stockType) {
+            const { product, variantIdx } = resolveCartItemContext(item);
+            if (!product) return null;
+
+            const stockState = getProductStockState(product, variantIdx);
+            const available = stockType === 'wholesale' ? stockState.wholesaleAvailable : stockState.retailAvailable;
+            if (!available) return 0;
+            if (!stockState.hasLinkedStock) return null;
+
+            const rawLimit = stockType === 'wholesale' ? stockState.warehouseStock : stockState.showroomStock;
+            const parsedLimit = Number(rawLimit);
+            return Number.isFinite(parsedLimit) ? Math.max(0, parsedLimit) : null;
+        }
+
+        function clampCartCollectionToStock(collection, stockType) {
+            let didChange = false;
+            const nextCollection = [];
+
+            collection.forEach((item) => {
+                const limit = getCartItemStockLimit(item, stockType);
+                if (limit === null) {
+                    nextCollection.push(item);
+                    return;
+                }
+
+                if (limit <= 0) {
+                    didChange = true;
+                    return;
+                }
+
+                if (item.quantity > limit) {
+                    nextCollection.push({ ...item, quantity: limit });
+                    didChange = true;
+                    return;
+                }
+
+                nextCollection.push(item);
+            });
+
+            return { nextCollection, didChange };
+        }
+
+        function getCartLimitToastMessage(stockType, limit) {
+            if (stockType === 'wholesale') {
+                return `Maximum | الحد الأقصى = ${limit} carton`;
+            }
+            return `Maximum | الحد الأقصى = ${limit} pack`;
+        }
+
         window.addToCart = function(productId, variantIdx = null, qty = 1) {
             const product = products.find(p => p.id === productId);
             if (!product) return;
@@ -3774,11 +3841,31 @@
             const cartItemId = variant ? `${product.id}-${variant.name.replace(/\s+/g, '_')}` : product.id;
             
             const existingItem = cart.find(item => item.cartId === cartItemId);
+            const cartLimit = stockState.hasLinkedStock ? Math.max(0, Number(stockState.showroomStock || 0)) : null;
             
             if (existingItem) {
-                existingItem.quantity += qty;
-                window.showToast(qty > 1 ? `${qty} added to cart!` : "Quantity updated in cart!");
+                const nextQuantity = existingItem.quantity + qty;
+                if (cartLimit !== null && nextQuantity > cartLimit) {
+                    existingItem.quantity = cartLimit;
+                    window.showToast(getCartLimitToastMessage('retail', cartLimit), "error");
+                } else {
+                    existingItem.quantity = nextQuantity;
+                    window.showToast(qty > 1 ? `${qty} added to cart!` : "Quantity updated in cart!");
+                }
+                if (cartLimit === 0) {
+                    window.showToast("Showroom stock is out of stock", "error");
+                    return;
+                }
             } else {
+                if (cartLimit !== null && qty > cartLimit) {
+                    qty = cartLimit;
+                    window.showToast(getCartLimitToastMessage('retail', cartLimit), "error");
+                }
+                if (qty <= 0) {
+                    window.showToast("Showroom stock is out of stock", "error");
+                    return;
+                }
+
                 // Get live price from DC system
                 let itemPrice = 0;
                 let priceCode = variant && variant.barcode ? String(variant.barcode).trim() : (product.code ? String(product.code).trim() : '');
@@ -3815,8 +3902,19 @@
 
         window.updateCartQuantity = function(index, change) {
             if (cart[index]) {
-                cart[index].quantity += change;
-                if (cart[index].quantity <= 0) {
+                if (change > 0) {
+                    const limit = getCartItemStockLimit(cart[index], 'retail');
+                    if (limit !== null && cart[index].quantity + change > limit) {
+                        cart[index].quantity = limit;
+                        window.showToast(getCartLimitToastMessage('retail', limit), "error");
+                    } else {
+                        cart[index].quantity += change;
+                    }
+                } else {
+                    cart[index].quantity += change;
+                }
+
+                if (cart[index] && cart[index].quantity <= 0) {
                     cart.splice(index, 1);
                 }
                 saveCart();
@@ -3840,6 +3938,12 @@
         };
 
         function updateCartUI() {
+            const retailClamp = clampCartCollectionToStock(cart, 'retail');
+            if (retailClamp.didChange) {
+                cart = retailClamp.nextCollection;
+                saveCart();
+            }
+
             // Update Badge
             const count = cart.reduce((sum, item) => sum + item.quantity, 0);
             const badge = document.getElementById('cartCount');
@@ -4092,11 +4196,31 @@
 
             const cartItemId = variant ? `${product.id}-${variant.name.replace(/\s+/g, '_')}` : product.id;
             const existingItem = wholesaleCart.find(item => item.cartId === cartItemId);
+            const cartLimit = stockState.hasLinkedStock ? Math.max(0, Number(stockState.warehouseStock || 0)) : null;
 
             if (existingItem) {
-                existingItem.quantity += qty;
-                window.showToast(`Quantity updated to ${existingItem.quantity} in wholesale order!`, "success");
+                const nextQuantity = existingItem.quantity + qty;
+                if (cartLimit !== null && nextQuantity > cartLimit) {
+                    existingItem.quantity = cartLimit;
+                    window.showToast(getCartLimitToastMessage('wholesale', cartLimit), "error");
+                } else {
+                    existingItem.quantity = nextQuantity;
+                    window.showToast(`Quantity updated to ${existingItem.quantity} in wholesale order!`, "success");
+                }
+                if (cartLimit === 0) {
+                    window.showToast("Warehouse stock is out of stock", "error");
+                    return;
+                }
             } else {
+                if (cartLimit !== null && qty > cartLimit) {
+                    qty = cartLimit;
+                    window.showToast(getCartLimitToastMessage('wholesale', cartLimit), "error");
+                }
+                if (qty <= 0) {
+                    window.showToast("Warehouse stock is out of stock", "error");
+                    return;
+                }
+
                 let itemPrice = 0;
                 let priceCode = variant && variant.barcode ? String(variant.barcode).trim() : (product.code ? String(product.code).trim() : '');
                 
@@ -4132,8 +4256,19 @@
 
         window.updateWholesaleCartQuantity = function(index, change) {
             if (wholesaleCart[index]) {
-                wholesaleCart[index].quantity += change;
-                if (wholesaleCart[index].quantity <= 0) {
+                if (change > 0) {
+                    const limit = getCartItemStockLimit(wholesaleCart[index], 'wholesale');
+                    if (limit !== null && wholesaleCart[index].quantity + change > limit) {
+                        wholesaleCart[index].quantity = limit;
+                        window.showToast(getCartLimitToastMessage('wholesale', limit), "error");
+                    } else {
+                        wholesaleCart[index].quantity += change;
+                    }
+                } else {
+                    wholesaleCart[index].quantity += change;
+                }
+
+                if (wholesaleCart[index] && wholesaleCart[index].quantity <= 0) {
                     wholesaleCart.splice(index, 1);
                 }
                 saveWholesaleCart();
@@ -4158,6 +4293,12 @@
         };
 
         function updateWholesaleCartUI() {
+            const wholesaleClamp = clampCartCollectionToStock(wholesaleCart, 'wholesale');
+            if (wholesaleClamp.didChange) {
+                wholesaleCart = wholesaleClamp.nextCollection;
+                saveWholesaleCart();
+            }
+
             const count = wholesaleCart.reduce((sum, item) => sum + item.quantity, 0);
             const badge = document.getElementById('wholesaleCartCount');
             if (badge) {
