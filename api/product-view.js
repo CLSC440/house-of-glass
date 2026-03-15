@@ -1,4 +1,4 @@
-const { admin, db } = require('./_firebaseAdmin');
+const { admin, getDb } = require('./_firebaseAdmin');
 
 function setCorsHeaders(req, res) {
     const origin = req.headers.origin || '*';
@@ -29,7 +29,7 @@ module.exports = async (req, res) => {
     }
 
     try {
-        await db.collection('products').doc(productId).set({
+        await getDb().collection('products').doc(productId).set({
             viewCount: admin.firestore.FieldValue.increment(1),
             lastViewedAt: admin.firestore.FieldValue.serverTimestamp()
         }, { merge: true });

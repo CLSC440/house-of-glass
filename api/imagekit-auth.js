@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { db, verifyRequestUser } = require('./_firebaseAdmin');
+const { getAdminInitError, verifyRequestUser } = require('./_firebaseAdmin');
 
 function setCorsHeaders(req, res) {
     const origin = req.headers.origin || '*';
@@ -24,13 +24,7 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const decodedUser = await verifyRequestUser(req);
-        const userSnapshot = await db.collection('users').doc(decodedUser.uid).get();
-
-        if (!userSnapshot.exists) {
-            res.status(403).json({ error: 'User profile not found' });
-            return;
-        }
+        await verifyRequestUser(req);
 
         if (!process.env.IMAGEKIT_PUBLIC_KEY || !process.env.IMAGEKIT_PRIVATE_KEY || !process.env.IMAGEKIT_URL_ENDPOINT) {
             res.status(500).json({ error: 'ImageKit environment variables are not configured' });
@@ -53,7 +47,11 @@ module.exports = async (req, res) => {
             urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT
         });
     } catch (error) {
+        const initError = getAdminInitError();
         const status = error.status || 500;
-        res.status(status).json({ error: error.message || 'Failed to create ImageKit auth payload' });
+        res.status(status).json({
+            error: error.message || 'Failed to create ImageKit auth payload',
+            details: status >= 500 && initError ? initError.message : undefined
+        });
     }
 };

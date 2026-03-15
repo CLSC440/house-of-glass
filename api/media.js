@@ -1,4 +1,4 @@
-const { db } = require('./_firebaseAdmin');
+const { getDb } = require('./_firebaseAdmin');
 
 function inferProvider(url = '') {
     if (!url) return 'unknown';
@@ -88,7 +88,7 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const snapshot = await db.collection('products')
+        const snapshot = await getDb().collection('products')
             .where('code', '==', code)
             .limit(1)
             .get();

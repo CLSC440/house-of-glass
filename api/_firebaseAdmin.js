@@ -1,22 +1,60 @@
 const admin = require('firebase-admin');
 
-function initFirebaseAdmin() {
-    if (!admin.apps.length) {
-        if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
-            throw new Error('FIREBASE_SERVICE_ACCOUNT is not configured');
-        }
+let adminInitError = null;
 
-        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount)
-        });
+function parseServiceAccount(rawValue) {
+    if (!rawValue) {
+        const error = new Error('FIREBASE_SERVICE_ACCOUNT is not configured');
+        error.status = 500;
+        throw error;
+    }
+
+    try {
+        const parsed = JSON.parse(rawValue);
+        if (parsed.private_key) {
+            parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
+        }
+        return parsed;
+    } catch (jsonError) {
+        try {
+            const decoded = Buffer.from(rawValue, 'base64').toString('utf8');
+            const parsed = JSON.parse(decoded);
+            if (parsed.private_key) {
+                parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
+            }
+            return parsed;
+        } catch (_base64Error) {
+            const error = new Error(`Invalid FIREBASE_SERVICE_ACCOUNT value: ${jsonError.message}`);
+            error.status = 500;
+            throw error;
+        }
+    }
+}
+
+function getAdmin() {
+    if (!admin.apps.length) {
+        try {
+            const serviceAccount = parseServiceAccount(process.env.FIREBASE_SERVICE_ACCOUNT);
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount)
+            });
+            adminInitError = null;
+        } catch (error) {
+            adminInitError = error;
+            throw error;
+        }
     }
 
     return admin;
 }
 
-const firebaseAdmin = initFirebaseAdmin();
-const db = firebaseAdmin.firestore();
+function getDb() {
+    return getAdmin().firestore();
+}
+
+function getAdminInitError() {
+    return adminInitError;
+}
 
 async function verifyRequestUser(req) {
     const authHeader = req.headers.authorization || '';
@@ -33,11 +71,13 @@ async function verifyRequestUser(req) {
         throw error;
     }
 
-    return firebaseAdmin.auth().verifyIdToken(idToken);
+    return getAdmin().auth().verifyIdToken(idToken);
 }
 
 module.exports = {
-    admin: firebaseAdmin,
-    db,
+    admin,
+    getAdmin,
+    getDb,
+    getAdminInitError,
     verifyRequestUser
 };
