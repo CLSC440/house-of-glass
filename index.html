@@ -1304,9 +1304,44 @@
             };
         }
 
+        function getVisualMediaSignature(mediaItems = []) {
+            return (Array.isArray(mediaItems) ? mediaItems : []).map((item) => {
+                const record = normalizeMediaRecord(item);
+                if (!record) return '';
+                return [
+                    record.provider || '',
+                    record.primaryUrl || '',
+                    record.fallbackUrl || '',
+                    record.url || '',
+                    record.fileId || '',
+                    record.filePath || ''
+                ].join('|');
+            }).join('||');
+        }
+
+        function getVisualVariantSignature(variants = []) {
+            return (Array.isArray(variants) ? variants : []).map((variant) => [
+                variant?.name || '',
+                variant?.label || '',
+                variant?.barcode || '',
+                variant?.code || '',
+                variant?.inStock === false ? '0' : '1',
+                getVisualMediaSignature(variant?.imageDetails || variant?.images || (variant?.image ? [variant.image] : []))
+            ].join('::')).join('|||');
+        }
+
         function getVisualProductSignature(product = {}) {
-            const { viewCount, lastViewedAt, ...visualProduct } = product || {};
-            return JSON.stringify(visualProduct);
+            return [
+                product?.id || '',
+                product?.name || '',
+                product?.category || '',
+                product?.desc || '',
+                product?.code || '',
+                product?.order ?? '',
+                product?.inStock === false ? '0' : '1',
+                getVisualMediaSignature(product?.imageDetails || product?.images || []),
+                getVisualVariantSignature(product?.variants || [])
+            ].join('####');
         }
 
         function hasVisualProductListChanges(previousProducts = [], nextProducts = []) {
