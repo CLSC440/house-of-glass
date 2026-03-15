@@ -1192,8 +1192,8 @@
 
             const { product: matchedProduct, variantIdx: matchedVariantIdx } = match;
 
-            const productModal = document.getElementById('productModal');
-            const isSameProductAlreadyOpen = currentProduct && currentProduct.id === matchedProduct.id && productModal && !productModal.classList.contains('pointer-events-none');
+            const detailProductModal = document.getElementById('detailModal');
+            const isSameProductAlreadyOpen = currentProduct && currentProduct.id === matchedProduct.id && detailProductModal && !detailProductModal.classList.contains('pointer-events-none');
             const isSameVariantAlreadyOpen = isSameProductAlreadyOpen && currentVariantIdx === matchedVariantIdx;
             if (isSameVariantAlreadyOpen) {
                 pendingDeepLinkCode = null;
