@@ -1,24 +1,70 @@
-const admin = require('firebase-admin');
+const { db } = require('./_firebaseAdmin');
 
-// Initialize Firebase Admin only once
-if (!admin.apps.length) {
-    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-        // Production: Use environment variable containing the full JSON object
-        try {
-            const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-            admin.initializeApp({
-                credential: admin.credential.cert(serviceAccount)
-            });
-        } catch (e) {
-            console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT", e);
-        }
-    } else {
-        // Fallback or Local Development (Warning: Set env vars locally to test)
-        console.warn("No FIREBASE_SERVICE_ACCOUNT found. API will likely fail.");
-    }
+function inferProvider(url = '') {
+    if (!url) return 'unknown';
+    if (url.startsWith('data:')) return 'data-uri';
+    if (url.includes('ik.imagekit.io')) return 'imagekit';
+    if (url.includes('cloudinary.com')) return 'cloudinary';
+    return 'external';
 }
 
-const db = admin.firestore();
+function normalizeMediaRecord(record) {
+    if (typeof record === 'string') {
+        return {
+            provider: inferProvider(record),
+            primaryUrl: record,
+            fallbackUrl: '',
+            url: record
+        };
+    }
+
+    const primaryUrl = record?.primaryUrl || record?.url || record?.fallbackUrl || '';
+    return {
+        provider: record?.provider || inferProvider(primaryUrl),
+        primaryUrl,
+        fallbackUrl: record?.fallbackUrl || '',
+        url: record?.url || primaryUrl,
+        fileId: record?.fileId || '',
+        filePath: record?.filePath || ''
+    };
+}
+
+function normalizeMediaCollection(imageDetails = [], imageUrls = []) {
+    const source = Array.isArray(imageDetails) && imageDetails.length > 0
+        ? imageDetails
+        : Array.isArray(imageUrls) ? imageUrls : [];
+    const items = source.map(normalizeMediaRecord);
+    return {
+        items,
+        urls: items.map((item) => item.primaryUrl || item.url || item.fallbackUrl).filter(Boolean)
+    };
+}
+
+function normalizeVariant(variant = {}) {
+    const legacyImages = Array.isArray(variant.images) && variant.images.length > 0
+        ? variant.images
+        : (variant.image ? [variant.image] : []);
+    const normalized = normalizeMediaCollection(variant.imageDetails, legacyImages);
+
+    return {
+        ...variant,
+        imageDetails: normalized.items,
+        images: normalized.urls,
+        image: normalized.urls[0] || ''
+    };
+}
+
+function normalizeProduct(product = {}) {
+    const normalized = normalizeMediaCollection(product.imageDetails, product.images || []);
+    const variants = Array.isArray(product.variants) ? product.variants.map(normalizeVariant) : [];
+
+    return {
+        ...product,
+        imageDetails: normalized.items,
+        images: normalized.urls,
+        variants
+    };
+}
 
 module.exports = async (req, res) => {
     // Enable CORS for external systems (HG System)
@@ -51,13 +97,14 @@ module.exports = async (req, res) => {
             return res.status(404).json({ error: 'Product not found' });
         }
 
-        const product = snapshot.docs[0].data();
+        const product = normalizeProduct(snapshot.docs[0].data());
         
         // Return structured data for the Media Provider contract
         return res.status(200).json({
             code: code,
             name: product.name,
             images: product.images || [],
+            imageDetails: product.imageDetails || [],
             variants: product.variants || []
         });
 

@@ -1220,6 +1220,226 @@
         let userRole = 'customer';
         let userNotifications = [];
         let notifUnsubscribe = null;
+        const IMAGEKIT_UPLOAD_URL = 'https://upload.imagekit.io/api/v1/files/upload';
+        const MEDIA_PLACEHOLDER_URL = 'https://via.placeholder.com/800x600?text=No+Image';
+
+        function inferMediaProvider(url = '') {
+            if (!url) return 'unknown';
+            if (url.startsWith('data:')) return 'data-uri';
+            if (url.includes('ik.imagekit.io')) return 'imagekit';
+            if (url.includes('cloudinary.com')) return 'cloudinary';
+            return 'external';
+        }
+
+        function resolveMediaUrl(item) {
+            if (!item) return '';
+            if (typeof item === 'string') return item;
+            return item.primaryUrl || item.url || item.fallbackUrl || '';
+        }
+
+        function resolveMediaFallbackUrl(item) {
+            if (!item || typeof item === 'string') return '';
+            const primaryUrl = resolveMediaUrl(item);
+            return item.fallbackUrl && item.fallbackUrl !== primaryUrl ? item.fallbackUrl : '';
+        }
+
+        function normalizeMediaRecord(record) {
+            if (!record) return null;
+            if (typeof record === 'string') {
+                return {
+                    provider: inferMediaProvider(record),
+                    primaryUrl: record,
+                    fallbackUrl: '',
+                    url: record,
+                    migrated: false
+                };
+            }
+
+            const primaryUrl = record.primaryUrl || record.url || record.fallbackUrl || '';
+            return {
+                provider: record.provider || inferMediaProvider(primaryUrl),
+                primaryUrl,
+                fallbackUrl: record.fallbackUrl || '',
+                url: record.url || primaryUrl,
+                fileId: record.fileId || '',
+                filePath: record.filePath || '',
+                thumbnailUrl: record.thumbnailUrl || '',
+                migrated: Boolean(record.migrated || (record.fallbackUrl && record.fallbackUrl !== primaryUrl))
+            };
+        }
+
+        function normalizeMediaCollection(imageDetails = [], imageUrls = []) {
+            const source = Array.isArray(imageDetails) && imageDetails.length > 0
+                ? imageDetails
+                : Array.isArray(imageUrls) ? imageUrls : [];
+            const items = source.map(normalizeMediaRecord).filter(Boolean);
+            return {
+                items,
+                urls: items.map(resolveMediaUrl).filter(Boolean)
+            };
+        }
+
+        function normalizeVariantMedia(variant = {}) {
+            const legacyImages = Array.isArray(variant.images) && variant.images.length > 0
+                ? variant.images
+                : (variant.image ? [variant.image] : []);
+            const normalized = normalizeMediaCollection(variant.imageDetails, legacyImages);
+            return {
+                ...variant,
+                imageDetails: normalized.items,
+                images: normalized.urls,
+                image: normalized.urls[0] || ''
+            };
+        }
+
+        function normalizeLoadedProduct(product = {}) {
+            const normalized = normalizeMediaCollection(product.imageDetails, product.images || []);
+            const variants = Array.isArray(product.variants) ? product.variants.map(normalizeVariantMedia) : [];
+            return {
+                ...product,
+                viewCount: Number(product.viewCount || 0),
+                imageDetails: normalized.items,
+                images: normalized.urls,
+                variants
+            };
+        }
+
+        function buildMediaLookup(imageDetails = [], imageUrls = []) {
+            const normalized = normalizeMediaCollection(imageDetails, imageUrls);
+            const lookup = new Map();
+            normalized.items.forEach((item) => {
+                [item.url, item.primaryUrl, item.fallbackUrl].filter(Boolean).forEach((key) => {
+                    if (!lookup.has(key)) lookup.set(key, normalizeMediaRecord(item));
+                });
+            });
+            return lookup;
+        }
+
+        function sanitizeUploadFileName(fileName = '') {
+            const cleaned = fileName
+                .normalize('NFKD')
+                .replace(/[^a-zA-Z0-9._-]+/g, '_')
+                .replace(/_+/g, '_')
+                .replace(/^_+|_+$/g, '');
+            return cleaned || `upload_${Date.now()}.jpg`;
+        }
+
+        function inferFileExtension(source, fallback = 'jpg') {
+            if (!source) return fallback;
+            if (typeof source === 'object' && source.type && source.type.includes('/')) {
+                return source.type.split('/')[1].replace('jpeg', 'jpg');
+            }
+            if (typeof source === 'string' && source.startsWith('data:')) {
+                const mimeMatch = source.match(/^data:([^;]+);/);
+                if (mimeMatch) return mimeMatch[1].split('/')[1].replace('jpeg', 'jpg');
+            }
+            if (typeof source === 'string') {
+                const clean = source.split('?')[0];
+                const ext = clean.split('.').pop();
+                if (ext && ext.length <= 5) return ext.replace('jpeg', 'jpg');
+            }
+            return fallback;
+        }
+
+        async function getImageKitAuthPayload() {
+            if (!currentUser) throw new Error('Login required before uploading');
+            const idToken = await currentUser.getIdToken();
+            const response = await fetch('/api/imagekit-auth', {
+                headers: {
+                    Authorization: `Bearer ${idToken}`
+                }
+            });
+
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data.error || 'Failed to authorize ImageKit upload');
+            }
+
+            return response.json();
+        }
+
+        function buildImageKitMediaRecord(uploadResult, fallbackUrl = '') {
+            const primaryUrl = uploadResult.url || '';
+            return {
+                provider: 'imagekit',
+                primaryUrl,
+                url: primaryUrl,
+                fallbackUrl: fallbackUrl && fallbackUrl !== primaryUrl ? fallbackUrl : '',
+                fileId: uploadResult.fileId || '',
+                filePath: uploadResult.filePath || '',
+                thumbnailUrl: uploadResult.thumbnailUrl || '',
+                width: uploadResult.width || null,
+                height: uploadResult.height || null,
+                migrated: Boolean(fallbackUrl && fallbackUrl !== primaryUrl)
+            };
+        }
+
+        async function uploadToImageKit(file, options = {}) {
+            const authPayload = await getImageKitAuthPayload();
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('fileName', sanitizeUploadFileName(options.fileName || `image_${Date.now()}.${inferFileExtension(file)}`));
+            formData.append('publicKey', authPayload.publicKey);
+            formData.append('signature', authPayload.signature);
+            formData.append('expire', String(authPayload.expire));
+            formData.append('token', authPayload.token);
+            formData.append('useUniqueFileName', 'true');
+            if (options.folder) formData.append('folder', options.folder);
+            if (Array.isArray(options.tags) && options.tags.length > 0) formData.append('tags', options.tags.join(','));
+
+            const response = await fetch(IMAGEKIT_UPLOAD_URL, {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.message || data.error || 'ImageKit upload failed');
+            }
+
+            return buildImageKitMediaRecord(data, options.fallbackUrl || '');
+        }
+
+        async function recordProductView(productId) {
+            if (!productId) return;
+            const storageKey = `product_view_${productId}`;
+            const lastView = Number(localStorage.getItem(storageKey) || 0);
+            const now = Date.now();
+            if (now - lastView < 15 * 60 * 1000) return;
+
+            localStorage.setItem(storageKey, String(now));
+            fetch('/api/product-view', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ productId })
+            }).catch((error) => {
+                console.warn('Product view tracking failed:', error);
+            });
+        }
+
+        window.handleMediaFallback = function(img) {
+            const fallbackSrc = img.dataset.fallbackSrc;
+            if (fallbackSrc && !img.dataset.fallbackUsed) {
+                img.dataset.fallbackUsed = '1';
+                img.src = fallbackSrc;
+                return;
+            }
+            if (img.src !== MEDIA_PLACEHOLDER_URL) {
+                img.src = MEDIA_PLACEHOLDER_URL;
+            }
+        };
+
+        function setImageElementSource(img, mediaItem, fallbackToPlaceholder = true) {
+            if (!img) return;
+            const primaryUrl = resolveMediaUrl(mediaItem);
+            const fallbackUrl = resolveMediaFallbackUrl(mediaItem);
+            img.dataset.fallbackSrc = fallbackUrl;
+            delete img.dataset.fallbackUsed;
+            img.onerror = () => window.handleMediaFallback(img);
+            img.src = primaryUrl || (fallbackToPlaceholder ? MEDIA_PLACEHOLDER_URL : '');
+        }
 
         // --- Notifications System ---
         function startNotificationsListener(uid) {
@@ -1412,7 +1632,7 @@
                 document.getElementById('settingsPhone').value = displayPhone;
 
                 if (data.photoURL) {
-                    document.getElementById('settingsPhotoPreview').innerHTML = `<img src="${data.photoURL}" class="w-full h-full object-cover">`;
+                    document.getElementById('settingsPhotoPreview').innerHTML = `<img src="${data.photoURL}" data-fallback-src="${resolveMediaFallbackUrl(data.photoMeta)}" onerror="handleMediaFallback(this)" class="w-full h-full object-cover">`;
                 } else {
                     document.getElementById('settingsPhotoPreview').innerText = (data.name?.[0] || currentUser.email[0]).toUpperCase();
                 }
@@ -1450,7 +1670,7 @@
             }
         };
 
-        // Helper to Compress Images before saving to Firestore (Avoiding Storage Bucket dependency)
+        // Helper to Compress Images before uploading to ImageKit
         function compressImage(base64Str, maxWidth = 1000, maxHeight = 1000) {
             return new Promise((resolve) => {
                 let img = new Image();
@@ -1511,13 +1731,19 @@
                     phone 
                 };
                 
-                // If there's a new photo, compress and save Base64 directly to Firestore
+                // If there's a new photo, compress and upload to ImageKit
                 if (photo && photo.startsWith('data:image')) {
-                    // Compress to reduce size (same approach used in admin panel)
                     msg.innerText = 'Processing photo...';
                     msg.className = 'text-center text-xs p-2 rounded-lg bg-brandGold/10 text-brandGold block mt-4';
                     const compressed = await compressImage(photo, 800, 800);
-                    updates.photoURL = compressed;
+                    const photoBlob = await (await fetch(compressed)).blob();
+                    const photoMeta = await uploadToImageKit(photoBlob, {
+                        folder: `/users/${currentUser.uid}/profile`,
+                        fileName: `profile_${currentUser.uid}.${inferFileExtension(photoBlob)}`,
+                        tags: ['profile-photo']
+                    });
+                    updates.photoURL = photoMeta.primaryUrl;
+                    updates.photoMeta = photoMeta;
                 }
                 
                 await updateDoc(doc(db, "users", currentUser.uid), updates);
@@ -1622,31 +1848,6 @@
             }
         };
 
-        // Cloudinary Configuration
-        const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dbr22ce0m/image/upload";
-        const CLOUDINARY_PRESET = "house_of_glass";
-
-        async function uploadToCloudinary(file) {
-            const formData = new FormData();
-            formData.append("file", file);
-            formData.append("upload_preset", CLOUDINARY_PRESET);
-
-            try {
-                const response = await fetch(CLOUDINARY_URL, {
-                    method: "POST",
-                    body: formData
-                });
-
-                if (!response.ok) throw new Error("Cloudinary upload failed");
-
-                const data = await response.json();
-                return data.secure_url;
-            } catch (error) {
-                console.error("Cloudinary Error:", error);
-                throw error;
-            }
-        }
-
         document.getElementById('productForm').onsubmit = async (e) => {
             e.preventDefault();
             const submitBtn = e.target.querySelector('button[type="submit"]');
@@ -1655,40 +1856,53 @@
             submitBtn.innerText = "Saving...";
 
             const id = document.getElementById('productId').value;
+            const oldProduct = id ? products.find(p => p.id === id) : null;
             const rows = Array.from(document.querySelectorAll('#imageInputs > div'));
             let imgs = [];
+            let imageDetails = [];
             let mainIdx = 0;
+            const existingMainMediaLookup = buildMediaLookup(oldProduct?.imageDetails || [], oldProduct?.images || []);
 
             try {
                 for (let i = 0; i < rows.length; i++) {
                     const row = rows[i];
                     let url = row.querySelector('.pImageUrl').value;
                     const isMain = row.querySelector('input[type="radio"]').checked;
+                    let mediaItem = existingMainMediaLookup.get(url) || (url ? normalizeMediaRecord(url) : null);
                     
                     // Check if there is a file selected in the file input for this row
                     const fileInput = row.querySelector('input[type="file"]');
                     
                     if (fileInput && fileInput.files.length > 0) {
                         submitBtn.innerText = `Uploading ${i+1}/${rows.length}...`;
-                        url = await uploadToCloudinary(fileInput.files[0]);
+                        mediaItem = await uploadToImageKit(fileInput.files[0], {
+                            folder: `/products/${id || 'quick-edit'}/main`,
+                            fileName: `${oldProduct?.code || oldProduct?.id || 'product'}_quick_${i + 1}.${inferFileExtension(fileInput.files[0])}`,
+                            tags: ['product', 'quick-edit']
+                        });
                     } else if(url && url.startsWith('data:')) {
-                        // Fallback for pasted base64 or legacy
-                        // Convert base64 to blob and upload
-                         submitBtn.innerText = `Uploading ${i+1}/${rows.length}...`;
-                         const res = await fetch(url);
-                         const blob = await res.blob();
-                         url = await uploadToCloudinary(blob);
+                        submitBtn.innerText = `Uploading ${i+1}/${rows.length}...`;
+                        const res = await fetch(url);
+                        const blob = await res.blob();
+                        mediaItem = await uploadToImageKit(blob, {
+                            folder: `/products/${id || 'quick-edit'}/main`,
+                            fileName: `${oldProduct?.code || oldProduct?.id || 'product'}_quick_${i + 1}.${inferFileExtension(url)}`,
+                            tags: ['product', 'quick-edit']
+                        });
                     }
                     
-                    if(url) {
-                        imgs.push(url);
+                    if(mediaItem) {
+                        imgs.push(resolveMediaUrl(mediaItem));
+                        imageDetails.push(normalizeMediaRecord(mediaItem));
                         if(isMain) mainIdx = imgs.length - 1;
                     }
                 }
 
                 if(imgs.length > 0) {
                     const main = imgs.splice(mainIdx, 1)[0];
+                    const mainDetail = imageDetails.splice(mainIdx, 1)[0];
                     imgs.unshift(main); 
+                    imageDetails.unshift(mainDetail);
                 }
 
                 const data = {
@@ -1696,6 +1910,7 @@
                     category: document.getElementById('pCategory').value,
                     desc: document.getElementById('pDesc').value,
                     images: imgs,
+                    imageDetails: imageDetails,
                     updatedAt: serverTimestamp()
                 };
 
@@ -2388,7 +2603,7 @@
                 
                 // Load Products - Live Listener
                 onSnapshot(collection(db, "products"), (prodSnapshot) => {
-                    products = prodSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    products = prodSnapshot.docs.map(doc => normalizeLoadedProduct({ id: doc.id, ...doc.data() }));
                     // Sort locally to handle missing order fields gracefully
                     products.sort((a, b) => {
                         const orderA = a.order !== undefined ? a.order : 999999;
@@ -2727,7 +2942,7 @@
                 if (imgEl) {
                     if (fade) imgEl.style.opacity = '0.7';
                     setTimeout(() => {
-                        imgEl.src = variantImage;
+                        setImageElementSource(imgEl, variant?.imageDetails?.[0] || variantImage);
                         imgEl.style.opacity = '1';
                     }, fade ? 150 : 0);
                 }
@@ -2804,7 +3019,7 @@
 
             card.innerHTML = `
                 <div class="product-card-media overflow-hidden h-44 md:h-72 relative bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center">
-                    <img src="${initialCardImage}" class="product-card-img w-full h-full object-contain p-6 group-hover:scale-110 transition-all duration-500">
+                    <img src="${initialCardImage}" data-fallback-src="${resolveMediaFallbackUrl((p.imageDetails || [])[0])}" onerror="handleMediaFallback(this)" class="product-card-img w-full h-full object-contain p-6 group-hover:scale-110 transition-all duration-500">
                     
                     <button onclick="toggleFavorite(event, '${p.id}')" class="card-fav-btn absolute top-3 right-3 z-30 p-2 rounded-full bg-white/90 dark:bg-black/40 backdrop-blur-md shadow-lg hover:scale-110 active:scale-95 transition-all ${isFav ? 'text-red-500' : 'text-gray-400'}">
                         <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
@@ -2886,7 +3101,7 @@
                         currentIdx = (currentIdx + 1) % images.length;
                         imgElement.style.opacity = '0.7';
                         setTimeout(() => {
-                            imgElement.src = images[currentIdx];
+                            setImageElementSource(imgElement, (p.imageDetails || [])[currentIdx] || images[currentIdx]);
                             imgElement.style.opacity = '1';
                         }, 100);
                     }, 1200);
@@ -2897,7 +3112,7 @@
                         clearInterval(interval);
                         interval = null;
                         currentIdx = 0;
-                        imgElement.src = images[0];
+                        setImageElementSource(imgElement, (p.imageDetails || [])[0] || images[0]);
                         imgElement.style.opacity = '1';
                     }
                 };
@@ -3174,6 +3389,7 @@
         window.showDetails = function(id, preferredVariantIdx = null) {
             currentProduct = products.find(prod => prod.id === id);
             if (!currentProduct) return;
+            recordProductView(currentProduct.id);
             currentImgIdx = 0;
             currentVariantIdx = null; // Reset variant selection
 
@@ -3268,7 +3484,7 @@
                             const img = document.getElementById('mainDetailImg');
                             img.style.opacity = '0';
                             setTimeout(() => {
-                                img.src = firstImg;
+                                setImageElementSource(img, v.imageDetails?.[0] || firstImg);
                                 img.style.opacity = '1';
                                 isZoomed = false;
                                 img.style.transform = 'scale(1)';
@@ -3449,7 +3665,7 @@
             // 3. Update Main Image with transition
             img.style.opacity = '0';
             setTimeout(() => {
-                img.src = targetSrc;
+                setImageElementSource(img, (currentProduct.imageDetails || [])[idx] || targetSrc);
                 img.style.opacity = '1';
             }, 150);
         }

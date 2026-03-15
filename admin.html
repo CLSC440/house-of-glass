@@ -701,12 +701,12 @@
                                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
                                 </div>
                                 <div>
-                                    <h4 class="text-xs font-bold text-brandBlue dark:text-gray-200">Migrate Images to Cloud</h4>
+                                    <h4 class="text-xs font-bold text-brandBlue dark:text-gray-200">Pilot Migrate Important Images</h4>
                                     <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">
-                                        Scan all products for old cached images (Base64) and upload them to cloud storage. Required for 3rd-party integrations (HG System).
+                                        Move the top 5 most-viewed legacy product images to ImageKit, keep the old source as fallback, and stamp migration status in Firestore.
                                     </p>
                                     <button id="migrationBtn" onclick="runImageMigration()" class="mt-3 px-3 py-1.5 bg-brandBlue text-white text-[10px] font-bold uppercase tracking-widest rounded-lg shadow-md hover:bg-opacity-90 transition-all flex items-center gap-2">
-                                        Start Migration
+                                        Run 5-Product Pilot
                                     </button>
                                     <div id="migrationProgress" class="hidden mt-2">
                                         <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mb-1">
@@ -784,6 +784,236 @@
         let userRole = 'moderator';
         let currentUser = null;
         let isListView = localStorage.getItem('adminListView') === 'true';
+        const IMAGEKIT_UPLOAD_URL = 'https://upload.imagekit.io/api/v1/files/upload';
+        const MEDIA_PLACEHOLDER_URL = 'https://via.placeholder.com/800x600?text=No+Image';
+
+        function inferMediaProvider(url = '') {
+            if (!url) return 'unknown';
+            if (url.startsWith('data:')) return 'data-uri';
+            if (url.includes('ik.imagekit.io')) return 'imagekit';
+            if (url.includes('cloudinary.com')) return 'cloudinary';
+            return 'external';
+        }
+
+        function resolveMediaUrl(item) {
+            if (!item) return '';
+            if (typeof item === 'string') return item;
+            return item.primaryUrl || item.url || item.fallbackUrl || '';
+        }
+
+        function resolveMediaFallbackUrl(item) {
+            if (!item || typeof item === 'string') return '';
+            const primaryUrl = resolveMediaUrl(item);
+            return item.fallbackUrl && item.fallbackUrl !== primaryUrl ? item.fallbackUrl : '';
+        }
+
+        function normalizeMediaRecord(record) {
+            if (!record) return null;
+            if (typeof record === 'string') {
+                return {
+                    provider: inferMediaProvider(record),
+                    primaryUrl: record,
+                    fallbackUrl: '',
+                    url: record,
+                    migrated: false
+                };
+            }
+
+            const primaryUrl = record.primaryUrl || record.url || record.fallbackUrl || '';
+            return {
+                provider: record.provider || inferMediaProvider(primaryUrl),
+                primaryUrl,
+                fallbackUrl: record.fallbackUrl || '',
+                url: record.url || primaryUrl,
+                fileId: record.fileId || '',
+                filePath: record.filePath || '',
+                thumbnailUrl: record.thumbnailUrl || '',
+                width: record.width || null,
+                height: record.height || null,
+                migrated: Boolean(record.migrated || (record.fallbackUrl && record.fallbackUrl !== primaryUrl)),
+                sourceProvider: record.sourceProvider || inferMediaProvider(record.fallbackUrl || '')
+            };
+        }
+
+        function normalizeMediaCollection(imageDetails = [], imageUrls = []) {
+            const source = Array.isArray(imageDetails) && imageDetails.length > 0
+                ? imageDetails
+                : Array.isArray(imageUrls) ? imageUrls : [];
+            const items = source.map(normalizeMediaRecord).filter(Boolean);
+            return {
+                items,
+                urls: items.map(resolveMediaUrl).filter(Boolean)
+            };
+        }
+
+        function normalizeVariantMedia(variant = {}) {
+            const legacyImages = Array.isArray(variant.images) && variant.images.length > 0
+                ? variant.images
+                : (variant.image ? [variant.image] : []);
+            const normalized = normalizeMediaCollection(variant.imageDetails, legacyImages);
+            return {
+                ...variant,
+                imageDetails: normalized.items,
+                images: normalized.urls,
+                image: normalized.urls[0] || ''
+            };
+        }
+
+        function buildMediaStatus(mainItems = [], variants = []) {
+            const variantItems = variants.flatMap((variant) => Array.isArray(variant.imageDetails) ? variant.imageDetails : []);
+            const allItems = [...mainItems, ...variantItems].filter(Boolean);
+            const imageKitCount = allItems.filter((item) => (item.provider || inferMediaProvider(resolveMediaUrl(item))) === 'imagekit').length;
+            return {
+                total: allItems.length,
+                migrated: imageKitCount,
+                mainTotal: mainItems.length,
+                mainMigrated: mainItems.filter((item) => (item.provider || inferMediaProvider(resolveMediaUrl(item))) === 'imagekit').length,
+                variantTotal: variantItems.length,
+                variantMigrated: variantItems.filter((item) => (item.provider || inferMediaProvider(resolveMediaUrl(item))) === 'imagekit').length,
+                state: allItems.length === 0 ? 'empty' : (imageKitCount === allItems.length ? 'complete' : imageKitCount > 0 ? 'partial' : 'legacy')
+            };
+        }
+
+        function normalizeLoadedProduct(product = {}) {
+            const normalized = normalizeMediaCollection(product.imageDetails, product.images || []);
+            const variants = Array.isArray(product.variants) ? product.variants.map(normalizeVariantMedia) : [];
+            return {
+                ...product,
+                viewCount: Number(product.viewCount || 0),
+                imageDetails: normalized.items,
+                images: normalized.urls,
+                variants,
+                mediaStatus: buildMediaStatus(normalized.items, variants)
+            };
+        }
+
+        function buildMediaLookup(imageDetails = [], imageUrls = []) {
+            const normalized = normalizeMediaCollection(imageDetails, imageUrls);
+            const lookup = new Map();
+            normalized.items.forEach((item) => {
+                [item.url, item.primaryUrl, item.fallbackUrl].filter(Boolean).forEach((key) => {
+                    if (!lookup.has(key)) lookup.set(key, normalizeMediaRecord(item));
+                });
+            });
+            return lookup;
+        }
+
+        function sanitizeUploadFileName(fileName = '') {
+            const cleaned = fileName
+                .normalize('NFKD')
+                .replace(/[^a-zA-Z0-9._-]+/g, '_')
+                .replace(/_+/g, '_')
+                .replace(/^_+|_+$/g, '');
+            return cleaned || `upload_${Date.now()}.jpg`;
+        }
+
+        function inferFileExtension(source, fallback = 'jpg') {
+            if (!source) return fallback;
+            if (typeof source === 'object' && source.type && source.type.includes('/')) {
+                return source.type.split('/')[1].replace('jpeg', 'jpg');
+            }
+            if (typeof source === 'string' && source.startsWith('data:')) {
+                const mimeMatch = source.match(/^data:([^;]+);/);
+                if (mimeMatch) return mimeMatch[1].split('/')[1].replace('jpeg', 'jpg');
+            }
+            if (typeof source === 'string') {
+                const clean = source.split('?')[0];
+                const ext = clean.split('.').pop();
+                if (ext && ext.length <= 5) return ext.replace('jpeg', 'jpg');
+            }
+            return fallback;
+        }
+
+        async function getImageKitAuthPayload() {
+            if (!currentUser) throw new Error('Login required before uploading');
+            const idToken = await currentUser.getIdToken();
+            const response = await fetch('/api/imagekit-auth', {
+                headers: {
+                    Authorization: `Bearer ${idToken}`
+                }
+            });
+
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data.error || 'Failed to authorize ImageKit upload');
+            }
+
+            return response.json();
+        }
+
+        function buildImageKitMediaRecord(uploadResult, fallbackUrl = '') {
+            const primaryUrl = uploadResult.url || '';
+            return {
+                provider: 'imagekit',
+                primaryUrl,
+                url: primaryUrl,
+                fallbackUrl: fallbackUrl && fallbackUrl !== primaryUrl ? fallbackUrl : '',
+                fileId: uploadResult.fileId || '',
+                filePath: uploadResult.filePath || '',
+                thumbnailUrl: uploadResult.thumbnailUrl || '',
+                width: uploadResult.width || null,
+                height: uploadResult.height || null,
+                migrated: Boolean(fallbackUrl && fallbackUrl !== primaryUrl),
+                sourceProvider: fallbackUrl ? inferMediaProvider(fallbackUrl) : 'imagekit'
+            };
+        }
+
+        async function uploadToImageKit(file, options = {}) {
+            const authPayload = await getImageKitAuthPayload();
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('fileName', sanitizeUploadFileName(options.fileName || `image_${Date.now()}.${inferFileExtension(file)}`));
+            formData.append('publicKey', authPayload.publicKey);
+            formData.append('signature', authPayload.signature);
+            formData.append('expire', String(authPayload.expire));
+            formData.append('token', authPayload.token);
+            formData.append('useUniqueFileName', 'true');
+            formData.append('responseFields', 'tags');
+            if (options.folder) formData.append('folder', options.folder);
+            if (Array.isArray(options.tags) && options.tags.length > 0) formData.append('tags', options.tags.join(','));
+
+            const response = await fetch(IMAGEKIT_UPLOAD_URL, {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.message || data.error || 'ImageKit upload failed');
+            }
+
+            return buildImageKitMediaRecord(data, options.fallbackUrl || '');
+        }
+
+        async function migrateSourceToImageKit(sourceUrl, options = {}) {
+            if (!sourceUrl) return null;
+            let filePayload = sourceUrl;
+            let fallbackUrl = '';
+
+            if (typeof sourceUrl === 'string' && sourceUrl.startsWith('data:')) {
+                const response = await fetch(sourceUrl);
+                filePayload = await response.blob();
+            } else if (typeof sourceUrl === 'string') {
+                fallbackUrl = sourceUrl;
+            }
+
+            return uploadToImageKit(filePayload, {
+                ...options,
+                fallbackUrl
+            });
+        }
+
+        window.handleMediaFallback = function(img) {
+            const fallbackSrc = img.dataset.fallbackSrc;
+            if (fallbackSrc && !img.dataset.fallbackUsed) {
+                img.dataset.fallbackUsed = '1';
+                img.src = fallbackSrc;
+                return;
+            }
+            if (img.src !== MEDIA_PLACEHOLDER_URL) {
+                img.src = MEDIA_PLACEHOLDER_URL;
+            }
+        };
 
         async function checkServerStatus() {
             const btn = document.getElementById('serverStatusBtn');
@@ -871,7 +1101,7 @@
                 
                 // Load Products - Live Listener
                 onSnapshot(collection(db, "products"), (prodSnapshot) => {
-                    products = prodSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    products = prodSnapshot.docs.map(doc => normalizeLoadedProduct({ id: doc.id, ...doc.data() }));
                     // Sort locally to handle missing order fields gracefully
                     products.sort((a, b) => {
                         const orderA = a.order !== undefined ? a.order : 999999;
@@ -1108,13 +1338,15 @@
 
             list.forEach(p => {
                 const card = document.createElement('div');
+                const mediaSummary = p.mediaStatus || buildMediaStatus(p.imageDetails || [], p.variants || []);
+                const mediaSummaryText = `${mediaSummary.migrated}/${mediaSummary.total} IK`;
                 
                 if (isListView) {
                     // List View Card
                     card.className = 'group relative bg-white dark:bg-darkCard rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden flex flex-row items-center p-2 gap-4 hover:border-brandGold transition-colors';
                     card.innerHTML = `
                          <div class="relative w-16 h-16 md:w-20 md:h-20 bg-gray-50 dark:bg-gray-800 rounded-lg flex-shrink-0 flex items-center justify-center">
-                            <img src="${p.images[0]}" class="w-full h-full object-contain p-2">
+                            <img src="${p.images[0] || MEDIA_PLACEHOLDER_URL}" data-fallback-src="${resolveMediaFallbackUrl((p.imageDetails || [])[0])}" onerror="handleMediaFallback(this)" class="w-full h-full object-contain p-2">
                         </div>
                         
                         <div class="flex-grow min-w-0 pr-2">
@@ -1125,6 +1357,8 @@
                                 <span>Variants: <span class="text-gray-600 dark:text-gray-300 font-bold">${(p.variants || []).length}</span></span>
                                 <span>Images: <span class="text-gray-600 dark:text-gray-300 font-bold">${(p.images || []).length}</span></span>
                                 <span>Code: <span class="text-brandBlue dark:text-brandGold font-black tracking-widest">${p.code || '-'}</span></span>
+                                <span>Views: <span class="text-gray-600 dark:text-gray-300 font-bold">${p.viewCount || 0}</span></span>
+                                <span>Media: <span class="font-bold ${mediaSummary.state === 'complete' ? 'text-green-600' : mediaSummary.state === 'partial' ? 'text-amber-500' : 'text-gray-500'}">${mediaSummaryText}</span></span>
                             </div>
                             <!-- DC Data Container -->
                             ${p.code ? `<div class="dc-data-wrapper mt-2 pt-2 border-t border-dashed border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]" data-code="${p.code}">
@@ -1169,8 +1403,10 @@
                     card.className = 'group relative bg-white dark:bg-darkCard rounded-xl md:rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden';
                     card.innerHTML = `
                     <div class="relative h-40 md:h-48 bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
-                        <img src="${p.images[0]}" class="w-full h-full object-contain p-6 transition-transform group-hover:scale-105">
+                        <img src="${p.images[0] || MEDIA_PLACEHOLDER_URL}" data-fallback-src="${resolveMediaFallbackUrl((p.imageDetails || [])[0])}" onerror="handleMediaFallback(this)" class="w-full h-full object-contain p-6 transition-transform group-hover:scale-105">
                         <div class="absolute top-2 left-2 bg-brandGold text-white text-[7px] md:text-[8px] font-black uppercase tracking-widest px-1.5 md:px-2 py-0.5 md:py-1 rounded-full shadow-lg">${p.category}</div>
+                        <div class="absolute bottom-2 left-2 bg-white/90 dark:bg-black/50 text-[8px] font-black px-2 py-1 rounded-full shadow ${mediaSummary.state === 'complete' ? 'text-green-600' : mediaSummary.state === 'partial' ? 'text-amber-500' : 'text-gray-500'}">${mediaSummaryText}</div>
+                        <div class="absolute bottom-2 right-2 bg-black/65 text-white text-[8px] font-bold px-2 py-1 rounded-full">Views ${p.viewCount || 0}</div>
                         
                         <!-- Desktop Actions (Hover) -->
                         <div class="hidden md:flex admin-actions opacity-0 absolute inset-0 bg-brandBlue/70 backdrop-blur-sm transition-all items-center justify-center space-x-3 group-hover:opacity-100">
@@ -1435,31 +1671,20 @@
 
         window.handleVariantFile = async function(input) {
             if(!input.files || !input.files[0]) return;
-            const file = input.files[0];
-            const originalText = "Uploading...";
-            
             const label = input.closest('label');
             const span = label.querySelector('span');
             const oldText = span.innerText;
-            span.innerText = "Wait...";
+            span.innerText = "Preview...";
 
             try {
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('upload_preset', 'ml_default');
-
-                const res = await fetch(`https://api.cloudinary.com/v1_1/dbr22ce0m/image/upload`, {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await res.json();
-                
-                if(data.secure_url) {
-                    addVariantImageThumb(input.closest('.variant-images-container'), data.secure_url);
-                }
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    addVariantImageThumb(input.closest('.variant-images-container'), e.target.result);
+                };
+                reader.readAsDataURL(input.files[0]);
             } catch (err) {
-                console.error("Upload error:", err);
-                showToast("Upload failed!", "error");
+                console.error("Preview error:", err);
+                showToast("Preview failed!", "error");
             } finally {
                 span.innerText = oldText;
                 input.value = '';
@@ -1590,31 +1815,6 @@
             }
         };
 
-        // Cloudinary Configuration
-        const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dbr22ce0m/image/upload";
-        const CLOUDINARY_PRESET = "house_of_glass";
-
-        async function uploadToCloudinary(file) {
-            const formData = new FormData();
-            formData.append("file", file);
-            formData.append("upload_preset", CLOUDINARY_PRESET);
-
-            try {
-                const response = await fetch(CLOUDINARY_URL, {
-                    method: "POST",
-                    body: formData
-                });
-
-                if (!response.ok) throw new Error("Cloudinary upload failed");
-
-                const data = await response.json();
-                return data.secure_url; // Returns the optimized HTTPS URL
-            } catch (error) {
-                console.error("Cloudinary Error:", error);
-                throw error;
-            }
-        }
-
         window.validateCode = function(input) {
             const val = input.value.trim();
             const currentId = document.getElementById('productId').value;
@@ -1649,10 +1849,13 @@
             submitBtn.innerText = "Processing...";
 
             const id = document.getElementById('productId').value;
+            const oldProduct = id ? products.find(p => p.id === id) : null;
             const rows = Array.from(document.querySelectorAll('#imageInputs > div'));
             let imgs = [];
+            let imageDetails = [];
             let mainIdx = 0;
             const imageMap = new Map();
+            const existingMainMediaLookup = buildMediaLookup(oldProduct?.imageDetails || [], oldProduct?.images || []);
 
             try {
                 for (let i = 0; i < rows.length; i++) {
@@ -1660,53 +1863,87 @@
                     let url = row.querySelector('.pImageUrl').value;
                     const originalUrl = url;
                     const isMain = row.querySelector('input[type="radio"]').checked;
+                    let mediaItem = existingMainMediaLookup.get(url) || (url ? normalizeMediaRecord(url) : null);
                     
                     // If we have a pending file upload (from input[type=file])
                     const fileInput = row.querySelector('input[type="file"]');
                     if (fileInput.files.length > 0) {
                         submitBtn.innerText = `Uploading ${i+1}/${rows.length}...`;
-                        // Upload raw file to Cloudinary directly
-                        url = await uploadToCloudinary(fileInput.files[0]);
+                        mediaItem = await uploadToImageKit(fileInput.files[0], {
+                            folder: `/products/${id || 'draft'}/main`,
+                            fileName: `${document.getElementById('pCode').value.trim() || 'product'}_main_${i + 1}.${inferFileExtension(fileInput.files[0])}`,
+                            tags: ['product', 'main-image']
+                        });
                     } 
                     // Fallback: If user pasted a base64 string directly (rare, but handle just in case)
                     else if (url && url.startsWith('data:')) {
-                         submitBtn.innerText = `Uploading ${i+1}/${rows.length}...`;
-                         // Convert base64 data URI to blob/file for upload
-                         const res = await fetch(url);
-                         const blob = await res.blob();
-                         url = await uploadToCloudinary(blob);
+                        submitBtn.innerText = `Uploading ${i+1}/${rows.length}...`;
+                        const res = await fetch(url);
+                        const blob = await res.blob();
+                        mediaItem = await uploadToImageKit(blob, {
+                            folder: `/products/${id || 'draft'}/main`,
+                            fileName: `${document.getElementById('pCode').value.trim() || 'product'}_main_${i + 1}.${inferFileExtension(url)}`,
+                            tags: ['product', 'main-image']
+                        });
                     }
                     
-                    if(url) {
-                        imgs.push(url);
-                        if (originalUrl !== url) imageMap.set(originalUrl, url);
+                    if(mediaItem) {
+                        const resolvedUrl = resolveMediaUrl(mediaItem);
+                        imgs.push(resolvedUrl);
+                        imageDetails.push(normalizeMediaRecord(mediaItem));
+                        if (originalUrl && originalUrl !== resolvedUrl) imageMap.set(originalUrl, normalizeMediaRecord(mediaItem));
                         if(isMain) mainIdx = imgs.length - 1;
                     }
                 }
 
                 if(imgs.length > 0) {
                     const main = imgs.splice(mainIdx, 1)[0];
+                    const mainDetail = imageDetails.splice(mainIdx, 1)[0];
                     imgs.unshift(main); // Move main image to index 0
+                    imageDetails.unshift(mainDetail);
                 }
 
                 // --- Process Variants ---
                 const vRows = Array.from(document.querySelectorAll('.variant-row'));
                 let variants = [];
+                const oldVariants = Array.isArray(oldProduct?.variants) ? oldProduct.variants : [];
 
                 for (let i = 0; i < vRows.length; i++) {
                     const row = vRows[i];
                     let vName = row.querySelector('.vName').value.trim();
                     let vStock = row.querySelector('.vStock').checked;
                     let vBarcode = row.querySelector('.vBarcode') ? row.querySelector('.vBarcode').value.trim() : '';
-                    let vImgs = Array.from(row.querySelectorAll('.vImageUrl')).map(inp => {
-                        const val = inp.value;
-                        return imageMap.has(val) ? imageMap.get(val) : val;
-                    }).filter(u => u !== '');
+                    const oldVariantLookup = buildMediaLookup(oldVariants[i]?.imageDetails || [], oldVariants[i]?.images || (oldVariants[i]?.image ? [oldVariants[i].image] : []));
+                    const variantInputs = Array.from(row.querySelectorAll('.vImageUrl'));
+                    let variantImageDetails = [];
+
+                    for (let j = 0; j < variantInputs.length; j++) {
+                        const val = variantInputs[j].value;
+                        if (!val) continue;
+
+                        let mediaItem = imageMap.get(val) || oldVariantLookup.get(val) || existingMainMediaLookup.get(val) || normalizeMediaRecord(val);
+                        if (val.startsWith('data:')) {
+                            submitBtn.innerText = `Uploading variant ${i + 1}/${vRows.length}...`;
+                            const res = await fetch(val);
+                            const blob = await res.blob();
+                            mediaItem = await uploadToImageKit(blob, {
+                                folder: `/products/${id || 'draft'}/variants`,
+                                fileName: `${document.getElementById('pCode').value.trim() || 'product'}_variant_${i + 1}_${j + 1}.${inferFileExtension(val)}`,
+                                tags: ['product', 'variant-image']
+                            });
+                        }
+
+                        if (mediaItem) {
+                            variantImageDetails.push(normalizeMediaRecord(mediaItem));
+                        }
+                    }
 
                     if (vName) {
                         variants.push({
                             name: vName,
-                            images: vImgs,
+                            images: variantImageDetails.map(resolveMediaUrl),
+                            imageDetails: variantImageDetails,
+                            image: resolveMediaUrl(variantImageDetails[0]) || '',
                             inStock: vStock,
                             barcode: vBarcode
                         });
@@ -1728,13 +1965,14 @@
                     code: document.getElementById('pCode').value.trim(),
                     inStock: document.getElementById('pInStock').checked,
                     images: imgs,
+                    imageDetails: imageDetails,
                     variants: variants,
+                    mediaStatus: buildMediaStatus(imageDetails, variants),
                     updatedAt: serverTimestamp()
                 };
 
                 // Track Detailed History
                 let changeLog = [];
-                const oldProduct = id ? products.find(p => p.id === id) : null;
                 
                 if (oldProduct) {
                     if (oldProduct.name !== data.name) changeLog.push(`Name changed: "${oldProduct.name}" → "${data.name}"`);
@@ -2010,76 +2248,120 @@
             loadData();
         };
 
+        function productNeedsImageKitMigration(product) {
+            const mainItems = Array.isArray(product.imageDetails) ? product.imageDetails : [];
+            const variantItems = Array.isArray(product.variants) ? product.variants.flatMap((variant) => variant.imageDetails || []) : [];
+            return [...mainItems, ...variantItems].some((item) => {
+                const provider = item?.provider || inferMediaProvider(resolveMediaUrl(item));
+                return provider !== 'imagekit';
+            });
+        }
+
         window.runImageMigration = async function() {
             const btn = document.getElementById('migrationBtn');
             const progressContainer = document.getElementById('migrationProgress');
             const progressBar = progressContainer.querySelector('div > div');
             const progressText = progressContainer.querySelector('p');
             
-            if(!confirm("Start migrating old images to Cloudinary? This might take a few minutes depending on connection speed.")) return;
+            if(!confirm("Run the 5-product ImageKit pilot now? This will migrate the highest-viewCount legacy products and preserve their old source as fallback.")) return;
 
             btn.disabled = true;
-            btn.innerText = "Scanning...";
+            btn.innerText = "Scanning pilot...";
             progressContainer.classList.remove('hidden');
 
             try {
-                // Fetch all products first
                 const snapshot = await getDocs(collection(db, "products"));
-                const total = snapshot.docs.length;
+                const candidates = snapshot.docs
+                    .map((docSnap) => normalizeLoadedProduct({ id: docSnap.id, ...docSnap.data() }))
+                    .filter(productNeedsImageKitMigration)
+                    .sort((a, b) => {
+                        if ((b.viewCount || 0) !== (a.viewCount || 0)) return (b.viewCount || 0) - (a.viewCount || 0);
+                        const timeA = a.updatedAt?.toMillis?.() || a.createdAt?.toMillis?.() || 0;
+                        const timeB = b.updatedAt?.toMillis?.() || b.createdAt?.toMillis?.() || 0;
+                        return timeB - timeA;
+                    })
+                    .slice(0, 5);
+
+                const total = candidates.length;
                 let processed = 0;
                 let updatedCount = 0;
 
-                for (const docSnap of snapshot.docs) {
-                    const p = docSnap.data();
-                    let needsUpdate = false;
-                    let newImages = [...(p.images || [])];
-                    let newVariants = p.variants ? JSON.parse(JSON.stringify(p.variants)) : [];
+                if (total === 0) {
+                    progressBar.style.width = '100%';
+                    progressText.innerText = 'No legacy images found for this pilot';
+                    showToast('All candidate products are already on ImageKit.');
+                    btn.innerText = 'Pilot Complete';
+                    return;
+                }
 
-                    // 1. Check Main Images
-                    for(let i=0; i<newImages.length; i++) {
-                        if(newImages[i] && newImages[i].startsWith('data:')) {
-                            progressText.innerText = `Uploading image for: ${p.name}...`;
-                            // Convert Base64 to Blob
-                            const res = await fetch(newImages[i]);
-                            const blob = await res.blob();
-                            // Upload
-                            const url = await uploadToCloudinary(blob);
-                            newImages[i] = url;
-                            needsUpdate = true;
+                for (const product of candidates) {
+                    let needsUpdate = false;
+                    const newImageDetails = [];
+                    const newVariants = [];
+
+                    for (let i = 0; i < (product.imageDetails || []).length; i++) {
+                        const mediaItem = product.imageDetails[i];
+                        const provider = mediaItem?.provider || inferMediaProvider(resolveMediaUrl(mediaItem));
+
+                        if (provider === 'imagekit') {
+                            newImageDetails.push(normalizeMediaRecord(mediaItem));
+                            continue;
                         }
+
+                        progressText.innerText = `Main image ${i + 1}: ${product.name}`;
+                        const migrated = await migrateSourceToImageKit(resolveMediaUrl(mediaItem), {
+                            folder: `/products/${product.id}/main`,
+                            fileName: `${product.code || product.id}_main_${i + 1}.${inferFileExtension(resolveMediaUrl(mediaItem))}`,
+                            tags: ['migration', 'pilot', 'product-main']
+                        });
+                        newImageDetails.push(migrated);
+                        needsUpdate = true;
                     }
 
-                    // 2. Check Variant Images
-                    if (newVariants.length > 0) {
-                        for(let v of newVariants) {
-                            if(v.images && v.images.length > 0) {
-                                for(let j=0; j<v.images.length; j++) {
-                                    if(v.images[j] && v.images[j].startsWith('data:')) {
-                                        progressText.innerText = `Uploading variant for: ${p.name}...`;
-                                        const res = await fetch(v.images[j]);
-                                        const blob = await res.blob();
-                                        const url = await uploadToCloudinary(blob);
-                                        v.images[j] = url;
-                                        needsUpdate = true;
-                                    }
-                                }
-                            } else if (v.image && v.image.startsWith('data:')) {
-                                // Legacy single image string support
-                                progressText.innerText = `Uploading variant for: ${p.name}...`;
-                                const res = await fetch(v.image);
-                                const blob = await res.blob();
-                                const url = await uploadToCloudinary(blob);
-                                v.image = url;
-                                if(!v.images) v.images = [url];
-                                needsUpdate = true;
+                    for (let vIndex = 0; vIndex < (product.variants || []).length; vIndex++) {
+                        const variant = product.variants[vIndex];
+                        const newVariantImageDetails = [];
+
+                        for (let i = 0; i < (variant.imageDetails || []).length; i++) {
+                            const mediaItem = variant.imageDetails[i];
+                            const provider = mediaItem?.provider || inferMediaProvider(resolveMediaUrl(mediaItem));
+
+                            if (provider === 'imagekit') {
+                                newVariantImageDetails.push(normalizeMediaRecord(mediaItem));
+                                continue;
                             }
+
+                            progressText.innerText = `Variant ${vIndex + 1}: ${product.name}`;
+                            const migrated = await migrateSourceToImageKit(resolveMediaUrl(mediaItem), {
+                                folder: `/products/${product.id}/variants`,
+                                fileName: `${product.code || product.id}_variant_${vIndex + 1}_${i + 1}.${inferFileExtension(resolveMediaUrl(mediaItem))}`,
+                                tags: ['migration', 'pilot', 'product-variant']
+                            });
+                            newVariantImageDetails.push(migrated);
+                            needsUpdate = true;
                         }
+
+                        newVariants.push({
+                            ...variant,
+                            imageDetails: newVariantImageDetails,
+                            images: newVariantImageDetails.map(resolveMediaUrl),
+                            image: resolveMediaUrl(newVariantImageDetails[0]) || ''
+                        });
                     }
 
                     if (needsUpdate) {
-                        await updateDoc(doc(db, "products", docSnap.id), {
-                            images: newImages,
-                            variants: newVariants
+                        await updateDoc(doc(db, "products", product.id), {
+                            images: newImageDetails.map(resolveMediaUrl),
+                            imageDetails: newImageDetails,
+                            variants: newVariants,
+                            mediaStatus: buildMediaStatus(newImageDetails, newVariants),
+                            migratedToImageKitAt: serverTimestamp(),
+                            imageMigrationPilot: {
+                                size: 5,
+                                migratedBy: currentUser?.email || currentUser?.uid || 'unknown',
+                                migratedAt: Date.now(),
+                                basis: 'viewCount'
+                            }
                         });
                         updatedCount++;
                     }
@@ -2090,8 +2372,8 @@
                     progressText.innerText = `${pct}% (${processed}/${total})`;
                 }
 
-                showToast(`Migration Complete! Updated ${updatedCount} products.`);
-                btn.innerText = "Done";
+                showToast(`Pilot complete. Updated ${updatedCount} products on ImageKit.`);
+                btn.innerText = "Pilot Complete";
                 
             } catch (err) {
                 console.error("Migration Error:", err);
