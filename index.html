@@ -1304,6 +1304,26 @@
             };
         }
 
+        function getVisualProductSignature(product = {}) {
+            const { viewCount, lastViewedAt, ...visualProduct } = product || {};
+            return JSON.stringify(visualProduct);
+        }
+
+        function hasVisualProductListChanges(previousProducts = [], nextProducts = []) {
+            if (previousProducts.length !== nextProducts.length) return true;
+
+            for (let index = 0; index < nextProducts.length; index++) {
+                const previousProduct = previousProducts[index];
+                const nextProduct = nextProducts[index];
+
+                if (!previousProduct || !nextProduct) return true;
+                if (previousProduct.id !== nextProduct.id) return true;
+                if (getVisualProductSignature(previousProduct) !== getVisualProductSignature(nextProduct)) return true;
+            }
+
+            return false;
+        }
+
         function buildMediaLookup(imageDetails = [], imageUrls = []) {
             const normalized = normalizeMediaCollection(imageDetails, imageUrls);
             const lookup = new Map();
@@ -2603,9 +2623,9 @@
                 
                 // Load Products - Live Listener
                 onSnapshot(collection(db, "products"), (prodSnapshot) => {
-                    products = prodSnapshot.docs.map(doc => normalizeLoadedProduct({ id: doc.id, ...doc.data() }));
+                    const nextProducts = prodSnapshot.docs.map(doc => normalizeLoadedProduct({ id: doc.id, ...doc.data() }));
                     // Sort locally to handle missing order fields gracefully
-                    products.sort((a, b) => {
+                    nextProducts.sort((a, b) => {
                         const orderA = a.order !== undefined ? a.order : 999999;
                         const orderB = b.order !== undefined ? b.order : 999999;
                         if (orderA !== orderB) return orderA - orderB;
@@ -2613,10 +2633,22 @@
                         const timeB = b.createdAt?.toMillis() || 0;
                         return timeB - timeA;
                     });
+
+                    const shouldRenderProducts = hasVisualProductListChanges(products, nextProducts);
+                    products = nextProducts;
+
+                    if (currentProduct) {
+                        currentProduct = products.find((prod) => prod.id === currentProduct.id) || currentProduct;
+                    }
+
                     areProductsLoaded = true;
-                    renderProducts();
-                    if(window.fetchLivePricing) setTimeout(window.fetchLivePricing, 300);
-                    setTimeout(() => refreshLiveStockStatus(false), 350);
+
+                    if (shouldRenderProducts) {
+                        renderProducts();
+                        if(window.fetchLivePricing) setTimeout(window.fetchLivePricing, 300);
+                        setTimeout(() => refreshLiveStockStatus(false), 350);
+                    }
+
                     queueDeepLinkedProductOpen();
                 });
 
