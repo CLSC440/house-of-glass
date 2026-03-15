@@ -455,32 +455,67 @@
 
     <main class="max-w-7xl mx-auto px-4 py-6 md:py-12 min-h-[70vh]">
         <!-- Search & Filter -->
-        <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 bg-white dark:bg-darkCard p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
-            <div class="relative w-full md:w-1/2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input type="text" id="adminSearch" placeholder="Search products..." data-i18n-placeholder="search_products" class="w-full pl-10 pr-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800 dark:text-white border-transparent focus:border-brandGold focus:ring-0 transition-all outline-none" oninput="filterAdminProducts()">
+        <div class="mb-6 rounded-[1.75rem] border border-gray-100 dark:border-gray-800 bg-white dark:bg-darkCard p-4 md:p-5 shadow-sm">
+            <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <p class="text-[11px] font-black uppercase tracking-[0.28em] text-brandGold/80">Product Filters</p>
+                    <h2 class="mt-1 text-lg md:text-xl font-black tracking-tight text-brandBlue dark:text-brandGold">Find products faster</h2>
+                </div>
+                <div id="adminProductsCounter" class="inline-flex items-center gap-2 self-start rounded-full bg-brandGold/10 px-4 py-2 text-xs md:text-sm text-gray-600 dark:text-gray-300 border border-brandGold/15">
+                    <span class="font-black uppercase tracking-widest text-brandBlue dark:text-brandGold">Products</span>
+                    <span id="adminProductsCounterText" class="font-semibold">Showing 0 of 0 products</span>
+                </div>
             </div>
-            
-            <div class="w-full md:w-auto flex items-center gap-3">
-                <select id="adminBarcodeFilter" class="w-full md:w-auto px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800 dark:text-white border-transparent focus:border-brandGold focus:ring-0 outline-none cursor-pointer" onchange="filterAdminProducts()">
+
+            <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(300px,1.35fr)_repeat(4,minmax(0,1fr))_auto] xl:items-center">
+                <div class="relative md:col-span-2 xl:col-span-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input type="text" id="adminSearch" placeholder="Search products..." data-i18n-placeholder="search_products" class="w-full pl-10 pr-4 py-3.5 rounded-2xl bg-gray-50 dark:bg-gray-800 dark:text-white border border-transparent focus:border-brandGold focus:ring-0 transition-all outline-none shadow-inner" oninput="filterAdminProducts()">
+                </div>
+
+                <select id="adminBarcodeFilter" class="w-full min-w-0 px-4 py-3.5 rounded-2xl bg-gray-50 dark:bg-gray-800 dark:text-white border border-transparent focus:border-brandGold focus:ring-0 outline-none cursor-pointer" onchange="filterAdminProducts()">
                     <option value="all">All Barcodes</option>
                     <option value="no-product-barcode">No Barcode</option>
                     <option value="no-variant-barcode">No Variant Barcode</option>
                 </select>
-                <div class="flex bg-gray-50 dark:bg-gray-800 rounded-xl p-1 gap-1 border border-gray-100 dark:border-gray-700">
-                    <button onclick="toggleView('grid')" id="viewGridBtn" class="p-2 rounded-lg text-brandBlue dark:text-brandGold bg-white dark:bg-gray-700 shadow-sm transition-all" title="Grid View">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-                    </button>
-                    <button onclick="toggleView('list')" id="viewListBtn" class="p-2 rounded-lg text-gray-400 hover:text-brandBlue dark:hover:text-brandGold transition-all" title="List View">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
-                    </button>
-                </div>
-                <select id="adminCategoryFilter" class="w-full md:w-auto px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800 dark:text-white border-transparent focus:border-brandGold focus:ring-0 outline-none cursor-pointer" onchange="filterAdminProducts()">
+                <select id="adminMediaFilter" class="w-full min-w-0 px-4 py-3.5 rounded-2xl bg-gray-50 dark:bg-gray-800 dark:text-white border border-transparent focus:border-brandGold focus:ring-0 outline-none cursor-pointer" onchange="filterAdminProducts()">
+                    <option value="all">All Media</option>
+                    <option value="zero-ik">Media 0/x IK</option>
+                    <option value="partial-ik">Media Partial IK</option>
+                    <option value="complete-ik">Media x/x IK</option>
+                </select>
+                <select id="adminViewsFilter" class="w-full min-w-0 px-4 py-3.5 rounded-2xl bg-gray-50 dark:bg-gray-800 dark:text-white border border-transparent focus:border-brandGold focus:ring-0 outline-none cursor-pointer" onchange="filterAdminProducts()">
+                    <option value="all">All Views</option>
+                    <option value="zero">Views = 0</option>
+                    <option value="has-views">Views &gt; 0</option>
+                    <option value="top-viewed">Top Viewed</option>
+                </select>
+                <select id="adminCategoryFilter" class="w-full min-w-0 px-4 py-3.5 rounded-2xl bg-gray-50 dark:bg-gray-800 dark:text-white border border-transparent focus:border-brandGold focus:ring-0 outline-none cursor-pointer" onchange="filterAdminProducts()">
                     <option value="All" data-i18n="all_categories">All Categories</option>
                     <!-- Categories will be injected here -->
                 </select>
+                <div class="flex h-full items-center justify-center rounded-2xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-1.5">
+                    <div class="flex w-full items-center justify-center gap-1">
+                        <button onclick="toggleView('grid')" id="viewGridBtn" class="flex-1 p-2.5 rounded-xl text-brandBlue dark:text-brandGold bg-white dark:bg-gray-700 shadow-sm transition-all" title="Grid View">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                        </button>
+                        <button onclick="toggleView('list')" id="viewListBtn" class="flex-1 p-2.5 rounded-xl text-gray-400 hover:text-brandBlue dark:hover:text-brandGold transition-all" title="List View">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="md:col-span-2 xl:col-span-full xl:grid xl:grid-cols-[minmax(0,1fr)_240px] xl:gap-3">
+                    <div class="hidden xl:block"></div>
+                    <select id="adminSortBy" class="w-full min-w-0 px-4 py-3.5 rounded-2xl bg-gray-50 dark:bg-gray-800 dark:text-white border border-transparent focus:border-brandGold focus:ring-0 outline-none cursor-pointer" onchange="filterAdminProducts()">
+                        <option value="default">Sort: Default</option>
+                        <option value="newest">Sort: Newest</option>
+                        <option value="oldest">Sort: Oldest</option>
+                        <option value="most-viewed">Sort: Highest Views</option>
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -672,15 +707,15 @@
     </div>
 
     <!-- Settings Modal -->
-    <div id="settingsModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-[110]">
-        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50" onclick="closeSettingsModal()"></div>
-        <div class="modal-container bg-white dark:bg-darkCard w-11/12 md:max-w-md mx-auto rounded shadow-lg z-50 overflow-y-auto">
-            <div class="modal-content py-6 px-8">
-                <div class="flex justify-between items-center pb-4 border-b dark:border-gray-700">
+    <div id="settingsModal" class="modal opacity-0 pointer-events-none fixed inset-0 flex items-start md:items-center justify-center z-[110] p-3 md:p-6 overflow-y-auto">
+        <div class="modal-overlay absolute inset-0 bg-gray-900 opacity-50" onclick="closeSettingsModal()"></div>
+        <div class="modal-container bg-white dark:bg-darkCard w-full max-w-2xl mx-auto rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[calc(100vh-1.5rem)] md:max-h-[88vh]">
+            <div class="modal-content flex flex-col min-h-0">
+                <div class="flex justify-between items-center px-5 md:px-8 py-5 border-b dark:border-gray-700 shrink-0">
                     <p class="text-xl font-bold text-brandBlue dark:text-brandGold" data-i18n="general_settings">General Settings</p>
                     <div class="cursor-pointer dark:text-gray-400" onclick="closeSettingsModal()">✕</div>
                 </div>
-                <div class="mt-4 space-y-4">
+                <div class="flex-1 overflow-y-auto px-5 md:px-8 py-5 space-y-4 custom-scroll">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300" data-i18n="whatsapp_phone">WhatsApp Phone Number</label>
                         <p class="text-[10px] text-gray-400 mb-1">Include country code (e.g., 201234567890)</p>
@@ -1101,16 +1136,7 @@
                 
                 // Load Products - Live Listener
                 onSnapshot(collection(db, "products"), (prodSnapshot) => {
-                    products = prodSnapshot.docs.map(doc => normalizeLoadedProduct({ id: doc.id, ...doc.data() }));
-                    // Sort locally to handle missing order fields gracefully
-                    products.sort((a, b) => {
-                        const orderA = a.order !== undefined ? a.order : 999999;
-                        const orderB = b.order !== undefined ? b.order : 999999;
-                        if (orderA !== orderB) return orderA - orderB;
-                        const timeA = a.createdAt?.toMillis() || 0;
-                        const timeB = b.createdAt?.toMillis() || 0;
-                        return timeB - timeA;
-                    });
+                    products = sortAdminProducts(prodSnapshot.docs.map(doc => normalizeLoadedProduct({ id: doc.id, ...doc.data() })));
                     filterAdminProducts();
 
                     // Handle direct edit link (?edit=ID)
@@ -1215,10 +1241,61 @@
             });
         }
 
+        function getProductCreatedTimestamp(product = {}) {
+            return product.createdAt?.toMillis?.() || product.updatedAt?.toMillis?.() || 0;
+        }
+
+        function getProductMediaStatus(product = {}) {
+            return product.mediaStatus || buildMediaStatus(product.imageDetails || [], product.variants || []);
+        }
+
+        function sortAdminProducts(list = [], sortBy = 'default') {
+            const sorted = [...list];
+            sorted.sort((a, b) => {
+                const orderA = a.order !== undefined ? a.order : 999999;
+                const orderB = b.order !== undefined ? b.order : 999999;
+                const createdA = getProductCreatedTimestamp(a);
+                const createdB = getProductCreatedTimestamp(b);
+                const viewsA = Number(a.viewCount || 0);
+                const viewsB = Number(b.viewCount || 0);
+
+                if (sortBy === 'newest') {
+                    if (createdB !== createdA) return createdB - createdA;
+                    return orderA - orderB;
+                }
+
+                if (sortBy === 'oldest') {
+                    if (createdA !== createdB) return createdA - createdB;
+                    return orderA - orderB;
+                }
+
+                if (sortBy === 'most-viewed') {
+                    if (viewsB !== viewsA) return viewsB - viewsA;
+                    if (createdB !== createdA) return createdB - createdA;
+                    return orderA - orderB;
+                }
+
+                if (orderA !== orderB) return orderA - orderB;
+                return createdB - createdA;
+            });
+            return sorted;
+        }
+
+        function updateAdminProductsCounter(filteredCount = 0, totalCount = 0) {
+            const counterText = document.getElementById('adminProductsCounterText');
+            if (!counterText) return;
+
+            counterText.innerText = `Showing ${filteredCount} of ${totalCount} products`;
+        }
+
         window.filterAdminProducts = function() {
             const search = document.getElementById('adminSearch').value.toLowerCase();
             const cat = document.getElementById('adminCategoryFilter').value;
             const barcodeFilter = document.getElementById('adminBarcodeFilter')?.value || 'all';
+            const mediaFilter = document.getElementById('adminMediaFilter')?.value || 'all';
+            const viewsFilter = document.getElementById('adminViewsFilter')?.value || 'all';
+            const sortBy = document.getElementById('adminSortBy')?.value || 'default';
+            const effectiveSortBy = viewsFilter === 'top-viewed' ? 'most-viewed' : sortBy;
             
             const filtered = products.filter(p => {
                 const matchesSearch = p.name.toLowerCase().includes(search) 
@@ -1227,17 +1304,39 @@
                 const matchesCat = cat === 'All' || p.category === cat;
                 const productHasBarcode = p.code && String(p.code).trim() !== '';
                 const variantsHaveBarcode = (p.variants || []).some(v => v.barcode && String(v.barcode).trim() !== '');
+                const mediaStatus = getProductMediaStatus(p);
+                const viewCount = Number(p.viewCount || 0);
                 let matchesBarcodeFilter = true;
+                let matchesMediaFilter = true;
+                let matchesViewsFilter = true;
                 if (barcodeFilter === 'no-product-barcode') {
                     matchesBarcodeFilter = !productHasBarcode;
                 } else if (barcodeFilter === 'no-variant-barcode') {
                     const hasVariants = Array.isArray(p.variants) && p.variants.length > 0;
                     matchesBarcodeFilter = hasVariants && !variantsHaveBarcode;
                 }
-                return matchesSearch && matchesCat && matchesBarcodeFilter;
+
+                if (mediaFilter === 'zero-ik') {
+                    matchesMediaFilter = mediaStatus.total > 0 && mediaStatus.migrated === 0;
+                } else if (mediaFilter === 'partial-ik') {
+                    matchesMediaFilter = mediaStatus.total > 0 && mediaStatus.migrated > 0 && mediaStatus.migrated < mediaStatus.total;
+                } else if (mediaFilter === 'complete-ik') {
+                    matchesMediaFilter = mediaStatus.total > 0 && mediaStatus.migrated === mediaStatus.total;
+                }
+
+                if (viewsFilter === 'zero') {
+                    matchesViewsFilter = viewCount === 0;
+                } else if (viewsFilter === 'has-views') {
+                    matchesViewsFilter = viewCount > 0;
+                } else if (viewsFilter === 'top-viewed') {
+                    matchesViewsFilter = viewCount > 0;
+                }
+
+                return matchesSearch && matchesCat && matchesBarcodeFilter && matchesMediaFilter && matchesViewsFilter;
             });
             
-            renderProducts(filtered);
+            updateAdminProductsCounter(filtered.length, products.length);
+            renderProducts(sortAdminProducts(filtered, effectiveSortBy));
         };
 
         window.addCategory = async function() {
