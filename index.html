@@ -1455,6 +1455,54 @@
             return buildImageKitMediaRecord(data, options.fallbackUrl || '');
         }
 
+        function collectImageKitFileIdsFromProduct(product = {}) {
+            const collected = [];
+            const pushFileId = (item) => {
+                const normalized = normalizeMediaRecord(item);
+                if (!normalized || normalized.provider !== 'imagekit' || !normalized.fileId) return;
+                collected.push(normalized.fileId);
+            };
+
+            (product.imageDetails || []).forEach(pushFileId);
+            (product.variants || []).forEach((variant) => {
+                (variant.imageDetails || []).forEach(pushFileId);
+            });
+
+            return Array.from(new Set(collected));
+        }
+
+        function getRemovedImageKitFileIds(previousProduct = null, nextProduct = null) {
+            const previousIds = new Set(collectImageKitFileIdsFromProduct(previousProduct || {}));
+            const nextIds = new Set(collectImageKitFileIdsFromProduct(nextProduct || {}));
+            return Array.from(previousIds).filter((fileId) => !nextIds.has(fileId));
+        }
+
+        async function deleteImageKitFiles(fileIds = []) {
+            const normalizedFileIds = Array.from(new Set((fileIds || []).filter(Boolean)));
+            if (normalizedFileIds.length === 0) return { deleted: [], failed: [] };
+            if (!currentUser) throw new Error('Login required before deleting ImageKit media');
+
+            const idToken = await currentUser.getIdToken();
+            const response = await fetch('/api/imagekit-media', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${idToken}`
+                },
+                body: JSON.stringify({ fileIds: normalizedFileIds })
+            });
+
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(payload.error || 'Failed to delete ImageKit media');
+            }
+
+            return {
+                deleted: Array.isArray(payload.deleted) ? payload.deleted : [],
+                failed: Array.isArray(payload.failed) ? payload.failed : []
+            };
+        }
+
         async function recordProductView(productId) {
             if (!productId) return;
             const storageKey = `product_view_${productId}`;
@@ -1917,6 +1965,7 @@
             let imageDetails = [];
             let mainIdx = 0;
             const existingMainMediaLookup = buildMediaLookup(oldProduct?.imageDetails || [], oldProduct?.images || []);
+            const newlyUploadedFileIds = [];
 
             try {
                 for (let i = 0; i < rows.length; i++) {
@@ -1935,6 +1984,7 @@
                             fileName: `${oldProduct?.code || oldProduct?.id || 'product'}_quick_${i + 1}.${inferFileExtension(fileInput.files[0])}`,
                             tags: ['product', 'quick-edit']
                         });
+                        if (mediaItem?.fileId) newlyUploadedFileIds.push(mediaItem.fileId);
                     } else if(url && url.startsWith('data:')) {
                         submitBtn.innerText = `Uploading ${i+1}/${rows.length}...`;
                         const res = await fetch(url);
@@ -1944,6 +1994,7 @@
                             fileName: `${oldProduct?.code || oldProduct?.id || 'product'}_quick_${i + 1}.${inferFileExtension(url)}`,
                             tags: ['product', 'quick-edit']
                         });
+                        if (mediaItem?.fileId) newlyUploadedFileIds.push(mediaItem.fileId);
                     }
                     
                     if(mediaItem) {
@@ -1968,8 +2019,25 @@
                     imageDetails: imageDetails,
                     updatedAt: serverTimestamp()
                 };
+                const nextProductState = {
+                    ...(oldProduct || {}),
+                    ...data
+                };
+                const removableFileIds = oldProduct ? getRemovedImageKitFileIds(oldProduct, nextProductState) : [];
 
                 await updateDoc(doc(db, "products", id), data);
+
+                if (removableFileIds.length > 0) {
+                    try {
+                        const cleanupResult = await deleteImageKitFiles(removableFileIds);
+                        if (cleanupResult.failed.length > 0) {
+                            window.showToast(`Saved, but ${cleanupResult.failed.length} old ImageKit file(s) could not be deleted.`, 'error');
+                        }
+                    } catch (cleanupError) {
+                        console.error('ImageKit cleanup error:', cleanupError);
+                        window.showToast(`Saved, but old media cleanup failed: ${cleanupError.message}`, 'error');
+                    }
+                }
                 
                 window.closeQuickEdit();
                 window.showDetails(id); // Refresh the detail modal to show new data
@@ -1977,6 +2045,13 @@
                 
             } catch (err) {
                 console.error("Error in save process:", err);
+                if (newlyUploadedFileIds.length > 0) {
+                    try {
+                        await deleteImageKitFiles(newlyUploadedFileIds);
+                    } catch (cleanupError) {
+                        console.error('Failed to clean up newly uploaded ImageKit files:', cleanupError);
+                    }
+                }
                 window.showToast(`Error: ${err.message}`, 'error');
             } finally {
                 submitBtn.disabled = false;

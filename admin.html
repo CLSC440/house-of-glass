@@ -738,10 +738,10 @@
                                 <div>
                                     <h4 class="text-xs font-bold text-brandBlue dark:text-gray-200">Pilot Migrate Important Images</h4>
                                     <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">
-                                        Move the top 5 most-viewed legacy product images to ImageKit, keep the old source as fallback, and stamp migration status in Firestore.
+                                        Move up to 25 most-viewed legacy product images to ImageKit per run, keep the old source as fallback, and stamp migration status in Firestore.
                                     </p>
                                     <button id="migrationBtn" onclick="runImageMigration()" class="mt-3 px-3 py-1.5 bg-brandBlue text-white text-[10px] font-bold uppercase tracking-widest rounded-lg shadow-md hover:bg-opacity-90 transition-all flex items-center gap-2">
-                                        Run 5-Product Pilot
+                                        Run 25-Product Pilot
                                     </button>
                                     <div id="migrationProgress" class="hidden mt-2">
                                         <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mb-1">
@@ -1018,6 +1018,54 @@
             }
 
             return buildImageKitMediaRecord(data, options.fallbackUrl || '');
+        }
+
+        function collectImageKitFileIdsFromProduct(product = {}) {
+            const collected = [];
+            const pushFileId = (item) => {
+                const normalized = normalizeMediaRecord(item);
+                if (!normalized || normalized.provider !== 'imagekit' || !normalized.fileId) return;
+                collected.push(normalized.fileId);
+            };
+
+            (product.imageDetails || []).forEach(pushFileId);
+            (product.variants || []).forEach((variant) => {
+                (variant.imageDetails || []).forEach(pushFileId);
+            });
+
+            return Array.from(new Set(collected));
+        }
+
+        function getRemovedImageKitFileIds(previousProduct = null, nextProduct = null) {
+            const previousIds = new Set(collectImageKitFileIdsFromProduct(previousProduct || {}));
+            const nextIds = new Set(collectImageKitFileIdsFromProduct(nextProduct || {}));
+            return Array.from(previousIds).filter((fileId) => !nextIds.has(fileId));
+        }
+
+        async function deleteImageKitFiles(fileIds = []) {
+            const normalizedFileIds = Array.from(new Set((fileIds || []).filter(Boolean)));
+            if (normalizedFileIds.length === 0) return { deleted: [], failed: [] };
+            if (!currentUser) throw new Error('Login required before deleting ImageKit media');
+
+            const idToken = await currentUser.getIdToken();
+            const response = await fetch('/api/imagekit-media', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${idToken}`
+                },
+                body: JSON.stringify({ fileIds: normalizedFileIds })
+            });
+
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(payload.error || 'Failed to delete ImageKit media');
+            }
+
+            return {
+                deleted: Array.isArray(payload.deleted) ? payload.deleted : [],
+                failed: Array.isArray(payload.failed) ? payload.failed : []
+            };
         }
 
         async function migrateSourceToImageKit(sourceUrl, options = {}) {
@@ -1909,7 +1957,22 @@
 
         window.deleteProduct = async (id) => {
             if (confirm('Delete this masterpiece?')) {
+                const product = products.find((entry) => entry.id === id);
+                const removableFileIds = collectImageKitFileIdsFromProduct(product || {});
                 await deleteDoc(doc(db, "products", id));
+
+                if (removableFileIds.length > 0) {
+                    try {
+                        const cleanupResult = await deleteImageKitFiles(removableFileIds);
+                        if (cleanupResult.failed.length > 0) {
+                            showToast(`Product deleted, but ${cleanupResult.failed.length} ImageKit file(s) could not be removed.`, 'error');
+                        }
+                    } catch (cleanupError) {
+                        console.error('ImageKit cleanup error:', cleanupError);
+                        showToast(`Product deleted, but media cleanup failed: ${cleanupError.message}`, 'error');
+                    }
+                }
+
                 loadData();
             }
         };
@@ -1955,6 +2018,7 @@
             let mainIdx = 0;
             const imageMap = new Map();
             const existingMainMediaLookup = buildMediaLookup(oldProduct?.imageDetails || [], oldProduct?.images || []);
+            const newlyUploadedFileIds = [];
 
             try {
                 for (let i = 0; i < rows.length; i++) {
@@ -1973,6 +2037,7 @@
                             fileName: `${document.getElementById('pCode').value.trim() || 'product'}_main_${i + 1}.${inferFileExtension(fileInput.files[0])}`,
                             tags: ['product', 'main-image']
                         });
+                        if (mediaItem?.fileId) newlyUploadedFileIds.push(mediaItem.fileId);
                     } 
                     // Fallback: If user pasted a base64 string directly (rare, but handle just in case)
                     else if (url && url.startsWith('data:')) {
@@ -1984,6 +2049,7 @@
                             fileName: `${document.getElementById('pCode').value.trim() || 'product'}_main_${i + 1}.${inferFileExtension(url)}`,
                             tags: ['product', 'main-image']
                         });
+                        if (mediaItem?.fileId) newlyUploadedFileIds.push(mediaItem.fileId);
                     }
                     
                     if(mediaItem) {
@@ -2030,6 +2096,7 @@
                                 fileName: `${document.getElementById('pCode').value.trim() || 'product'}_variant_${i + 1}_${j + 1}.${inferFileExtension(val)}`,
                                 tags: ['product', 'variant-image']
                             });
+                            if (mediaItem?.fileId) newlyUploadedFileIds.push(mediaItem.fileId);
                         }
 
                         if (mediaItem) {
@@ -2069,6 +2136,11 @@
                     mediaStatus: buildMediaStatus(imageDetails, variants),
                     updatedAt: serverTimestamp()
                 };
+                const nextProductState = {
+                    ...(oldProduct || {}),
+                    ...data
+                };
+                const removableFileIds = oldProduct ? getRemovedImageKitFileIds(oldProduct, nextProductState) : [];
 
                 // Track Detailed History
                 let changeLog = [];
@@ -2119,6 +2191,18 @@
                     data.order = maxOrder + 1;
                     await addDoc(collection(db, "products"), data); 
                 }
+
+                if (removableFileIds.length > 0) {
+                    try {
+                        const cleanupResult = await deleteImageKitFiles(removableFileIds);
+                        if (cleanupResult.failed.length > 0) {
+                            showToast(`Saved, but ${cleanupResult.failed.length} old ImageKit file(s) could not be deleted.`, 'error');
+                        }
+                    } catch (cleanupError) {
+                        console.error('ImageKit cleanup error:', cleanupError);
+                        showToast(`Saved, but old media cleanup failed: ${cleanupError.message}`, 'error');
+                    }
+                }
                 
                 window.closeModal();
                 loadData();
@@ -2126,6 +2210,13 @@
                 
             } catch (err) {
                 console.error("Error in save process:", err);
+                if (newlyUploadedFileIds.length > 0) {
+                    try {
+                        await deleteImageKitFiles(newlyUploadedFileIds);
+                    } catch (cleanupError) {
+                        console.error('Failed to clean up newly uploaded ImageKit files:', cleanupError);
+                    }
+                }
                 showToast(`Error: ${err.message}`, 'error');
             } finally {
                 submitBtn.disabled = false;
@@ -2362,7 +2453,7 @@
             const progressBar = progressContainer.querySelector('div > div');
             const progressText = progressContainer.querySelector('p');
             
-            if(!confirm("Run the 5-product ImageKit pilot now? This will migrate the highest-viewCount legacy products and preserve their old source as fallback.")) return;
+            if(!confirm("Run the 25-product ImageKit pilot now? This will migrate up to 25 highest-viewCount legacy products and preserve their old source as fallback.")) return;
 
             btn.disabled = true;
             btn.innerText = "Scanning pilot...";
@@ -2379,7 +2470,7 @@
                         const timeB = b.updatedAt?.toMillis?.() || b.createdAt?.toMillis?.() || 0;
                         return timeB - timeA;
                     })
-                    .slice(0, 5);
+                    .slice(0, 25);
 
                 const total = candidates.length;
                 let processed = 0;
@@ -2456,7 +2547,7 @@
                             mediaStatus: buildMediaStatus(newImageDetails, newVariants),
                             migratedToImageKitAt: serverTimestamp(),
                             imageMigrationPilot: {
-                                size: 5,
+                                size: 25,
                                 migratedBy: currentUser?.email || currentUser?.uid || 'unknown',
                                 migratedAt: Date.now(),
                                 basis: 'viewCount'
