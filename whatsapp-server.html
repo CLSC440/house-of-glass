@@ -209,32 +209,87 @@
             </div>
 
             <div class="glass-panel rounded-[2rem] p-6 md:p-8 space-y-6">
-                <div class="flex items-center justify-between gap-3">
+                <div class="flex items-start justify-between gap-3 flex-wrap">
                     <div>
                         <p class="text-[10px] uppercase tracking-[0.3em] text-gray-400">Authentication</p>
-                        <h2 class="text-2xl font-black uppercase italic tracking-tighter text-brandBlue dark:text-brandGold mt-2">QR Code</h2>
+                        <h2 class="text-2xl font-black uppercase italic tracking-tighter text-brandBlue dark:text-brandGold mt-2">Login Options</h2>
+                        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Choose either QR code login or phone-number pairing from the same authentication area.</p>
                     </div>
-                    <button onclick="refreshQrCode()" class="px-4 py-2 rounded-full border border-brandGold text-brandGold text-xs font-black uppercase tracking-widest hover:bg-brandGold hover:text-white transition-all">Reload QR</button>
+                    <div class="inline-flex rounded-full border border-brandGold/40 bg-white dark:bg-gray-900 p-1">
+                        <button id="authModeQrBtn" type="button" onclick="setAuthMode('qr')" class="px-4 py-2 rounded-full bg-brandBlue text-white dark:bg-brandGold dark:text-brandBlue text-xs font-black uppercase tracking-widest">QR Code</button>
+                        <button id="authModePairingBtn" type="button" onclick="setAuthMode('pairing')" class="px-4 py-2 rounded-full text-brandGold text-xs font-black uppercase tracking-widest transition-all">Phone Number</button>
+                    </div>
                 </div>
-                <div class="rounded-[2rem] border border-dashed border-brandGold/35 bg-gray-50/80 dark:bg-gray-900/60 min-h-[420px] flex flex-col items-center justify-center p-5 text-center overflow-hidden">
-                    <img id="qrImage" src="" alt="WhatsApp QR" class="hidden w-full max-w-[320px] rounded-3xl bg-white p-4 shadow-xl shadow-brandBlue/10">
-                    <div id="qrPlaceholder" class="space-y-3 max-w-sm">
-                        <div class="w-20 h-20 mx-auto rounded-full bg-brandGold/10 text-brandGold flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3m0 0v3m0-3L3 8m18-3a2 2 0 00-2-2h-3m0 0v3m0-3l5 5M3 19a2 2 0 002 2h3m0 0v-3m0 3l-5-5m18 3a2 2 0 01-2 2h-3m0 0v-3m0 3l5-5" /></svg>
+
+                <div id="authModeQrPanel" class="space-y-6">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <div class="text-[10px] uppercase tracking-[0.3em] text-gray-400">Method 1</div>
+                            <h3 class="mt-2 text-lg font-black uppercase italic tracking-tighter text-brandBlue dark:text-brandGold">Scan QR Code</h3>
                         </div>
-                        <h3 id="qrPlaceholderTitle" class="text-xl font-black uppercase italic tracking-tighter text-brandBlue dark:text-brandGold">Waiting For QR</h3>
-                        <p id="qrPlaceholderText" class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">Click Reload QR or open the direct QR page if the code has not appeared yet.</p>
+                        <button onclick="refreshQrCode()" class="px-4 py-2 rounded-full border border-brandGold text-brandGold text-xs font-black uppercase tracking-widest hover:bg-brandGold hover:text-white transition-all">Reload QR</button>
+                    </div>
+                    <div class="rounded-[2rem] border border-dashed border-brandGold/35 bg-gray-50/80 dark:bg-gray-900/60 min-h-[420px] flex flex-col items-center justify-center p-5 text-center overflow-hidden">
+                        <img id="qrImage" src="" alt="WhatsApp QR" class="hidden w-full max-w-[320px] rounded-3xl bg-white p-4 shadow-xl shadow-brandBlue/10">
+                        <div id="qrPlaceholder" class="space-y-3 max-w-sm">
+                            <div class="w-20 h-20 mx-auto rounded-full bg-brandGold/10 text-brandGold flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3m0 0v3m0-3L3 8m18-3a2 2 0 00-2-2h-3m0 0v3m0-3l5 5M3 19a2 2 0 002 2h3m0 0v-3m0 3l-5-5m18 3a2 2 0 01-2 2h-3m0 0v-3m0 3l5-5" /></svg>
+                            </div>
+                            <h3 id="qrPlaceholderTitle" class="text-xl font-black uppercase italic tracking-tighter text-brandBlue dark:text-brandGold">Waiting For QR</h3>
+                            <p id="qrPlaceholderText" class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">Click Reload QR or open the direct QR page if the code has not appeared yet.</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-500 dark:text-gray-400">
+                        <div class="rounded-2xl bg-white dark:bg-gray-900 p-4 border border-gray-100 dark:border-gray-800">
+                            <div class="font-black uppercase tracking-[0.22em] text-[10px] text-brandGold mb-2">Direct QR</div>
+                            <a id="directQrLink" href="https://whapp.hg-alshour.online/qr" target="_blank" class="break-all hover:text-brandGold transition-colors">https://whapp.hg-alshour.online/qr</a>
+                        </div>
+                        <div class="rounded-2xl bg-white dark:bg-gray-900 p-4 border border-gray-100 dark:border-gray-800">
+                            <div class="font-black uppercase tracking-[0.22em] text-[10px] text-brandGold mb-2">Health JSON</div>
+                            <a id="healthJsonLink" href="https://whapp.hg-alshour.online/api/health" target="_blank" class="break-all hover:text-brandGold transition-colors">https://whapp.hg-alshour.online/api/health</a>
+                        </div>
                     </div>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-500 dark:text-gray-400">
-                    <div class="rounded-2xl bg-white dark:bg-gray-900 p-4 border border-gray-100 dark:border-gray-800">
-                        <div class="font-black uppercase tracking-[0.22em] text-[10px] text-brandGold mb-2">Direct QR</div>
-                        <a id="directQrLink" href="https://whapp.hg-alshour.online/qr" target="_blank" class="break-all hover:text-brandGold transition-colors">https://whapp.hg-alshour.online/qr</a>
+
+                <div id="authModePairingPanel" class="hidden rounded-[2rem] bg-white dark:bg-gray-900 p-5 border border-gray-100 dark:border-gray-800 space-y-4">
+                    <div>
+                        <div class="text-[10px] uppercase tracking-[0.3em] text-gray-400">Method 2</div>
+                        <h3 class="mt-2 text-lg font-black uppercase italic tracking-tighter text-brandBlue dark:text-brandGold">Pair With Phone Number</h3>
+                        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Generate a WhatsApp pairing code using your phone number, then enter that code from Linked Devices on your phone.</p>
                     </div>
-                    <div class="rounded-2xl bg-white dark:bg-gray-900 p-4 border border-gray-100 dark:border-gray-800">
-                        <div class="font-black uppercase tracking-[0.22em] text-[10px] text-brandGold mb-2">Health JSON</div>
-                        <a id="healthJsonLink" href="https://whapp.hg-alshour.online/api/health" target="_blank" class="break-all hover:text-brandGold transition-colors">https://whapp.hg-alshour.online/api/health</a>
+                    <form id="pairingCodeForm" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-bold mb-2">Phone Number</label>
+                            <div class="flex gap-3">
+                                <select id="pairingCountryCode" class="px-4 py-3 rounded-2xl bg-white dark:bg-gray-950 border border-gray-100 dark:border-gray-800 outline-none min-w-[110px]">
+                                    <option value="+20" selected>+20 EG</option>
+                                    <option value="+1">+1 US</option>
+                                </select>
+                                <input id="pairingPhoneNumber" type="text" inputmode="numeric" class="flex-1 px-4 py-3 rounded-2xl bg-white dark:bg-gray-950 border border-gray-100 dark:border-gray-800 outline-none" placeholder="01001234567">
+                            </div>
+                            <p class="mt-2 text-[11px] text-gray-400">Enter only the local number. We will format it for phone-number pairing automatically.</p>
+                        </div>
+                        <div class="flex flex-wrap gap-3">
+                            <button type="submit" class="px-5 py-3 rounded-2xl bg-brandBlue text-white dark:bg-brandGold dark:text-brandBlue text-xs font-black uppercase tracking-widest shadow-lg">Generate Code</button>
+                            <button type="button" onclick="fillPairingExample()" class="px-5 py-3 rounded-2xl border border-brandGold text-brandGold text-xs font-black uppercase tracking-widest hover:bg-brandGold hover:text-white transition-all">Load Example</button>
+                        </div>
+                    </form>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-gray-500 dark:text-gray-400">
+                        <div class="rounded-2xl bg-gray-50 dark:bg-gray-950 p-4 border border-gray-100 dark:border-gray-800">
+                            <div class="font-black uppercase tracking-[0.22em] text-[10px] text-brandGold mb-2">Formatted Number</div>
+                            <div id="pairingNormalizedPhone" class="text-sm font-black text-brandBlue dark:text-white">Waiting</div>
+                        </div>
+                        <div class="rounded-2xl bg-gray-50 dark:bg-gray-950 p-4 border border-gray-100 dark:border-gray-800">
+                            <div class="font-black uppercase tracking-[0.22em] text-[10px] text-brandGold mb-2">Generated Code</div>
+                            <div id="pairingCodeValue" class="text-xl font-black tracking-[0.35em] text-brandBlue dark:text-white break-all">Waiting</div>
+                        </div>
+                        <div class="rounded-2xl bg-gray-50 dark:bg-gray-950 p-4 border border-gray-100 dark:border-gray-800">
+                            <div class="font-black uppercase tracking-[0.22em] text-[10px] text-brandGold mb-2">Expires In</div>
+                            <div id="pairingCodeCountdown" class="text-xl font-black text-brandBlue dark:text-white">Waiting</div>
+                            <div id="pairingCodeCountdownHint" class="mt-2 text-[11px] text-gray-400">A new countdown will appear after a code is generated.</div>
+                        </div>
                     </div>
+                    <pre id="pairingCodeResult" class="rounded-[1.5rem] bg-gray-950 text-violet-300 text-xs p-4 overflow-auto min-h-[140px]">Waiting for pairing code request...</pre>
                 </div>
             </div>
         </section>
@@ -373,10 +428,38 @@
         const logsUpdatedAt = document.getElementById('logsUpdatedAt');
         const logsLineCount = document.getElementById('logsLineCount');
         const toggleLogsAutoBtn = document.getElementById('toggleLogsAutoBtn');
+        const authModeQrBtn = document.getElementById('authModeQrBtn');
+        const authModePairingBtn = document.getElementById('authModePairingBtn');
+        const authModeQrPanel = document.getElementById('authModeQrPanel');
+        const authModePairingPanel = document.getElementById('authModePairingPanel');
+        const pairingCodeCountdown = document.getElementById('pairingCodeCountdown');
+        const pairingCodeCountdownHint = document.getElementById('pairingCodeCountdownHint');
 
         let pollingTimer = null;
         let logsPollingTimer = null;
         let isLogsAutoRefreshEnabled = true;
+        let pairingCountdownTimer = null;
+
+        const PAIRING_CODE_TTL_MS = 170000;
+
+        function setAuthMode(mode) {
+            const showQr = mode !== 'pairing';
+
+            authModeQrPanel.classList.toggle('hidden', !showQr);
+            authModePairingPanel.classList.toggle('hidden', showQr);
+
+            authModeQrBtn.classList.toggle('bg-brandBlue', showQr);
+            authModeQrBtn.classList.toggle('text-white', showQr);
+            authModeQrBtn.classList.toggle('dark:bg-brandGold', showQr);
+            authModeQrBtn.classList.toggle('dark:text-brandBlue', showQr);
+            authModeQrBtn.classList.toggle('text-brandGold', !showQr);
+
+            authModePairingBtn.classList.toggle('bg-brandBlue', !showQr);
+            authModePairingBtn.classList.toggle('text-white', !showQr);
+            authModePairingBtn.classList.toggle('dark:bg-brandGold', !showQr);
+            authModePairingBtn.classList.toggle('dark:text-brandBlue', !showQr);
+            authModePairingBtn.classList.toggle('text-brandGold', showQr);
+        }
 
         function getServerBase() {
             return (localStorage.getItem('whatsappServerBase') || 'https://whapp.hg-alshour.online').replace(/\/$/, '');
@@ -409,6 +492,44 @@
             serviceLogsOutput.scrollTop = serviceLogsOutput.scrollHeight;
         }
 
+        function formatCountdown(ms) {
+            const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${minutes}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        function resetPairingCountdown(message = 'Waiting', hint = 'A new countdown will appear after a code is generated.') {
+            if (pairingCountdownTimer) {
+                clearInterval(pairingCountdownTimer);
+                pairingCountdownTimer = null;
+            }
+
+            pairingCodeCountdown.textContent = message;
+            pairingCodeCountdownHint.textContent = hint;
+        }
+
+        function startPairingCountdown(createdAt, ttlMs = PAIRING_CODE_TTL_MS) {
+            const createdAtMs = Date.parse(createdAt || new Date().toISOString());
+            const expiresAtMs = Number.isFinite(createdAtMs) ? createdAtMs + ttlMs : Date.now() + ttlMs;
+
+            resetPairingCountdown();
+
+            const updateCountdown = () => {
+                const remainingMs = expiresAtMs - Date.now();
+                if (remainingMs <= 0) {
+                    resetPairingCountdown('Expired', 'This code likely expired. Generate a new code before trying again.');
+                    return;
+                }
+
+                pairingCodeCountdown.textContent = formatCountdown(remainingMs);
+                pairingCodeCountdownHint.textContent = `Code expires around ${new Date(expiresAtMs).toLocaleTimeString()}.`;
+            };
+
+            updateCountdown();
+            pairingCountdownTimer = setInterval(updateCountdown, 1000);
+        }
+
         function setServerCards(health) {
             const online = Boolean(health?.ok);
             const ready = Boolean(health?.ready);
@@ -421,6 +542,10 @@
             healthText.textContent = online ? 'Online' : 'Offline';
             sessionText.textContent = ready ? 'Connected' : 'Waiting';
             qrText.textContent = hasQr ? 'Available' : (ready ? 'Hidden' : 'Unavailable');
+
+            if (ready || !hasQr) {
+                resetPairingCountdown(ready ? 'Linked' : 'Waiting', ready ? 'The session is already connected, so the pairing code is no longer needed.' : 'A new countdown will appear after a code is generated.');
+            }
 
             document.getElementById('serverHealthValue').textContent = online ? 'Online' : 'Offline';
             document.getElementById('sessionStatusValue').textContent = ready ? 'Ready' : 'Waiting';
@@ -602,6 +727,25 @@
             return `${prefix}${digits}@c.us`;
         }
 
+        function buildPairingPhoneNumber(numberValue, countryCode) {
+            const prefix = String(countryCode || '+20').replace(/\D/g, '');
+            let digits = String(numberValue || '').trim().replace(/\D/g, '');
+
+            if (!digits) {
+                throw new Error('Phone number is required');
+            }
+
+            if (digits.startsWith(prefix)) {
+                return digits;
+            }
+
+            if (prefix === '20' && digits.startsWith('0')) {
+                digits = digits.slice(1);
+            }
+
+            return `${prefix}${digits}`;
+        }
+
         window.fillTextExample = function() {
             document.getElementById('textCountryCode').value = '+20';
             document.getElementById('textChatId').value = '01001234567';
@@ -613,6 +757,15 @@
             document.getElementById('imageChatId').value = '01001234567';
             document.getElementById('imageUrl').value = 'https://res.cloudinary.com/demo/image/upload/sample.jpg';
             document.getElementById('imageCaption').value = 'test image from whatsapp server dashboard';
+        };
+
+        window.fillPairingExample = function() {
+            document.getElementById('pairingCountryCode').value = '+20';
+            document.getElementById('pairingPhoneNumber').value = '01001234567';
+            document.getElementById('pairingNormalizedPhone').textContent = buildPairingPhoneNumber('01001234567', '+20');
+            document.getElementById('pairingCodeValue').textContent = 'Waiting';
+            document.getElementById('pairingCodeResult').textContent = 'Example number loaded. Click Generate Code to request a pairing code.';
+            resetPairingCountdown();
         };
 
         window.saveServerBase = function() {
@@ -630,6 +783,7 @@
         window.refreshDashboard = refreshDashboard;
         window.refreshQrCode = refreshQrCode;
         window.refreshLogs = refreshLogs;
+        window.setAuthMode = setAuthMode;
         window.toggleLogsAutoRefresh = function() {
             isLogsAutoRefreshEnabled = !isLogsAutoRefreshEnabled;
             toggleLogsAutoBtn.textContent = isLogsAutoRefreshEnabled ? 'Auto Refresh On' : 'Auto Refresh Off';
@@ -667,6 +821,49 @@
             }, 'imageResult');
         });
 
+        document.getElementById('pairingCodeForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const pairingResult = document.getElementById('pairingCodeResult');
+            const pairingCodeValue = document.getElementById('pairingCodeValue');
+            const pairingNormalizedPhone = document.getElementById('pairingNormalizedPhone');
+
+            try {
+                const phoneNumber = buildPairingPhoneNumber(
+                    document.getElementById('pairingPhoneNumber').value,
+                    document.getElementById('pairingCountryCode').value
+                );
+
+                pairingNormalizedPhone.textContent = phoneNumber;
+                pairingCodeValue.textContent = 'Loading';
+                pairingResult.textContent = 'Requesting pairing code...';
+
+                const result = await fetchJson(`${getServerBase()}/api/pairing-code`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phoneNumber })
+                });
+
+                pairingCodeValue.textContent = result?.code || 'Unavailable';
+                pairingResult.textContent = JSON.stringify(result, null, 2);
+                startPairingCountdown(result?.createdAt || result?.checkedAt || new Date().toISOString());
+                await refreshDashboard();
+                await refreshLogs();
+            } catch (error) {
+                pairingCodeValue.textContent = 'Error';
+                  
+                  let errorMessage = `Error: ${error.message}`;
+                  if (error.message.includes('detached Frame') || error.message.includes('execution context was destroyed')) {
+                      errorMessage = '🚨 WhatsApp Web crashed on the server! The api is automatically rebooting to recover the session. Please wait ~15 seconds and try generating the code again.';
+                  }
+                  
+                  pairingResult.textContent = errorMessage;
+                resetPairingCountdown('Error', 'The timer could not be started because the request failed.');
+                await refreshDashboard();
+                await refreshLogs();
+            }
+        });
+
         window.toggleDarkMode = function() {
             const isDark = document.documentElement.classList.toggle('dark');
             localStorage.setItem('darkMode', isDark);
@@ -695,6 +892,7 @@
             }
 
             setServerBaseLinks(getServerBase());
+            setAuthMode('qr');
             refreshDashboard();
             refreshLogs();
             if (pollingTimer) clearInterval(pollingTimer);
