@@ -1130,7 +1130,7 @@
 
         let products = [];
         let categories = ['All'];
-        let activeCategory = 'All';
+        let activeCategory = new URLSearchParams(window.location.search).get('category') || 'All';
         let searchQuery = '';
         let whatsappNumber = '201026600350';
         let sitePhones = [];
@@ -2792,7 +2792,8 @@
             }
         });
 
-        function renderCategories() {
+                function renderCategories() {
+            document.getElementById('activeFilterDisplay').innerText = `Category: ${activeCategory}`;
             const catList = document.getElementById('categoryList');
             const catDropdown = document.getElementById('catDropdown');
             catList.innerHTML = '';
@@ -2833,12 +2834,21 @@
             }
         }
 
-        window.selectCategory = (cat) => {
+                window.selectCategory = (cat) => {
             activeCategory = cat;
             searchQuery = ''; // Clear search when selecting a category
             if(document.getElementById('searchInput')) document.getElementById('searchInput').value = '';
-            
             document.getElementById('activeFilterDisplay').innerText = `Category: ${cat}`;
+
+            // Update the URL without reloading
+            const url = new URL(window.location);
+            if (cat === 'All') {
+                url.searchParams.delete('category');
+            } else {
+                url.searchParams.set('category', cat);
+            }
+            window.history.pushState({}, '', url);
+
             renderProducts();
             renderCategories();
             
