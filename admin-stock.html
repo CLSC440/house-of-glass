@@ -173,6 +173,7 @@
                 <table class="min-w-full text-sm">
                     <thead class="bg-gray-50 dark:bg-gray-800/80 text-gray-500 dark:text-gray-300">
                         <tr>
+                            <th class="px-4 py-4 text-left font-black w-12"></th>
                             <th class="px-4 py-4 text-left font-black">Product</th>
                             <th class="px-4 py-4 text-left font-black">Code</th>
                             <th class="px-4 py-4 text-left font-black">System Barcode</th>
@@ -227,6 +228,7 @@
         let stockPromise = null;
         let lastSyncAt = null;
         let liveClockTimer = null;
+        const expandedProductIds = new Set();
 
         function setLoading(isLoading) {
             loadingState.classList.toggle('hidden', !isLoading);
@@ -320,18 +322,63 @@
             return products.map((product) => {
                 const code = normalizeCode(product.code);
                 const stockInfo = code ? stockMap[code] : null;
-                const retailStock = stockInfo?.retailStock || 0;
-                const wholesaleStock = stockInfo?.wholesaleStock || 0;
+                const variants = Array.isArray(product.variants)
+                    ? product.variants.map((variant, index) => {
+                        const variantCode = normalizeCode(variant.code || variant.barcode);
+                        const variantStockInfo = variantCode ? stockMap[variantCode] : null;
+
+                        return {
+                            id: `${product.id}-variant-${index}`,
+                            name: variant.name || `Variant ${index + 1}`,
+                            code: variantCode,
+                            matchedBarcode: variantStockInfo?.barcode || '-',
+                            retailStock: variantStockInfo?.retailStock || 0,
+                            wholesaleStock: variantStockInfo?.wholesaleStock || 0,
+                            linked: Boolean(variantStockInfo)
+                        };
+                    })
+                    : [];
+
+                const uniqueVariantStockRows = [];
+                const seenVariantStockKeys = new Set();
+
+                variants.forEach((variant, index) => {
+                    const stockKey = variant.code || (variant.linked ? normalizeCode(variant.matchedBarcode) : `${product.id}-variant-${index}`);
+                    if (!stockKey || seenVariantStockKeys.has(stockKey)) return;
+                    seenVariantStockKeys.add(stockKey);
+                    uniqueVariantStockRows.push(variant);
+                });
+
+                const hasVariants = variants.length > 0;
+                const linkedVariantCount = variants.filter((variant) => variant.linked).length;
+                const retailStock = hasVariants
+                    ? uniqueVariantStockRows.reduce((sum, variant) => sum + variant.retailStock, 0)
+                    : (stockInfo?.retailStock || 0);
+                const wholesaleStock = hasVariants
+                    ? uniqueVariantStockRows.reduce((sum, variant) => sum + variant.wholesaleStock, 0)
+                    : (stockInfo?.wholesaleStock || 0);
+                const linked = hasVariants ? linkedVariantCount > 0 : Boolean(stockInfo);
+                const statusText = hasVariants
+                    ? (linkedVariantCount === 0 ? 'Unlinked' : (linkedVariantCount === variants.length ? 'Linked' : 'Partial'))
+                    : (linked ? 'Linked' : 'Unlinked');
+                const statusTone = statusText === 'Linked'
+                    ? 'linked'
+                    : (statusText === 'Partial' ? 'partial' : 'unlinked');
 
                 return {
                     id: product.id,
                     name: product.name || 'Unnamed Product',
                     code,
-                    matchedBarcode: stockInfo?.barcode || '-',
+                    matchedBarcode: hasVariants ? `${linkedVariantCount}/${variants.length} variants` : (stockInfo?.barcode || '-'),
                     retailStock,
                     wholesaleStock,
-                    linked: Boolean(stockInfo),
-                    order: Number(product.order || 0)
+                    linked,
+                    order: Number(product.order || 0),
+                    hasVariants,
+                    variants,
+                    linkedVariantCount,
+                    statusText,
+                    statusTone
                 };
             }).sort((left, right) => {
                 if (left.order !== right.order) return left.order - right.order;
@@ -364,7 +411,12 @@
             return !searchValue
                 || row.name.toLowerCase().includes(searchValue)
                 || row.code.toLowerCase().includes(searchValue)
-                || String(row.matchedBarcode).toLowerCase().includes(searchValue);
+                || String(row.matchedBarcode).toLowerCase().includes(searchValue)
+                || (row.hasVariants && row.variants.some((variant) => {
+                    return variant.name.toLowerCase().includes(searchValue)
+                        || variant.code.toLowerCase().includes(searchValue)
+                        || String(variant.matchedBarcode).toLowerCase().includes(searchValue);
+                }));
         }
 
         function updateFilterOptionCounts() {
@@ -431,6 +483,80 @@
             return '<span class="inline-flex justify-center px-3 py-1 rounded-full bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300 text-xs font-black">Out of Stock</span>';
         }
 
+        function renderStatusBadge(row) {
+            const statusClass = row.statusTone === 'linked'
+                ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300'
+                : (row.statusTone === 'partial'
+                    ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300'
+                    : 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300');
+
+            return `<span class="inline-flex px-3 py-1 rounded-full text-xs font-black ${statusClass}">${row.statusText}</span>`;
+        }
+
+        function renderExpandButton(row) {
+            if (!row.hasVariants) {
+                return '<span class="inline-flex w-8 h-8"></span>';
+            }
+
+            const isExpanded = expandedProductIds.has(row.id);
+            return `
+                <button
+                    type="button"
+                    data-toggle-product-id="${row.id}"
+                    class="inline-flex w-8 h-8 items-center justify-center rounded-full border border-brandGold/25 bg-brandGold/10 text-brandGold hover:bg-brandGold hover:text-white transition-all"
+                    aria-expanded="${isExpanded ? 'true' : 'false'}"
+                    title="${isExpanded ? 'Hide variants' : 'Show variants'}"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </button>
+            `;
+        }
+
+        function renderVariantRows(row) {
+            if (!row.hasVariants || !expandedProductIds.has(row.id)) return '';
+
+            const variantCards = row.variants.map((variant) => {
+                const variantStatusClass = variant.linked
+                    ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300'
+                    : 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300';
+
+                return `
+                    <div class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-800/70 p-4">
+                        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div>
+                                <div class="font-black text-brandBlue dark:text-brandGold">${variant.name}</div>
+                                <div class="mt-2 flex flex-wrap gap-2 text-xs">
+                                    <span class="font-mono font-bold bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded-lg">Code: ${variant.code || '-'}</span>
+                                    <span class="font-mono text-gray-500 dark:text-gray-300 bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded-lg">Barcode: ${variant.matchedBarcode}</span>
+                                </div>
+                            </div>
+                            <div class="flex flex-wrap gap-3 items-center">
+                                ${renderStockBadge(variant.retailStock, 'retail')}
+                                ${renderStockBadge(variant.wholesaleStock, 'wholesale')}
+                                <span class="inline-flex px-3 py-1 rounded-full text-xs font-black ${variantStatusClass}">${variant.linked ? 'Linked' : 'Unlinked'}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            return `
+                <tr class="bg-gray-50/70 dark:bg-gray-900/30">
+                    <td colspan="7" class="px-4 py-4">
+                        <div class="ml-8 rounded-2xl border border-dashed border-brandGold/25 bg-brandGold/5 p-4">
+                            <div class="mb-3 flex items-center justify-between gap-3">
+                                <div class="text-xs font-black uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">Variant Stock Details</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">${row.linkedVariantCount}/${row.variants.length} linked</div>
+                            </div>
+                            <div class="grid gap-3">${variantCards}</div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+
         function renderRows() {
             updateFilterOptionCounts();
             const rows = getFilteredRows();
@@ -440,20 +566,19 @@
             if (rows.length === 0) {
                 stockTableBody.innerHTML = `
                     <tr>
-                        <td colspan="6" class="px-4 py-16 text-center text-gray-400 font-bold">No products match the current filters.</td>
+                        <td colspan="7" class="px-4 py-16 text-center text-gray-400 font-bold">No products match the current filters.</td>
                     </tr>
                 `;
             } else {
                 stockTableBody.innerHTML = rows.map((row) => {
-                    const statusClass = row.linked
-                        ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300'
-                        : 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300';
-                    const statusText = row.linked ? 'Linked' : 'Unlinked';
-
                     return `
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                             <td class="px-4 py-4 align-top text-left">
+                                ${renderExpandButton(row)}
+                            </td>
+                            <td class="px-4 py-4 align-top text-left">
                                 <div class="font-black text-brandBlue dark:text-brandGold">${row.name}</div>
+                                ${row.hasVariants ? `<div class="mt-1 text-xs text-gray-500 dark:text-gray-400">${row.variants.length} variants</div>` : ''}
                             </td>
                             <td class="px-4 py-4 align-top text-left">
                                 <span class="font-mono font-bold text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-lg">${row.code || '-'}</span>
@@ -468,9 +593,10 @@
                                 ${renderStockBadge(row.wholesaleStock, 'wholesale')}
                             </td>
                             <td class="px-4 py-4 align-top text-left">
-                                <span class="inline-flex px-3 py-1 rounded-full text-xs font-black ${statusClass}">${statusText}</span>
+                                ${renderStatusBadge(row)}
                             </td>
                         </tr>
+                        ${renderVariantRows(row)}
                     `;
                 }).join('');
             }
@@ -500,6 +626,18 @@
             searchInput.addEventListener('input', renderRows);
             statusFilter.addEventListener('change', renderRows);
             refreshBtn.addEventListener('click', () => refreshStock(true));
+            stockTableBody.addEventListener('click', (event) => {
+                const toggleButton = event.target.closest('[data-toggle-product-id]');
+                if (!toggleButton) return;
+
+                const { toggleProductId } = toggleButton.dataset;
+                if (!toggleProductId) return;
+
+                if (expandedProductIds.has(toggleProductId)) expandedProductIds.delete(toggleProductId);
+                else expandedProductIds.add(toggleProductId);
+
+                renderRows();
+            });
         }
 
         bindEvents();

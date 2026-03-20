@@ -1243,6 +1243,191 @@
             return item.fallbackUrl && item.fallbackUrl !== primaryUrl ? item.fallbackUrl : '';
         }
 
+        function getComparableImageData(item) {
+            const rawUrl = resolveMediaUrl(item);
+            if (!rawUrl || typeof rawUrl !== 'string') {
+                return { path: '', fileName: '' };
+            }
+
+            try {
+                const withoutQuery = rawUrl.split('?')[0].replace(/^https?:\/\//i, '');
+                const parts = withoutQuery
+                    .split('/')
+                    .filter(Boolean)
+                    .filter(part => !part.startsWith('tr:'));
+                const normalizedParts = parts.map(part => decodeURIComponent(part).toLowerCase());
+
+                return {
+                    path: normalizedParts.join('/'),
+                    fileName: normalizedParts[normalizedParts.length - 1] || ''
+                };
+            } catch (error) {
+                const fallback = String(rawUrl).toLowerCase();
+                return { path: fallback, fileName: fallback.split('/').pop() || '' };
+            }
+        }
+
+        function mediaItemsMatch(firstItem, secondItem) {
+            const firstRecord = normalizeMediaRecord(firstItem);
+            const secondRecord = normalizeMediaRecord(secondItem);
+
+            if (firstRecord?.fileId && secondRecord?.fileId) {
+                return firstRecord.fileId === secondRecord.fileId;
+            }
+
+            if (firstRecord?.filePath && secondRecord?.filePath) {
+                return String(firstRecord.filePath).toLowerCase() === String(secondRecord.filePath).toLowerCase();
+            }
+
+            const first = getComparableImageData(firstItem);
+            const second = getComparableImageData(secondItem);
+
+            if (!first.path || !second.path) return false;
+            return first.path === second.path || first.path.endsWith(second.path) || second.path.endsWith(first.path);
+        }
+
+        function findGalleryImageIndex(images, targetItem) {
+            if (!Array.isArray(images) || images.length === 0) return -1;
+            return images.findIndex(image => mediaItemsMatch(image, targetItem));
+        }
+
+        const imageSignatureCache = new Map();
+        const variantGalleryMatchCache = new Map();
+
+        function getMediaCacheKey(item) {
+            const record = normalizeMediaRecord(item);
+            if (!record) return '';
+            return record.fileId || record.filePath || record.primaryUrl || record.url || record.fallbackUrl || '';
+        }
+
+        function getVariantGalleryCacheKey(product, variantItem) {
+            return `${product?.id || 'product'}::${getMediaCacheKey(variantItem)}`;
+        }
+
+        function getGalleryMediaSource(product) {
+            if (!product) return [];
+            return (Array.isArray(product.imageDetails) && product.imageDetails.length > 0)
+                ? product.imageDetails
+                : (Array.isArray(product.images) ? product.images : []);
+        }
+
+        function getMainGalleryMediaItem(product, idx) {
+            const detailItem = (product?.imageDetails || [])[idx];
+            return detailItem || (product?.images || [])[idx] || null;
+        }
+
+        function computeHammingDistance(firstHash = '', secondHash = '') {
+            if (!firstHash || !secondHash || firstHash.length !== secondHash.length) return Number.POSITIVE_INFINITY;
+            let distance = 0;
+            for (let index = 0; index < firstHash.length; index += 1) {
+                if (firstHash[index] !== secondHash[index]) distance += 1;
+            }
+            return distance;
+        }
+
+        function loadImageSignature(item) {
+            const cacheKey = getMediaCacheKey(item);
+            if (!cacheKey) return Promise.resolve(null);
+            if (imageSignatureCache.has(cacheKey)) return imageSignatureCache.get(cacheKey);
+
+            const sourceUrl = resolveMediaUrl(item);
+            const signaturePromise = new Promise((resolve) => {
+                if (!sourceUrl) {
+                    resolve(null);
+                    return;
+                }
+
+                const image = new Image();
+                image.crossOrigin = 'anonymous';
+                image.decoding = 'async';
+
+                image.onload = () => {
+                    try {
+                        const size = 8;
+                        const canvas = document.createElement('canvas');
+                        canvas.width = size;
+                        canvas.height = size;
+                        const context = canvas.getContext('2d', { willReadFrequently: true });
+                        if (!context) {
+                            resolve(null);
+                            return;
+                        }
+
+                        context.drawImage(image, 0, 0, size, size);
+                        const { data } = context.getImageData(0, 0, size, size);
+                        const values = [];
+                        let total = 0;
+
+                        for (let offset = 0; offset < data.length; offset += 4) {
+                            const gray = Math.round((data[offset] * 0.299) + (data[offset + 1] * 0.587) + (data[offset + 2] * 0.114));
+                            values.push(gray);
+                            total += gray;
+                        }
+
+                        const average = total / values.length;
+                        const hash = values.map(value => value >= average ? '1' : '0').join('');
+                        resolve({ hash, width: image.naturalWidth, height: image.naturalHeight });
+                    } catch (error) {
+                        resolve(null);
+                    }
+                };
+
+                image.onerror = () => resolve(null);
+                image.src = sourceUrl;
+            });
+
+            imageSignatureCache.set(cacheKey, signaturePromise);
+            return signaturePromise;
+        }
+
+        async function findBestGalleryImageIndexByVisualMatch(product, variantItem) {
+            const galleryItems = getGalleryMediaSource(product);
+            if (!galleryItems.length) return -1;
+
+            const cacheKey = getVariantGalleryCacheKey(product, variantItem);
+            if (variantGalleryMatchCache.has(cacheKey)) {
+                return variantGalleryMatchCache.get(cacheKey);
+            }
+
+            const variantSignature = await loadImageSignature(variantItem);
+            if (!variantSignature?.hash) return -1;
+
+            let bestIndex = -1;
+            let bestDistance = Number.POSITIVE_INFINITY;
+
+            for (let index = 0; index < galleryItems.length; index += 1) {
+                const gallerySignature = await loadImageSignature(galleryItems[index]);
+                if (!gallerySignature?.hash) continue;
+                const distance = computeHammingDistance(variantSignature.hash, gallerySignature.hash);
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    bestIndex = index;
+                }
+            }
+
+            const acceptedIndex = bestDistance <= 12 ? bestIndex : -1;
+            if (acceptedIndex !== -1) {
+                variantGalleryMatchCache.set(cacheKey, acceptedIndex);
+            }
+            return acceptedIndex;
+        }
+
+        async function resolveVariantGalleryIndex(product, variant) {
+            const gallerySource = getGalleryMediaSource(product);
+            const variantItems = (Array.isArray(variant?.imageDetails) && variant.imageDetails.length > 0)
+                ? variant.imageDetails
+                : (Array.isArray(variant?.images) ? variant.images : (variant?.image ? [variant.image] : []));
+
+            if (!gallerySource.length || !variantItems.length) return -1;
+
+            for (const variantItem of variantItems) {
+                const directIndex = findGalleryImageIndex(gallerySource, variantItem);
+                if (directIndex !== -1) return directIndex;
+            }
+
+            return findBestGalleryImageIndexByVisualMatch(product, variantItems[0]);
+        }
+
         function normalizeMediaRecord(record) {
             if (!record) return null;
             if (typeof record === 'string') {
@@ -3598,7 +3783,7 @@
                         chip.title = "Currently Unavailable";
                     }
 
-                    chip.onclick = () => {
+                    chip.onclick = async () => {
                         currentVariantIdx = idx; // Update tracked variant
                         updateProductDeepLink(getInventoryCode(currentProduct, currentVariantIdx) || currentProduct.code || '');
                         
@@ -3611,14 +3796,7 @@
                         if (vImgs.length === 0) return;
 
                         // Try to find if any of the variant images are already in the gallery
-                        let galleryIdx = -1;
-                        for(const url of vImgs) {
-                            const idx = currentProduct.images.indexOf(url);
-                            if(idx !== -1) {
-                                galleryIdx = idx;
-                                break;
-                            }
-                        }
+                        const galleryIdx = await resolveVariantGalleryIndex(currentProduct, v);
 
                         updateDetailPricing();
 
@@ -3657,10 +3835,11 @@
                 const v = currentProduct.variants[currentVariantIdx];
                  const vImgs = Array.isArray(v.images) ? v.images : (v.image ? [v.image] : []);
                  if(vImgs.length > 0) {
-                     // Try to match image in main gallery
-                     const idx = currentProduct.images.indexOf(vImgs[0]);
-                     if(idx !== -1) updateDetailImage(idx);
-                     else updateDetailImage(0);
+                     resolveVariantGalleryIndex(currentProduct, v)
+                         .then((matchedIdx) => {
+                             if (matchedIdx !== -1) updateDetailImage(matchedIdx);
+                             else updateDetailImage(0);
+                         });
                  } else {
                      updateDetailImage(0);
                  }
@@ -3794,12 +3973,14 @@
         }
 
         let isZoomed = false;
+        let variantHighlightSyncToken = 0;
 
         function updateDetailImage(idx) {
             if (!currentProduct || !currentProduct.images[idx]) return;
             currentImgIdx = idx;
             const img = document.getElementById('mainDetailImg');
             const targetSrc = currentProduct.images[idx];
+            const targetMedia = (currentProduct.imageDetails || [])[idx] || targetSrc;
             const tBar = document.getElementById('thumbnailBar');
             
             // Reset zoom
@@ -3812,19 +3993,21 @@
             renderThumbnails();
 
             // 2. Sync Variant Selection immediately
-            syncVariantHighlight(targetSrc);
+            syncVariantHighlight(targetMedia);
 
             // 3. Update Main Image with transition
             img.style.opacity = '0';
             setTimeout(() => {
-                setImageElementSource(img, (currentProduct.imageDetails || [])[idx] || targetSrc);
+                setImageElementSource(img, targetMedia);
                 img.style.opacity = '1';
             }, 150);
         }
 
-        // Dedicated helper to sync variant chips based on an image URL
-        function syncVariantHighlight(imageUrl) {
+        // Dedicated helper to sync variant chips based on the active gallery image
+        async function syncVariantHighlight(imageUrl) {
+            const syncToken = ++variantHighlightSyncToken;
             const vContainer = document.getElementById('detailVariants');
+            if (!vContainer) return;
             const chipsContainer = vContainer.querySelector('div.flex.flex-wrap');
             const overlay = document.getElementById('outOfStockOverlay');
             const mainImg = document.getElementById('mainDetailImg');
@@ -3869,9 +4052,16 @@
             if(isGloballyOOS) message += "\n(Note: This product shows as currently out of stock)";
 
             // Find and highlight matching variant
-            currentProduct.variants.forEach((v, vIdx) => {
+            for (let vIdx = 0; vIdx < currentProduct.variants.length; vIdx += 1) {
+                const v = currentProduct.variants[vIdx];
                 const vImgs = Array.isArray(v.images) ? v.images : (v.image ? [v.image] : []);
-                const isMatch = vImgs.some(img => img === imageUrl || imageUrl.includes(img));
+                let isMatch = vImgs.some(rawUrl => mediaItemsMatch(rawUrl, imageUrl));
+
+                if (!isMatch && currentImgIdx !== -1) {
+                    const resolvedIdx = await resolveVariantGalleryIndex(currentProduct, v);
+                    if (syncToken !== variantHighlightSyncToken) return;
+                    isMatch = resolvedIdx === currentImgIdx;
+                }
 
                 if (isMatch && !matched) {
                     matched = true;
@@ -3898,8 +4088,9 @@
                             mainImg.style.filter = 'grayscale(25%)';
                         }
                     }
+                    break;
                 }
-            });
+            }
 
             document.getElementById('enquiryBtn').href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
         }

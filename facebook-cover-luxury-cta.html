@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>House of Glass - Luxury Facebook Cover CTA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html-to-image@1.11.11/dist/html-to-image.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');
+
+        :root {
+            --cover-width: 1200px;
+            --cover-height: 460px;
+            --gold: #d4af37;
+            --gold-soft: #f4d77b;
+            --ink: #07111c;
+            --ink-2: #0f1723;
+            --mist: #d9e3f0;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background:
+                radial-gradient(circle at top, rgba(212, 175, 55, 0.08), transparent 30%),
+                linear-gradient(180deg, #171717, #0d0d0d);
+            font-family: 'Tajawal', sans-serif;
+            color: white;
+            padding: 24px;
+            gap: 18px;
+        }
+
+        .capture-button {
+            appearance: none;
+            border: 1px solid rgba(212, 175, 55, 0.24);
+            border-radius: 999px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.04));
+            color: #fff6d5;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            padding: 12px 22px;
+            cursor: pointer;
+            box-shadow: 0 18px 28px rgba(0, 0, 0, 0.25);
+            backdrop-filter: blur(10px);
+            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+        }
+
+        .capture-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 22px 34px rgba(0, 0, 0, 0.32);
+            border-color: rgba(244, 215, 123, 0.42);
+        }
+
+        .capture-button:active {
+            transform: translateY(0);
+        }
+
+        .capture-button[disabled] {
+            opacity: 0.7;
+            cursor: wait;
+        }
+
+        .cover {
+            width: var(--cover-width);
+            height: var(--cover-height);
+            position: relative;
+            overflow: hidden;
+            border-radius: 28px;
+            background:
+                linear-gradient(135deg, rgba(4, 9, 16, 0.98), rgba(15, 23, 35, 0.96)),
+                linear-gradient(180deg, #000, #101827);
+            border: 1px solid rgba(212, 175, 55, 0.22);
+            box-shadow:
+                0 30px 70px rgba(0, 0, 0, 0.45),
+                inset 0 1px 0 rgba(255,255,255,0.04);
+        }
+
+        .cover::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at 65% 48%, rgba(212, 175, 55, 0.15), transparent 26%),
+                radial-gradient(circle at 52% 65%, rgba(104, 149, 198, 0.10), transparent 24%),
+                linear-gradient(90deg, rgba(0, 0, 0, 0.55), rgba(0,0,0,0) 38%);
+            pointer-events: none;
+        }
+
+        .cover::after {
+            content: '';
+            position: absolute;
+            inset: 18px;
+            border-radius: 22px;
+            border: 1px solid rgba(212, 175, 55, 0.10);
+            pointer-events: none;
+        }
+
+        .desktop-safe {
+            position: absolute;
+            left: 18px;
+            right: 18px;
+            top: 18px;
+            bottom: 18px;
+            pointer-events: none;
+        }
+
+        .mobile-safe {
+            position: absolute;
+            top: 18px;
+            bottom: 18px;
+            left: 90px;
+            right: 90px;
+            pointer-events: none;
+        }
+
+        .profile-guard {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 300px;
+            height: 225px;
+            background: linear-gradient(135deg, rgba(4, 9, 16, 0.95), rgba(4, 9, 16, 0) 82%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .logo-block {
+            position: absolute;
+            top: 42px;
+            left: 880px;
+            z-index: 4;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .logo-badge {
+            width: 78px;
+            height: 78px;
+            border-radius: 22px;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+            border: 1px solid rgba(212,175,55,0.18);
+            box-shadow: 0 18px 34px rgba(0,0,0,0.28);
+            backdrop-filter: blur(10px);
+        }
+
+        .logo-badge img {
+            width: 54px;
+            height: 54px;
+            object-fit: contain;
+            filter: drop-shadow(0 0 14px rgba(212,175,55,0.28));
+        }
+
+        .brand-copy {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .brand-copy .eyebrow {
+            font-size: 10px;
+            letter-spacing: 0.34em;
+            color: rgba(244, 215, 123, 0.86);
+            font-weight: 800;
+        }
+
+        .brand-copy .title {
+            font-size: 26px;
+            font-weight: 800;
+            color: #f8fafc;
+            line-height: 1;
+        }
+
+        .content {
+            position: absolute;
+            inset: 0;
+            z-index: 3;
+        }
+
+        .headline {
+            display: none;
+        }
+
+        .gold-line {
+            width: 108px;
+            height: 2px;
+            margin: 0 0 16px auto;
+            background: linear-gradient(90deg, rgba(212,175,55,0), rgba(212,175,55,1));
+        }
+
+        .sales-panel {
+            position: absolute;
+            right: 870px;
+            top: 28px; 
+            width: 300px;
+            padding: 18px 20px 20px;
+            border-radius: 24px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+            border: 1px solid rgba(212,175,55,0.20);
+            box-shadow: 0 20px 36px rgba(0,0,0,0.24);
+            backdrop-filter: blur(14px);
+        }
+
+        .export-mode .cover,
+        .cover.exporting {
+            box-shadow:
+                0 24px 48px rgba(0, 0, 0, 0.34),
+                inset 0 1px 0 rgba(255,255,255,0.04);
+        }
+
+        .export-mode .logo-badge,
+        .cover.exporting .logo-badge {
+            background: linear-gradient(180deg, rgba(31, 41, 55, 0.96), rgba(17, 24, 39, 0.98));
+            backdrop-filter: none;
+        }
+
+        .export-mode .sales-panel,
+        .cover.exporting .sales-panel {
+            background: linear-gradient(180deg, rgba(25, 31, 42, 0.98), rgba(19, 25, 36, 0.98));
+            backdrop-filter: none;
+            box-shadow: 0 20px 34px rgba(0,0,0,0.22);
+        }
+
+        .export-mode .sales-badge,
+        .cover.exporting .sales-badge {
+            box-shadow: 0 10px 18px rgba(212,175,55,0.14);
+        }
+
+        .export-mode .card,
+        .cover.exporting .card {
+            box-shadow:
+                0 18px 28px rgba(0, 0, 0, 0.22),
+                inset 0 1px 0 rgba(255,255,255,0.92);
+        }
+
+        .export-mode .card img,
+        .cover.exporting .card img {
+            filter: drop-shadow(0 10px 10px rgba(15,23,42,0.10));
+        }
+
+        .sales-panel .label {
+            font-size: 11px;
+            letter-spacing: 0.26em;
+            color: rgba(244, 215, 123, 0.88);
+            font-weight: 800;
+            margin-bottom: 10px;
+        }
+
+        .sales-panel .text {
+            font-size: 17px;
+            line-height: 1.55;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 16px;
+        }
+
+        .sales-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .sales-badge {
+            display: inline-flex;
+            align-self: flex-start;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: linear-gradient(180deg, rgba(255, 239, 196, 0.98), rgba(219, 182, 71, 0.98));
+            color: #101827;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            box-shadow: 0 14px 24px rgba(212,175,55,0.18);
+            white-space: nowrap;
+        }
+
+        .sales-note {
+            font-size: 13px;
+            line-height: 1.8;
+            color: rgba(226,232,240,0.76);
+            font-weight: 500;
+        }
+
+        .gallery-stage {
+            position: absolute;
+            left: 230px;
+            right: 328px;
+            bottom: 34px;
+            top: 126px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 14px;
+            z-index: 3;
+            transform: translateX(160px);
+        }
+
+        .card {
+            position: relative;
+            width: 135px;
+            height: 206px;
+            border-radius: 28px;
+            overflow: hidden;
+            background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(241,245,249,0.93));
+            border: 1px solid rgba(212,175,55,0.20);
+            box-shadow:
+                0 22px 42px rgba(0, 0, 0, 0.34),
+                inset 0 1px 0 rgba(255,255,255,0.92);
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.28), transparent 52%);
+        }
+
+        .card img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            padding: 14px;
+            filter: drop-shadow(0 14px 14px rgba(15,23,42,0.16));
+        }
+
+        .card.tall {
+            transform: translateY(10px) scale(0.9);
+            opacity: 0.86;
+        }
+
+        .card.hero {
+            width: 180px;
+            height: 268px;
+            transform: translateY(-12px);
+            z-index: 5;
+        }
+
+        .master-badge {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 7px 14px;
+            border-radius: 999px;
+            background: linear-gradient(180deg, rgba(255, 237, 186, 0.98), rgba(226, 188, 61, 0.98));
+            color: #1f2937;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.16em;
+            box-shadow: 0 12px 26px rgba(212,175,55,0.30);
+            white-space: nowrap;
+        }
+
+        .platform-note {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="cover" id="exportCover">
+        <div class="desktop-safe"></div>
+        <div class="mobile-safe"></div>
+        <div class="profile-guard"></div>
+
+        <div class="logo-block">
+            <div class="logo-badge">
+                <img src="https://www.hg-alshour.online/logo.png" alt="House of Glass logo">
+            </div>
+            <div class="brand-copy">
+                <div class="eyebrow">HOUSE OF GLASS</div>
+                <div class="title">ال عاشور عدس</div>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="gallery-stage" aria-label="Luxury catalog products">
+                <div class="card tall">
+                    <img src="https://ik.imagekit.io/HOG/products/uhaAGWTuTxdX5j8uewhd/variants/680678591491_variant_1_1_fQja9FlIP.png" alt="Luxury glass product">
+                </div>
+                <div class="card">
+                    <img src="https://ik.imagekit.io/HOG/products/YnCMU7GrojO0BoTvceN8/variants/8693357546998_variant_1_1_E-Zx0j3Sc.png" alt="Luxury glass product">
+                </div>
+                <div class="card hero">
+                    <div class="master-badge">PREMIUM SELECTION</div>
+                    <img src="https://ik.imagekit.io/HOG/products/L2zwRnOVsDLcNWUo26sl/variants/680678591651_variant_1_1_BC4bAtcOn.png" alt="Luxury centerpiece glass product">
+                </div>
+                <div class="card">
+                    <img src="https://ik.imagekit.io/HOG/products/aM5z1ebd1BzNWhnAW5u7/variants/680678591866_variant_1_1_udRXTfoi1.png" alt="Luxury glass product">
+                </div>
+                <div class="card tall">
+                    <img src="https://ik.imagekit.io/HOG/products/BkDQy2ex8rM5QiEUjqPo/variants/680678572445_variant_1_1_wyKKYjFc8.png" alt="Luxury glass product">
+                </div>
+            </div>
+
+            <div class="sales-panel">
+                <div class="label">ORDER NOW</div>
+                <div class="text">ألوان راقية وخامات مميزة تناسب الضيافة اليومية والعزومات وتضيف لمسة فخامة واضحة.</div>
+                <div class="sales-meta">
+                    <div class="sales-badge">PREMIUM GLASS COLLECTION</div>
+                    <div class="sales-note">تشكيلة منتقاة بعناية لتقدم شكل أكثر رقيًا وتنظيمًا داخل الكفر من غير زحمة عناصر.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button id="captureButton" class="capture-button" type="button">Download Cover PNG</button>
+
+    <script>
+        const captureButton = document.getElementById('captureButton');
+        const exportCover = document.getElementById('exportCover');
+
+        async function waitForAssets(container) {
+            if (document.fonts?.ready) {
+                await document.fonts.ready;
+            }
+
+            const images = Array.from(container.querySelectorAll('img'));
+            await Promise.all(images.map((image) => {
+                if (image.complete) {
+                    return Promise.resolve();
+                }
+
+                return new Promise((resolve) => {
+                    image.addEventListener('load', resolve, { once: true });
+                    image.addEventListener('error', resolve, { once: true });
+                });
+            }));
+        }
+
+        function triggerDownload(dataUrl) {
+            const link = document.createElement('a');
+            link.download = 'house-of-glass-cover.png';
+            link.href = dataUrl;
+            link.click();
+        }
+
+        async function exportWithHtmlToImage() {
+            if (!window.htmlToImage) {
+                throw new Error('html-to-image is unavailable');
+            }
+
+            return window.htmlToImage.toPng(exportCover, {
+                cacheBust: true,
+                pixelRatio: 3,
+                backgroundColor: '#0b1220',
+                canvasWidth: exportCover.offsetWidth * 3,
+                canvasHeight: exportCover.offsetHeight * 3,
+                skipAutoScale: true,
+                style: {
+                    margin: '0'
+                }
+            });
+        }
+
+        async function exportWithHtml2Canvas() {
+            const canvas = await html2canvas(exportCover, {
+                backgroundColor: '#0b1220',
+                scale: 3,
+                useCORS: true,
+                logging: false,
+                width: exportCover.offsetWidth,
+                height: exportCover.offsetHeight,
+                onclone: (clonedDocument) => {
+                    clonedDocument.body.classList.add('export-mode');
+                    const clonedCover = clonedDocument.getElementById('exportCover');
+                    if (clonedCover) {
+                        clonedCover.classList.add('exporting');
+                    }
+                }
+            });
+
+            return canvas.toDataURL('image/png');
+        }
+
+        async function downloadCoverScreenshot() {
+            if (!exportCover) {
+                return;
+            }
+
+            const originalLabel = captureButton.textContent;
+            captureButton.disabled = true;
+            captureButton.textContent = 'Preparing Download...';
+            exportCover.classList.add('exporting');
+
+            try {
+                await waitForAssets(exportCover);
+
+                let dataUrl;
+
+                try {
+                    dataUrl = await exportWithHtmlToImage();
+                } catch (primaryError) {
+                    console.warn('html-to-image export failed, falling back to html2canvas.', primaryError);
+                    dataUrl = await exportWithHtml2Canvas();
+                }
+
+                triggerDownload(dataUrl);
+            } catch (error) {
+                console.error('Failed to export cover image:', error);
+                alert('Unable to create the screenshot right now.');
+            } finally {
+                exportCover.classList.remove('exporting');
+                captureButton.disabled = false;
+                captureButton.textContent = originalLabel;
+            }
+        }
+
+        captureButton.addEventListener('click', downloadCoverScreenshot);
+    </script>
+</body>
+</html>

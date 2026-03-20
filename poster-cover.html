@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>House of Glass - Facebook Cover Poster</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800&display=swap');
+        body { font-family: 'Tajawal', sans-serif; background-color: #1a1a1a; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        
+        /* المقاس المثالي لغلاف الفيسبوك بجودة عالية (1200x460) */
+        .cover-container {
+            width: 1200px;
+            height: 460px;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, #050505 0%, #171d24 50%, #050505 100%);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+        }
+
+        /* تأثير توهج الإضاءة */
+        .glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 800px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(212,175,55,0.15) 0%, rgba(0,0,0,0) 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .mesh-glow {
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at 72% 28%, rgba(255, 210, 90, 0.10), transparent 28%),
+                radial-gradient(circle at 58% 72%, rgba(87, 128, 168, 0.12), transparent 32%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .safe-zone {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 280px;
+            height: 220px;
+            background: linear-gradient(135deg, rgba(3, 7, 18, 0.95), rgba(3, 7, 18, 0));
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .product-card {
+            width: 190px;
+            height: 220px;
+            position: relative;
+            border-radius: 28px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.97), rgba(241,245,249,0.92));
+            border: 1px solid rgba(255, 215, 0, 0.18);
+            box-shadow:
+                0 22px 40px rgba(0, 0, 0, 0.35),
+                inset 0 1px 0 rgba(255,255,255,0.9);
+            overflow: hidden;
+        }
+
+        .product-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.35), transparent 46%);
+            pointer-events: none;
+        }
+
+        .product-image {
+            width: 100%;
+            height: 150px;
+            object-fit: contain;
+            padding: 16px 16px 8px;
+            filter: drop-shadow(0 16px 14px rgba(15, 23, 42, 0.18));
+        }
+
+        .product-meta {
+            position: absolute;
+            left: 14px;
+            right: 14px;
+            bottom: 14px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(15, 23, 42, 0.08);
+        }
+
+        .product-kicker {
+            font-size: 10px;
+            letter-spacing: 0.18em;
+            color: #8b6b15;
+            font-weight: 800;
+        }
+
+        .product-name {
+            margin-top: 4px;
+            font-size: 16px;
+            color: #111827;
+            font-weight: 800;
+        }
+
+        .product-ar {
+            margin-top: 2px;
+            font-size: 12px;
+            color: #475569;
+            font-weight: 700;
+        }
+
+        .hero-card {
+            width: 240px;
+            height: 270px;
+            transform: translateY(-20px);
+        }
+
+        .hero-card .product-image {
+            height: 182px;
+            padding-top: 18px;
+        }
+
+        .shelf-line {
+            position: absolute;
+            left: 300px;
+            right: 40px;
+            bottom: 52px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.35), transparent);
+            z-index: 2;
+        }
+
+        .shelf-shadow {
+            position: absolute;
+            left: 330px;
+            right: 60px;
+            bottom: 32px;
+            height: 42px;
+            background: radial-gradient(ellipse at center, rgba(255, 215, 0, 0.16), transparent 70%);
+            z-index: 2;
+            filter: blur(14px);
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- الجزء ده هو اللي هتاخده سكرين شوت لغلاف الفيسبوك -->
+    <div class="cover-container rounded-lg border border-yellow-600/30">
+        <div class="glow"></div>
+        <div class="mesh-glow"></div>
+        <div class="safe-zone"></div>
+        <div class="shelf-line"></div>
+        <div class="shelf-shadow"></div>
+
+        <div class="absolute inset-0 flex flex-col justify-between pt-6 pb-2 px-10 z-10">
+            
+            <!-- Header (Logo & Text) -->
+            <div class="flex justify-between items-start w-full">
+                <!-- Text Right Side -->
+                <div class="flex flex-col items-start mt-4">
+                    <h1 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 via-yellow-200 to-yellow-600 tracking-wide">أفخم إبداعاتنا</h1>
+                    <p class="text-gray-400 text-sm tracking-[0.3em] uppercase mt-2 font-bold pl-2">Premium Home Glassware</p>
+                </div>
+                <!-- Logo Left/Center -->
+                <div class="flex flex-col items-center">
+                    <img src="https://www.hg-alshour.online/logo.png" alt="House of Glass Logo" class="w-36 drop-shadow-[0_0_20px_rgba(255,215,0,0.4)] filter contrast-125">
+                </div>
+            </div>
+
+            <!-- Products Showcase (Catalog Cover Style) -->
+            <div class="flex justify-end items-end h-full w-full pb-7 pl-[250px] pr-2 gap-4">
+                <div class="product-card z-10 opacity-80 scale-[0.94]">
+                    <img src="https://ik.imagekit.io/HOG/products/uhaAGWTuTxdX5j8uewhd/variants/680678591491_variant_1_1_fQja9FlIP.png" alt="Leia Shob" class="product-image">
+                    <div class="product-meta">
+                        <div class="product-kicker">PAŞABAHÇE</div>
+                        <div class="product-name">LEIA SHOB</div>
+                        <div class="product-ar">شوب لييا الوان</div>
+                    </div>
+                </div>
+
+                <div class="product-card z-20 scale-[0.98]">
+                    <img src="https://ik.imagekit.io/HOG/products/YnCMU7GrojO0BoTvceN8/variants/8693357546998_variant_1_1_E-Zx0j3Sc.png" alt="Luna" class="product-image">
+                    <div class="product-meta">
+                        <div class="product-kicker">PAŞABAHÇE</div>
+                        <div class="product-name">LUNA</div>
+                        <div class="product-ar">شوب لونا الوان</div>
+                    </div>
+                </div>
+
+                <div class="product-card hero-card z-30">
+                    <img src="https://ik.imagekit.io/HOG/products/L2zwRnOVsDLcNWUo26sl/variants/680678591651_variant_1_1_BC4bAtcOn.png" alt="Amore" class="product-image">
+                    <div class="absolute top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-yellow-600 to-yellow-400 text-black px-4 py-1 rounded-full text-[10px] font-bold shadow-[0_0_18px_rgba(255,215,0,0.42)]">THE MASTERPIECE</div>
+                    <div class="product-meta">
+                        <div class="product-kicker">PAŞABAHÇE</div>
+                        <div class="product-name">AMORE</div>
+                        <div class="product-ar">شوب امور الوان</div>
+                    </div>
+                </div>
+
+                <div class="product-card z-20 scale-[0.98]">
+                    <img src="https://ik.imagekit.io/HOG/products/aM5z1ebd1BzNWhnAW5u7/variants/680678591866_variant_1_1_udRXTfoi1.png" alt="Nova" class="product-image">
+                    <div class="product-meta">
+                        <div class="product-kicker">PAŞABAHÇE</div>
+                        <div class="product-name">NOVA</div>
+                        <div class="product-ar">شوب نوفا الوان</div>
+                    </div>
+                </div>
+
+                <div class="product-card z-10 opacity-80 scale-[0.94]">
+                    <img src="https://ik.imagekit.io/HOG/products/BkDQy2ex8rM5QiEUjqPo/variants/680678572445_variant_1_1_wyKKYjFc8.png" alt="Barrel Tumbler" class="product-image">
+                    <div class="product-meta">
+                        <div class="product-kicker">PAŞABAHÇE</div>
+                        <div class="product-name">BARREL</div>
+                        <div class="product-ar">شوب بارل</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</body>
+</html>
