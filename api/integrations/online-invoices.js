@@ -29,6 +29,17 @@ function normalizeVariantLabel(item = {}) {
     return item.variantLabel || item.variant || '';
 }
 
+function formatAccountRole(role) {
+    const normalizedRole = String(role || '').trim().toLowerCase();
+
+    if (normalizedRole === 'cst_wholesale') return 'CST Wholesale';
+    if (normalizedRole === 'cst_retail') return 'CST Retail';
+    if (normalizedRole === 'customer') return 'Customer';
+    if (normalizedRole === 'guest') return 'Guest';
+
+    return String(role || '').trim();
+}
+
 function resolveExternalOrderId(order = {}) {
     const websiteOrderRef = String(order.websiteOrderRef || '').trim();
     if (websiteOrderRef) return websiteOrderRef;
@@ -131,6 +142,11 @@ function buildNotes(order, items, invoiceType) {
 
     if (order?.customer?.email) {
         notes.push(`Customer Email: ${order.customer.email}`);
+    }
+
+    const accountRole = formatAccountRole(order?.customer?.role);
+    if (accountRole) {
+        notes.push(`Account Role: ${accountRole}`);
     }
 
     notes.push(`Order Type: ${invoiceType === 'wholesale' ? 'Wholesale' : 'Retail'}`);
