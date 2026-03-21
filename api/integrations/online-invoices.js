@@ -29,6 +29,13 @@ function normalizeVariantLabel(item = {}) {
     return item.variantLabel || item.variant || '';
 }
 
+function resolveExternalOrderId(order = {}) {
+    const websiteOrderRef = String(order.websiteOrderRef || '').trim();
+    if (websiteOrderRef) return websiteOrderRef;
+
+    return String(order.id || '').trim();
+}
+
 async function resolveMissingProductCode(db, item = {}, productCache) {
     const directCode = normalizeCode(item.productCode);
     if (directCode) return directCode;
@@ -242,6 +249,7 @@ module.exports = async function handler(req, res) {
 
         const order = { id: orderSnap.id, ...orderSnap.data() };
         const invoiceType = normalizeInvoiceType(order.orderType);
+        const externalOrderId = resolveExternalOrderId(order);
         const enrichedItems = await enrichOrderItems(db, order.items || []);
         const invalidItems = enrichedItems.filter((item) => !normalizeCode(item.productCode));
 
@@ -264,7 +272,7 @@ module.exports = async function handler(req, res) {
 
         const payload = {
             source: 'website',
-            externalOrderId: order.id,
+            externalOrderId,
             invoiceType,
             customer: buildCustomer(order),
             notes: buildNotes(order, enrichedItems, invoiceType),
@@ -278,7 +286,7 @@ module.exports = async function handler(req, res) {
                 lastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
                 attemptedBy: decodedToken.uid,
                 invoiceType,
-                externalOrderId: order.id,
+                externalOrderId,
                 payloadPreview: payload
             }
         }, { merge: true });
@@ -293,7 +301,7 @@ module.exports = async function handler(req, res) {
         });
 
         const dcPayload = await dcResponse.json().catch(() => ({}));
-        const normalizedResponse = normalizeRemoteResponse(dcResponse.status, dcPayload, order.id);
+        const normalizedResponse = normalizeRemoteResponse(dcResponse.status, dcPayload, externalOrderId);
 
         if (!normalizedResponse.success) {
             await orderRef.set({
@@ -302,7 +310,7 @@ module.exports = async function handler(req, res) {
                     failedAt: admin.firestore.FieldValue.serverTimestamp(),
                     attemptedBy: decodedToken.uid,
                     invoiceType,
-                    externalOrderId: order.id,
+                    externalOrderId,
                     message: normalizedResponse.message,
                     response: normalizedResponse.raw
                 }
@@ -317,7 +325,7 @@ module.exports = async function handler(req, res) {
                 sentAt: admin.firestore.FieldValue.serverTimestamp(),
                 attemptedBy: decodedToken.uid,
                 invoiceType,
-                externalOrderId: order.id,
+                externalOrderId,
                 dcInvoiceId: normalizedResponse.dcInvoiceId,
                 message: normalizedResponse.message,
                 response: normalizedResponse.raw

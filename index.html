@@ -1058,7 +1058,7 @@
     <script src="i18n.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, getDocs, doc, onSnapshot, query, orderBy, getDoc, updateDoc, arrayUnion, arrayRemove, deleteDoc, addDoc, serverTimestamp, enableIndexedDbPersistence, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, doc, onSnapshot, query, orderBy, getDoc, updateDoc, arrayUnion, arrayRemove, deleteDoc, addDoc, serverTimestamp, enableIndexedDbPersistence, where, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getAuth, onAuthStateChanged, signOut, updatePassword, deleteUser } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = {
@@ -4332,6 +4332,31 @@
             };
         }
 
+        async function allocateWebsiteOrderRef() {
+            const counterRef = doc(db, "settings", "orderCounter");
+
+            try {
+                const nextNumber = await runTransaction(db, async (transaction) => {
+                    const counterSnap = await transaction.get(counterRef);
+                    const currentNumber = Number(counterSnap.data()?.lastWebsiteOrderNumber || 1000);
+                    const safeCurrentNumber = Number.isFinite(currentNumber) && currentNumber >= 1000 ? currentNumber : 1000;
+                    const nextValue = safeCurrentNumber + 1;
+
+                    transaction.set(counterRef, {
+                        lastWebsiteOrderNumber: nextValue,
+                        updatedAt: serverTimestamp()
+                    }, { merge: true });
+
+                    return nextValue;
+                });
+
+                return `WEB-${nextNumber}`;
+            } catch (error) {
+                console.warn("Falling back to timestamp-based website order ref", error);
+                return `WEB-${Date.now()}`;
+            }
+        }
+
         function getCartItemStockLimit(item, stockType) {
             const { product, variantIdx } = resolveCartItemContext(item);
             if (!product) return null;
@@ -5053,6 +5078,7 @@
             btn.innerHTML = `<span class="animate-pulse">Processing...</span>`;
 
             try {
+                orderData.websiteOrderRef = await allocateWebsiteOrderRef();
                 // Save order to Firestore
                 await addDoc(collection(db, "orders"), orderData);
 
@@ -5133,6 +5159,7 @@
             btn.innerHTML = `<span class="animate-pulse">Processing...</span>`;
 
             try {
+                orderData.websiteOrderRef = await allocateWebsiteOrderRef();
                 // Save order to Firestore
                 await addDoc(collection(db, "orders"), orderData);
                 
