@@ -1186,6 +1186,7 @@
                 onSnapshot(collection(db, "products"), (prodSnapshot) => {
                     products = sortAdminProducts(prodSnapshot.docs.map(doc => normalizeLoadedProduct({ id: doc.id, ...doc.data() })));
                     filterAdminProducts();
+                    renderOrders();
 
                     // Handle direct edit link (?edit=ID)
                     const urlParams = new URLSearchParams(window.location.search);
@@ -3064,6 +3065,25 @@
             renderOrders();
         };
 
+        function resolveOrderItemInventoryCode(item = {}) {
+            const directCode = item.barcode || item.code || item.product_code || item.productCode || item.sku || '';
+            const product = products.find((entry) => entry.id === item.productId);
+
+            if (!product) {
+                return directCode ? String(directCode).trim() : '';
+            }
+
+            const variantLabel = item.variant || item.variantName || item.label || '';
+            if (variantLabel && Array.isArray(product.variants)) {
+                const matchedVariant = product.variants.find((entry) => entry?.name === variantLabel || entry?.label === variantLabel);
+                const variantCode = matchedVariant?.barcode || matchedVariant?.code || '';
+                if (variantCode) return String(variantCode).trim();
+            }
+
+            if (directCode) return String(directCode).trim();
+            return product.code ? String(product.code).trim() : '';
+        }
+
         function renderOrders() {
             const container = document.getElementById('ordersListContainer');
             if (!container) return;
@@ -3138,16 +3158,22 @@
                     totalPrice += p * (i.quantity || 0);
                 });
 
-                const itemsHtml = (order.items || []).map(item => `
+                const itemsHtml = (order.items || []).map(item => {
+                    const itemVariantLabel = item.variant || item.variantName || 'Standard';
+                    const itemCode = resolveOrderItemInventoryCode(item);
+
+                    return `
                     <div class="flex items-center gap-3 py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
                         <img src="${item.image || 'logo.png'}" class="w-10 h-10 rounded-lg object-contain bg-white dark:bg-gray-700 p-1 border dark:border-gray-600 flex-shrink-0">
                         <div class="flex-1 min-w-0">
                             <p class="text-xs font-bold text-brandBlue dark:text-white truncate">${item.name}</p>
-                            <p class="text-[9px] text-gray-400">${item.variant || 'Standard'} \u00d7 ${item.quantity}</p>
+                            <p class="text-[9px] text-gray-400">${itemVariantLabel} \u00d7 ${item.quantity}</p>
+                            ${itemCode ? `<p class="mt-0.5 text-[8px] uppercase tracking-[0.18em] text-gray-400">Code: <span class="font-semibold text-gray-500 dark:text-gray-300">${itemCode}</span></p>` : ''}
                         </div>
                         <span class="text-xs font-black ${isWholesale ? 'text-brandGold' : 'text-green-600'}">${((item.price || item.wholesalePrice || 0) * item.quantity).toFixed(2)}</span>
                     </div>
-                `).join('');
+                `;
+                }).join('');
 
                 return `
                 <div class="bg-gray-50 dark:bg-gray-800/50 rounded-2xl border ${isWholesale ? 'border-brandGold/20' : 'border-green-500/20'} overflow-hidden">
