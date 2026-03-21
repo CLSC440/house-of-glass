@@ -190,12 +190,12 @@ function extractRemoteMessage(payload, status) {
 }
 
 function normalizeRemoteResponse(status, payload, fallbackExternalOrderId) {
-    const dcInvoiceId = payload?.dcInvoiceId || payload?.dcInvoiceNumber || payload?.invoiceId || payload?.id || null;
+    const dcInvoiceId = payload?.dcInvoiceId || payload?.dcInvoiceNumber || payload?.invoiceId || payload?.invoice_id || payload?.id || null;
     const message = extractRemoteMessage(payload, status);
 
     return {
         success: status >= 200 && status < 300 && payload?.success !== false,
-        externalOrderId: payload?.externalOrderId || fallbackExternalOrderId,
+        externalOrderId: payload?.externalOrderId || payload?.external_order_id || fallbackExternalOrderId,
         dcInvoiceId,
         message,
         raw: payload
