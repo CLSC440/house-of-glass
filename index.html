@@ -861,6 +861,25 @@
         </div>
     </div>
 
+    <div id="orderHistoryModal" class="modal opacity-0 pointer-events-none fixed inset-0 flex items-center justify-center z-[170] transition-all duration-300 p-3 md:p-6">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeOrderHistoryModal()"></div>
+        <div class="relative bg-white dark:bg-darkCard w-full max-w-3xl mx-auto rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col max-h-[88vh]">
+            <div class="p-5 md:p-6 border-b dark:border-gray-700 flex items-center justify-between gap-4 bg-gray-50/50 dark:bg-gray-800/50">
+                <div>
+                    <h2 class="text-xl font-black text-brandBlue dark:text-brandGold uppercase italic tracking-tight">Order History</h2>
+                    <p id="orderHistorySubtitle" class="mt-1 text-[10px] uppercase tracking-widest text-gray-400">Loading orders...</p>
+                </div>
+                <button onclick="closeOrderHistoryModal()" class="text-gray-400 hover:text-red-500 transition-colors bg-white dark:bg-gray-700 p-2 rounded-full shadow-sm">✕</button>
+            </div>
+            <div id="orderHistoryList" class="p-5 md:p-6 overflow-y-auto flex-1 space-y-4 custom-scroll">
+                <div class="flex flex-col items-center justify-center py-12 text-gray-400 opacity-60">
+                    <svg class="w-12 h-12 mb-3 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                    <p class="font-bold uppercase tracking-widest text-sm">Loading orders...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Custom Confirmation Modal -->
     <div id="confirmModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-[200] transition-all duration-300">
         <div class="modal-overlay absolute w-full h-full bg-gray-900/60 backdrop-blur-sm" onclick="closeConfirmModal()"></div>
@@ -982,8 +1001,12 @@
                         <span id="cartTotalPrice" class="text-xl font-black text-green-600">0.00 EGP</span>
                     </div>
                 </div>
+                <button onclick="window.openOrderHistoryModal(false, 'retail')" id="cartHistoryBtn" class="w-full py-3 rounded-xl font-black text-[11px] border border-brandGold/30 text-brandBlue dark:text-brandGold bg-white dark:bg-gray-900 hover:bg-brandBlue hover:text-white dark:hover:bg-brandGold dark:hover:text-brandBlue transition-all uppercase tracking-widest flex items-center justify-center gap-3">
+                    <span>Order History | سجل الطلبات</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </button>
                 <button onclick="checkout()" id="checkoutBtn" class="w-full py-4 bg-brandBlue text-white rounded-xl font-black text-sm border border-brandGold shadow-lg shadow-brandBlue/20 hover:scale-[1.02] active:scale-[0.98] transition-all uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3">
-                    <span>Checkout Order</span>
+                    <span>Checkout Order | اتمام الطلب</span>
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                 </button>
             </div>
@@ -1002,8 +1025,8 @@
                         </svg>
                     </div>
                     <div>
-                        <h2 class="text-xl font-black text-brandGold uppercase italic tracking-tight">Wholesale Order</h2>
-                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest" id="wholesaleCartTotalItems">0 Items</p>
+                        <h2 class="text-xl font-black text-brandGold uppercase italic tracking-tight">Wholesale Order | طلب جملة</h2>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest" id="wholesaleCartTotalItems">0 Items | عبوة</p>
                     </div>
                 </div>
                 <button onclick="closeWholesaleCart()" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors bg-white dark:bg-gray-700 rounded-full shadow-sm">
@@ -1022,8 +1045,12 @@
                         <span id="wholesaleCartTotalPrice" class="text-xl font-black text-brandGold">0.00 EGP</span>
                     </div>
                 </div>
+                <button onclick="window.openOrderHistoryModal(false, 'wholesale')" id="wholesaleCartHistoryBtn" class="w-full py-3 rounded-xl font-black text-[11px] border border-brandGold/40 text-brandGold bg-gray-900/95 dark:bg-gray-900 hover:bg-brandGold/15 hover:text-brandGold hover:border-brandGold transition-all uppercase tracking-widest flex items-center justify-center gap-3 shadow-sm">
+                    <span>Wholesale History | سجل طلبات الجملة</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </button>
                 <button onclick="wholesaleCheckout()" id="wholesaleCheckoutBtn" class="w-full py-4 bg-brandGold text-brandBlue rounded-xl font-black text-sm border border-brandGold shadow-lg shadow-brandGold/20 hover:scale-[1.02] active:scale-[0.98] transition-all uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3">
-                    <span>Checkout Wholesale</span>
+                    <span>Checkout Wholesale | اتمام طلب الجملة</span>
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                 </button>
             </div>
@@ -1217,6 +1244,9 @@
             });
         }
         let userFavorites = [];
+        let userOrders = [];
+        let userOrdersLoadedForUid = null;
+        let orderHistoryFilter = 'all';
         let userRole = 'customer';
         let userNotifications = [];
         let notifUnsubscribe = null;
@@ -1931,6 +1961,322 @@
             document.getElementById('userSettingsModal').classList.remove('opacity-0', 'pointer-events-none');
         };
 
+        function formatOrderHistoryDate(orderDate) {
+            const date = new Date(orderDate);
+            if (Number.isNaN(date.getTime())) return '-';
+            return `${date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} • ${date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+        }
+
+        function getOrderHistoryTotal(order = {}) {
+            return (order.items || []).reduce((sum, item) => {
+                const unitPrice = Number(item.price || item.wholesalePrice || 0);
+                const quantity = Math.max(0, Number(item.quantity || 0));
+                return sum + (unitPrice * quantity);
+            }, 0);
+        }
+
+        function getOrderHistoryStatusBadge(status = 'pending') {
+            const statusMap = {
+                pending: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+                confirmed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+                completed: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+                cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+            };
+            return statusMap[status] || statusMap.pending;
+        }
+
+        function findVariantIndexForOrderItem(product, item = {}) {
+            if (!product || !Array.isArray(product.variants) || product.variants.length === 0) return null;
+
+            const requestedNames = [item.variantLabel, item.variantName, item.variant].filter(Boolean);
+            for (const requestedName of requestedNames) {
+                const byName = product.variants.findIndex((entry) => entry?.name === requestedName || entry?.label === requestedName);
+                if (byName !== -1) return byName;
+            }
+
+            const requestedCode = item.productCode || item.code || item.barcode || '';
+            if (requestedCode) {
+                const normalizedCode = normalizeProductCode(requestedCode);
+                const byCode = product.variants.findIndex((entry) => normalizeProductCode(entry?.barcode || entry?.code || '') === normalizedCode);
+                if (byCode !== -1) return byCode;
+            }
+
+            return null;
+        }
+
+        function resolveProductForOrderHistoryItem(item = {}) {
+            let product = item.productId ? products.find((entry) => entry.id === item.productId) : null;
+            let variantIdx = null;
+
+            if (product) {
+                variantIdx = findVariantIndexForOrderItem(product, item);
+                return { product, variantIdx };
+            }
+
+            const requestedCode = item.productCode || item.code || item.barcode || '';
+            if (requestedCode) {
+                const match = findProductAndVariantByCode(requestedCode);
+                if (match) {
+                    product = match.product;
+                    variantIdx = match.variantIdx;
+                }
+            }
+
+            return { product, variantIdx };
+        }
+
+        function buildCartEntryForReorder(product, variantIdx, quantity, orderType = 'retail') {
+            if (!product) return null;
+
+            const variant = resolveVariantForCart(product, variantIdx);
+            const stockState = getProductStockState(product, variantIdx);
+            const stockType = orderType === 'wholesale' ? 'wholesale' : 'retail';
+            const isAvailable = stockType === 'wholesale' ? stockState?.wholesaleAvailable : stockState?.retailAvailable;
+
+            if (product.inStock === false || !isAvailable) return null;
+            if (variant && variant.inStock === false) return null;
+
+            const stockLimit = stockState?.hasLinkedStock
+                ? Math.max(0, Number(stockType === 'wholesale' ? stockState.warehouseStock : stockState.showroomStock) || 0)
+                : null;
+
+            const safeQuantity = Math.max(1, Number(quantity || 1));
+            const finalQuantity = stockLimit === null ? safeQuantity : Math.min(safeQuantity, stockLimit);
+            if (finalQuantity <= 0) return null;
+
+            const priceCode = variant && variant.barcode ? String(variant.barcode).trim() : (product.code ? String(product.code).trim() : '');
+            const info = priceCode && window._dcPriceMap ? window._dcPriceMap[priceCode] : null;
+            const price = orderType === 'wholesale'
+                ? Number(info?.wholesale_price || info?.wholesalePrice || 0)
+                : Number(info?.retail_price || info?.sectorSalesPrice || info?.sellingPrice || info?.price || 0);
+            const image = variant && (variant.image || (variant.images && variant.images[0]))
+                ? (variant.image || variant.images[0])
+                : (product.images?.[0] || '');
+
+            return {
+                cartId: variant ? `${product.id}-${variant.name.replace(/\s+/g, '_')}` : product.id,
+                productId: product.id,
+                name: product.name,
+                productCode: getInventoryCode(product, variantIdx),
+                price: Number.isFinite(price) ? price : 0,
+                image,
+                variantName: variant ? variant.name : null,
+                variantLabel: variant ? (variant.label || variant.name) : null,
+                quantity: finalQuantity,
+                addedAt: Date.now()
+            };
+        }
+
+        function mergeReorderItemIntoCart(collectionRef, nextItem, orderType = 'retail') {
+            const existingItem = collectionRef.find((entry) => entry.cartId === nextItem.cartId);
+            const { product, variantIdx } = resolveCartItemContext(nextItem);
+            const stockState = getProductStockState(product, variantIdx);
+            const stockLimit = stockState?.hasLinkedStock
+                ? Math.max(0, Number(orderType === 'wholesale' ? stockState.warehouseStock : stockState.showroomStock) || 0)
+                : null;
+
+            if (!existingItem) {
+                collectionRef.push(nextItem);
+                return { clamped: stockLimit !== null && nextItem.quantity >= stockLimit };
+            }
+
+            const mergedQty = existingItem.quantity + nextItem.quantity;
+            existingItem.quantity = stockLimit === null ? mergedQty : Math.min(mergedQty, stockLimit);
+            existingItem.price = nextItem.price;
+            existingItem.image = nextItem.image;
+            existingItem.productCode = nextItem.productCode;
+            existingItem.variantLabel = nextItem.variantLabel;
+            existingItem.addedAt = Date.now();
+
+            return { clamped: stockLimit !== null && mergedQty > stockLimit };
+        }
+
+        function renderOrderHistory() {
+            const list = document.getElementById('orderHistoryList');
+            const subtitle = document.getElementById('orderHistorySubtitle');
+            if (!list || !subtitle) return;
+
+            const filteredOrders = orderHistoryFilter === 'all'
+                ? userOrders
+                : userOrders.filter((order) => order.orderType === orderHistoryFilter);
+
+            const titleMap = {
+                retail: 'Retail Order History | سجل طلبات القطاعي',
+                wholesale: 'Wholesale Order History | سجل طلبات الجملة',
+                all: 'Order History | سجل الطلبات'
+            };
+            const modalTitle = document.querySelector('#orderHistoryModal h2');
+            if (modalTitle) modalTitle.textContent = titleMap[orderHistoryFilter] || titleMap.all;
+
+            subtitle.textContent = `${filteredOrders.length} Order${filteredOrders.length === 1 ? '' : 's'} Found | ${filteredOrders.length} طلب`;
+
+            if (filteredOrders.length === 0) {
+                list.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-12 text-gray-400 opacity-60">
+                    <svg class="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                    <p class="font-bold uppercase tracking-widest text-sm">No Matching Orders Yet | لا توجد طلبات مطابقة</p>
+                    <p class="text-[10px] mt-1">الطلبات المناسبة للنوع ده هتظهر هنا</p>
+                </div>`;
+                return;
+            }
+
+            list.innerHTML = filteredOrders.map((order) => {
+                const isWholesale = order.orderType === 'wholesale';
+                const total = getOrderHistoryTotal(order);
+                const statusClass = getOrderHistoryStatusBadge(order.status);
+                const orderTypeLabel = isWholesale ? 'Wholesale Order | طلب جملة' : 'Retail Order | طلب قطاعي';
+                const orderItems = (order.items || []).map((item) => `
+                    <div class="flex items-center gap-3 py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                        <img src="${item.image || 'logo.png'}" class="w-10 h-10 rounded-lg object-contain bg-white dark:bg-gray-700 p-1 border dark:border-gray-600 flex-shrink-0">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-bold text-brandBlue dark:text-white truncate">${item.name || 'Item'}</p>
+                            <p class="text-[9px] text-gray-400">${item.variantLabel || item.variant || 'Standard'} × ${item.quantity || 0}</p>
+                            ${(item.productCode || item.code || item.barcode) ? `<p class="mt-0.5 text-[8px] uppercase tracking-[0.18em] text-gray-400">Code: <span class="font-semibold text-gray-500 dark:text-gray-300">${item.productCode || item.code || item.barcode}</span></p>` : ''}
+                        </div>
+                        <span class="text-[11px] font-black ${isWholesale ? 'text-brandGold' : 'text-green-600'}">${((Number(item.price || item.wholesalePrice || 0)) * Math.max(0, Number(item.quantity || 0))).toFixed(2)}</span>
+                    </div>
+                `).join('');
+
+                return `
+                <div class="rounded-2xl border ${isWholesale ? 'border-brandGold/20 bg-brandGold/5 dark:bg-brandGold/10' : 'border-green-500/20 bg-gray-50 dark:bg-gray-800/50'} overflow-hidden shadow-sm">
+                    <div class="p-4 md:p-5 border-b dark:border-gray-700 flex items-start justify-between gap-3">
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2 flex-wrap mb-2">
+                                <span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${isWholesale ? 'bg-brandGold/10 text-brandGold' : 'bg-green-500/10 text-green-600'}">${orderTypeLabel} Order</span>
+                                <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${statusClass}">${order.status || 'pending'}</span>
+                                ${order.websiteOrderRef ? `<span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300">#${order.websiteOrderRef}</span>` : ''}
+                            </div>
+                            <p class="text-sm font-black text-brandBlue dark:text-brandGold">${formatOrderHistoryDate(order.orderDate)}</p>
+                            <p class="text-[10px] text-gray-400 uppercase tracking-widest mt-1">${(order.items || []).length} Item${(order.items || []).length === 1 ? '' : 's'} • ${order.source || 'Gallery Website'}</p>
+                        </div>
+                        <div class="text-right flex-shrink-0">
+                            <p class="text-sm font-black ${isWholesale ? 'text-brandGold' : 'text-green-600'}">${total.toFixed(2)} EGP</p>
+                        </div>
+                    </div>
+                    <div class="px-4 md:px-5 py-3">${orderItems}</div>
+                    <div class="px-4 md:px-5 py-3 border-t dark:border-gray-700 flex items-center justify-end gap-2">
+                        <button onclick="window.orderAgain('${order.id}')" class="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${isWholesale ? 'bg-brandGold text-brandBlue hover:brightness-105' : 'bg-brandBlue text-white border border-brandGold/30 hover:bg-opacity-90'} transition-all shadow-sm">Order Again | اطلب مرة اخرى</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        async function loadUserOrderHistory(force = false) {
+            const list = document.getElementById('orderHistoryList');
+            if (!currentUser) {
+                userOrders = [];
+                userOrdersLoadedForUid = null;
+                renderOrderHistory();
+                return;
+            }
+
+            if (!force && userOrdersLoadedForUid === currentUser.uid) {
+                renderOrderHistory();
+                return;
+            }
+
+            if (list) {
+                list.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-12 text-gray-400 opacity-60">
+                    <svg class="w-12 h-12 mb-3 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                    <p class="font-bold uppercase tracking-widest text-sm">Loading orders...</p>
+                </div>`;
+            }
+
+            try {
+                const orderQuery = query(collection(db, "orders"), where("customer.uid", "==", currentUser.uid));
+                const snapshot = await getDocs(orderQuery);
+                userOrders = snapshot.docs
+                    .map((entry) => ({ id: entry.id, ...entry.data() }))
+                    .sort((a, b) => new Date(b.orderDate || 0).getTime() - new Date(a.orderDate || 0).getTime());
+                userOrdersLoadedForUid = currentUser.uid;
+                renderOrderHistory();
+            } catch (error) {
+                console.error('Order history load error:', error);
+                if (list) {
+                    list.innerHTML = `
+                    <div class="flex flex-col items-center justify-center py-12 text-red-400 opacity-90">
+                        <svg class="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4m0 4h.01M4.93 19h14.14c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.2 16c-.77 1.333.192 3 1.73 3z"></path></svg>
+                        <p class="font-bold uppercase tracking-widest text-sm">Failed to load orders</p>
+                        <button onclick="window.openOrderHistoryModal(true)" class="mt-4 px-4 py-2 rounded-xl bg-brandBlue text-white text-[10px] font-black uppercase tracking-widest border border-brandGold/30">Retry</button>
+                    </div>`;
+                }
+            }
+        }
+
+        window.openOrderHistoryModal = async (forceReload = false, preferredType = 'all') => {
+            if (!currentUser) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            orderHistoryFilter = preferredType || 'all';
+            window.closeCart();
+            window.closeWholesaleCart();
+            document.getElementById('orderHistoryModal').classList.remove('opacity-0', 'pointer-events-none');
+            document.body.classList.add('modal-active');
+            await loadUserOrderHistory(forceReload);
+        };
+
+        window.closeOrderHistoryModal = () => {
+            document.getElementById('orderHistoryModal').classList.add('opacity-0', 'pointer-events-none');
+            document.body.classList.remove('modal-active');
+        };
+
+        window.orderAgain = async (orderId) => {
+            const order = userOrders.find((entry) => entry.id === orderId);
+            if (!order) {
+                window.showToast('Order not found anymore.', 'error');
+                return;
+            }
+
+            const isWholesale = order.orderType === 'wholesale';
+            const targetCollection = isWholesale ? wholesaleCart : cart;
+            let restoredCount = 0;
+            let missingCount = 0;
+            let clampedCount = 0;
+
+            for (const item of (order.items || [])) {
+                const { product, variantIdx } = resolveProductForOrderHistoryItem(item);
+                if (!product) {
+                    missingCount += 1;
+                    continue;
+                }
+
+                const nextItem = buildCartEntryForReorder(product, variantIdx, item.quantity, order.orderType);
+                if (!nextItem) {
+                    missingCount += 1;
+                    continue;
+                }
+
+                const mergeResult = mergeReorderItemIntoCart(targetCollection, nextItem, order.orderType);
+                restoredCount += 1;
+                if (mergeResult.clamped) clampedCount += 1;
+            }
+
+            if (isWholesale) {
+                saveWholesaleCart();
+                updateWholesaleCartUI();
+            } else {
+                saveCart();
+                updateCartUI();
+            }
+
+            if (restoredCount === 0) {
+                window.showToast('Could not add this order again because the items are no longer available.', 'error');
+                return;
+            }
+
+            window.closeOrderHistoryModal();
+            if (isWholesale) window.openWholesaleCart();
+            else window.openCart();
+
+            let toastMessage = `${restoredCount} item${restoredCount === 1 ? '' : 's'} added from your old order.`;
+            if (missingCount > 0) toastMessage += ` ${missingCount} unavailable item${missingCount === 1 ? '' : 's'} skipped.`;
+            if (clampedCount > 0) toastMessage += ' Some quantities were limited by current stock.';
+            window.showToast(toastMessage, 'success');
+        };
+
         window.toggleAutoTheme = (enabled) => {
             localStorage.setItem('autoThemeEnabled', enabled);
             if (enabled) {
@@ -2248,6 +2594,8 @@
         onAuthStateChanged(auth, async (user) => {
             isAuthResolved = false;
             currentUser = user;
+            userOrders = [];
+            userOrdersLoadedForUid = null;
             const sidebarFooter = document.querySelector('#sidebar .border-t');
             const headerNav = document.getElementById('headerNav');
             const homeLink = `<a href="index.html" class="text-brandBlue dark:text-white border-b-2 border-brandGold px-1 py-1 text-sm font-bold" data-i18n="home">Home</a>`;
@@ -4600,7 +4948,7 @@
                 list.innerHTML = `
                 <div class="flex flex-col items-center justify-center py-12 text-gray-400 opacity-60">
                     <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                    <p class="font-bold uppercase tracking-widest">Your cart is empty</p>
+                    <p class="font-bold uppercase tracking-widest">Your Cart Is Empty | العربة فارغة</p>
                 </div>`;
                 document.getElementById('checkoutBtn').disabled = true;
                 const emptyTotal = document.getElementById('cartTotalSection');
@@ -4937,7 +5285,7 @@
             }
 
             if (document.getElementById('wholesaleCartTotalItems')) {
-                document.getElementById('wholesaleCartTotalItems').innerText = `${count} Items`;
+                document.getElementById('wholesaleCartTotalItems').innerText = `${count} Items | عبوة`;
             }
 
             const list = document.getElementById('wholesaleCartItemsList');
@@ -4949,7 +5297,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-16 h-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                     </svg>
-                    <p class="font-bold uppercase tracking-widest">No wholesale items</p>
+                    <p class="font-bold uppercase tracking-widest">No Wholesale Items | لا توجد عناصر جملة</p>
                 </div>`;
                 document.getElementById('wholesaleCheckoutBtn').disabled = true;
                 const emptyWTotal = document.getElementById('wholesaleCartTotalSection');
