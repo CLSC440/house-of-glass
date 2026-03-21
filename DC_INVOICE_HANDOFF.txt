@@ -1,0 +1,442 @@
+WEBSITE TO DC INVOICE HANDOFF
+
+Purpose
+This file explains the final invoice format that will be sent from the website to the DC system after an order is reviewed and confirmed.
+It is intended to be shared directly with the DC system developer.
+
+================================================================
+1. BUSINESS FLOW
+================================================================
+
+1. Customer places an order on the website.
+2. The order is saved on the website side for review.
+3. Admin or moderator reviews the order.
+4. After confirmation, the website sends the order to the DC system as an invoice payload.
+5. The DC system creates the invoice internally and returns success or failure.
+
+Important:
+- The website will NOT send orders to the DC immediately when the customer checks out.
+- The send-to-DC step happens only after admin/moderator confirmation.
+
+================================================================
+2. MAIN RULE OF INTEGRATION
+================================================================
+
+The product code is the main shared key between the website and the DC system.
+
+Important definition:
+- The code sent by the website is the same barcode already used inside the DC system.
+- In this integration, productCode = barcode.
+- This barcode/productCode is the common factor between the website and the DC system.
+
+This means:
+- The DC system must identify products by code.
+- The website will send item lines as code + quantity.
+- Product names and variant labels are for human readability only.
+- If multiple website variants share the same DC code, they must be grouped into one invoice line, and the detailed variant breakdown will be written in the invoice notes.
+
+Price authority:
+- The DC system is the price authority.
+- The website does not send final financial pricing for invoice calculation.
+- The website sends item codes, quantities, customer info, notes, and invoice type.
+- The DC system should calculate prices from its own pricing logic/data.
+
+================================================================
+3. FINAL HUMAN-READABLE INVOICE EXAMPLE
+================================================================
+
+This is a real example of how one confirmed order should reach the DC system.
+
+Customer Name: cst retail
+Phone: +201234567890
+
+Notes:
+طلب وارد من الموقع
+Customer Email: cttest1@alshour.com
+Order Type: Retail
+( Pure Ashtray | طفاية بيور منقوش )
+101890: IMPERO x1 | KARRO x1
+( Merag Shob | شوب ميراج )
+101805: فواكه x1 | ورد احمر x2
+
+Items:
+101890 x2
+101868 x2
+6223005272232 x1
+6223005278517 x2
+6223006782860 x2
+90000024787 x1
+620612583946 x1
+680678583984 x2
+680678544107 x1
+101805 x3
+
+================================================================
+4. REAL PRODUCT MAPPING USED IN THE EXAMPLE
+================================================================
+
+1) Pure Ashtray | طفاية بيور منقوش
+- Shared DC code: 101890
+- Website breakdown:
+  - IMPERO x1
+  - KARRO x1
+- Final invoice line in DC:
+  - 101890 x2
+- Variant detail goes into Notes because both website variants share the same DC code.
+
+2) مج صيني ودن قطة كبير
+- DC code: 101868
+- Quantity: 2
+
+3) Suger Mug | مج سكر
+- Variant 1 -> DC code 6223005272232 -> quantity 1
+- Variant 3 -> DC code 6223005278517 -> quantity 2
+
+4) Tonic Mug Tea | مج تونيك شاي
+- سادة -> DC code 6223006782860 -> quantity 2
+- مخطط -> DC code 90000024787 -> quantity 1
+
+5) Luna | شوب لونا الوان
+- Blue / تركواز -> DC code 620612583946 -> quantity 1
+- Mouve / موف -> DC code 680678583984 -> quantity 2
+- Rose / روز -> DC code 680678544107 -> quantity 1
+
+6) Merag Shob | شوب ميراج
+- Shared DC code: 101805
+- Website breakdown:
+  - فواكه x1
+  - ورد احمر x2
+- Final invoice line in DC:
+  - 101805 x3
+- Variant detail goes into Notes because both website variants share the same DC code.
+
+================================================================
+5. TECHNICAL PAYLOAD SHAPE
+================================================================
+
+Suggested payload from website to DC:
+
+{
+  "source": "website",
+  "externalOrderId": "WEB-ORDER-ID",
+  "orderType": "retail",
+  "customer": {
+    "name": "cst retail",
+    "phone": "+201234567890",
+    "email": "cttest1@alshour.com",
+    "role": "CST. RETAIL"
+  },
+  "notes": "طلب وارد من الموقع\nCustomer Email: cttest1@alshour.com\nOrder Type: Retail\n( Pure Ashtray | طفاية بيور منقوش )\n101890: IMPERO x1 | KARRO x1\n( Merag Shob | شوب ميراج )\n101805: فواكه x1 | ورد احمر x2",
+  "items": [
+    { "code": "101890", "quantity": 2 },
+    { "code": "101868", "quantity": 2 },
+    { "code": "6223005272232", "quantity": 1 },
+    { "code": "6223005278517", "quantity": 2 },
+    { "code": "6223006782860", "quantity": 2 },
+    { "code": "90000024787", "quantity": 1 },
+    { "code": "620612583946", "quantity": 1 },
+    { "code": "680678583984", "quantity": 2 },
+    { "code": "680678544107", "quantity": 1 },
+    { "code": "101805", "quantity": 3 }
+  ]
+}
+
+Notes:
+- externalOrderId should be unique per website order.
+- source should always identify the website as the sender.
+- orderType will be either retail or wholesale.
+- items contains only code and quantity.
+- Shared-code variant details must be included in notes.
+- The DC system should calculate prices from its own side using the received codes and orderType.
+
+================================================================
+6. WHAT THE DC SYSTEM DEVELOPER SHOULD IMPLEMENT
+================================================================
+
+The DC developer should implement the following:
+
+A. Receive the invoice payload from the website
+- Accept customer name.
+- Accept customer phone.
+- Accept notes text.
+- Accept item lines as code + quantity.
+
+B. Create a DC invoice from the received data
+- Customer Name field <- customer.name
+- Phone field <- customer.phone
+- Notes field <- notes
+- Invoice item lines <- items[]
+
+C. Match products strictly by code
+- The DC system should search items by code, not by product name.
+- Product name matching should not be required for integration.
+- The code used in this integration is the barcode already used by the DC system.
+
+C2. Calculate prices from the DC side
+- The DC system is responsible for pricing.
+- The website will not be the source of truth for invoice prices.
+- The DC system should determine the correct price depending on invoice type.
+
+C3. Support two invoice types only
+- retail
+- wholesale
+- The website will send the invoice type clearly in orderType.
+- The DC system should map the incoming orderType to the correct internal invoice type/pricing mode.
+
+D. Handle shared-code variants through notes only
+- Example:
+  - 101890 x2 is the real line
+  - IMPERO and KARRO are only explanatory details in notes
+- The DC should not expect separate invoice lines for shared-code variants.
+
+E. Return a clear API response
+- On success, the DC should return at minimum:
+  - success = true
+  - dcInvoiceId or dcInvoiceNumber
+  - message
+- On failure, the DC should return at minimum:
+  - success = false
+  - errorCode
+  - message
+
+F. Prevent duplicate invoice creation
+- externalOrderId should be used as an idempotency key.
+- If the same order is sent twice, the DC should not create two invoices by mistake.
+
+================================================================
+7. WHAT WE NEED FROM THE DC DEVELOPER
+================================================================
+
+We need the following information from the DC developer:
+
+1. The final DC API endpoint
+- Example:
+  POST /api/website-invoices
+
+2. The required authentication method
+- Example:
+  - Bearer token
+  - API key
+  - internal network allowlist
+
+3. The exact request body expected by the DC system
+- If the DC developer wants a different field naming structure, it must be shared clearly.
+
+4. The exact response body format
+- Success response shape
+- Error response shape
+
+5. Validation behavior
+- What should happen if a product code does not exist?
+- What should happen if quantity is invalid?
+- What should happen if phone is empty?
+
+Recommended validation rule from website side:
+- If one item code is not found, fail the whole invoice.
+- Do not create a partial invoice.
+
+6. Duplicate handling rule
+- Confirm that externalOrderId can be used to block duplicate invoice creation.
+
+Recommended duplicate handling rule:
+- If the same externalOrderId is sent again after timeout/retry, return the same successful invoice result if the invoice was already created.
+- Preferred behavior is idempotent success response, not duplicate error.
+
+7. Invoice status result
+- Confirm what status the created invoice will start with inside the DC system.
+
+8. Fields required by the DC system to create a normal invoice
+- Please tell us exactly which fields are mandatory in your normal invoice creation flow.
+- For example, confirm whether your system requires any of the following:
+  - branchId
+  - warehouseId
+  - storeId
+  - customerId or walk-in customer fallback
+  - salespersonId
+  - paymentMethod
+  - invoiceStatus
+  - movementType
+  - currency
+  - tax
+  - shipping
+  - extra fees
+
+If any of these are mandatory in your system, you must tell us what default or mapped value should be sent from the website.
+
+9. Invoice type mapping inside the DC system
+- Confirm how these website types should be mapped internally:
+  - retail -> ?
+  - wholesale -> ?
+- Example mapping:
+  - orderType: retail -> invoice_type: retail sale
+  - orderType: wholesale -> invoice_type: wholesale sale
+
+================================================================
+8. AGREED RULES FOR VARIANTS
+================================================================
+
+Rule 1: Variant with its own code
+- Send it directly as one normal item line.
+- No special note is required.
+
+Rule 2: Multiple variants sharing one code
+- Aggregate them into one item line by total quantity.
+- Write the internal breakdown in Notes.
+
+Examples:
+
+Case A: Separate-code variants
+- Luna تركواز -> 620612583946 x1
+- Luna موف -> 680678583984 x2
+- Luna روز -> 680678544107 x1
+- These are separate lines because each has a different code.
+
+Case B: Shared-code variants
+- Merag Shob فواكه x1
+- Merag Shob ورد احمر x2
+- Both share code 101805
+- Final DC line becomes:
+  101805 x3
+- Breakdown goes into Notes:
+  101805: فواكه x1 | ورد احمر x2
+
+================================================================
+9. WEBSITE SIDE REQUIREMENTS BEFORE SENDING TO DC
+================================================================
+
+The website side must store and prepare the following for each order item:
+- productCode
+- productName
+- variantLabel
+- quantity
+
+Before sending to DC:
+- Group any items that share the same productCode.
+- Sum their quantities.
+- Write the detailed shared-code breakdown into Notes.
+
+================================================================
+10. RESPONSIBILITY SPLIT
+================================================================
+
+To avoid confusion, this is the exact split between both sides.
+
+Website side responsibilities:
+- Store the customer order on the website side first.
+- Allow admin/moderator to review and confirm the order.
+- Save the required order item data:
+  - productCode
+  - productName
+  - variantLabel
+  - quantity
+- Group shared-code variants before sending.
+- Build the final invoice notes text.
+- Send the invoice type clearly as either retail or wholesale.
+- Send the final payload to the DC API only after confirmation.
+- Save the DC response back on the website side.
+- Track whether sync to DC succeeded or failed.
+
+DC side responsibilities:
+- Provide an API endpoint that accepts the website invoice payload.
+- Authenticate and validate the incoming request.
+- Match every item by code.
+- Treat the received code as the DC barcode field.
+- Calculate invoice prices from the DC side.
+- Apply the correct pricing logic based on retail or wholesale invoice type.
+- Create the invoice inside the DC system.
+- Use notes as sent by the website without breaking the grouped-variant meaning.
+- Prevent duplicate invoice creation using externalOrderId.
+- Return a clear success or error response.
+
+What the website team will NOT do:
+- The website will not create the invoice directly inside the DC database.
+- The website will not decide DC internal invoice numbering.
+- The website will not map products by name inside the DC system.
+- The website will not be the final pricing authority for the DC invoice.
+
+What the DC team will NOT need to do:
+- They do not need to recalculate website variant grouping rules.
+- They do not need to guess product names from text.
+- They do not need separate item rows for shared-code variants if the website already grouped them.
+- They should use their own barcode-based lookup and pricing logic.
+
+================================================================
+11. INTEGRATION DECISIONS TO CONFIRM BEFORE IMPLEMENTATION
+================================================================
+
+The following points should be confirmed clearly before implementation starts:
+
+1. Code field used by DC
+- Confirm that the incoming website code is exactly the DC barcode field.
+
+2. Price authority
+- Confirm that the DC system is the pricing authority for both retail and wholesale invoices.
+
+3. Validation failure behavior
+- Confirm that if one code is invalid, the whole invoice fails.
+
+4. Out-of-stock behavior
+- Confirm what should happen if stock is insufficient inside the DC system:
+  - reject invoice
+  - create pending invoice
+  - allow invoice anyway
+
+5. Initial invoice status
+- Confirm the initial status assigned inside the DC system.
+
+6. Idempotent retry response
+- Confirm that retrying the same externalOrderId returns the already-created invoice result.
+
+7. Shipping, tax, and extra fees handling
+- Confirm whether the DC invoice should contain goods only, or also shipping/tax/fees if these exist.
+
+8. Required internal invoice fields
+- Confirm any mandatory internal fields needed by your ordinary invoice creation logic.
+
+================================================================
+12. RECOMMENDED SUCCESS RESPONSE FROM DC
+================================================================
+
+Suggested success response:
+
+{
+  "success": true,
+  "dcInvoiceId": "INV-2026-000123",
+  "externalOrderId": "WEB-ORDER-ID",
+  "message": "Invoice created successfully"
+}
+
+Suggested error response:
+
+{
+  "success": false,
+  "externalOrderId": "WEB-ORDER-ID",
+  "errorCode": "PRODUCT_CODE_NOT_FOUND",
+  "message": "Code 101890 was not found in DC"
+}
+
+================================================================
+13. SHORT MESSAGE TO SEND TO THE DC DEVELOPER
+================================================================
+
+You can send the following summary message with this file:
+
+"This file contains the exact final invoice shape that should come from my website to your DC system after admin confirmation. The main rule is that the website productCode is the same DC barcode already used in your system. The website will send invoice type as retail or wholesale, and your system should calculate prices from your side based on that type. Normal variants with different codes are sent as separate item lines. Variants that share the same code are grouped into one invoice line and their internal breakdown is written in Notes. Please review the payload format and confirm your endpoint, auth method, validation rules, required invoice fields, response format, and duplicate handling using externalOrderId."
+
+================================================================
+14. FINAL EXPECTATION
+================================================================
+
+Expected result after integration:
+- The website confirms an order.
+- The website sends one clean invoice payload to the DC system.
+- The DC system creates one invoice using:
+  - customer name
+  - phone
+  - notes
+  - invoice type (retail or wholesale)
+  - item code + quantity lines
+- The DC system calculates the final invoice prices from its own side.
+- The DC system returns invoice creation result back to the website.
+
+End of handoff.

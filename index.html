@@ -4324,6 +4324,14 @@
             return { product, variantIdx, variant };
         }
 
+        function buildOrderItemMetadata(item) {
+            const { product, variantIdx, variant } = resolveCartItemContext(item);
+            return {
+                productCode: item?.productCode || getInventoryCode(product, variantIdx) || '',
+                variantLabel: item?.variantLabel || item?.variantName || variant?.label || variant?.name || null
+            };
+        }
+
         function getCartItemStockLimit(item, stockType) {
             const { product, variantIdx } = resolveCartItemContext(item);
             if (!product) return null;
@@ -4440,9 +4448,11 @@
                     cartId: cartItemId,
                     productId: product.id,
                     name: product.name,
+                    productCode: getInventoryCode(product, variantIdx),
                     price: itemPrice, 
                     image: variant && (variant.image || (variant.images && variant.images[0])) ? (variant.image || variant.images[0]) : (product.images[0] || ''),
                     variantName: variant ? variant.name : null,
+                    variantLabel: variant ? (variant.label || variant.name) : null,
                     quantity: qty,
                     addedAt: Date.now()
                 });
@@ -4794,9 +4804,11 @@
                     cartId: cartItemId,
                     productId: product.id,
                     name: product.name,
+                    productCode: getInventoryCode(product, variantIdx),
                     price: itemPrice,
                     image: variant && (variant.image || (variant.images && variant.images[0])) ? (variant.image || variant.images[0]) : (product.images[0] || ''),
                     variantName: variant ? variant.name : null,
+                    variantLabel: variant ? (variant.label || variant.name) : null,
                     quantity: qty,
                     addedAt: Date.now()
                 });
@@ -4999,14 +5011,19 @@
                     name: currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'Guest'),
                     email: currentUser.email,
                 } : { name: "Guest User" },
-                items: wholesaleCart.map(item => ({
-                    productId: item.productId,
-                    name: item.name,
-                    variant: item.variantName,
-                    quantity: item.quantity,
-                    wholesalePrice: item.price,
-                    image: item.image
-                })),
+                items: wholesaleCart.map(item => {
+                    const { productCode, variantLabel } = buildOrderItemMetadata(item);
+                    return {
+                        productId: item.productId,
+                        name: item.name,
+                        variant: item.variantName,
+                        variantLabel,
+                        productCode,
+                        quantity: item.quantity,
+                        wholesalePrice: item.price,
+                        image: item.image
+                    };
+                }),
                 orderDate: new Date().toISOString(),
                 source: "Gallery Website",
                 orderType: "wholesale",
@@ -5074,14 +5091,19 @@
                     name: currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'Guest'),
                     email: currentUser.email,
                 } : { name: "Guest User" },
-                items: cart.map(item => ({
-                    productId: item.productId,
-                    name: item.name,
-                    variant: item.variantName,
-                    quantity: item.quantity,
-                    price: item.price,
-                    image: item.image
-                })),
+                items: cart.map(item => {
+                    const { productCode, variantLabel } = buildOrderItemMetadata(item);
+                    return {
+                        productId: item.productId,
+                        name: item.name,
+                        variant: item.variantName,
+                        variantLabel,
+                        productCode,
+                        quantity: item.quantity,
+                        price: item.price,
+                        image: item.image
+                    };
+                }),
                 orderDate: new Date().toISOString(),
                 source: "Gallery Website",
                 orderType: "retail",
