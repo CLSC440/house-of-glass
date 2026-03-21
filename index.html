@@ -4332,6 +4332,36 @@
             };
         }
 
+        function resolveRetailCheckoutItemPricing(item, customerRole) {
+            const baseRetailPrice = Math.max(0, Number(item?.price || 0));
+            if (customerRole !== 'cst_wholesale') {
+                return {
+                    chargedPrice: baseRetailPrice,
+                    retailPrice: baseRetailPrice,
+                    discountAmount: 0
+                };
+            }
+
+            const { product, variant } = resolveCartItemContext(item);
+            const priceCode = variant && variant.barcode
+                ? String(variant.barcode).trim()
+                : (product?.code ? String(product.code).trim() : '');
+
+            const info = priceCode && window._dcPriceMap ? window._dcPriceMap[priceCode] : null;
+            const liveRetailPrice = info
+                ? Number(info.retail_price || info.sectorSalesPrice || info.sellingPrice || info.price || baseRetailPrice)
+                : baseRetailPrice;
+            const retailPrice = Number.isFinite(liveRetailPrice) && liveRetailPrice > 0 ? liveRetailPrice : baseRetailPrice;
+            const rawDiscount = info ? Number(info.discount_amount || info.discount || 0) : 0;
+            const discountAmount = Number.isFinite(rawDiscount) && rawDiscount > 0 ? rawDiscount : 0;
+
+            return {
+                chargedPrice: Math.max(0, retailPrice - discountAmount),
+                retailPrice,
+                discountAmount
+            };
+        }
+
         async function allocateWebsiteOrderRef() {
             const counterRef = doc(db, "settings", "orderCounter");
 
@@ -5111,14 +5141,31 @@
                 return;
             }
             
+            const orderCustomer = currentUser ? {
+                uid: currentUser.uid,
+                name: currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'Guest'),
+                email: currentUser.email,
+                role: userRole || 'customer'
+            } : { name: "Guest User", role: 'guest' };
+
+            // Fetch user phone & role from Firestore
+            if (currentUser) {
+                try {
+                    const uDoc = await getDoc(doc(db, "users", currentUser.uid));
+                    if (uDoc.exists()) {
+                        const ud = uDoc.data();
+                        orderCustomer.phone = ud.phone || '';
+                        orderCustomer.role = ud.role || orderCustomer.role || 'customer';
+                        orderCustomer.name = ud.name || orderCustomer.name;
+                    }
+                } catch(e) { console.warn("Could not fetch user details for order", e); }
+            }
+
             const orderData = {
-                customer: currentUser ? {
-                    uid: currentUser.uid,
-                    name: currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'Guest'),
-                    email: currentUser.email,
-                } : { name: "Guest User" },
+                customer: orderCustomer,
                 items: cart.map(item => {
                     const { productCode, variantLabel } = buildOrderItemMetadata(item);
+                    const pricing = resolveRetailCheckoutItemPricing(item, orderCustomer.role);
                     return {
                         productId: item.productId,
                         name: item.name,
@@ -5126,7 +5173,9 @@
                         variantLabel,
                         productCode,
                         quantity: item.quantity,
-                        price: item.price,
+                        price: pricing.chargedPrice,
+                        retailPrice: pricing.retailPrice,
+                        discountAmount: pricing.discountAmount,
                         image: item.image
                     };
                 }),
@@ -5135,19 +5184,6 @@
                 orderType: "retail",
                 status: "pending"
             };
-
-            // Fetch user phone & role from Firestore
-            if (currentUser) {
-                try {
-                    const uDoc = await getDoc(doc(db, "users", currentUser.uid));
-                    if (uDoc.exists()) {
-                        const ud = uDoc.data();
-                        orderData.customer.phone = ud.phone || '';
-                        orderData.customer.role = ud.role || 'customer';
-                        orderData.customer.name = ud.name || orderData.customer.name;
-                    }
-                } catch(e) { console.warn("Could not fetch user details for order", e); }
-            }
 
             if (!await showCheckoutConfirm({
                 title: 'Checkout | \u0625\u062a\u0645\u0627\u0645 \u0627\u0644\u0637\u0644\u0628',
