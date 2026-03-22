@@ -1,15 +1,12 @@
 const nodemailer = require('nodemailer');
 const { getAdmin, getDb } = require('./_firebaseAdmin');
 
-function applyCors(req, res) {
-    const origin = req.headers.origin || '*';
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Vary', 'Origin');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-}
-
 function normalizeBaseUrl(req) {
+    const requestedBaseUrl = String((req.body && req.body.appBaseUrl) || '').trim();
+    if (requestedBaseUrl && /^https?:\/\//i.test(requestedBaseUrl)) {
+        return requestedBaseUrl.replace(/\/$/, '');
+    }
+
     const envBaseUrl = (process.env.APP_BASE_URL || '').trim();
     if (envBaseUrl) {
         return envBaseUrl.replace(/\/$/, '');
@@ -173,7 +170,10 @@ async function findRecipientName(email) {
 }
 
 module.exports = async function handler(req, res) {
-    applyCors(req, res);
+    const requestOrigin = req.headers.origin || '*';
+    res.setHeader('Access-Control-Allow-Origin', requestOrigin);
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     if (req.method === 'OPTIONS') {
         return res.status(204).end();

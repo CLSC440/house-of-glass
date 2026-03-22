@@ -74,6 +74,7 @@ Then visit `http://localhost:8000` in your browser.
   - `SMTP_FROM_NAME`
   - `SMTP_SECURE`
   - `APP_BASE_URL`
+- If the storefront is hosted on Firebase Hosting or Netlify, the frontend falls back to the Vercel API domain for this email route.
 - On localhost preview, the site falls back to Firebase's default reset email if the API route is unavailable.
 
 Example values:
