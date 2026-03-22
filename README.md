@@ -60,3 +60,31 @@ Then visit `http://localhost:8000` in your browser.
 - To add more products, duplicate the "Gallery Item" blocks in `index.html`.
 - Replace the placeholder image URLs with your own product photos.
 - Modify the text descriptions to match your items.
+
+## Custom Password Reset Email
+- The branded reset email is sent by `api/password-reset-email.js`.
+- Required environment variables:
+  - `FIREBASE_SERVICE_ACCOUNT`
+  - `SMTP_HOST`
+  - `SMTP_PORT`
+  - `SMTP_USER`
+  - `SMTP_PASS`
+  - `SMTP_FROM_EMAIL`
+- Optional environment variables:
+  - `SMTP_FROM_NAME`
+  - `SMTP_SECURE`
+  - `APP_BASE_URL`
+- On localhost preview, the site falls back to Firebase's default reset email if the API route is unavailable.
+
+Example values:
+
+```env
+SMTP_HOST=smtp.hostinger.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=no-reply@your-domain.com
+SMTP_PASS=your-mail-password
+SMTP_FROM_EMAIL=no-reply@your-domain.com
+SMTP_FROM_NAME=House Of Glass
+APP_BASE_URL=https://your-domain.com
+```
