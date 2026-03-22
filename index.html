@@ -167,6 +167,60 @@
         #headerUserProfile[data-mode="guest"] .profile-text {
             white-space: nowrap;
         }
+        #headerUserProfile[data-mode="user"] {
+            min-width: 0;
+            padding: 0;
+            background: transparent;
+            border: 0;
+            box-shadow: none;
+        }
+        .google-account-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            border: 1px solid rgba(193, 155, 78, 0.18);
+            background: rgba(248, 250, 252, 0.95);
+            width: 2.85rem;
+            height: 2.85rem;
+            padding: 0.2rem;
+            box-shadow: 0 14px 32px rgba(32, 41, 61, 0.16);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+        .google-account-pill:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 18px 36px rgba(32, 41, 61, 0.2);
+            border-color: rgba(193, 155, 78, 0.35);
+        }
+        .dark .google-account-pill {
+            background: rgba(31, 41, 55, 0.96);
+            border-color: rgba(193, 155, 78, 0.24);
+            box-shadow: 0 14px 32px rgba(0, 0, 0, 0.34);
+        }
+        .google-account-avatar {
+            width: 2.2rem;
+            height: 2.2rem;
+            border-radius: 999px;
+            overflow: hidden;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            background: linear-gradient(135deg, #C19B4E, #f0d172);
+            color: white;
+            font-weight: 800;
+            font-size: 0.78rem;
+            box-shadow: 0 10px 22px rgba(193, 155, 78, 0.28);
+        }
+        #accountPanel {
+            background:
+                radial-gradient(circle at top, rgba(193, 155, 78, 0.22), transparent 32%),
+                radial-gradient(circle at 85% 18%, rgba(255, 255, 255, 0.06), transparent 18%),
+                linear-gradient(180deg, rgba(18, 27, 47, 0.98) 0%, rgba(10, 16, 31, 0.99) 100%);
+            backdrop-filter: blur(20px);
+            scrollbar-width: thin;
+            scrollbar-color: rgba(193, 155, 78, 0.4) transparent;
+        }
         .dark #darkToggle.expanded .knob,
         .dark #darkToggle:hover .knob {
             transform: translateX(6rem);
@@ -211,6 +265,11 @@
             }
             #headerUserProfile[data-mode="guest"] .profile-text {
                 max-width: 80px;
+            }
+            .google-account-pill {
+                width: 2.65rem;
+                height: 2.65rem;
+                padding: 0.18rem;
             }
         }
 
@@ -435,7 +494,7 @@
                 </button>
 
                 <!-- User Profile Card (Top Bar) -->
-                <div id="headerUserProfile" class="hidden items-center justify-between space-x-3 md:space-x-4 px-4 py-2 md:px-5 md:py-2.5 bg-gray-50 dark:bg-gray-800 rounded-full border border-gray-100 dark:border-gray-700 shadow-[0_12px_30px_rgba(32,41,61,0.15)] min-w-[190px] md:min-w-[220px] w-auto">
+                <div id="headerUserProfile" class="hidden order-last flex-shrink-0 items-center justify-between space-x-3 md:space-x-4 px-4 py-2 md:px-5 md:py-2.5 bg-gray-50 dark:bg-gray-800 rounded-full border border-gray-100 dark:border-gray-700 shadow-[0_12px_30px_rgba(32,41,61,0.15)] min-w-[190px] md:min-w-[220px] w-auto">
                     <!-- Will be populated by JS -->
                 </div>
                 
@@ -1081,6 +1140,13 @@
     </div>
     <div id="notifOverlay" class="hidden fixed inset-0 z-[155]" onclick="window.closeNotifications()"></div>
 
+    <div id="accountPanel" class="hidden fixed top-20 right-4 md:right-8 z-[165] w-[calc(100vw-1.5rem)] max-w-sm rounded-[2rem] border border-brandGold/20 shadow-[0_30px_70px_rgba(5,10,23,0.52)] overflow-hidden">
+        <div id="accountPanelContent" class="max-h-[80vh] overflow-y-auto custom-scroll">
+            <!-- Account panel content injected by JS -->
+        </div>
+    </div>
+    <div id="accountPanelOverlay" class="hidden fixed inset-0 z-[160]" onclick="window.closeAccountPanel()"></div>
+
     <script src="locales-data.js"></script>
     <script src="i18n.js"></script>
     <script type="module">
@@ -1247,6 +1313,7 @@
         let userOrders = [];
         let userOrdersLoadedForUid = null;
         let orderHistoryFilter = 'all';
+        let currentUserProfileSnapshot = null;
         let userRole = 'customer';
         let userNotifications = [];
         let notifUnsubscribe = null;
@@ -1905,6 +1972,76 @@
             if (overlay) overlay.classList.add('hidden');
         };
 
+        function buildAccountAvatarMarkup(profile, sizeClass = 'w-24 h-24') {
+            const initial = (profile?.name || profile?.email || '?').trim().charAt(0).toUpperCase() || '?';
+            if (profile?.photoURL) {
+                return `<div class="${sizeClass} rounded-full overflow-hidden bg-black ring-4 ring-white/10 shadow-2xl"><img src="${profile.photoURL}" class="w-full h-full object-cover"></div>`;
+            }
+
+            return `<div class="${sizeClass} rounded-full bg-gradient-to-br from-brandGold to-yellow-200 text-brandBlue font-black flex items-center justify-center shadow-2xl ring-4 ring-white/10">${initial}</div>`;
+        }
+
+        function renderAccountPanel() {
+            const content = document.getElementById('accountPanelContent');
+            if (!content) return;
+
+            if (!currentUserProfileSnapshot) {
+                content.innerHTML = '';
+                return;
+            }
+
+            const profile = currentUserProfileSnapshot;
+            const firstName = (profile.name || profile.email || 'there').trim().split(/\s+/)[0] || 'there';
+            const wholesaleAction = profile.role !== 'customer'
+                ? `<button onclick="window.closeAccountPanel(); window.openOrderHistoryModal(false, 'wholesale')" class="w-full flex items-center justify-between rounded-[1.6rem] bg-white/[0.05] px-5 py-4 text-left transition-all hover:bg-white/[0.08] border border-white/10 hover:border-brandGold/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"><span><span class="block text-sm font-black text-white">Wholesale History</span><span class="block text-[10px] uppercase tracking-[0.24em] text-slate-400">Previous wholesale orders</span></span><span class="text-brandGold">→</span></button>`
+                : '';
+
+            content.innerHTML = `
+                <div class="px-6 pt-6 pb-5 border-b border-white/10 bg-gradient-to-b from-white/[0.04] to-transparent">
+                    <div class="flex items-center justify-between gap-3">
+                        <p class="text-sm font-semibold text-slate-300 truncate">${profile.email || ''}</p>
+                        <button onclick="window.closeAccountPanel()" class="w-10 h-10 rounded-full bg-white/10 text-slate-300 hover:text-white hover:bg-white/15 transition-colors flex items-center justify-center">✕</button>
+                    </div>
+                    <div class="mt-6 flex flex-col items-center text-center">
+                        ${buildAccountAvatarMarkup(profile)}
+                        <p class="mt-5 text-[2rem] leading-none font-medium text-white">Hi, ${firstName}!</p>
+                        <p class="mt-2 text-xs uppercase tracking-[0.28em] text-brandGold font-black">${profile.displayRole || ''}</p>
+                    </div>
+                </div>
+                <div class="p-5 space-y-3 bg-gradient-to-b from-white/[0.04] via-white/[0.02] to-black/10">
+                    <button onclick="window.closeAccountPanel(); window.openOrderHistoryModal(false, 'retail')" class="w-full flex items-center justify-between rounded-[1.6rem] bg-white/[0.05] px-5 py-4 text-left transition-all hover:bg-white/[0.08] border border-white/10 hover:border-brandGold/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"><span><span class="block text-sm font-black text-white">Retail History</span><span class="block text-[10px] uppercase tracking-[0.24em] text-slate-400">Your recent retail orders</span></span><span class="text-brandGold">→</span></button>
+                    ${wholesaleAction}
+                    <button onclick="window.closeAccountPanel(); window.openUserSettingsModal()" class="w-full flex items-center justify-between rounded-[1.6rem] bg-white/[0.05] px-5 py-4 text-left transition-all hover:bg-white/[0.08] border border-white/10 hover:border-brandGold/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"><span><span class="block text-sm font-black text-white">Settings</span><span class="block text-[10px] uppercase tracking-[0.24em] text-slate-400">Profile, phone and password</span></span><span class="text-brandGold">→</span></button>
+                    <button onclick="window.closeAccountPanel(); window.logout()" class="w-full flex items-center justify-between rounded-[1.6rem] bg-white/[0.05] px-5 py-4 text-left transition-all hover:bg-red-500/10 border border-white/10 hover:border-red-400/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"><span><span class="block text-sm font-black text-red-400">Sign out</span><span class="block text-[10px] uppercase tracking-[0.24em] text-slate-400">End current session</span></span><span class="text-red-400">→</span></button>
+                </div>
+            `;
+        }
+
+        window.toggleAccountPanel = function() {
+            if (!currentUserProfileSnapshot) return;
+            const panel = document.getElementById('accountPanel');
+            const overlay = document.getElementById('accountPanelOverlay');
+            if (!panel || !overlay) return;
+
+            const isOpen = !panel.classList.contains('hidden');
+            if (isOpen) {
+                window.closeAccountPanel();
+                return;
+            }
+
+            window.closeNotifications();
+            renderAccountPanel();
+            panel.classList.remove('hidden');
+            overlay.classList.remove('hidden');
+        };
+
+        window.closeAccountPanel = function() {
+            const panel = document.getElementById('accountPanel');
+            const overlay = document.getElementById('accountPanelOverlay');
+            if (panel) panel.classList.add('hidden');
+            if (overlay) overlay.classList.add('hidden');
+        };
+
         window.markNotificationRead = async function(notifId) {
             try {
                 await updateDoc(doc(db, "notifications", notifId), { read: true });
@@ -1934,6 +2071,7 @@
         // User Settings Functions
         window.openUserSettingsModal = async () => {
             if (!currentUser) return;
+            window.closeAccountPanel();
             const userDoc = await getDoc(doc(db, "users", currentUser.uid));
             if (userDoc.exists()) {
                 const data = userDoc.data();
@@ -2650,6 +2788,14 @@
 
                 const displayRole = userRole === 'customer' ? 'CST. Retail' : 
                                    (userRole === 'cst_wholesale' ? 'CST. Wholesale' : userRole);
+                currentUserProfileSnapshot = {
+                    name: userData.name,
+                    email: user.email || '',
+                    photoURL: userData.photoURL || '',
+                    role: userRole,
+                    displayRole
+                };
+                renderAccountPanel();
 
                 // Show/hide wholesale cart button based on role
                 const wCartBtn = document.getElementById('wholesaleCartBtn');
@@ -2697,25 +2843,10 @@
                 const headerProfile = document.getElementById('headerUserProfile');
                 if (headerProfile) {
                     headerProfile.innerHTML = `
-                            <div class="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity" onclick="window.openUserSettingsModal()">
-                                <div class="w-6 h-6 rounded-full bg-brandGold flex items-center justify-center text-white text-[10px] font-bold shadow-lg shadow-brandGold/20 overflow-hidden">
+                            <button onclick="window.toggleAccountPanel()" class="google-account-pill group" title="Account">
+                                <span class="google-account-avatar">
                                     ${userData.photoURL ? `<img src="${userData.photoURL}" class="w-full h-full object-cover">` : userData.name[0].toUpperCase()}
-                                </div>
-                                <div class="overflow-hidden profile-text">
-                                    <p class="text-[9px] font-bold dark:text-white truncate">${userData.name}</p>
-                                    <p class="text-[7px] text-brandGold uppercase font-black">${displayRole}</p>
-                                </div>
-                            </div>
-                            <button onclick="window.openUserSettingsModal()" class="hidden md:inline-block p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" title="Settings">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-brandGold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                </svg>
-                            </button>
-                            <button onclick="window.logout()" class="hidden md:inline-block p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Logout">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                                </svg>
+                                </span>
                             </button>
                     `;
                     headerProfile.classList.remove('hidden', 'md:hidden');
@@ -2725,6 +2856,8 @@
 
             } else {
                 userFavorites = [];
+                currentUserProfileSnapshot = null;
+                window.closeAccountPanel();
                 userRole = 'customer';
 
                 // Stop notifications & hide bell
