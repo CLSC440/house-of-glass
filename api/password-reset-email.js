@@ -1,6 +1,14 @@
 const nodemailer = require('nodemailer');
 const { getAdmin, getDb } = require('./_firebaseAdmin');
 
+function applyCors(req, res) {
+    const origin = req.headers.origin || '*';
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
+
 function normalizeBaseUrl(req) {
     const envBaseUrl = (process.env.APP_BASE_URL || '').trim();
     if (envBaseUrl) {
@@ -165,6 +173,12 @@ async function findRecipientName(email) {
 }
 
 module.exports = async function handler(req, res) {
+    applyCors(req, res);
+
+    if (req.method === 'OPTIONS') {
+        return res.status(204).end();
+    }
+
     if (req.method !== 'POST') {
         res.setHeader('Allow', 'POST');
         return res.status(405).json({ error: 'Method Not Allowed' });
