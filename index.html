@@ -1992,6 +1992,9 @@
 
             const profile = currentUserProfileSnapshot;
             const firstName = (profile.name || profile.email || 'there').trim().split(/\s+/)[0] || 'there';
+            const adminAction = profile.role === 'admin' || profile.role === 'moderator'
+                ? `<a href="admin.html" onclick="window.closeAccountPanel()" class="mt-5 inline-flex items-center justify-center rounded-full border border-brandGold/35 bg-brandGold/10 px-6 py-3 text-sm font-black text-brandGold hover:bg-brandGold/16 hover:border-brandGold/55 transition-all">Admin Dashboard</a>`
+                : '';
             const wholesaleAction = profile.role !== 'customer'
                 ? `<button onclick="window.closeAccountPanel(); window.openOrderHistoryModal(false, 'wholesale')" class="w-full flex items-center justify-between rounded-[1.6rem] bg-white/[0.05] px-5 py-4 text-left transition-all hover:bg-white/[0.08] border border-white/10 hover:border-brandGold/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"><span><span class="block text-sm font-black text-white">Wholesale History</span><span class="block text-[10px] uppercase tracking-[0.24em] text-slate-400">Previous wholesale orders</span></span><span class="text-brandGold">→</span></button>`
                 : '';
@@ -2006,6 +2009,7 @@
                         ${buildAccountAvatarMarkup(profile)}
                         <p class="mt-5 text-[2rem] leading-none font-medium text-white">Hi, ${firstName}!</p>
                         <p class="mt-2 text-xs uppercase tracking-[0.28em] text-brandGold font-black">${profile.displayRole || ''}</p>
+                        ${adminAction}
                     </div>
                 </div>
                 <div class="p-5 space-y-3 bg-gradient-to-b from-white/[0.04] via-white/[0.02] to-black/10">
