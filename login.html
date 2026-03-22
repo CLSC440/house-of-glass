@@ -291,58 +291,6 @@
             input.type = input.type === 'password' ? 'text' : 'password';
         };
 
-        const PASSWORD_RESET_API_ENDPOINTS = Array.from(new Set([
-            `${window.location.origin}/api/password-reset-email`,
-            'https://house-of-glass-phi.vercel.app/api/password-reset-email'
-        ]));
-
-        async function requestBrandedPasswordReset(email) {
-            let lastError = null;
-
-            for (const endpoint of PASSWORD_RESET_API_ENDPOINTS) {
-                try {
-                    const response = await fetch(endpoint, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            email,
-                            lang: document.documentElement.lang || 'en',
-                            appBaseUrl: window.location.origin
-                        })
-                    });
-
-                    const contentType = response.headers.get('content-type') || '';
-                    if (!contentType.includes('application/json')) {
-                        throw new Error('Reset email endpoint returned a non-JSON response.');
-                    }
-
-                    const payload = await response.json().catch(() => ({}));
-                    if (!response.ok) {
-                        throw new Error(payload.error || 'Unable to send reset email right now.');
-                    }
-
-                    if (payload.ok) {
-                        return true;
-                    }
-
-                    throw new Error('Reset email endpoint did not confirm success.');
-                } catch (error) {
-                    lastError = error;
-                }
-            }
-
-            try {
-                throw lastError || new Error('Unable to send reset email right now.');
-            } catch (error) {
-                const isLocalPreview = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-                if (isLocalPreview) {
-                    await sendPasswordResetEmail(auth, email);
-                    return false;
-                }
-                throw error;
-            }
-        }
-
         document.getElementById('loginForm').onsubmit = async (e) => {
             e.preventDefault();
             const identifier = document.getElementById('loginIdentifier').value.trim();
@@ -421,7 +369,7 @@
                 return;
             }
             try {
-                await requestBrandedPasswordReset(email.trim());
+                await sendPasswordResetEmail(auth, email.trim());
                 showToast("Password reset link sent to your email!");
             } catch (error) {
                 showToast("Error: " + error.message, 'error');
