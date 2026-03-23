@@ -2843,12 +2843,8 @@
                     }
                 }
 
-                // Update Header Nav
-                if (userRole === 'admin' || userRole === 'moderator') {
-                    headerNav.innerHTML = `${homeLink} <a href="admin.html" class="text-brandGold hover:text-brandBlue dark:hover:text-white px-1 py-1 text-sm font-bold transition-colors" data-i18n="admin_dashboard">Admin Dashboard</a>`;
-                } else {
-                    headerNav.innerHTML = homeLink;
-                }
+                // Keep header nav focused on the storefront even for admins.
+                headerNav.innerHTML = homeLink;
 
                 // Update Footer
                 sidebarFooter.style.display = 'block';
