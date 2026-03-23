@@ -24,6 +24,8 @@
     "last_name": "Last Name",
     "email_address": "Email Address",
     "phone_number": "Phone Number",
+    "signup_email_optional": "Email Address (Optional)",
+    "signup_phone_required": "Phone Number (Required)",
     "password": "Password",
     "change_password": "Change Password",
     "new_password": "New Password",

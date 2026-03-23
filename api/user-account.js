@@ -49,16 +49,17 @@ function buildDisplayName({ firstName = '', lastName = '', name = '', email = ''
 function sanitizeProfile(rawProfile = {}, tokenData = {}, currentProfile = {}) {
     const firstName = normalizeString(rawProfile.firstName ?? currentProfile.firstName, 60);
     const lastName = normalizeString(rawProfile.lastName ?? currentProfile.lastName, 60);
+    const authEmail = normalizeEmail(tokenData.email || currentProfile.authEmail || currentProfile.email);
+    const profileEmail = normalizeEmail(rawProfile.email ?? currentProfile.email);
     const name = buildDisplayName({
         firstName,
         lastName,
         name: rawProfile.name ?? currentProfile.name,
-        email: tokenData.email || currentProfile.email || rawProfile.email
+        email: profileEmail || authEmail
     });
     const username = normalizeUsername(rawProfile.username ?? currentProfile.username);
     const phone = normalizePhone(rawProfile.phone ?? currentProfile.phone);
     const photoURL = normalizeString(rawProfile.photoURL ?? currentProfile.photoURL, 2048);
-    const email = normalizeEmail(tokenData.email || rawProfile.email || currentProfile.email);
 
     return {
         uid: tokenData.uid || currentProfile.uid,
@@ -67,8 +68,10 @@ function sanitizeProfile(rawProfile = {}, tokenData = {}, currentProfile = {}) {
         firstName,
         lastName,
         name,
-        email,
-        emailLowercase: email,
+        email: profileEmail,
+        emailLowercase: profileEmail,
+        authEmail,
+        authEmailLowercase: authEmail,
         phone,
         photoURL,
         photoMeta: rawProfile.photoMeta && typeof rawProfile.photoMeta === 'object'
@@ -112,7 +115,17 @@ async function findUserByEmail(db, email) {
     const normalized = normalizeEmail(email);
     if (!normalized) return null;
 
-    let snapshot = await db.collection('users').where('emailLowercase', '==', normalized).limit(1).get();
+    let snapshot = await db.collection('users').where('authEmailLowercase', '==', normalized).limit(1).get();
+    if (!snapshot.empty) {
+        return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+    }
+
+    snapshot = await db.collection('users').where('authEmail', '==', normalized).limit(1).get();
+    if (!snapshot.empty) {
+        return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+    }
+
+    snapshot = await db.collection('users').where('emailLowercase', '==', normalized).limit(1).get();
     if (!snapshot.empty) {
         return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
     }
@@ -183,7 +196,7 @@ async function claimDirectoryEntries(db, transaction, uid, nextProfile, currentP
     const entries = [
         { type: 'username', nextValue: nextProfile.usernameLowercase, prevValue: normalizeUsername(currentProfile.usernameLowercase || currentProfile.username) },
         { type: 'phone', nextValue: nextProfile.phone, prevValue: normalizePhone(currentProfile.phone) },
-        { type: 'email', nextValue: nextProfile.emailLowercase, prevValue: normalizeEmail(currentProfile.emailLowercase || currentProfile.email) }
+        { type: 'email', nextValue: nextProfile.authEmailLowercase, prevValue: normalizeEmail(currentProfile.authEmailLowercase || currentProfile.authEmail || currentProfile.emailLowercase || currentProfile.email) }
     ];
 
     for (const entry of entries) {
@@ -234,13 +247,13 @@ async function handleResolveIdentifier(req, res, db) {
     }
 
     const byPhone = await findUserByPhone(db, identifier);
-    if (byPhone?.email) {
-        return res.status(200).json({ success: true, email: byPhone.email });
+    if (byPhone?.authEmail || byPhone?.email) {
+        return res.status(200).json({ success: true, email: byPhone.authEmail || byPhone.email });
     }
 
     const byUsername = await findUserByUsername(db, identifier);
-    if (byUsername?.email) {
-        return res.status(200).json({ success: true, email: byUsername.email });
+    if (byUsername?.authEmail || byUsername?.email) {
+        return res.status(200).json({ success: true, email: byUsername.authEmail || byUsername.email });
     }
 
     return res.status(404).json({ success: false, error: 'No account matches this username or phone number.' });
@@ -270,7 +283,7 @@ async function handleUpsertProfile(req, res, db) {
     let nextProfile = sanitizeProfile(req.body?.profile || {}, tokenData, currentProfile);
 
     if (options.autoGenerateUsername || !nextProfile.usernameLowercase) {
-        nextProfile.username = await pickAvailableUsername(db, nextProfile.username, nextProfile.name, nextProfile.email, tokenData.uid);
+        nextProfile.username = await pickAvailableUsername(db, nextProfile.username, nextProfile.name, nextProfile.authEmail || nextProfile.email, tokenData.uid);
         nextProfile.usernameLowercase = nextProfile.username;
     }
 
@@ -280,7 +293,7 @@ async function handleUpsertProfile(req, res, db) {
 
     await ensureValueAvailable(db, 'username', nextProfile.usernameLowercase, tokenData.uid);
     await ensureValueAvailable(db, 'phone', nextProfile.phone, tokenData.uid);
-    await ensureValueAvailable(db, 'email', nextProfile.emailLowercase, tokenData.uid);
+    await ensureValueAvailable(db, 'email', nextProfile.authEmailLowercase, tokenData.uid);
 
     const role = currentProfile.role || 'customer';
 
@@ -304,6 +317,8 @@ async function handleUpsertProfile(req, res, db) {
             name: nextProfile.name,
             email: nextProfile.emailLowercase,
             emailLowercase: nextProfile.emailLowercase,
+            authEmail: nextProfile.authEmailLowercase,
+            authEmailLowercase: nextProfile.authEmailLowercase,
             phone: nextProfile.phone,
             photoURL: nextProfile.photoURL || '',
             photoMeta: nextProfile.photoMeta || admin.firestore.FieldValue.delete(),
@@ -322,7 +337,7 @@ async function deleteDirectoryEntriesForUser(db, batch, uid, userData = {}) {
     const entries = [
         { type: 'username', value: normalizeUsername(userData.usernameLowercase || userData.username) },
         { type: 'phone', value: normalizePhone(userData.phone) },
-        { type: 'email', value: normalizeEmail(userData.emailLowercase || userData.email) }
+        { type: 'email', value: normalizeEmail(userData.authEmailLowercase || userData.authEmail || userData.emailLowercase || userData.email) }
     ].filter((entry) => entry.value);
 
     for (const entry of entries) {

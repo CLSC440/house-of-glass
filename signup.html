@@ -168,14 +168,14 @@
                 </div>
             </div>
             <div>
-                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-slate-300" data-i18n="email_address">Email Address</label>
-                <input type="email" id="email" required class="mt-1 block w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue dark:text-slate-200" placeholder="e.g. name@example.com" data-i18n-placeholder="email_placeholder">
+                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-slate-300" data-i18n="signup_email_optional">Email Address (Optional)</label>
+                <input type="email" id="email" class="mt-1 block w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue dark:text-slate-200" placeholder="e.g. name@example.com" data-i18n-placeholder="email_placeholder">
             </div>
             <div>
-                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-slate-300" data-i18n="phone_number">Phone Number (Optional)</label>
+                <label class="block text-xs md:text-sm font-medium text-gray-700 dark:text-slate-300" data-i18n="signup_phone_required">Phone Number (Required)</label>
                 <div class="mt-1 flex group">
                     <span class="flex items-center justify-center bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-700 ltr:rounded-l-xl rtl:rounded-r-xl px-3 text-sm text-gray-500 dark:text-slate-400 font-bold tracking-wider">+20</span>
-                    <input type="tel" id="phone" class="flex-1 block bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 ltr:rounded-r-xl rtl:rounded-l-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue dark:text-slate-200" placeholder="01XXXXXXXXX" data-i18n-placeholder="phone_number">
+                    <input type="tel" id="phone" required class="flex-1 block bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 ltr:rounded-r-xl rtl:rounded-l-xl p-2.5 md:p-3 focus:ring-2 focus:ring-brandGold outline-none text-brandBlue dark:text-slate-200" placeholder="01XXXXXXXXX">
                 </div>
             </div>
             <div>
@@ -263,19 +263,28 @@
             input.type = input.type === 'password' ? 'text' : 'password';
         };
 
+        function normalizeEgyptPhoneForSignup(value) {
+            const digits = String(value || '').replace(/\D/g, '');
+            if (/^01[0125]\d{8}$/.test(digits)) return `+20${digits.slice(1)}`;
+            if (/^1[0125]\d{8}$/.test(digits)) return `+20${digits}`;
+            if (/^20\d{10}$/.test(digits)) return `+${digits}`;
+            if (/^\+20\d{10}$/.test(String(value || '').trim())) return String(value || '').trim();
+            return '';
+        }
+
+        function buildPhoneCredentialEmail(phone) {
+            const digits = String(phone || '').replace(/\D/g, '');
+            return `phone${digits}@users.houseofglass.app`;
+        }
+
         document.getElementById('signupForm').onsubmit = async (e) => {
             e.preventDefault();
-            const email = document.getElementById('email').value;
+            const email = document.getElementById('email').value.trim().toLowerCase();
             const password = document.getElementById('password').value;
             const username = document.getElementById('username').value.trim();
             const firstName = document.getElementById('firstName').value.trim();
             const lastName = document.getElementById('lastName').value.trim();
-            let phone = document.getElementById('phone').value.trim();
-            
-            if (phone) {
-                // Prepend Egypt code and remove leading zero if present
-                phone = "+20" + phone.replace(/^0/, '');
-            }
+            const phone = normalizeEgyptPhoneForSignup(document.getElementById('phone').value.trim());
             
             const fullName = `${firstName} ${lastName}`;
             const btn = document.getElementById('submitBtn');
@@ -288,16 +297,21 @@
             err.classList.add('hidden');
 
             try {
+                if (!phone) {
+                    throw new Error("Phone number is required and must be a valid Egyptian mobile number.");
+                }
+
                 const availability = await checkAccountAvailability({ username, phone });
                 if (!availability.usernameAvailable) {
                     throw new Error("Username is already taken. Please choose another one.");
                 }
 
-                if (phone && !availability.phoneAvailable) {
+                if (!availability.phoneAvailable) {
                     throw new Error("Phone number is already registered to another account.");
                 }
 
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const authEmail = email || buildPhoneCredentialEmail(phone);
+                const userCredential = await createUserWithEmailAndPassword(auth, authEmail, password);
                 const user = userCredential.user;
                 
                 await updateProfile(user, { displayName: fullName });

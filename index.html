@@ -2112,7 +2112,7 @@
                 document.getElementById('settingsUsername').value = data.username || '';
                 document.getElementById('settingsFirstName').value = data.firstName || '';
                 document.getElementById('settingsLastName').value = data.lastName || '';
-                document.getElementById('settingsEmail').value = currentUser.email || data.email || '';
+                document.getElementById('settingsEmail').value = data.email || '';
                 
                 // If phone exists and starts with +20, strip it for display in the input
                 let displayPhone = data.phone || '';
@@ -2124,7 +2124,7 @@
                 if (data.photoURL) {
                     document.getElementById('settingsPhotoPreview').innerHTML = `<img src="${data.photoURL}" data-fallback-src="${resolveMediaFallbackUrl(data.photoMeta)}" onerror="handleMediaFallback(this)" class="w-full h-full object-cover">`;
                 } else {
-                    document.getElementById('settingsPhotoPreview').innerText = (data.name?.[0] || currentUser.email[0]).toUpperCase();
+                    document.getElementById('settingsPhotoPreview').innerText = (data.name?.[0] || data.email?.[0] || currentUser.displayName?.[0] || '?').toUpperCase();
                 }
             }
             // Load auto theme setting
@@ -2776,6 +2776,7 @@
                 // Initialize default USER DATA to prevent crash if doc fetch fails
                  let userData = {
                      name: user.email.split('@')[0],
+                     email: '',
                      photoURL: null,
                      role: 'customer',
                      favorites: []
@@ -2786,6 +2787,7 @@
                      if (userDoc.exists()) {
                          const d = userDoc.data();
                          userData.name = d.name || userData.name;
+                         userData.email = d.email || '';
                          userData.photoURL = d.photoURL;
                          userData.role = d.role || 'customer';
                          userData.favorites = d.favorites || [];
@@ -2824,7 +2826,7 @@
                                    (userRole === 'cst_wholesale' ? 'CST. Wholesale' : userRole);
                 currentUserProfileSnapshot = {
                     name: userData.name,
-                    email: user.email || '',
+                    email: userData.email || '',
                     photoURL: userData.photoURL || '',
                     role: userRole,
                     displayRole
@@ -5697,7 +5699,7 @@
                 customer: currentUser ? {
                     uid: currentUser.uid,
                     name: currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'Guest'),
-                    email: currentUser.email,
+                    email: currentUserProfileSnapshot?.email || '',
                 } : { name: "Guest User" },
                 items: wholesaleCart.map(item => {
                     const { productCode, variantLabel } = buildOrderItemMetadata(item);
@@ -5777,7 +5779,7 @@
             const orderCustomer = currentUser ? {
                 uid: currentUser.uid,
                 name: currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'Guest'),
-                email: currentUser.email,
+                email: currentUserProfileSnapshot?.email || '',
                 role: userRole || 'customer'
             } : { name: "Guest User", role: 'guest' };
 
@@ -5787,6 +5789,7 @@
                     const uDoc = await getDoc(doc(db, "users", currentUser.uid));
                     if (uDoc.exists()) {
                         const ud = uDoc.data();
+                        orderCustomer.email = ud.email || '';
                         orderCustomer.phone = ud.phone || '';
                         orderCustomer.role = ud.role || orderCustomer.role || 'customer';
                         orderCustomer.name = ud.name || orderCustomer.name;
