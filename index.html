@@ -798,6 +798,13 @@
     <div id="userSettingsModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-[100] transition-all duration-300">
         <div class="absolute w-full h-full bg-black/60 backdrop-blur-sm" onclick="closeUserSettingsModal()"></div>
         <div class="bg-white dark:bg-darkCard w-11/12 max-w-md mx-auto rounded-3xl shadow-2xl z-[110] overflow-hidden relative border border-gray-100 dark:border-gray-800">
+            <div id="userSettingsLoading" class="hidden absolute inset-0 z-[120] bg-white/92 dark:bg-darkCard/92 backdrop-blur-sm flex flex-col items-center justify-center gap-4">
+                <div class="w-12 h-12 rounded-full border-4 border-brandGold/20 border-t-brandGold animate-spin"></div>
+                <div class="text-center px-6">
+                    <p class="text-sm font-black uppercase tracking-[0.24em] text-brandBlue dark:text-brandGold">Loading</p>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Preparing your account settings...</p>
+                </div>
+            </div>
             <div class="p-6 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
                 <h2 class="text-xl font-black text-brandBlue dark:text-brandGold uppercase italic tracking-tight" data-i18n="settings_title">Account Settings</h2>
                 <button onclick="closeUserSettingsModal()" class="text-gray-400 hover:text-red-500 transition-colors bg-white dark:bg-gray-700 p-2 rounded-full shadow-sm">✕</button>
@@ -1344,11 +1351,123 @@
         let userOrdersLoadedForUid = null;
         let orderHistoryFilter = 'all';
         let currentUserProfileSnapshot = null;
+        const USER_PROFILE_CACHE_PREFIX = 'hog-user-profile:';
         let userRole = 'customer';
         let userNotifications = [];
         let notifUnsubscribe = null;
         const IMAGEKIT_UPLOAD_URL = 'https://upload.imagekit.io/api/v1/files/upload';
         const MEDIA_PLACEHOLDER_URL = 'https://via.placeholder.com/800x600?text=No+Image';
+
+        function getUserProfileCacheKey(uid) {
+            return `${USER_PROFILE_CACHE_PREFIX}${uid}`;
+        }
+
+        function readCachedUserProfile(uid) {
+            if (!uid) return null;
+            try {
+                const raw = localStorage.getItem(getUserProfileCacheKey(uid));
+                if (!raw) return null;
+                const parsed = JSON.parse(raw);
+                if (!parsed || typeof parsed !== 'object') return null;
+                return parsed;
+            } catch (error) {
+                console.warn('Could not read cached user profile:', error);
+                return null;
+            }
+        }
+
+        function writeCachedUserProfile(uid, profile) {
+            if (!uid || !profile) return;
+            try {
+                localStorage.setItem(getUserProfileCacheKey(uid), JSON.stringify({
+                    name: profile.name || '',
+                    email: profile.email || '',
+                    photoURL: profile.photoURL || '',
+                    role: profile.role || 'customer',
+                    favorites: Array.isArray(profile.favorites) ? profile.favorites : []
+                }));
+            } catch (error) {
+                console.warn('Could not cache user profile:', error);
+            }
+        }
+
+        function getDisplayRole(role) {
+            return role === 'customer' ? 'CST. Retail' : (role === 'cst_wholesale' ? 'CST. Wholesale' : role);
+        }
+
+        function deriveUserData(user, cachedProfile = null) {
+            const fallbackName = user?.displayName || (user?.email ? user.email.split('@')[0] : 'User');
+            return {
+                name: cachedProfile?.name || fallbackName,
+                email: cachedProfile?.email || '',
+                photoURL: cachedProfile?.photoURL || user?.photoURL || null,
+                role: cachedProfile?.role || 'customer',
+                favorites: Array.isArray(cachedProfile?.favorites) ? cachedProfile.favorites : []
+            };
+        }
+
+        function applyAuthenticatedUserShell(userData, headerNav, homeLink, sidebarFooter) {
+            userFavorites = userData.favorites;
+            userRole = userData.role;
+
+            const displayRole = getDisplayRole(userRole);
+            currentUserProfileSnapshot = {
+                name: userData.name,
+                email: userData.email || '',
+                photoURL: userData.photoURL || '',
+                role: userRole,
+                displayRole
+            };
+            renderAccountPanel();
+
+            const wCartBtn = document.getElementById('wholesaleCartBtn');
+            if (wCartBtn) {
+                if (userRole !== 'customer') {
+                    wCartBtn.classList.remove('hidden');
+                } else {
+                    wCartBtn.classList.add('hidden');
+                }
+            }
+
+            headerNav.innerHTML = homeLink;
+
+            sidebarFooter.style.display = 'block';
+            sidebarFooter.innerHTML = `
+                <div class="flex flex-col space-y-2">
+                    ${(userRole === 'admin' || userRole === 'moderator') ? `<a href="admin.html" class="block text-center bg-brandBlue text-white py-2.5 rounded-xl font-bold border border-brandGold hover:bg-opacity-90 text-xs shadow-xl shadow-brandBlue/20" data-i18n="admin_dashboard">Admin Dashboard</a>` : ''}
+                </div>
+            `;
+
+            const sidebarHeader = document.getElementById('sidebarHeader');
+            sidebarHeader.innerHTML = `
+                    <div class="flex items-center justify-between w-full">
+                        <div class="flex items-center space-x-3 flex-1">
+                            <div onclick="window.openUserSettingsModal()" class="w-10 h-10 rounded-full bg-brandGold flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-brandGold/20 overflow-hidden cursor-pointer hover:scale-105 transition-transform">
+                                ${userData.photoURL ? `<img src="${userData.photoURL}" class="w-full h-full object-cover">` : userData.name[0].toUpperCase()}
+                            </div>
+                            <div class="overflow-hidden flex-1 cursor-pointer" onclick="window.openUserSettingsModal()">
+                                <p class="text-sm font-bold dark:text-white truncate">${userData.name}</p>
+                                <p class="text-[10px] text-brandGold uppercase font-black tracking-widest">${displayRole}</p>
+                            </div>
+                        </div>
+                        <button onclick="toggleSidebar()" class="text-gray-400 hover:text-brandBlue dark:hover:text-white text-xl font-bold ml-2">✕</button>
+                    </div>
+            `;
+
+            const headerProfile = document.getElementById('headerUserProfile');
+            if (headerProfile) {
+                headerProfile.innerHTML = `
+                        <button onclick="window.toggleAccountPanel()" class="google-account-pill group" title="Account">
+                            <span class="google-account-avatar">
+                                ${userData.photoURL ? `<img src="${userData.photoURL}" class="w-full h-full object-cover">` : userData.name[0].toUpperCase()}
+                            </span>
+                        </button>
+                `;
+                headerProfile.classList.remove('hidden', 'md:hidden');
+                headerProfile.classList.add('flex', 'md:flex');
+                headerProfile.dataset.mode = 'user';
+            }
+        }
 
         function inferMediaProvider(url = '') {
             if (!url) return 'unknown';
@@ -2102,35 +2221,55 @@
             input.type = input.type === 'password' ? 'text' : 'password';
         };
 
+        function setUserSettingsLoading(isLoading) {
+            const loadingScreen = document.getElementById('userSettingsLoading');
+            const form = document.getElementById('userSettingsForm');
+            if (loadingScreen) loadingScreen.classList.toggle('hidden', !isLoading);
+            if (form) {
+                form.classList.toggle('pointer-events-none', isLoading);
+                form.classList.toggle('opacity-40', isLoading);
+            }
+        }
+
         // User Settings Functions
         window.openUserSettingsModal = async () => {
             if (!currentUser) return;
             window.closeAccountPanel();
-            const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-            if (userDoc.exists()) {
-                const data = userDoc.data();
-                document.getElementById('settingsUsername').value = data.username || '';
-                document.getElementById('settingsFirstName').value = data.firstName || '';
-                document.getElementById('settingsLastName').value = data.lastName || '';
-                document.getElementById('settingsEmail').value = data.email || '';
-                
-                // If phone exists and starts with +20, strip it for display in the input
-                let displayPhone = data.phone || '';
-                if (displayPhone.startsWith('+20')) {
-                    displayPhone = displayPhone.substring(3);
-                }
-                document.getElementById('settingsPhone').value = displayPhone;
+            const modal = document.getElementById('userSettingsModal');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            setUserSettingsLoading(true);
 
-                if (data.photoURL) {
-                    document.getElementById('settingsPhotoPreview').innerHTML = `<img src="${data.photoURL}" data-fallback-src="${resolveMediaFallbackUrl(data.photoMeta)}" onerror="handleMediaFallback(this)" class="w-full h-full object-cover">`;
-                } else {
-                    document.getElementById('settingsPhotoPreview').innerText = (data.name?.[0] || data.email?.[0] || currentUser.displayName?.[0] || '?').toUpperCase();
+            try {
+                const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+                if (userDoc.exists()) {
+                    const data = userDoc.data();
+                    document.getElementById('settingsUsername').value = data.username || '';
+                    document.getElementById('settingsFirstName').value = data.firstName || '';
+                    document.getElementById('settingsLastName').value = data.lastName || '';
+                    document.getElementById('settingsEmail').value = data.email || '';
+                    
+                    // If phone exists and starts with +20, strip it for display in the input
+                    let displayPhone = data.phone || '';
+                    if (displayPhone.startsWith('+20')) {
+                        displayPhone = displayPhone.substring(3);
+                    }
+                    document.getElementById('settingsPhone').value = displayPhone;
+
+                    if (data.photoURL) {
+                        document.getElementById('settingsPhotoPreview').innerHTML = `<img src="${data.photoURL}" data-fallback-src="${resolveMediaFallbackUrl(data.photoMeta)}" onerror="handleMediaFallback(this)" class="w-full h-full object-cover">`;
+                    } else {
+                        document.getElementById('settingsPhotoPreview').innerText = (data.name?.[0] || data.email?.[0] || currentUser.displayName?.[0] || '?').toUpperCase();
+                    }
                 }
+
+                document.getElementById('settingsAutoTheme').checked = localStorage.getItem('autoThemeEnabled') !== 'false';
+            } catch (error) {
+                console.error('Error opening user settings modal:', error);
+                modal.classList.add('opacity-0', 'pointer-events-none');
+                window.showToast('Failed to load account settings. Please try again.', 'error');
+            } finally {
+                setUserSettingsLoading(false);
             }
-            // Load auto theme setting
-            document.getElementById('settingsAutoTheme').checked = localStorage.getItem('autoThemeEnabled') !== 'false';
-            
-            document.getElementById('userSettingsModal').classList.remove('opacity-0', 'pointer-events-none');
         };
 
         function formatOrderHistoryDate(orderDate) {
@@ -2460,6 +2599,7 @@
         };
 
         window.closeUserSettingsModal = () => {
+            setUserSettingsLoading(false);
             document.getElementById('userSettingsModal').classList.add('opacity-0', 'pointer-events-none');
             document.getElementById('settingsMessage').className = 'hidden';
             document.getElementById('settingsNewPassword').value = '';
@@ -2773,14 +2913,16 @@
             const homeLink = `<a href="index.html" class="text-brandBlue dark:text-white border-b-2 border-brandGold px-1 py-1 text-sm font-bold" data-i18n="home">Home</a>`;
             
             if (user) {
-                // Initialize default USER DATA to prevent crash if doc fetch fails
-                 let userData = {
-                     name: user.email.split('@')[0],
-                     email: '',
-                     photoURL: null,
-                     role: 'customer',
-                     favorites: []
-                };
+                const cachedProfile = readCachedUserProfile(user.uid);
+                let userData = deriveUserData(user, cachedProfile);
+
+                applyAuthenticatedUserShell(userData, headerNav, homeLink, sidebarFooter);
+
+                const notifFloating = document.getElementById('notifFloatingBtn');
+                const notifDesktop = document.getElementById('notifDesktopBtn');
+                if (notifFloating) { notifFloating.classList.remove('hidden'); notifFloating.classList.add('flex'); }
+                if (notifDesktop) { notifDesktop.classList.remove('hidden'); notifDesktop.classList.add('hidden', 'md:flex'); }
+                startNotificationsListener(user.uid);
 
                 try {
                      const userDoc = await getDoc(doc(db, "users", user.uid));
@@ -2791,20 +2933,12 @@
                          userData.photoURL = d.photoURL;
                          userData.role = d.role || 'customer';
                          userData.favorites = d.favorites || [];
+                         writeCachedUserProfile(user.uid, userData);
+                         applyAuthenticatedUserShell(userData, headerNav, homeLink, sidebarFooter);
                      }
                 } catch(e) {
                     console.error("User doc fetch error", e);
                 }
-                
-                userFavorites = userData.favorites;
-                userRole = userData.role;
-
-                // Start notifications listener
-                const notifFloating = document.getElementById('notifFloatingBtn');
-                const notifDesktop = document.getElementById('notifDesktopBtn');
-                if (notifFloating) { notifFloating.classList.remove('hidden'); notifFloating.classList.add('flex'); }
-                if (notifDesktop) { notifDesktop.classList.remove('hidden'); notifDesktop.classList.add('hidden', 'md:flex'); }
-                startNotificationsListener(user.uid);
 
                 // Check if there's a pending checkout after login/signup
                 const urlAction = new URLSearchParams(window.location.search).get('action');
@@ -2820,70 +2954,6 @@
                         openCart();
                         window.showToast('Welcome back! Continue with your order.', 'success');
                     }, 800);
-                }
-
-                const displayRole = userRole === 'customer' ? 'CST. Retail' : 
-                                   (userRole === 'cst_wholesale' ? 'CST. Wholesale' : userRole);
-                currentUserProfileSnapshot = {
-                    name: userData.name,
-                    email: userData.email || '',
-                    photoURL: userData.photoURL || '',
-                    role: userRole,
-                    displayRole
-                };
-                renderAccountPanel();
-
-                // Show/hide wholesale cart button based on role
-                const wCartBtn = document.getElementById('wholesaleCartBtn');
-                if (wCartBtn) {
-                    if (userRole !== 'customer') {
-                        wCartBtn.classList.remove('hidden');
-                    } else {
-                        wCartBtn.classList.add('hidden');
-                    }
-                }
-
-                // Keep header nav focused on the storefront even for admins.
-                headerNav.innerHTML = homeLink;
-
-                // Update Footer
-                sidebarFooter.style.display = 'block';
-                sidebarFooter.innerHTML = `
-                    <div class="flex flex-col space-y-2">
-                        ${(userRole === 'admin' || userRole === 'moderator') ? `<a href="admin.html" class="block text-center bg-brandBlue text-white py-2.5 rounded-xl font-bold border border-brandGold hover:bg-opacity-90 text-xs shadow-xl shadow-brandBlue/20" data-i18n="admin_dashboard">Admin Dashboard</a>` : ''}
-                    </div>
-                `;
-                
-                // Replace header with profile card
-                const sidebarHeader = document.getElementById('sidebarHeader');
-                sidebarHeader.innerHTML = `
-                        <div class="flex items-center justify-between w-full">
-                            <div class="flex items-center space-x-3 flex-1">
-                                <div onclick="window.openUserSettingsModal()" class="w-10 h-10 rounded-full bg-brandGold flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-brandGold/20 overflow-hidden cursor-pointer hover:scale-105 transition-transform">
-                                    ${userData.photoURL ? `<img src="${userData.photoURL}" class="w-full h-full object-cover">` : userData.name[0].toUpperCase()}
-                                </div>
-                                <div class="overflow-hidden flex-1 cursor-pointer" onclick="window.openUserSettingsModal()">
-                                    <p class="text-sm font-bold dark:text-white truncate">${userData.name}</p>
-                                    <p class="text-[10px] text-brandGold uppercase font-black tracking-widest">${displayRole}</p>
-                                </div>
-                            </div>
-                            <button onclick="toggleSidebar()" class="text-gray-400 hover:text-brandBlue dark:hover:text-white text-xl font-bold ml-2">✕</button>
-                        </div>
-                `;
-
-                // Also populate header profile card
-                const headerProfile = document.getElementById('headerUserProfile');
-                if (headerProfile) {
-                    headerProfile.innerHTML = `
-                            <button onclick="window.toggleAccountPanel()" class="google-account-pill group" title="Account">
-                                <span class="google-account-avatar">
-                                    ${userData.photoURL ? `<img src="${userData.photoURL}" class="w-full h-full object-cover">` : userData.name[0].toUpperCase()}
-                                </span>
-                            </button>
-                    `;
-                    headerProfile.classList.remove('hidden', 'md:hidden');
-                    headerProfile.classList.add('flex', 'md:flex');
-                    headerProfile.dataset.mode = 'user';
                 }
 
             } else {
