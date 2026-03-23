@@ -1140,7 +1140,7 @@
     </div>
     <div id="notifOverlay" class="hidden fixed inset-0 z-[155]" onclick="window.closeNotifications()"></div>
 
-    <div id="accountPanel" class="hidden fixed top-20 right-4 md:right-8 z-[165] w-[calc(100vw-1.5rem)] max-w-sm rounded-[2rem] border border-brandGold/20 shadow-[0_30px_70px_rgba(5,10,23,0.52)] overflow-hidden">
+    <div id="accountPanel" class="hidden fixed top-20 right-4 md:right-8 z-[165] w-[calc(100vw-1.5rem)] max-w-sm rounded-[2rem] border border-brandGold/20 bg-white/95 dark:bg-[#171f36]/95 shadow-[0_30px_70px_rgba(5,10,23,0.22)] dark:shadow-[0_30px_70px_rgba(5,10,23,0.52)] backdrop-blur-xl overflow-hidden">
         <div id="accountPanelContent" class="max-h-[80vh] overflow-y-auto custom-scroll">
             <!-- Account panel content injected by JS -->
         </div>
@@ -2026,27 +2026,27 @@
                 ? `<a href="admin.html" onclick="window.closeAccountPanel()" class="mt-5 inline-flex items-center justify-center rounded-full border border-brandGold/35 bg-brandGold/10 px-6 py-3 text-sm font-black text-brandGold hover:bg-brandGold/16 hover:border-brandGold/55 transition-all">Admin Dashboard</a>`
                 : '';
             const wholesaleAction = profile.role !== 'customer'
-                ? `<button onclick="window.closeAccountPanel(); window.openOrderHistoryModal(false, 'wholesale')" class="w-full flex items-center justify-between rounded-[1.6rem] bg-white/[0.05] px-5 py-4 text-left transition-all hover:bg-white/[0.08] border border-white/10 hover:border-brandGold/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"><span><span class="block text-sm font-black text-white">Wholesale History</span><span class="block text-[10px] uppercase tracking-[0.24em] text-slate-400">Previous wholesale orders</span></span><span class="text-brandGold">→</span></button>`
+                ? `<button onclick="window.closeAccountPanel(); window.openOrderHistoryModal(false, 'wholesale')" class="w-full flex items-center justify-between rounded-[1.6rem] bg-slate-50 dark:bg-white/[0.05] px-5 py-4 text-left transition-all hover:bg-slate-100 dark:hover:bg-white/[0.08] border border-slate-200 dark:border-white/10 hover:border-brandGold/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"><span><span class="block text-sm font-black text-brandBlue dark:text-white">Wholesale History</span><span class="block text-[10px] uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">Previous wholesale orders</span></span><span class="text-brandGold">→</span></button>`
                 : '';
 
             content.innerHTML = `
-                <div class="px-6 pt-6 pb-5 border-b border-white/10 bg-gradient-to-b from-white/[0.04] to-transparent">
+                <div class="px-6 pt-6 pb-5 border-b border-slate-200 dark:border-white/10 bg-gradient-to-b from-slate-50 to-white dark:from-white/[0.04] dark:to-transparent">
                     <div class="flex items-center justify-between gap-3">
-                        <p class="text-sm font-semibold text-slate-300 truncate">${profile.email || ''}</p>
-                        <button onclick="window.closeAccountPanel()" class="w-10 h-10 rounded-full bg-white/10 text-slate-300 hover:text-white hover:bg-white/15 transition-colors flex items-center justify-center">✕</button>
+                        <p class="text-sm font-semibold text-slate-500 dark:text-slate-300 truncate">${profile.email || ''}</p>
+                        <button onclick="window.closeAccountPanel()" class="w-10 h-10 rounded-full bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-300 hover:text-brandBlue dark:hover:text-white hover:bg-slate-200 dark:hover:bg-white/15 transition-colors flex items-center justify-center">✕</button>
                     </div>
                     <div class="mt-6 flex flex-col items-center text-center">
                         ${buildAccountAvatarMarkup(profile)}
-                        <p class="mt-5 text-[2rem] leading-none font-medium text-white">Hi, ${firstName}!</p>
+                        <p class="mt-5 text-[2rem] leading-none font-medium text-brandBlue dark:text-white">Hi, ${firstName}!</p>
                         <p class="mt-2 text-xs uppercase tracking-[0.28em] text-brandGold font-black">${profile.displayRole || ''}</p>
                         ${adminAction}
                     </div>
                 </div>
-                <div class="p-5 space-y-3 bg-gradient-to-b from-white/[0.04] via-white/[0.02] to-black/10">
-                    <button onclick="window.closeAccountPanel(); window.openOrderHistoryModal(false, 'retail')" class="w-full flex items-center justify-between rounded-[1.6rem] bg-white/[0.05] px-5 py-4 text-left transition-all hover:bg-white/[0.08] border border-white/10 hover:border-brandGold/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"><span><span class="block text-sm font-black text-white">Retail History</span><span class="block text-[10px] uppercase tracking-[0.24em] text-slate-400">Your recent retail orders</span></span><span class="text-brandGold">→</span></button>
+                <div class="p-5 space-y-3 bg-gradient-to-b from-white via-slate-50/80 to-slate-100/70 dark:from-white/[0.04] dark:via-white/[0.02] dark:to-black/10">
+                    <button onclick="window.closeAccountPanel(); window.openOrderHistoryModal(false, 'retail')" class="w-full flex items-center justify-between rounded-[1.6rem] bg-slate-50 dark:bg-white/[0.05] px-5 py-4 text-left transition-all hover:bg-slate-100 dark:hover:bg-white/[0.08] border border-slate-200 dark:border-white/10 hover:border-brandGold/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"><span><span class="block text-sm font-black text-brandBlue dark:text-white">Retail History</span><span class="block text-[10px] uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">Your recent retail orders</span></span><span class="text-brandGold">→</span></button>
                     ${wholesaleAction}
-                    <button onclick="window.closeAccountPanel(); window.openUserSettingsModal()" class="w-full flex items-center justify-between rounded-[1.6rem] bg-white/[0.05] px-5 py-4 text-left transition-all hover:bg-white/[0.08] border border-white/10 hover:border-brandGold/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"><span><span class="block text-sm font-black text-white">Settings</span><span class="block text-[10px] uppercase tracking-[0.24em] text-slate-400">Profile, phone and password</span></span><span class="text-brandGold">→</span></button>
-                    <button onclick="window.closeAccountPanel(); window.logout()" class="w-full flex items-center justify-between rounded-[1.6rem] bg-white/[0.05] px-5 py-4 text-left transition-all hover:bg-red-500/10 border border-white/10 hover:border-red-400/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"><span><span class="block text-sm font-black text-red-400">Sign out</span><span class="block text-[10px] uppercase tracking-[0.24em] text-slate-400">End current session</span></span><span class="text-red-400">→</span></button>
+                    <button onclick="window.closeAccountPanel(); window.openUserSettingsModal()" class="w-full flex items-center justify-between rounded-[1.6rem] bg-slate-50 dark:bg-white/[0.05] px-5 py-4 text-left transition-all hover:bg-slate-100 dark:hover:bg-white/[0.08] border border-slate-200 dark:border-white/10 hover:border-brandGold/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"><span><span class="block text-sm font-black text-brandBlue dark:text-white">Settings</span><span class="block text-[10px] uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">Profile, phone and password</span></span><span class="text-brandGold">→</span></button>
+                    <button onclick="window.closeAccountPanel(); window.logout()" class="w-full flex items-center justify-between rounded-[1.6rem] bg-red-50 dark:bg-white/[0.05] px-5 py-4 text-left transition-all hover:bg-red-100 dark:hover:bg-red-500/10 border border-red-200 dark:border-white/10 hover:border-red-400/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"><span><span class="block text-sm font-black text-red-500 dark:text-red-400">Sign out</span><span class="block text-[10px] uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">End current session</span></span><span class="text-red-500 dark:text-red-400">→</span></button>
                 </div>
             `;
         }
