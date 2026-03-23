@@ -1,0 +1,107 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function currentUserPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function currentUserExists() {
+      return signedIn() && exists(currentUserPath());
+    }
+
+    function currentUserRole() {
+      return get(currentUserPath()).data.role;
+    }
+
+    function isAdmin() {
+      return currentUserExists() && currentUserRole() == 'admin';
+    }
+
+    function isAdminOrModerator() {
+      return currentUserExists() && currentUserRole() in ['admin', 'moderator'];
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    match /products/{docId} {
+      allow read: if true;
+      allow write: if isAdminOrModerator();
+    }
+
+    match /categories/{docId} {
+      allow read: if true;
+      allow write: if isAdminOrModerator();
+    }
+
+    match /settings/contact {
+      allow read: if true;
+      allow write: if isAdminOrModerator();
+    }
+
+    match /settings/orderCounter {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['lastWebsiteOrderNumber', 'updatedAt'])
+        && request.resource.data.lastWebsiteOrderNumber is int
+        && request.resource.data.lastWebsiteOrderNumber >= 1001;
+      allow update: if signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastWebsiteOrderNumber', 'updatedAt'])
+        && request.resource.data.lastWebsiteOrderNumber is int
+        && resource.data.lastWebsiteOrderNumber is int
+        && request.resource.data.lastWebsiteOrderNumber == resource.data.lastWebsiteOrderNumber + 1;
+      allow delete: if false;
+    }
+
+    match /settings/{docId} {
+      allow read: if isAdminOrModerator();
+      allow write: if isAdminOrModerator();
+    }
+
+    match /users/{uid} {
+      allow get: if isOwner(uid) || isAdminOrModerator();
+      allow list: if isAdminOrModerator();
+      allow create: if false;
+      allow delete: if false;
+      allow update: if isOwner(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['favorites'])
+        && request.resource.data.favorites is list;
+    }
+
+    match /orders/{docId} {
+      allow create: if signedIn()
+        && request.resource.data.customer.uid == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.orderType in ['retail', 'wholesale'];
+      allow read: if isAdminOrModerator()
+        || (signedIn() && resource.data.customer.uid == request.auth.uid);
+      allow update, delete: if isAdminOrModerator();
+    }
+
+    match /notifications/{docId} {
+      allow create: if isAdminOrModerator();
+      allow read: if isAdminOrModerator()
+        || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update: if isAdminOrModerator()
+        || (signedIn()
+          && resource.data.userId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+          && request.resource.data.read == true);
+      allow delete: if isAdminOrModerator();
+    }
+
+    match /user_directory/{docId} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

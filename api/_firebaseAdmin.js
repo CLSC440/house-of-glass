@@ -9,15 +9,25 @@ function parseServiceAccount(rawValue) {
         throw error;
     }
 
+    const normalizedValue = String(rawValue).trim();
+
     try {
-        const parsed = JSON.parse(rawValue);
+        const parsed = JSON.parse(normalizedValue);
+        if (typeof parsed === 'string') {
+            const decoded = JSON.parse(parsed);
+            if (decoded.private_key) {
+                decoded.private_key = decoded.private_key.replace(/\\n/g, '\n');
+            }
+            return decoded;
+        }
+
         if (parsed.private_key) {
             parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
         }
         return parsed;
     } catch (jsonError) {
         try {
-            const decoded = Buffer.from(rawValue, 'base64').toString('utf8');
+            const decoded = Buffer.from(normalizedValue, 'base64').toString('utf8');
             const parsed = JSON.parse(decoded);
             if (parsed.private_key) {
                 parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');

@@ -21,6 +21,7 @@ A premium, modern glassware gallery website designed for **Al Ashour Ades Showro
 ## 🛠️ Tech Stack
 - **Frontend:** HTML5, Tailwind CSS (CDN)
 - **Backend/Database:** Firebase Firestore (v10 Modular SDK)
+- **Secure Account API:** Vercel Serverless Functions + Firebase Admin SDK
 - **Icons:** FontAwesome
 - **Deployment:** GitHub & Netlify (Continuous Deployment)
 
@@ -55,6 +56,13 @@ Alternatively, you can serve it using Python:
 python -m http.server 8000
 ```
 Then visit `http://localhost:8000` in your browser.
+
+## Firestore Security
+- Firestore rules now live in `firestore.rules` and are wired through `firebase.json`.
+- Public reads remain enabled only for gallery content such as `products`, `categories`, and `settings/contact`.
+- Sensitive account lookups and profile mutations now go through `/api/user-account` so the `users` collection no longer needs to be public.
+- Deploy the rules with `firebase deploy --only firestore:rules` after authenticating the Firebase CLI against project `houseofglass-440`.
+- For local testing of login, signup, account settings, and user management, use a runtime that serves `/api/*` endpoints such as `vercel dev`; `python -m http.server` only serves the static files.
 
 ## Customization
 - To add more products, duplicate the "Gallery Item" blocks in `index.html`.

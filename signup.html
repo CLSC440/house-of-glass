@@ -239,8 +239,9 @@
     <script src="i18n.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup, deleteUser } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { checkAccountAvailability, upsertCurrentUserProfile } from "./account-api.js";
 
         // Firebase config here...
         const firebaseConfig = {
@@ -287,40 +288,33 @@
             err.classList.add('hidden');
 
             try {
-                // Check if username is unique
-                const usernameQuery = query(collection(db, "users"), where("username", "==", username));
-                const usernameSnap = await getDocs(usernameQuery);
-                if (!usernameSnap.empty) {
+                const availability = await checkAccountAvailability({ username, phone });
+                if (!availability.usernameAvailable) {
                     throw new Error("Username is already taken. Please choose another one.");
                 }
 
-                // Check if phone is unique (if provided)
-                if (phone) {
-                    const phoneQuery = query(collection(db, "users"), where("phone", "==", phone));
-                    const phoneSnap = await getDocs(phoneQuery);
-                    if (!phoneSnap.empty) {
-                        throw new Error("Phone number is already registered to another account.");
-                    }
+                if (phone && !availability.phoneAvailable) {
+                    throw new Error("Phone number is already registered to another account.");
                 }
 
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
                 
                 await updateProfile(user, { displayName: fullName });
-                
-                // Keep isAdmin false by default for customers
-                await setDoc(doc(db, "users", user.uid), {
-                    uid: user.uid,
-                    username: username,
-                    firstName: firstName,
-                    lastName: lastName,
-                    name: fullName,
-                    email: email,
-                    phone: phone,
-                    favorites: [],
-                    role: 'customer',
-                    createdAt: new Date()
-                });
+
+                try {
+                    await upsertCurrentUserProfile(user, {
+                        username,
+                        firstName,
+                        lastName,
+                        name: fullName,
+                        email,
+                        phone
+                    });
+                } catch (profileError) {
+                    await deleteUser(user).catch(() => {});
+                    throw profileError;
+                }
 
                 const redirectParam = new URLSearchParams(window.location.search).get('redirect');
                 window.location.href = redirectParam === 'checkout' ? 'index.html?action=checkout' : 'index.html';
@@ -343,35 +337,11 @@
                 const userDoc = await getDoc(userRef);
 
                 if (!userDoc.exists()) {
-                    // Generate unique username based on name
-                    const baseUsername = (user.displayName || user.email.split('@')[0])
-                        .toLowerCase().replace(/\s+/g, '').substring(0, 15);
-                    let finalUsername = baseUsername;
-                    let isUnique = false;
-                    let counter = 1;
-
-                    while (!isUnique) {
-                        const q = query(collection(db, "users"), where("username", "==", finalUsername));
-                        const snap = await getDocs(q);
-                        if (snap.empty) {
-                            isUnique = true;
-                        } else {
-                            finalUsername = baseUsername + Math.floor(Math.random() * 10000);
-                            counter++;
-                            if (counter > 5) finalUsername = baseUsername + Date.now().toString().slice(-4);
-                        }
-                    }
-
-                    await setDoc(userRef, {
-                        uid: user.uid,
-                        username: finalUsername,
+                    await upsertCurrentUserProfile(user, {
                         name: user.displayName || 'Google User',
                         email: user.email,
-                        phone: user.phoneNumber || '',
-                        favorites: [],
-                        role: 'customer',
-                        createdAt: new Date()
-                    });
+                        phone: user.phoneNumber || ''
+                    }, { autoGenerateUsername: true });
                 }
 
                 const redirectParam = new URLSearchParams(window.location.search).get('redirect');

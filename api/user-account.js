@@ -1,0 +1,462 @@
+const { admin, getDb, verifyRequestUser } = require('./_firebaseAdmin');
+
+const ALLOWED_ROLES = new Set(['customer', 'cst_wholesale', 'moderator', 'admin']);
+
+function setCorsHeaders(req, res) {
+    const origin = req.headers.origin || '*';
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+}
+
+function createError(status, message) {
+    const error = new Error(message);
+    error.status = status;
+    return error;
+}
+
+function normalizeString(value, maxLength = 200) {
+    return String(value || '').trim().slice(0, maxLength);
+}
+
+function normalizeEmail(value) {
+    return normalizeString(value, 254).toLowerCase();
+}
+
+function normalizeUsername(value) {
+    return normalizeString(value, 32).toLowerCase().replace(/\s+/g, '');
+}
+
+function normalizePhone(value) {
+    const trimmed = normalizeString(value, 32);
+    if (!trimmed) return '';
+
+    const digits = trimmed.replace(/\D/g, '');
+    if (/^01[0125]\d{8}$/.test(digits)) return `+20${digits.slice(1)}`;
+    if (/^1[0125]\d{8}$/.test(digits)) return `+20${digits}`;
+    if (/^20\d{10}$/.test(digits)) return `+${digits}`;
+    if (/^\+20\d{10}$/.test(trimmed)) return trimmed;
+    return trimmed;
+}
+
+function buildDisplayName({ firstName = '', lastName = '', name = '', email = '' }) {
+    const joined = [normalizeString(firstName, 60), normalizeString(lastName, 60)].filter(Boolean).join(' ').trim();
+    return joined || normalizeString(name, 120) || normalizeString(email, 120).split('@')[0] || 'User';
+}
+
+function sanitizeProfile(rawProfile = {}, tokenData = {}, currentProfile = {}) {
+    const firstName = normalizeString(rawProfile.firstName ?? currentProfile.firstName, 60);
+    const lastName = normalizeString(rawProfile.lastName ?? currentProfile.lastName, 60);
+    const name = buildDisplayName({
+        firstName,
+        lastName,
+        name: rawProfile.name ?? currentProfile.name,
+        email: tokenData.email || currentProfile.email || rawProfile.email
+    });
+    const username = normalizeUsername(rawProfile.username ?? currentProfile.username);
+    const phone = normalizePhone(rawProfile.phone ?? currentProfile.phone);
+    const photoURL = normalizeString(rawProfile.photoURL ?? currentProfile.photoURL, 2048);
+    const email = normalizeEmail(tokenData.email || rawProfile.email || currentProfile.email);
+
+    return {
+        uid: tokenData.uid || currentProfile.uid,
+        username,
+        usernameLowercase: username,
+        firstName,
+        lastName,
+        name,
+        email,
+        emailLowercase: email,
+        phone,
+        photoURL,
+        photoMeta: rawProfile.photoMeta && typeof rawProfile.photoMeta === 'object'
+            ? rawProfile.photoMeta
+            : (currentProfile.photoMeta || null),
+        favorites: Array.isArray(currentProfile.favorites) ? currentProfile.favorites : []
+    };
+}
+
+function makeDirectoryId(type, value) {
+    return `${type}:${value}`;
+}
+
+async function findUserByUsername(db, identifier) {
+    const normalized = normalizeUsername(identifier);
+    if (!normalized) return null;
+
+    let snapshot = await db.collection('users').where('usernameLowercase', '==', normalized).limit(1).get();
+    if (!snapshot.empty) {
+        return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+    }
+
+    snapshot = await db.collection('users').where('username', '==', normalizeString(identifier, 32)).limit(1).get();
+    if (!snapshot.empty) {
+        return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+    }
+
+    return null;
+}
+
+async function findUserByPhone(db, phone) {
+    const normalized = normalizePhone(phone);
+    if (!normalized) return null;
+
+    const snapshot = await db.collection('users').where('phone', '==', normalized).limit(1).get();
+    if (snapshot.empty) return null;
+    return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+}
+
+async function findUserByEmail(db, email) {
+    const normalized = normalizeEmail(email);
+    if (!normalized) return null;
+
+    let snapshot = await db.collection('users').where('emailLowercase', '==', normalized).limit(1).get();
+    if (!snapshot.empty) {
+        return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+    }
+
+    snapshot = await db.collection('users').where('email', '==', normalized).limit(1).get();
+    if (snapshot.empty) return null;
+    return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+}
+
+async function findExistingOwner(db, type, value) {
+    if (!value) return null;
+
+    const directorySnap = await db.collection('user_directory').doc(makeDirectoryId(type, value)).get();
+    if (directorySnap.exists) {
+        return directorySnap.data().uid || null;
+    }
+
+    if (type === 'username') {
+        const user = await findUserByUsername(db, value);
+        return user?.uid || user?.id || null;
+    }
+
+    if (type === 'phone') {
+        const user = await findUserByPhone(db, value);
+        return user?.uid || user?.id || null;
+    }
+
+    if (type === 'email') {
+        const user = await findUserByEmail(db, value);
+        return user?.uid || user?.id || null;
+    }
+
+    return null;
+}
+
+async function ensureValueAvailable(db, type, value, uid) {
+    if (!value) return;
+    const existingOwner = await findExistingOwner(db, type, value);
+    if (existingOwner && existingOwner !== uid) {
+        if (type === 'username') throw createError(409, 'Username is already taken. Please choose another one.');
+        if (type === 'phone') throw createError(409, 'Phone number is already registered to another account.');
+        if (type === 'email') throw createError(409, 'Email is already connected to another account.');
+    }
+}
+
+async function pickAvailableUsername(db, requestedUsername, seedName, seedEmail, uid) {
+    const baseSeed = normalizeUsername(requestedUsername)
+        || normalizeUsername(seedName)
+        || normalizeUsername(seedEmail.split('@')[0])
+        || `user${Date.now().toString().slice(-6)}`;
+    const base = baseSeed.slice(0, 20) || 'user';
+
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+        const candidate = attempt === 0
+            ? base
+            : `${base.slice(0, Math.max(4, 20 - String(attempt).length - 4))}${Math.floor(1000 + Math.random() * 9000)}`;
+
+        const owner = await findExistingOwner(db, 'username', candidate);
+        if (!owner || owner === uid) {
+            return candidate;
+        }
+    }
+
+    throw createError(409, 'Unable to generate a unique username right now. Please try again.');
+}
+
+async function claimDirectoryEntries(db, transaction, uid, nextProfile, currentProfile = {}) {
+    const entries = [
+        { type: 'username', nextValue: nextProfile.usernameLowercase, prevValue: normalizeUsername(currentProfile.usernameLowercase || currentProfile.username) },
+        { type: 'phone', nextValue: nextProfile.phone, prevValue: normalizePhone(currentProfile.phone) },
+        { type: 'email', nextValue: nextProfile.emailLowercase, prevValue: normalizeEmail(currentProfile.emailLowercase || currentProfile.email) }
+    ];
+
+    for (const entry of entries) {
+        if (entry.prevValue && entry.prevValue !== entry.nextValue) {
+            const oldRef = db.collection('user_directory').doc(makeDirectoryId(entry.type, entry.prevValue));
+            const oldSnap = await transaction.get(oldRef);
+            if (oldSnap.exists && oldSnap.data().uid === uid) {
+                transaction.delete(oldRef);
+            }
+        }
+    }
+
+    for (const entry of entries) {
+        if (!entry.nextValue) continue;
+        const ref = db.collection('user_directory').doc(makeDirectoryId(entry.type, entry.nextValue));
+        const snap = await transaction.get(ref);
+        if (snap.exists && snap.data().uid !== uid) {
+            if (entry.type === 'username') throw createError(409, 'Username is already taken. Please choose another one.');
+            if (entry.type === 'phone') throw createError(409, 'Phone number is already registered to another account.');
+            if (entry.type === 'email') throw createError(409, 'Email is already connected to another account.');
+        }
+
+        transaction.set(ref, {
+            uid,
+            type: entry.type,
+            value: entry.nextValue,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+    }
+}
+
+async function requireAdmin(db, callerUid) {
+    const callerSnap = await db.collection('users').doc(callerUid).get();
+    const role = callerSnap.exists ? callerSnap.data().role : '';
+    if (role !== 'admin') {
+        throw createError(403, 'Admin access is required for this action.');
+    }
+}
+
+async function handleResolveIdentifier(req, res, db) {
+    const identifier = normalizeString(req.body?.identifier, 120);
+    if (!identifier) {
+        throw createError(400, 'Identifier is required.');
+    }
+
+    if (identifier.includes('@')) {
+        return res.status(200).json({ success: true, email: normalizeEmail(identifier) });
+    }
+
+    const byPhone = await findUserByPhone(db, identifier);
+    if (byPhone?.email) {
+        return res.status(200).json({ success: true, email: byPhone.email });
+    }
+
+    const byUsername = await findUserByUsername(db, identifier);
+    if (byUsername?.email) {
+        return res.status(200).json({ success: true, email: byUsername.email });
+    }
+
+    return res.status(404).json({ success: false, error: 'No account matches this username or phone number.' });
+}
+
+async function handleCheckAvailability(req, res, db) {
+    const username = normalizeUsername(req.body?.username);
+    const phone = normalizePhone(req.body?.phone);
+    const usernameOwner = username ? await findExistingOwner(db, 'username', username) : null;
+    const phoneOwner = phone ? await findExistingOwner(db, 'phone', phone) : null;
+
+    return res.status(200).json({
+        success: true,
+        username,
+        phone,
+        usernameAvailable: !usernameOwner,
+        phoneAvailable: !phoneOwner
+    });
+}
+
+async function handleUpsertProfile(req, res, db) {
+    const tokenData = await verifyRequestUser(req);
+    const userRef = db.collection('users').doc(tokenData.uid);
+    const currentSnap = await userRef.get();
+    const currentProfile = currentSnap.exists ? currentSnap.data() : {};
+    const options = req.body?.options || {};
+    let nextProfile = sanitizeProfile(req.body?.profile || {}, tokenData, currentProfile);
+
+    if (options.autoGenerateUsername || !nextProfile.usernameLowercase) {
+        nextProfile.username = await pickAvailableUsername(db, nextProfile.username, nextProfile.name, nextProfile.email, tokenData.uid);
+        nextProfile.usernameLowercase = nextProfile.username;
+    }
+
+    if (!nextProfile.usernameLowercase) {
+        throw createError(400, 'Username is required.');
+    }
+
+    await ensureValueAvailable(db, 'username', nextProfile.usernameLowercase, tokenData.uid);
+    await ensureValueAvailable(db, 'phone', nextProfile.phone, tokenData.uid);
+    await ensureValueAvailable(db, 'email', nextProfile.emailLowercase, tokenData.uid);
+
+    const role = currentProfile.role || 'customer';
+
+    await db.runTransaction(async (transaction) => {
+        const liveSnap = await transaction.get(userRef);
+        const liveProfile = liveSnap.exists ? liveSnap.data() : {};
+        const liveRole = liveProfile.role || role || 'customer';
+
+        if (!ALLOWED_ROLES.has(liveRole)) {
+            throw createError(400, 'Invalid role on user profile.');
+        }
+
+        await claimDirectoryEntries(db, transaction, tokenData.uid, nextProfile, liveProfile);
+
+        transaction.set(userRef, {
+            uid: tokenData.uid,
+            username: nextProfile.usernameLowercase,
+            usernameLowercase: nextProfile.usernameLowercase,
+            firstName: nextProfile.firstName,
+            lastName: nextProfile.lastName,
+            name: nextProfile.name,
+            email: nextProfile.emailLowercase,
+            emailLowercase: nextProfile.emailLowercase,
+            phone: nextProfile.phone,
+            photoURL: nextProfile.photoURL || '',
+            photoMeta: nextProfile.photoMeta || admin.firestore.FieldValue.delete(),
+            favorites: Array.isArray(liveProfile.favorites) ? liveProfile.favorites : (Array.isArray(currentProfile.favorites) ? currentProfile.favorites : []),
+            role: liveRole,
+            createdAt: liveProfile.createdAt || currentProfile.createdAt || admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+    });
+
+    const savedSnap = await userRef.get();
+    return res.status(200).json({ success: true, profile: savedSnap.data() });
+}
+
+async function deleteDirectoryEntriesForUser(db, batch, uid, userData = {}) {
+    const entries = [
+        { type: 'username', value: normalizeUsername(userData.usernameLowercase || userData.username) },
+        { type: 'phone', value: normalizePhone(userData.phone) },
+        { type: 'email', value: normalizeEmail(userData.emailLowercase || userData.email) }
+    ].filter((entry) => entry.value);
+
+    for (const entry of entries) {
+        const ref = db.collection('user_directory').doc(makeDirectoryId(entry.type, entry.value));
+        const snap = await ref.get();
+        if (snap.exists && snap.data().uid === uid) {
+            batch.delete(ref);
+        }
+    }
+}
+
+async function handleDeleteOwnAccount(req, res, db) {
+    const tokenData = await verifyRequestUser(req);
+    const userRef = db.collection('users').doc(tokenData.uid);
+    const userSnap = await userRef.get();
+    const batch = db.batch();
+
+    if (userSnap.exists) {
+        await deleteDirectoryEntriesForUser(db, batch, tokenData.uid, userSnap.data());
+        batch.delete(userRef);
+    }
+
+    await batch.commit();
+    await admin.auth().deleteUser(tokenData.uid);
+    return res.status(200).json({ success: true });
+}
+
+async function handleAdminDeleteUser(req, res, db) {
+    const tokenData = await verifyRequestUser(req);
+    await requireAdmin(db, tokenData.uid);
+
+    const uid = normalizeString(req.body?.uid, 128);
+    if (!uid) {
+        throw createError(400, 'uid is required.');
+    }
+
+    const userRef = db.collection('users').doc(uid);
+    const userSnap = await userRef.get();
+    const batch = db.batch();
+
+    if (userSnap.exists) {
+        await deleteDirectoryEntriesForUser(db, batch, uid, userSnap.data());
+        batch.delete(userRef);
+    }
+
+    await batch.commit();
+
+    try {
+        await admin.auth().deleteUser(uid);
+    } catch (error) {
+        if (error.code !== 'auth/user-not-found') {
+            throw error;
+        }
+    }
+
+    return res.status(200).json({ success: true });
+}
+
+async function handleAdminUpdateUserRole(req, res, db) {
+    const tokenData = await verifyRequestUser(req);
+    await requireAdmin(db, tokenData.uid);
+
+    const uid = normalizeString(req.body?.uid, 128);
+    const role = normalizeString(req.body?.role, 32);
+
+    if (!uid) {
+        throw createError(400, 'uid is required.');
+    }
+
+    if (!ALLOWED_ROLES.has(role)) {
+        throw createError(400, 'Invalid role provided.');
+    }
+
+    await db.collection('users').doc(uid).set({
+        role,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    return res.status(200).json({ success: true, role });
+}
+
+module.exports = async (req, res) => {
+    setCorsHeaders(req, res);
+
+    if (req.method === 'OPTIONS') {
+        res.status(200).end();
+        return;
+    }
+
+    if (req.method !== 'POST') {
+        res.status(405).json({ success: false, error: 'Method Not Allowed' });
+        return;
+    }
+
+    const db = getDb();
+
+    try {
+        const action = normalizeString(req.body?.action, 64);
+
+        if (action === 'resolveIdentifier') {
+            await handleResolveIdentifier(req, res, db);
+            return;
+        }
+
+        if (action === 'checkAvailability') {
+            await handleCheckAvailability(req, res, db);
+            return;
+        }
+
+        if (action === 'upsertProfile') {
+            await handleUpsertProfile(req, res, db);
+            return;
+        }
+
+        if (action === 'deleteOwnAccount') {
+            await handleDeleteOwnAccount(req, res, db);
+            return;
+        }
+
+        if (action === 'adminDeleteUser') {
+            await handleAdminDeleteUser(req, res, db);
+            return;
+        }
+
+        if (action === 'adminUpdateUserRole') {
+            await handleAdminUpdateUserRole(req, res, db);
+            return;
+        }
+
+        throw createError(400, 'Unsupported action.');
+    } catch (error) {
+        res.status(error.status || 500).json({
+            success: false,
+            error: error.message || 'Unexpected server error'
+        });
+    }
+};

@@ -1152,7 +1152,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, getDocs, doc, onSnapshot, query, orderBy, getDoc, updateDoc, arrayUnion, arrayRemove, deleteDoc, addDoc, serverTimestamp, enableIndexedDbPersistence, where, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-        import { getAuth, onAuthStateChanged, signOut, updatePassword, deleteUser } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, signOut, updatePassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { deleteOwnAccount, upsertCurrentUserProfile } from "./account-api.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyA_oTePhmWmzuOcZDmc_-7bhoAVbYVhH3Q",
@@ -1233,9 +1234,38 @@
         let isAuthResolved = false;
         let areProductsLoaded = false;
         let isDeepLinkOpenScheduled = false;
+        let isSidebarCategoriesExpanded = true;
+        let isSidebarMugExpanded = true;
+        const MUG_FILTER_KEY = '__keyword_mug__';
 
         function normalizeProductCode(code) {
             return String(code || '').trim().toLowerCase();
+        }
+
+        function getActiveCategoryLabel(categoryKey) {
+            if (categoryKey === 'All') return 'All | الكل';
+            if (categoryKey === MUG_FILTER_KEY) return 'Mug';
+            return categoryKey;
+        }
+
+        function productMatchesMugFilter(product = {}) {
+            const textFields = [
+                product.name,
+                product.category,
+                product.code,
+                product.description,
+                product.nameAr,
+                product.title
+            ].filter(Boolean);
+
+            const hasDirectMatch = textFields.some((value) => String(value).toLowerCase().includes('mug'));
+            if (hasDirectMatch) return true;
+
+            if (!Array.isArray(product.variants)) return false;
+            return product.variants.some((variant) => {
+                const variantFields = [variant?.name, variant?.label, variant?.code, variant?.barcode].filter(Boolean);
+                return variantFields.some((value) => String(value).toLowerCase().includes('mug'));
+            });
         }
 
         function getRequestedProductCode() {
@@ -2522,7 +2552,7 @@
                     updates.photoMeta = photoMeta;
                 }
                 
-                await updateDoc(doc(db, "users", currentUser.uid), updates);
+                await upsertCurrentUserProfile(currentUser, updates);
 
                 if (pass) {
                     await updatePassword(currentUser, pass);
@@ -2941,9 +2971,7 @@
                 confirmText: "Delete Forever",
                 onConfirm: async () => {
                     try {
-                        const uid = currentUser.uid;
-                        await deleteDoc(doc(db, "users", uid));
-                        await deleteUser(currentUser);
+                        await deleteOwnAccount(currentUser);
                         window.location.reload();
                     } catch (error) {
                         console.error("Delete Error:", error);
@@ -3455,6 +3483,54 @@
             dropdown.classList.toggle('hidden');
         }
 
+        function syncSidebarCategoryAccordion() {
+            const content = document.getElementById('sidebarCategorySection');
+            const chevron = document.getElementById('sidebarCategoryChevron');
+            if (!content || !chevron) return;
+
+            content.style.overflow = 'hidden';
+            content.style.transition = 'max-height 280ms ease, opacity 200ms ease';
+
+            if (isSidebarCategoriesExpanded) {
+                content.style.maxHeight = `${content.scrollHeight}px`;
+                content.style.opacity = '1';
+                chevron.classList.add('rotate-180');
+            } else {
+                content.style.maxHeight = '0px';
+                content.style.opacity = '0';
+                chevron.classList.remove('rotate-180');
+            }
+        }
+
+        window.toggleSidebarCategorySection = function(forceValue) {
+            isSidebarCategoriesExpanded = typeof forceValue === 'boolean' ? forceValue : !isSidebarCategoriesExpanded;
+            syncSidebarCategoryAccordion();
+        }
+
+        function syncSidebarMugAccordion() {
+            const content = document.getElementById('sidebarMugSection');
+            const chevron = document.getElementById('sidebarMugChevron');
+            if (!content || !chevron) return;
+
+            content.style.overflow = 'hidden';
+            content.style.transition = 'max-height 280ms ease, opacity 200ms ease';
+
+            if (isSidebarMugExpanded) {
+                content.style.maxHeight = `${content.scrollHeight}px`;
+                content.style.opacity = '1';
+                chevron.classList.add('rotate-180');
+            } else {
+                content.style.maxHeight = '0px';
+                content.style.opacity = '0';
+                chevron.classList.remove('rotate-180');
+            }
+        }
+
+        window.toggleSidebarMugSection = function(forceValue) {
+            isSidebarMugExpanded = typeof forceValue === 'boolean' ? forceValue : !isSidebarMugExpanded;
+            syncSidebarMugAccordion();
+        }
+
         window.addEventListener('click', (e) => {
             const dropdown = document.getElementById('catDropdown');
             if (dropdown && !dropdown.classList.contains('hidden') && !e.target.closest('.group\\/cat')) {
@@ -3463,52 +3539,122 @@
         });
 
                 function renderCategories() {
-            document.getElementById('activeFilterDisplay').innerText = `Category: ${activeCategory}`;
+            document.getElementById('activeFilterDisplay').innerText = `Category: ${getActiveCategoryLabel(activeCategory)}`;
             const catList = document.getElementById('categoryList');
             const catDropdown = document.getElementById('catDropdown');
             catList.innerHTML = '';
             catDropdown.innerHTML = '';
 
+                    if (currentUser && categories.includes('My Favorites')) {
+                        const favoritesBtn = document.createElement('button');
+                        favoritesBtn.className = `w-[calc(100%-24px)] mx-3 mb-3 text-left px-5 py-4 text-sm font-bold transition-all flex items-center gap-3 rounded-2xl ${activeCategory === 'My Favorites' ? 'text-brandGold border border-brandGold/30 bg-brandGold/10 shadow-sm' : 'text-gray-600 dark:text-gray-400 border border-gray-200/70 dark:border-gray-700/80 hover:bg-gray-50 dark:hover:bg-gray-800'}`;
+                        favoritesBtn.innerHTML = `
+                            <svg class="w-5 h-5 fill-current shrink-0" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                            <span>My Favorites</span>
+                        `;
+                        favoritesBtn.onclick = () => { selectCategory('My Favorites'); window.toggleSidebar(); };
+                        catList.appendChild(favoritesBtn);
+                    }
+
+            const sidebarSection = document.createElement('div');
+            sidebarSection.className = 'px-3';
+            sidebarSection.innerHTML = `
+                <div class="rounded-[26px] border border-gray-200/80 dark:border-gray-700/80 bg-white/80 dark:bg-gray-900/50 backdrop-blur-sm shadow-sm overflow-hidden">
+                    <button type="button" onclick="window.toggleSidebarCategorySection()" class="w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50/80 dark:hover:bg-gray-800/80">
+                        <span class="flex items-center gap-3 min-w-0">
+                            <span class="w-10 h-10 rounded-2xl bg-brandGold/10 text-brandGold flex items-center justify-center shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h10" />
+                                </svg>
+                            </span>
+                            <span class="min-w-0">
+                                <span class="block text-[10px] font-black uppercase tracking-[0.3em] text-brandGold/80">Browse</span>
+                                <span class="block text-sm font-black text-brandBlue dark:text-white" data-i18n="categories">Categories</span>
+                            </span>
+                        </span>
+                        <svg id="sidebarCategoryChevron" class="w-5 h-5 text-brandGold transition-transform duration-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <div id="sidebarCategorySection" class="px-2 pb-2">
+                        <div id="sidebarCategoryButtons" class="space-y-1.5"></div>
+                    </div>
+                </div>
+            `;
+            catList.appendChild(sidebarSection);
+
+            const mugSection = document.createElement('div');
+            mugSection.className = 'px-3 mt-3';
+            mugSection.innerHTML = `
+                <div class="rounded-[26px] border border-gray-200/80 dark:border-gray-700/80 bg-white/80 dark:bg-gray-900/50 backdrop-blur-sm shadow-sm overflow-hidden">
+                    <button type="button" onclick="window.toggleSidebarMugSection()" class="w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50/80 dark:hover:bg-gray-800/80">
+                        <span class="flex items-center gap-3 min-w-0">
+                            <span class="w-10 h-10 rounded-2xl bg-brandGold/10 text-brandGold flex items-center justify-center shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 6h8m-9 4h10m-8 4h6M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z" />
+                                </svg>
+                            </span>
+                            <span class="min-w-0">
+                                <span class="block text-[10px] font-black uppercase tracking-[0.3em] text-brandGold/80">Keyword</span>
+                                <span class="block text-sm font-black text-brandBlue dark:text-white">Mug Filter</span>
+                            </span>
+                        </span>
+                        <svg id="sidebarMugChevron" class="w-5 h-5 text-brandGold transition-transform duration-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <div id="sidebarMugSection" class="px-2 pb-2">
+                        <div class="space-y-1.5">
+                            <button type="button" class="w-full text-left px-4 py-3.5 text-sm font-bold transition-all flex items-center gap-3 rounded-2xl ${activeCategory === MUG_FILTER_KEY ? 'text-brandGold border border-brandGold/30 bg-brandGold/10 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}" onclick="selectCategory('${MUG_FILTER_KEY}'); window.toggleSidebar();">
+                                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 6h8v8a4 4 0 11-8 0V6z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16 8h1a3 3 0 010 6h-1" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 18h8" />
+                                </svg>
+                                <span>Contains "mug"</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            catList.appendChild(mugSection);
+
+            const sidebarButtons = document.getElementById('sidebarCategoryButtons');
+
             categories.forEach(cat => {
+                if (cat === 'My Favorites') return;
+
                 // Sidebar
                 const btn = document.createElement('button');
-                btn.className = `w-full text-left px-6 py-3.5 text-sm font-bold transition-all flex items-center space-x-3 ${activeCategory === cat ? 'text-brandGold border-r-4 border-brandGold bg-brandGold/5' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`;
+                btn.className = `w-full text-left px-4 py-3.5 text-sm font-bold transition-all flex items-center space-x-3 rounded-2xl ${activeCategory === cat ? 'text-brandGold border border-brandGold/30 bg-brandGold/10 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`;
                 btn.innerHTML = `
-                    ${cat === 'My Favorites' ? '<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>' : ''}
-                    <span>${cat}</span>
+                    <span>${getActiveCategoryLabel(cat)}</span>
                 `;
                 btn.onclick = () => { selectCategory(cat); window.toggleSidebar(); };
-                catList.appendChild(btn);
+                sidebarButtons.appendChild(btn);
 
                 // Dropdown
                 const dropBtn = document.createElement('button');
                 dropBtn.className = `w-full text-left px-4 py-3 text-sm font-bold transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center ${activeCategory === cat ? 'text-brandGold bg-brandGold/5' : 'text-gray-600 dark:text-gray-400'}`;
-                dropBtn.innerText = cat;
+                dropBtn.innerText = getActiveCategoryLabel(cat);
                 dropBtn.onclick = () => { selectCategory(cat); document.getElementById('catDropdown').classList.add('hidden'); };
                 catDropdown.appendChild(dropBtn);
             });
 
-            // Add Sign Out to Sidebar List for Logged In Users
-            if (currentUser) {
-                const logoutBtn = document.createElement('button');
-                logoutBtn.className = "w-full text-left px-6 py-3.5 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex items-center space-x-3 border-t border-gray-100 dark:border-gray-800 mt-2";
-                logoutBtn.innerHTML = `
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                    <span data-i18n="logout">Sign Out</span>
-                `;
-                logoutBtn.onclick = () => {
-                    window.toggleSidebar();
-                    window.logout();
-                };
-                catList.appendChild(logoutBtn);
-            }
+            requestAnimationFrame(() => {
+                syncSidebarCategoryAccordion();
+                syncSidebarMugAccordion();
+                if (window.applyI18n) {
+                    window.applyI18n();
+                }
+            });
         }
 
                 window.selectCategory = (cat) => {
             activeCategory = cat;
             searchQuery = ''; // Clear search when selecting a category
             if(document.getElementById('searchInput')) document.getElementById('searchInput').value = '';
-            document.getElementById('activeFilterDisplay').innerText = `Category: ${cat}`;
+            document.getElementById('activeFilterDisplay').innerText = `Category: ${getActiveCategoryLabel(cat)}`;
 
             // Update the URL without reloading
             const url = new URL(window.location);
@@ -3589,7 +3735,7 @@
                 const backHeader = document.createElement('div');
                 backHeader.className = 'col-span-full flex items-center justify-between mb-8 pb-6 border-b border-gray-100 dark:border-gray-800/50 reveal';
                 
-                const titleText = searchQuery !== '' ? (localStorage.getItem('lang') === 'ar' ? 'نتائج البحث' : 'Search Results') : activeCategory;
+                    const titleText = searchQuery !== '' ? (localStorage.getItem('lang') === 'ar' ? 'نتائج البحث' : 'Search Results') : getActiveCategoryLabel(activeCategory);
                 
                 backHeader.innerHTML = `
                     <button onclick="selectCategory('All')" class="flex items-center gap-3 group/back text-brandBlue dark:text-brandGold hover:translate-x-[-4px] transition-transform">
@@ -3611,6 +3757,8 @@
                 let filtered = products;
                 if (activeCategory === 'My Favorites') {
                     filtered = products.filter(p => userFavorites.includes(p.id));
+                } else if (activeCategory === MUG_FILTER_KEY) {
+                    filtered = filtered.filter(productMatchesMugFilter);
                 } else if (activeCategory !== 'All') {
                     filtered = filtered.filter(p => p.category === activeCategory);
                 }

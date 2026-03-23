@@ -796,6 +796,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp, setDoc, getDoc, where, onSnapshot, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { adminDeleteUserAccount, adminUpdateUserRole } from "./account-api.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyA_oTePhmWmzuOcZDmc_-7bhoAVbYVhH3Q",
@@ -2237,6 +2238,7 @@
         window.renderUsers = function() {
             const list = document.getElementById('usersList');
             const searchQuery = document.getElementById('userSearchInput').value.toLowerCase();
+            const canManageUsers = userRole === 'admin';
             
             // Define role weights for sorting
             const roleWeights = { 'admin': 1, 'moderator': 2, 'cst_wholesale': 3, 'customer': 4 };
@@ -2296,7 +2298,7 @@
                         </span>
                     </td>
                     <td class="px-4 py-4 text-center">
-                        <select onchange="window.updateUserRole('${u.id}', this.value)" class="text-[10px] font-bold border dark:border-gray-600 rounded-lg p-2 outline-none bg-white dark:bg-gray-800 dark:text-white cursor-pointer hover:border-brandGold transition-all">
+                        <select onchange="window.updateUserRole('${u.id}', this.value)" ${canManageUsers ? '' : 'disabled'} class="text-[10px] font-bold border dark:border-gray-600 rounded-lg p-2 outline-none bg-white dark:bg-gray-800 dark:text-white cursor-pointer hover:border-brandGold transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                             <option value="customer" ${u.role === 'customer' ? 'selected' : ''}>CST. Retail</option>
                             <option value="cst_wholesale" ${u.role === 'cst_wholesale' ? 'selected' : ''}>CST. Wholesale</option>
                             <option value="moderator" ${u.role === 'moderator' ? 'selected' : ''}>Moderator</option>
@@ -2304,7 +2306,7 @@
                         </select>
                     </td>
                     <td class="px-4 py-4 text-right">
-                        <button onclick="window.deleteUserAdmin('${u.id}', '${u.name || u.email}')" class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-all" title="Delete User">
+                        <button onclick="window.deleteUserAdmin('${u.id}', '${u.name || u.email}')" ${canManageUsers ? '' : 'disabled'} class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed" title="Delete User">
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
@@ -2322,7 +2324,7 @@
                 confirmText: "Yes, Delete",
                 onConfirm: async () => {
                     try {
-                        await deleteDoc(doc(db, "users", uid));
+                        await adminDeleteUserAccount(currentUser, uid);
                         window.openUsersModal(); // Refresh list
                     } catch (error) {
                         showToast(`Error: ${error.message}`, 'error');
@@ -2338,8 +2340,12 @@
                 icon: "warning",
                 confirmText: "Confirm Change",
                 onConfirm: async () => {
-                    await updateDoc(doc(db, "users", uid), { role: newRole });
-                    window.openUsersModal();
+                    try {
+                        await adminUpdateUserRole(currentUser, uid, newRole);
+                        window.openUsersModal();
+                    } catch (error) {
+                        showToast(`Error: ${error.message}`, 'error');
+                    }
                 }
             });
         };
