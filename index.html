@@ -385,6 +385,7 @@
             gap: 1.5rem;
                 padding: 1rem 1.25rem;
             -webkit-overflow-scrolling: touch;
+                overscroll-behavior-x: contain;
             scrollbar-width: none;
                 mask-image: linear-gradient(to right, transparent, black 4%, black 96%, transparent);
                 -webkit-mask-image: linear-gradient(to right, transparent, black 4%, black 96%, transparent);
@@ -394,6 +395,7 @@
         }
         .category-card {
             flex: 0 0 240px;
+                scroll-snap-align: start;
         }
         @media (min-width: 768px) {
             .category-card {
@@ -3131,7 +3133,7 @@
             if (!force && dcPriceMapPromise) return dcPriceMapPromise;
 
             dcPriceMapPromise = (async () => {
-                const res = await fetch("https://glass-system-backend.onrender.com/public/products");
+                const res = await fetch('/api/dc/products');
                 if (!res.ok) throw new Error("Failed to connect to DC");
 
                 const data = await res.json();
@@ -3193,7 +3195,7 @@
             if (!force && dcStockMapPromise) return dcStockMapPromise;
 
             dcStockMapPromise = (async () => {
-                const res = await fetch("https://glass-system-backend.onrender.com/public/stock");
+                const res = await fetch('/api/dc/stock');
                 if (!res.ok) throw new Error("Failed to connect to stock endpoint");
 
                 const payload = await res.json();
@@ -3378,8 +3380,7 @@
         }
 
         async function fetchLivePricing() {
-            // Function to fetch prices from HG System (DC)
-            // Endpoint: https://glass-system-backend.onrender.com/public/products (GET)
+            // Function to fetch prices from HG System (DC) through the Vercel proxy.
             
             const priceTags = document.querySelectorAll('.dc-price[data-code]');
             if(priceTags.length === 0) return;
@@ -5926,6 +5927,11 @@
         // 📽️ Cinematic Auto-Scroll Controller
         let activeAutoScrolls = new Map();
 
+        function supportsRowAutoScroll() {
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+            return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+        }
+
         function initRowAutoScroll() {
             // Cancel current animations if any
             activeAutoScrolls.forEach((id) => cancelAnimationFrame(id));
@@ -5935,18 +5941,37 @@
             if (!rows.length) return;
 
             rows.forEach(row => {
+                const canAutoScroll = supportsRowAutoScroll();
                 let isPaused = false;
                 let scrollSpeed = 0.5; // Cinematic speed (pixels per frame)
                 const computedGap = parseFloat(window.getComputedStyle(row).gap) || 24; // Calculate gap once
+                let interactionTimer = null;
                 
                 const setPause = (val) => isPaused = val;
+                const markUserInteraction = (resumeDelay = 1600) => {
+                    setPause(true);
+                    row.dataset.manualScrolling = 'true';
+                    clearTimeout(interactionTimer);
+                    interactionTimer = setTimeout(() => {
+                        delete row.dataset.manualScrolling;
+                        if (canAutoScroll) setPause(false);
+                    }, resumeDelay);
+                };
                 
-                row.addEventListener('mouseenter', () => setPause(true));
-                row.addEventListener('mouseleave', () => setPause(false));
-                row.addEventListener('touchstart', () => setPause(true), {passive: true});
-                row.addEventListener('touchend', () => {
-                    setTimeout(() => setPause(false), 2000); // Resume after 2s of no touch
-                }, {passive: true});
+                row.addEventListener('mouseenter', () => {
+                    if (canAutoScroll) setPause(true);
+                });
+                row.addEventListener('mouseleave', () => {
+                    if (canAutoScroll) setPause(false);
+                });
+                row.addEventListener('touchstart', () => markUserInteraction(2200), {passive: true});
+                row.addEventListener('touchend', () => markUserInteraction(1800), {passive: true});
+                row.addEventListener('scroll', () => markUserInteraction(900), {passive: true});
+
+                if (!canAutoScroll) {
+                    setPause(true);
+                    return;
+                }
 
                 function step() {
                     // Check minimum items requirement
@@ -5959,6 +5984,13 @@
                     }
 
                     row.style.scrollBehavior = 'auto';
+
+                    const isManualScrolling = isPaused || row.dataset.manualScrolling;
+                    if (isManualScrolling) {
+                        const animId = requestAnimationFrame(step);
+                        activeAutoScrolls.set(row.id, animId);
+                        return;
+                    }
 
                     // --- Seamless Infinite Loop Logic (Recycling) ---
                     // Forward: recycle first item to end
@@ -5993,9 +6025,7 @@
                     }
 
                     // --- Auto-scroll increment (only when NOT paused) ---
-                    if (!isPaused && !row.dataset.manualScrolling) {
-                        row.scrollLeft += scrollSpeed;
-                    }
+                    row.scrollLeft += scrollSpeed;
                     const animId = requestAnimationFrame(step);
                     activeAutoScrolls.set(row.id, animId);
                 }

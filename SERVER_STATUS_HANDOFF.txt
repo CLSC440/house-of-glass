@@ -1,0 +1,181 @@
+SERVER STATUS HANDOFF FOR INFRA / BACKEND DEVELOPER
+
+Purpose
+This file explains exactly what is needed from the server developer so that the two status pages on the website work correctly on Vercel production.
+
+Production Website
+https://www.hg-alshour.online
+
+Current Status
+1. Main website is deployed successfully on Vercel.
+2. DC products proxy is working.
+3. DC stock proxy is working.
+4. Cloud server status endpoint is currently failing.
+5. Local server status endpoint is currently failing.
+
+Affected Website Pages
+1. /server-status.html
+   This page reads from:
+   /api/local-server-status
+
+2. /cloud-server-status.html
+   This page reads from:
+   /api/server-status
+
+===============================================================
+1. WHAT WE NEED FOR CLOUD SERVER STATUS
+===============================================================
+
+The Vercel endpoint:
+/api/server-status
+
+currently needs a valid production database connection.
+
+Required Vercel Environment Variables
+1. SERVER_STATUS_DATABASE_URL
+   or
+2. DATABASE_URL
+
+Optional / Recommended
+3. SERVER_STATUS_DATABASE_SSL=true
+   Use this when the database server requires SSL.
+
+What the endpoint does
+It connects to PostgreSQL and runs:
+SELECT * FROM public.server_metrics ORDER BY id DESC LIMIT 1;
+
+So the backend developer needs to confirm:
+1. The correct production PostgreSQL connection string.
+2. Whether SSL is required.
+3. That the table exists:
+   public.server_metrics
+4. That the latest row contains the fields expected by the page.
+
+Preferred data shape for cloud status page
+The page currently expects fields like:
+1. timestamp
+2. cpu_load
+3. ram_used_mb
+4. ram_total_mb
+5. disk_used_gb
+6. disk_total_gb
+7. extended_metrics (optional but supported)
+
+If extended metrics are available, useful fields are:
+1. extended_metrics.network
+2. extended_metrics.top_cpu
+3. extended_metrics.top_ram
+4. extended_metrics.sync_info
+5. extended_metrics.recent_activity
+
+What we need from him
+1. Send us the correct production PostgreSQL connection string.
+2. Tell us whether SSL must be enabled.
+3. Confirm the schema/column names in server_metrics.
+4. If needed, adjust the DB row shape so it matches the UI fields above.
+
+===============================================================
+2. WHAT WE NEED FOR LOCAL SERVER STATUS
+===============================================================
+
+The Vercel endpoint:
+/api/local-server-status
+
+does NOT read local machine data itself.
+It works as a proxy and needs a reachable upstream URL.
+
+Required Vercel Environment Variable
+1. LOCAL_SERVER_STATUS_URL
+
+Important
+This must be a URL reachable by Vercel from the public internet or from a valid exposed endpoint.
+
+It CANNOT be:
+1. localhost
+2. 127.0.0.1 on the developer machine
+3. a LAN-only IP that Vercel cannot access
+
+Examples of acceptable upstreams
+1. A real public HTTPS endpoint
+2. A protected public tunnel endpoint
+3. A publicly accessible API hosted on a server/VPS
+
+Current local API in the repo
+There is already a local Flask API implementation in:
+local_server_api.py
+
+Its route is:
+/api/local-server-status
+
+Expected response shape
+The local status page works best when the upstream returns JSON like:
+
+{
+  "status": "Operational",
+  "timestamp": "2026-03-25T12:34:56Z",
+  "cpu": 25.4,
+  "ram": {
+    "used": "4.2GB",
+    "total": "16GB",
+    "percent": 26.3
+  },
+  "disk": {
+    "used": "120GB",
+    "total": "500GB",
+    "percent": 24.0
+  },
+  "uptime_seconds": 123456
+}
+
+Notes
+1. uptime_seconds is preferred because the page can animate uptime live.
+2. uptime as plain text also works as fallback.
+3. Response must be JSON.
+4. Response should return HTTP 200 when healthy.
+
+What we need from him
+1. Host or expose the local metrics API at a URL Vercel can reach.
+2. Give us the final public URL.
+3. Ensure it returns JSON in the expected format.
+4. If authentication is needed, coordinate before enabling it because the current Vercel proxy calls it as a simple GET request.
+
+===============================================================
+3. MINIMUM ACTION ITEMS FOR THE SERVER DEVELOPER
+===============================================================
+
+Please send back these exact items:
+
+For cloud status:
+1. Production PostgreSQL connection string.
+2. SSL requirement: yes or no.
+3. Confirmation that public.server_metrics exists.
+4. Example JSON payload or field list from the latest metrics row.
+
+For local status:
+1. Public URL for the local metrics endpoint.
+2. Example JSON response.
+3. Confirmation that Vercel can reach it from the internet.
+
+===============================================================
+4. WHAT WE WILL DO AFTER HE SENDS THEM
+===============================================================
+
+Once we receive the values, we will:
+1. Add SERVER_STATUS_DATABASE_URL or DATABASE_URL to Vercel.
+2. Add SERVER_STATUS_DATABASE_SSL if needed.
+3. Add LOCAL_SERVER_STATUS_URL to Vercel.
+4. Redeploy on Vercel.
+5. Re-test:
+   /api/server-status
+   /api/local-server-status
+   /cloud-server-status.html
+   /server-status.html
+
+===============================================================
+5. CURRENT BLOCKER SUMMARY
+===============================================================
+
+Cloud status is blocked by missing DB connection configuration.
+Local status is blocked by missing reachable upstream URL.
+
+The website deployment itself is already successful.

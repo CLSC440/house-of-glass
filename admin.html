@@ -2698,7 +2698,7 @@
             if (!force && adminPriceMapPromise) return adminPriceMapPromise;
 
             adminPriceMapPromise = (async () => {
-                const res = await fetch("https://glass-system-backend.onrender.com/public/products");
+                const res = await fetch('/api/dc/products');
                 if (!res.ok) throw new Error("Failed to connect to DC");
 
                 const data = await res.json();

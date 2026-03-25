@@ -306,8 +306,9 @@
         async function fetchServerStatus() {
             try {
                 const response = await fetch('/api/server-status');
-                if (!response.ok) throw new Error('Network response was not ok');
-                const data = await response.json();
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(payload.error || 'Network response was not ok');
+                const data = payload;
                 
                 renderData(data);
                 
@@ -339,7 +340,7 @@
             text.className = "font-bold text-green-800 dark:text-green-400 text-lg";
 
             // Timestamp
-            const timestamp = new Date(data.timestamp).toLocaleString();
+            const timestamp = data.timestamp ? new Date(data.timestamp).toLocaleString() : new Date().toLocaleString();
             document.getElementById('lastUpdatedText').innerText = "Last Updated: " + timestamp;
 
             // CPU

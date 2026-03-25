@@ -1,259 +1,120 @@
 # HG System Integration Guide
 
-This document outlines the technical architecture and integration points between the Gallery Website and the HG System.
+This project now follows a Vercel-first runtime model.
 
 ## Architecture Overview
 
-The system relies on a **Centralized Database (Firebase Firestore)** and a **Cloud Application Media Storage (Cloudinary)** to synchronize data between the Frontend (Website) and the Backend (HG System).
-
 ```mermaid
 graph TD
-    A[Gallery Website] -->|Writes Products| B[(Firebase Firestore)]
-    A -->|Uploads Images| C[Cloudinary]
-    C -->|Returns URL| A
-    A -->|Saves URL| B
-    
-    D[HG System] -->|Reads Product Data| B
-    D -->|Reads Image URLs| B
-    D -->|Displays Images| C
-    
-    A -->|Creates Orders| B
-    B -->|Syncs Orders| D
+    A[Gallery Website on Vercel] -->|Reads/Writes| B[(Firebase Firestore)]
+    A -->|Uploads media| C[ImageKit]
+    D[HG System / DC] -->|Prices and stock| A
+    A -->|Invoice push| D
+    D -->|Reads media by product code| A
 ```
 
-## 1. Image Handling (Critical)
-The Website (both Admin Dashboard and Quick Edit) has been updated to upload all images directly to **Cloudinary**.
-- **Old Method:** Images were stored as Base64 strings (causing database bloat and access issues).
-- **New Method:** Images are uploaded to Cloudinary, and only the **public URL** (e.g., `https://res.cloudinary.com/...`) is stored in Firestore.
+## 1. Runtime Boundaries
+- Static pages are served by Vercel.
+- Server-side endpoints live in the `api/` directory as Vercel Serverless Functions.
+- Firebase remains the shared application database.
+- ImageKit is the active media provider.
+- DC APIs are external and remain critical for prices, stock, and invoice submission.
 
-**Constraint For HG System:** 
-The HG System **must** be able to display images from remote URLs. It should simply render the URL string found in the database.
+## 2. DC System Endpoints
 
-## 2. Data Synchronization (Firebase)
+### A. Prices and Stock
+The gallery expects the DC system to expose pricing and stock by product code.
 
-The HG System needs to connect to the same Firebase Project using the **Firebase Admin SDK**.
+The frontend now reads those feeds through Vercel proxy routes instead of calling the DC host directly from the browser.
 
-### Product Schema (`products` collection)
-The HG System should read from this collection.
+Suggested request:
 ```json
 {
-  "id": "auto-generated-id",
-  "name": "Product Name",
-  "category": "Category Name",
-  "desc": "Description...",
-  "code": "ITEM-CODE-123",
-  "inStock": true,
-  "images": [
-    "https://res.cloudinary.com/dbr22ce0m/image/upload/v123456/img1.jpg",
-    "https://res.cloudinary.com/dbr22ce0m/image/upload/v123456/img2.jpg"
-  ],
-  "variants": [
-    {
-      "name": "Red",
-      "inStock": true,
-      "images": ["https://res.cloudinary.com/..."]
-    }
-  ],
-  "updatedAt": "Timestamp"
+  "codes": ["CUP-101", "PLATE-505", "VASE-99"]
 }
 ```
 
-### Order Schema (`orders` collection - *Future Implementation*)
-When a customer checks out on the website, an order document will be created here.
-The HG System should listen to this collection for new orders.
+Suggested response:
+```json
+{
+  "CUP-101": { "price": 1500, "stock": 5 },
+  "PLATE-505": { "price": 400, "stock": 20 },
+  "VASE-99": { "price": 0, "stock": 0 }
+}
+```
 
-## 3. Preparation Checklist
+### B. Invoice Submission
+Invoice handoff from the gallery to the DC system is handled through:
 
-- [x] **Website:** Cloudinary integration completed for Admin Dashboard.
-- [x] **Website:** Cloudinary integration completed for Quick Edit (Index).
-- [ ] **HG System:** Install Firebase Admin SDK.
-- [ ] **HG System:** authenticate with `serviceAccountKey.json` (Needs to be generated from Firebase Console).
-- [ ] **HG System:** Implement logic to fetch `products` and map `images[0]` to the item's display image.
+- `api/integrations/online-invoices.js`
 
-## 4. Credentials
-*(Securely share these with the HG System Developer)*
+This endpoint depends on these Vercel environment variables:
+- `DC_ONLINE_INVOICE_URL`
+- `DC_ONLINE_INVOICE_API_KEY`
 
-**Cloudinary:**
-- Cloud Name: `dbr22ce0m`
-- Preset: `house_of_glass`
+Do not hardcode DC credentials in frontend files or serverless code.
 
-**Firebase:**
-- Use the existing Firebase configuration found in `firebase.json` or project settings.
+## 3. Gallery as Media Provider
+The HG system can fetch product media from the Vercel API by product code.
 
----
-**Note:** This architecture allows the HG System to "see" the images effectively because they are now standard Web URLs, accessible from anywhere with internet access.
+Endpoint:
+```http
+GET https://your-vercel-domain/api/media?code=PRODUCT-CODE
+```
 
-## 5. System-to-System Integration (Advanced)
-
-We have implemented a dual-provider architecture based on your request.
-
-### A. Gallery as Media Provider
-We have created a Vercel Serverless Function to allow the HG System to fetch images by Product Code.
-
-**Endpoint:** `GET https://house-of-glass-phi.vercel.app/api/media?code=PRODUCT-CODE`
-**Response:**
+Example response:
 ```json
 {
   "code": "CUP-101",
   "name": "Luxury Cup",
-  "images": ["https://res.cloudinary.com/...", "https://res.cloudinary.com/..."]
+  "images": ["https://ik.imagekit.io/..."],
+  "variants": []
 }
 ```
 
-**Deployment Requirement (Critical):**
-To make this work on Vercel, you must set the following **Environment Variable** in your Vercel Project Settings:
-- Key: `FIREBASE_SERVICE_ACCOUNT`
-- Value: *The full content of your firebase-admin-service-account.json file as a string.*
+Required Vercel environment variable:
+- `FIREBASE_SERVICE_ACCOUNT`
 
-### B. DC as Price Provider
-The Gallery Website is now configured to fetch live prices from the Data Center (DC).
+## 4. Product Identity Rules
+- Product `code` must stay mandatory.
+- Product `code` must stay unique.
+- DC and gallery must use the exact same code values.
 
-1.  **Frontend Logic:** A function `fetchLivePricing()` runs automatically after loading products.
-2.  **Visuals:** Product cards now reference `data-code="CODE"` and show a price tag placeholder.
-3.  **Connection:** Currently, it is in **Simulation Mode**. To connect it to the real DC:
-    *   Open `index.html`.
-    *   Find the `fetchLivePricing` function.
-    *   Update `const DC_API_URL = null;` to your real endpoint (e.g., `https://your-dc-system.com/api/prices`).
+This code is the primary link between prices, stock, images, and invoices.
 
-### C. Unique Product Code
-We have updated the Admin Dashboard (`admin.html`) to enforce:
-*   **Mandatory** Product Code field.
-*   **Unique** check (prevents duplicate codes).
+## 5. Media Notes
+- Active uploads go to ImageKit.
+- Legacy product records may still contain Cloudinary URLs and should be treated as backward-compatible media.
+- External systems should be ready to display any valid remote HTTPS image URL returned by the gallery.
 
-This ensures the `code` acts as a reliable Primary Key between both systems.
+## 6. Vercel Deployment Requirements
+Set these variables in Vercel project settings before production deployment:
+- `FIREBASE_SERVICE_ACCOUNT`
+- `IMAGEKIT_PRIVATE_KEY`
+- `IMAGEKIT_PUBLIC_KEY`
+- `IMAGEKIT_URL_ENDPOINT`
+- `DC_ONLINE_INVOICE_URL`
+- `DC_ONLINE_INVOICE_API_KEY`
+- `DC_PUBLIC_PRODUCTS_URL`
+- `DC_PUBLIC_STOCK_URL`
+- `SERVER_STATUS_DATABASE_URL` or `DATABASE_URL`
+- `SERVER_STATUS_DATABASE_SSL`
+- `LOCAL_SERVER_STATUS_URL`
 
-## 6. n8n Integration With Local WhatsApp API
+## 7. n8n Integration With Local WhatsApp API
 
 You now have a working self-hosted WhatsApp API behind this public base URL:
 
 - `https://whapp.hg-alshour.online`
 
 ### A. Recommended Workflow Shape
-
-Build the n8n workflow in this order:
-
 1. `Schedule Trigger`
 2. `Google Firebase Cloud Firestore`
 3. `Code` (JavaScript)
 4. `HTTP Request`
 
-### B. Firestore Node Setup
+### B. Send Text Message
+- `POST https://whapp.hg-alshour.online/api/sendText`
 
-Use the Firestore node with these settings:
-
-- **Resource:** `Document`
-- **Operation:** `Get Many`
-- **Collection:** `products`
-
-This returns the product list from Firebase.
-
-### C. Code Node To Pick A Product
-
-Set the `Code` node language to `JavaScript`, then use:
-
-```javascript
-const products = $input.all();
-
-if (!products.length) {
-  throw new Error('No products found in Firestore');
-}
-
-const randomItem = products[Math.floor(Math.random() * products.length)];
-const product = randomItem.json;
-
-const productName = product.name || 'Unnamed Product';
-const productCode = product.code || 'N/A';
-const imageUrl = Array.isArray(product.images) && product.images.length
-  ? product.images[0]
-  : '';
-
-const message = [
-  '✨ منتج جديد من House Of Glass',
-  '',
-  `الاسم: ${productName}`,
-  `الكود: ${productCode}`,
-  product.category ? `القسم: ${product.category}` : null,
-  product.desc ? `الوصف: ${product.desc}` : null,
-].filter(Boolean).join('\n');
-
-return [{
-  json: {
-    productName,
-    productCode,
-    imageUrl,
-    message
-  }
-}];
-```
-
-### D. Send Text Message From n8n
-
-If you want to send text only, add an `HTTP Request` node after the `Code` node:
-
-- **Method:** `POST`
-- **URL:** `https://whapp.hg-alshour.online/api/sendText`
-- **Send Body:** `JSON`
-
-JSON body:
-
-```json
-{
-  "chatId": "201551757258@c.us",
-  "text": "={{ $json.message }}"
-}
-```
-
-### E. Send Image + Caption From n8n
-
-If you want the product image with the message, use:
-
-- **Method:** `POST`
-- **URL:** `https://whapp.hg-alshour.online/api/sendImage`
-- **Send Body:** `JSON`
-
-JSON body:
-
-```json
-{
-  "chatId": "201551757258@c.us",
-  "file": "={{ $json.imageUrl }}",
-  "caption": "={{ $json.message }}"
-}
-```
-
-### F. Chat ID Format
-
-For Egyptian personal numbers, convert the phone number like this:
-
-- Original number: `01551757258`
-- WhatsApp chat ID: `201551757258@c.us`
-
-Rule:
-
-- remove the leading `0`
-- add country code `20`
-- append `@c.us`
-
-### G. Recommended Logic In Production
-
-For a stronger workflow, add these protections later:
-
-1. Filter out products with no image before `sendImage`.
-2. Store the last posted product code in a Data Store or Sheet to avoid repeats.
-3. Add an `IF` node:
-   - if `imageUrl` exists -> call `/api/sendImage`
-   - else -> call `/api/sendText`
-4. Add retry/error handling if WhatsApp is temporarily disconnected.
-
-### H. Quick End-to-End Test
-
-To verify the full n8n path:
-
-1. Run Firestore node and confirm products are returned.
-2. Run Code node and confirm it returns `message` and optionally `imageUrl`.
-3. Run HTTP Request node.
-4. Confirm the WhatsApp number receives the message.
-
-Once this works, your full automation path becomes:
-
-`Firebase products -> n8n -> local WhatsApp API -> WhatsApp delivery`
+### C. Send Image + Caption
+- `POST https://whapp.hg-alshour.online/api/sendImage`

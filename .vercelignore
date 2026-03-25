@@ -1,4 +1,5 @@
 .firebase/
+.venv/
 .venv-1/
 .vscode/
 .vercel/

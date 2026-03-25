@@ -1,35 +1,5 @@
 {
   "firestore": {
     "rules": "firestore.rules"
-  },
-  "hosting": {
-    "public": ".",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**",
-      ".firebase/**",
-      ".venv-1/**",
-      ".vercel/**",
-      ".vscode/**",
-      "api/**",
-      "*.py",
-      "requirements.txt",
-      "package.json",
-      "package-lock.json",
-      "README.md",
-      "INTEGRATION_GUIDE.md",
-      "دليل_المطور_لربط_السيستم.md",
-      "**/*.exe",
-      "**/*.bat",
-      "**/*.ps1",
-      "**/*.pyd"
-    ],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
-    ]
   }
 }
