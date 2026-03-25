@@ -1241,6 +1241,8 @@
         let categories = ['All'];
         let activeCategory = new URLSearchParams(window.location.search).get('category') || 'All';
         let searchQuery = '';
+        const INITIAL_CATEGORY_ROWS = 3;
+        let visibleCategoryRows = INITIAL_CATEGORY_ROWS;
         let whatsappNumber = '201026600350';
         let sitePhones = [];
         let globalPriceIncrease = 0;
@@ -1261,6 +1263,10 @@
             if (categoryKey === 'All') return 'All | الكل';
             if (categoryKey === MUG_FILTER_KEY) return 'Mug';
             return categoryKey;
+        }
+
+        function resetVisibleCategoryRows() {
+            visibleCategoryRows = INITIAL_CATEGORY_ROWS;
         }
 
         function productMatchesMugFilter(product = {}) {
@@ -3725,9 +3731,15 @@
             });
         }
 
+        window.showMoreCategoryRows = () => {
+            visibleCategoryRows = Number.MAX_SAFE_INTEGER;
+            renderProducts();
+        };
+
                 window.selectCategory = (cat) => {
             activeCategory = cat;
             searchQuery = ''; // Clear search when selecting a category
+            if (cat === 'All') resetVisibleCategoryRows();
             if(document.getElementById('searchInput')) document.getElementById('searchInput').value = '';
             document.getElementById('activeFilterDisplay').innerText = `Category: ${getActiveCategoryLabel(cat)}`;
 
@@ -3863,10 +3875,17 @@
                 grid.className = "flex flex-col space-y-12 md:space-y-20";
                 
                 const actualCategories = categories.filter(c => c !== 'All' && c !== 'My Favorites');
+                const categoriesWithProducts = actualCategories
+                    .map((catName) => ({
+                        catName,
+                        catProducts: products.filter((p) => p.category === catName)
+                    }))
+                    .filter(({ catProducts }) => catProducts.length > 0);
+
+                const totalVisibleRows = Math.min(visibleCategoryRows, categoriesWithProducts.length);
+                const visibleRows = categoriesWithProducts.slice(0, totalVisibleRows);
                 
-                actualCategories.forEach((catName, catIdx) => {
-                    const catProducts = products.filter(p => p.category === catName);
-                    if (catProducts.length === 0) return;
+                visibleRows.forEach(({ catName, catProducts }, catIdx) => {
 
                     const rowWrapper = document.createElement('div');
                     rowWrapper.className = 'category-row-wrapper reveal';
@@ -3931,6 +3950,19 @@
                     
                     grid.appendChild(rowWrapper);
                 });
+
+                if (categoriesWithProducts.length > totalVisibleRows) {
+                    const remainingRows = categoriesWithProducts.length - totalVisibleRows;
+                    const showMoreWrapper = document.createElement('div');
+                    showMoreWrapper.className = 'flex justify-center reveal';
+                    showMoreWrapper.innerHTML = `
+                        <button type="button" onclick="showMoreCategoryRows()" class="inline-flex items-center gap-3 px-6 py-3 rounded-full border border-brandGold/30 bg-white dark:bg-darkCard text-brandBlue dark:text-brandGold font-black uppercase tracking-[0.2em] text-xs md:text-sm shadow-sm hover:border-brandGold hover:bg-brandGold hover:text-white transition-all">
+                            <span>Show More</span>
+                            <span class="text-[10px] md:text-xs opacity-70">${remainingRows} more rows</span>
+                        </button>
+                    `;
+                    grid.appendChild(showMoreWrapper);
+                }
 
                 // Initialize cinematic auto-scroll for the new rows
                 setTimeout(initRowAutoScroll, 500); 
@@ -4174,6 +4206,7 @@
 
         searchInput.oninput = (e) => {
             searchQuery = e.target.value;
+            if (searchQuery === '') resetVisibleCategoryRows();
             renderProducts();
         };
 
