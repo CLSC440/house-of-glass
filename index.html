@@ -4103,7 +4103,6 @@
 
             if (totalRows <= renderedRows) return;
 
-            const remainingRows = totalRows - renderedRows;
             const showMoreWrapper = document.createElement('div');
             showMoreWrapper.id = 'showMoreRowsWrapper';
             showMoreWrapper.className = 'flex justify-center px-4 md:px-0 reveal';
@@ -4116,7 +4115,6 @@
                         <span class="text-[1.05rem] md:text-xl font-black text-brandGold tracking-tight font-arabic leading-tight">${selectedShowMoreArabicLine}</span>
                         <span class="mt-1 text-[9px] md:text-xs font-black uppercase tracking-[0.2em] md:tracking-[0.28em] text-brandBlue/70 dark:text-brandGold/70">Discover More Pieces</span>
                     </span>
-                    <span class="shrink-0 rounded-full border border-brandGold/25 bg-brandBlue px-2.5 md:px-3 py-1.5 md:py-1.5 text-[10px] md:text-xs font-black uppercase tracking-[0.14em] md:tracking-[0.22em] text-white dark:bg-brandGold dark:text-brandBlue text-center">${remainingRows} more rows</span>
                 </button>
             `;
             grid.appendChild(showMoreWrapper);
