@@ -1244,8 +1244,12 @@
         const INITIAL_CATEGORY_ROWS = 3;
         let visibleCategoryRows = INITIAL_CATEGORY_ROWS;
         let pendingCategoryPreloadHandle = null;
+        let pendingCategoryPreloadStartHandle = null;
         let categoryPreloadGeneration = 0;
+        let categoryPreloadObserver = null;
         let preRenderedCategoryRowElements = [];
+        let lastCategoryPreloadInteractionAt = 0;
+        let categoryPreloadInteractionHooksBound = false;
         let whatsappNumber = '201026600350';
         let sitePhones = [];
         let globalPriceIncrease = 0;
@@ -1291,9 +1295,77 @@
             clearTimeout(handle);
         }
 
+        function getCategoryPreloadProfile() {
+            const isMobileLike = window.matchMedia('(max-width: 767px), (hover: none) and (pointer: coarse)').matches;
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+            const saveData = Boolean(connection?.saveData);
+            const effectiveType = String(connection?.effectiveType || '').toLowerCase();
+            const isSlowConnection = ['slow-2g', '2g'].includes(effectiveType);
+
+            if (prefersReducedMotion || saveData || isSlowConnection) {
+                return {
+                    enabled: false,
+                    batchSize: 0,
+                    minTimeRemaining: 12,
+                    startDelayMs: 0,
+                    interactionPauseMs: 0,
+                    rootMargin: '0px 0px 0px 0px'
+                };
+            }
+
+            if (isMobileLike) {
+                return {
+                    enabled: true,
+                    batchSize: 1,
+                    minTimeRemaining: 10,
+                    startDelayMs: 1200,
+                    interactionPauseMs: 1400,
+                    rootMargin: '0px 0px 240px 0px'
+                };
+            }
+
+            return {
+                enabled: true,
+                batchSize: 2,
+                minTimeRemaining: 8,
+                startDelayMs: 250,
+                interactionPauseMs: 500,
+                rootMargin: '0px 0px 480px 0px'
+            };
+        }
+
+        function markCategoryPreloadInteraction() {
+            lastCategoryPreloadInteractionAt = Date.now();
+        }
+
+        function bindCategoryPreloadInteractionHooks() {
+            if (categoryPreloadInteractionHooksBound) return;
+            categoryPreloadInteractionHooksBound = true;
+
+            window.addEventListener('scroll', markCategoryPreloadInteraction, { passive: true });
+            window.addEventListener('wheel', markCategoryPreloadInteraction, { passive: true });
+            window.addEventListener('touchstart', markCategoryPreloadInteraction, { passive: true });
+            window.addEventListener('pointerdown', markCategoryPreloadInteraction, { passive: true });
+            window.addEventListener('keydown', markCategoryPreloadInteraction);
+        }
+
+        function shouldPauseCategoryPreload(profile) {
+            if (!lastCategoryPreloadInteractionAt) return false;
+            return (Date.now() - lastCategoryPreloadInteractionAt) < profile.interactionPauseMs;
+        }
+
         function resetCategoryRowPreload() {
             cancelIdleWork(pendingCategoryPreloadHandle);
+            if (pendingCategoryPreloadStartHandle) {
+                clearTimeout(pendingCategoryPreloadStartHandle);
+            }
+            if (categoryPreloadObserver) {
+                categoryPreloadObserver.disconnect();
+            }
             pendingCategoryPreloadHandle = null;
+            pendingCategoryPreloadStartHandle = null;
+            categoryPreloadObserver = null;
             categoryPreloadGeneration += 1;
             preRenderedCategoryRowElements = [];
         }
@@ -3938,22 +4010,30 @@
             grid.appendChild(fragment);
         }
 
-        function preloadCategoryRowsInBackground(rowsToPreload, startIndex = 0) {
+        function preloadCategoryRowsInBackground(rowsToPreload, startIndex = 0, profile = getCategoryPreloadProfile()) {
             resetCategoryRowPreload();
 
-            if (!rowsToPreload.length || activeCategory !== 'All' || searchQuery !== '') return;
+            if (!rowsToPreload.length || activeCategory !== 'All' || searchQuery !== '' || !profile.enabled) return;
+
+            bindCategoryPreloadInteractionHooks();
 
             const preloadGeneration = categoryPreloadGeneration;
             let nextIndex = 0;
 
             const work = (deadline) => {
                 if (preloadGeneration !== categoryPreloadGeneration) return;
+                if (activeCategory !== 'All' || searchQuery !== '') return;
+
+                if (shouldPauseCategoryPreload(profile)) {
+                    pendingCategoryPreloadHandle = scheduleIdleWork(work);
+                    return;
+                }
 
                 let builtThisCycle = 0;
                 while (
                     nextIndex < rowsToPreload.length &&
-                    builtThisCycle < 2 &&
-                    (deadline.didTimeout || deadline.timeRemaining() > 8)
+                    builtThisCycle < profile.batchSize &&
+                    (deadline.didTimeout || deadline.timeRemaining() > profile.minTimeRemaining)
                 ) {
                     const rowData = rowsToPreload[nextIndex];
                     preRenderedCategoryRowElements.push(
@@ -3971,6 +4051,40 @@
             };
 
             pendingCategoryPreloadHandle = scheduleIdleWork(work);
+        }
+
+        function queueCategoryRowsPreload(rowsToPreload, startIndex = 0) {
+            const profile = getCategoryPreloadProfile();
+            if (!rowsToPreload.length || !profile.enabled || activeCategory !== 'All' || searchQuery !== '') return;
+
+            const preloadGeneration = categoryPreloadGeneration;
+            const showMoreWrapper = document.getElementById('showMoreRowsWrapper');
+
+            const startPreload = () => {
+                pendingCategoryPreloadStartHandle = window.setTimeout(() => {
+                    if (preloadGeneration !== categoryPreloadGeneration) return;
+                    preloadCategoryRowsInBackground(rowsToPreload, startIndex, profile);
+                }, profile.startDelayMs);
+            };
+
+            if (!showMoreWrapper || !window.IntersectionObserver) {
+                startPreload();
+                return;
+            }
+
+            categoryPreloadObserver = new IntersectionObserver((entries) => {
+                const [entry] = entries;
+                if (!entry || !entry.isIntersecting) return;
+
+                categoryPreloadObserver.disconnect();
+                categoryPreloadObserver = null;
+                startPreload();
+            }, {
+                rootMargin: profile.rootMargin,
+                threshold: 0.01
+            });
+
+            categoryPreloadObserver.observe(showMoreWrapper);
         }
 
         function renderShowMoreButton(totalRows, renderedRows) {
@@ -4067,7 +4181,7 @@
 
                 appendCategoryRows(visibleRows, 0);
                 renderShowMoreButton(categoriesWithProducts.length, totalVisibleRows);
-                preloadCategoryRowsInBackground(hiddenRows, totalVisibleRows);
+                queueCategoryRowsPreload(hiddenRows, totalVisibleRows);
 
                 // Initialize cinematic auto-scroll for the new rows
                 setTimeout(initRowAutoScroll, 500); 
