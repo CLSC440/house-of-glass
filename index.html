@@ -3732,8 +3732,23 @@
         }
 
         window.showMoreCategoryRows = () => {
-            visibleCategoryRows = Number.MAX_SAFE_INTEGER;
-            renderProducts();
+            if (activeCategory !== 'All' || searchQuery !== '') return;
+
+            const categoriesWithProducts = getCategoriesWithProducts();
+            const alreadyRenderedRows = Math.min(visibleCategoryRows, categoriesWithProducts.length);
+            const remainingRows = categoriesWithProducts.slice(alreadyRenderedRows);
+
+            if (!remainingRows.length) return;
+
+            const showMoreWrapper = document.getElementById('showMoreRowsWrapper');
+            if (showMoreWrapper) showMoreWrapper.remove();
+
+            appendCategoryRows(remainingRows, alreadyRenderedRows);
+            visibleCategoryRows = categoriesWithProducts.length;
+
+            setTimeout(initReveal, 100);
+            setTimeout(initRowAutoScroll, 500);
+            if (window.fetchLivePricing) setTimeout(window.fetchLivePricing, 100);
         };
 
                 window.selectCategory = (cat) => {
@@ -3807,6 +3822,93 @@
             }
         };
 
+        function getCategoriesWithProducts() {
+            return categories
+                .filter((categoryName) => categoryName !== 'All' && categoryName !== 'My Favorites')
+                .map((catName) => ({
+                    catName,
+                    catProducts: products.filter((product) => product.category === catName)
+                }))
+                .filter(({ catProducts }) => catProducts.length > 0);
+        }
+
+        function createCategoryRowElement(catName, catProducts, catIdx) {
+            const rowWrapper = document.createElement('div');
+            rowWrapper.className = 'category-row-wrapper reveal';
+            rowWrapper.style.transitionDelay = `${catIdx * 100}ms`;
+
+            const rowId = `row-${catName.replace(/\s+/g, '-')}`;
+
+            rowWrapper.innerHTML = `
+                <div class="flex items-center justify-between mb-6 px-1">
+                    <div class="flex flex-col">
+                        <h2 class="text-xl md:text-3xl font-black text-brandBlue dark:text-brandGold uppercase italic tracking-tighter">${catName}</h2>
+                        <div class="w-12 h-1 bg-brandGold rounded-full mt-2"></div>
+                    </div>
+                    <button onclick="selectCategory('${catName}')" class="text-[10px] md:text-xs font-bold text-brandGold uppercase tracking-[0.2em] hover:translate-x-1 transition-transform">SEE ALL | عرض الكل <span class="ml-1">→</span></button>
+                </div>
+                
+                <div class="relative group/row">
+                    <button onclick="scrollCategory('${rowId}', -1)" class="scroll-arrow scroll-arrow-left">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    </button>
+                    <button onclick="scrollCategory('${rowId}', 1)" class="scroll-arrow scroll-arrow-right">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </button>
+                    
+                    <div id="${rowId}" class="category-row-container"></div>
+                </div>
+            `;
+
+            const rowContainer = rowWrapper.querySelector('.category-row-container');
+
+            catProducts.forEach((product, productIdx) => {
+                const card = createProductCard(product, productIdx);
+                card.classList.add('category-card');
+                card.classList.remove('reveal');
+                rowContainer.appendChild(card);
+            });
+
+            if (catProducts.length > 1) {
+                const separator = document.createElement('div');
+                separator.className = 'flex-shrink-0 w-12 h-64 flex justify-center items-center self-center';
+                separator.innerHTML = `
+                    <div class="relative w-[2px] h-full flex items-center justify-center">
+                        <div class="absolute w-10 md:w-16 h-[110%] bg-brandGold/[0.03] dark:bg-brandGold/10 md:bg-brandGold/5 md:dark:bg-brandGold/15 blur-xl md:blur-2xl rounded-full pointer-events-none"></div>
+                        <div class="relative w-full h-full bg-brandGold/20 dark:bg-brandGold/50 md:bg-brandGold/30 md:dark:bg-brandGold/70 rounded-full"></div>
+                    </div>
+                `;
+                rowContainer.appendChild(separator);
+            }
+
+            return rowWrapper;
+        }
+
+        function appendCategoryRows(rowsToAppend, startIndex = 0) {
+            rowsToAppend.forEach(({ catName, catProducts }, offset) => {
+                grid.appendChild(createCategoryRowElement(catName, catProducts, startIndex + offset));
+            });
+        }
+
+        function renderShowMoreButton(totalRows, renderedRows) {
+            const existingButton = document.getElementById('showMoreRowsWrapper');
+            if (existingButton) existingButton.remove();
+
+            if (totalRows <= renderedRows) return;
+
+            const remainingRows = totalRows - renderedRows;
+            const showMoreWrapper = document.createElement('div');
+            showMoreWrapper.id = 'showMoreRowsWrapper';
+            showMoreWrapper.className = 'flex justify-center reveal';
+            showMoreWrapper.innerHTML = `
+                <button type="button" onclick="showMoreCategoryRows()" class="inline-flex items-center gap-3 px-6 py-3 rounded-full border border-brandGold/30 bg-white dark:bg-darkCard text-brandBlue dark:text-brandGold font-black uppercase tracking-[0.2em] text-xs md:text-sm shadow-sm hover:border-brandGold hover:bg-brandGold hover:text-white transition-all">
+                    <span>Show More</span>
+                    <span class="text-[10px] md:text-xs opacity-70">${remainingRows} more rows</span>
+                </button>
+            `;
+            grid.appendChild(showMoreWrapper);
+        }
+
         function renderProducts() {
             grid.innerHTML = '';
             
@@ -3873,96 +3975,13 @@
             } else {
                 // CATEGORY ROW MODE (All Categories Default)
                 grid.className = "flex flex-col space-y-12 md:space-y-20";
-                
-                const actualCategories = categories.filter(c => c !== 'All' && c !== 'My Favorites');
-                const categoriesWithProducts = actualCategories
-                    .map((catName) => ({
-                        catName,
-                        catProducts: products.filter((p) => p.category === catName)
-                    }))
-                    .filter(({ catProducts }) => catProducts.length > 0);
+                const categoriesWithProducts = getCategoriesWithProducts();
 
                 const totalVisibleRows = Math.min(visibleCategoryRows, categoriesWithProducts.length);
                 const visibleRows = categoriesWithProducts.slice(0, totalVisibleRows);
-                
-                visibleRows.forEach(({ catName, catProducts }, catIdx) => {
 
-                    const rowWrapper = document.createElement('div');
-                    rowWrapper.className = 'category-row-wrapper reveal';
-                    rowWrapper.style.transitionDelay = `${catIdx * 100}ms`;
-                    
-                    const rowId = `row-${catName.replace(/\s+/g, '-')}`;
-                    
-                    rowWrapper.innerHTML = `
-                        <div class="flex items-center justify-between mb-6 px-1">
-                            <div class="flex flex-col">
-                                <h2 class="text-xl md:text-3xl font-black text-brandBlue dark:text-brandGold uppercase italic tracking-tighter">${catName}</h2>
-                                <div class="w-12 h-1 bg-brandGold rounded-full mt-2"></div>
-                            </div>
-                            <button onclick="selectCategory('${catName}')" class="text-[10px] md:text-xs font-bold text-brandGold uppercase tracking-[0.2em] hover:translate-x-1 transition-transform">SEE ALL | عرض الكل <span class="ml-1">→</span></button>
-                        </div>
-                        
-                        <div class="relative group/row">
-                            <!-- Arrows -->
-                            <button onclick="scrollCategory('${rowId}', -1)" class="scroll-arrow scroll-arrow-left">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-                            </button>
-                            <button onclick="scrollCategory('${rowId}', 1)" class="scroll-arrow scroll-arrow-right">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                            </button>
-                            
-                            <div id="${rowId}" class="category-row-container">
-                                <!-- Cards will be injected here -->
-                            </div>
-                        </div>
-                    `;
-
-                    const rowContainer = rowWrapper.querySelector('.category-row-container');
-                    
-                    const populateRow = (isClone = false) => {
-                        catProducts.forEach((p, pIdx) => {
-                            const card = createProductCard(p, pIdx);
-                            card.classList.add('category-card');
-                            card.classList.remove('reveal');
-                            if (isClone) card.setAttribute('aria-hidden', 'true');
-                            rowContainer.appendChild(card);
-                        });
-                        // Add Separator Line only if more than 1 product
-                        if (catProducts.length > 1) {
-                            const separator = document.createElement('div');
-                            // Use fixed width instead of margins for predictable infinite scroll math
-                            // Added self-center to align it perfectly in the vertical middle of the row
-                            separator.className = 'flex-shrink-0 w-12 h-64 flex justify-center items-center self-center';
-                            separator.innerHTML = `
-                                <div class="relative w-[2px] h-full flex items-center justify-center">
-                                    <!-- Backlight (Glow behind the line) -->
-                                    <div class="absolute w-10 md:w-16 h-[110%] bg-brandGold/[0.03] dark:bg-brandGold/10 md:bg-brandGold/5 md:dark:bg-brandGold/15 blur-xl md:blur-2xl rounded-full pointer-events-none"></div>
-                                    <!-- The Actual Line -->
-                                    <div class="relative w-full h-full bg-brandGold/20 dark:bg-brandGold/50 md:bg-brandGold/30 md:dark:bg-brandGold/70 rounded-full"></div>
-                                </div>
-                            `;
-                            if (isClone) separator.setAttribute('aria-hidden', 'true');
-                            rowContainer.appendChild(separator);
-                        }
-                    };
-
-                    populateRow();
-                    
-                    grid.appendChild(rowWrapper);
-                });
-
-                if (categoriesWithProducts.length > totalVisibleRows) {
-                    const remainingRows = categoriesWithProducts.length - totalVisibleRows;
-                    const showMoreWrapper = document.createElement('div');
-                    showMoreWrapper.className = 'flex justify-center reveal';
-                    showMoreWrapper.innerHTML = `
-                        <button type="button" onclick="showMoreCategoryRows()" class="inline-flex items-center gap-3 px-6 py-3 rounded-full border border-brandGold/30 bg-white dark:bg-darkCard text-brandBlue dark:text-brandGold font-black uppercase tracking-[0.2em] text-xs md:text-sm shadow-sm hover:border-brandGold hover:bg-brandGold hover:text-white transition-all">
-                            <span>Show More</span>
-                            <span class="text-[10px] md:text-xs opacity-70">${remainingRows} more rows</span>
-                        </button>
-                    `;
-                    grid.appendChild(showMoreWrapper);
-                }
+                appendCategoryRows(visibleRows, 0);
+                renderShowMoreButton(categoriesWithProducts.length, totalVisibleRows);
 
                 // Initialize cinematic auto-scroll for the new rows
                 setTimeout(initRowAutoScroll, 500); 
