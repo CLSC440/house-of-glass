@@ -1250,6 +1250,16 @@
         let preRenderedCategoryRowElements = [];
         let lastCategoryPreloadInteractionAt = 0;
         let categoryPreloadInteractionHooksBound = false;
+        const SHOW_MORE_ARABIC_LINES = [
+            'لسه في مفاجأت',
+            'خبينا الباقي هنا',
+            'لسه في احلى',
+            'اكتشف الباقي',
+            'لسه في اكتر'
+        ];
+        const selectedShowMoreArabicLine = SHOW_MORE_ARABIC_LINES[
+            Math.floor(Math.random() * SHOW_MORE_ARABIC_LINES.length)
+        ];
         let whatsappNumber = '201026600350';
         let sitePhones = [];
         let globalPriceIncrease = 0;
@@ -4103,7 +4113,7 @@
                         <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
                     </span>
                     <span class="min-w-0 flex-1 flex flex-col items-start text-left leading-none">
-                        <span class="text-[1.05rem] md:text-xl font-black text-brandGold tracking-tight font-arabic leading-tight">تابع التصفح وشوف باقي التشكيلة</span>
+                        <span class="text-[1.05rem] md:text-xl font-black text-brandGold tracking-tight font-arabic leading-tight">${selectedShowMoreArabicLine}</span>
                         <span class="mt-1 text-[9px] md:text-xs font-black uppercase tracking-[0.2em] md:tracking-[0.28em] text-brandBlue/70 dark:text-brandGold/70">Discover More Pieces</span>
                     </span>
                     <span class="shrink-0 rounded-full border border-brandGold/25 bg-brandBlue px-2.5 md:px-3 py-1.5 md:py-1.5 text-[10px] md:text-xs font-black uppercase tracking-[0.14em] md:tracking-[0.22em] text-white dark:bg-brandGold dark:text-brandBlue text-center">${remainingRows} more rows</span>
