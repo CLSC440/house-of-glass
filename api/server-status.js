@@ -1,4 +1,5 @@
 const { Client } = require('pg');
+const { verifyAdminRequest } = require('./_firebaseAdmin');
 
 function resolveSslConfig() {
   const sslMode = String(process.env.SERVER_STATUS_DATABASE_SSL || '').trim().toLowerCase();
@@ -50,7 +51,7 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
   res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     res.status(200).end();
@@ -63,6 +64,8 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    await verifyAdminRequest(req);
+
     const connectionStrings = resolveConnectionStrings();
     let result = null;
     let lastError = null;

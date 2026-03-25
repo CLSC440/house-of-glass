@@ -65,7 +65,15 @@
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-4 py-8">
+    <div id="accessState" class="max-w-xl mx-auto px-4 py-12 text-center">
+        <div class="bg-white dark:bg-darkCard border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm p-8">
+            <p class="text-xs font-black uppercase tracking-[0.3em] text-brandGold mb-3">Admin Only</p>
+            <h2 id="accessTitle" class="text-2xl font-black text-brandBlue dark:text-brandGold uppercase italic tracking-tighter">Checking access...</h2>
+            <p id="accessMessage" class="text-sm text-gray-500 dark:text-gray-400 mt-4">Please wait while your admin session is verified.</p>
+        </div>
+    </div>
+
+    <main id="statusPageContent" class="max-w-7xl mx-auto px-4 py-8 hidden">
         <h1 class="text-3xl font-black text-brandBlue dark:text-brandGold uppercase italic tracking-tighter mb-4 text-center" dir="rtl">
             Local Server Status <span class="text-sm font-arabic block mt-2 text-gray-500">حالة السيرفر المحلي</span>
         </h1>
@@ -158,12 +166,59 @@
         </div>
     </main>
 
-    <script>
-        const SERVER_API_URL = '/api/local-server-status';
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-        async function fetchServerStatus() {
+        const firebaseConfig = {
+            apiKey: "AIzaSyA_oTePhmWmzuOcZDmc_-7bhoAVbYVhH3Q",
+            authDomain: "houseofglass-440.firebaseapp.com",
+            projectId: "houseofglass-440",
+            storageBucket: "houseofglass-440.firebasestorage.app",
+            messagingSenderId: "73082039144",
+            appId: "1:73082039144:web:0658e54416293334dc84dd",
+            measurementId: "G-S81YY4Z4RM"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const accessState = document.getElementById('accessState');
+        const accessTitle = document.getElementById('accessTitle');
+        const accessMessage = document.getElementById('accessMessage');
+        const statusPageContent = document.getElementById('statusPageContent');
+        const SERVER_API_URL = '/api/local-server-status';
+        let statusViewerUser = null;
+        let refreshTimer = null;
+
+        function setAccessState(title, message) {
+            accessTitle.innerText = title;
+            accessMessage.innerText = message;
+        }
+
+        function revealStatusPage() {
+            accessState.classList.add('hidden');
+            statusPageContent.classList.remove('hidden');
+        }
+
+        async function getAuthorizedHeaders() {
+            if (!statusViewerUser) {
+                throw new Error('Admin authentication required');
+            }
+
+            const idToken = await statusViewerUser.getIdToken();
+            return {
+                Accept: 'application/json',
+                Authorization: `Bearer ${idToken}`
+            };
+        }
+
+        window.fetchServerStatus = async function fetchServerStatus() {
             try {
-                const response = await fetch(SERVER_API_URL);
+                const response = await fetch(SERVER_API_URL, {
+                    headers: await getAuthorizedHeaders()
+                });
                 const payload = await response.json().catch(() => ({}));
                 if (!response.ok) throw new Error(payload.error || 'Network response was not ok');
                 const data = payload;
@@ -173,7 +228,6 @@
             } catch (error) {
                 console.error('Error fetching server status:', error);
                 
-                // Show Error state
                 document.getElementById('statusBanner').className = "p-6 rounded-2xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 flex items-center gap-4 mb-8";
                 document.getElementById('statusBanner').querySelector('.animate-pulse').className = "w-4 h-4 rounded-full bg-red-500 animate-pulse flex-shrink-0";
                 document.getElementById('serverStateText').innerText = "Local Server Unavailable";
@@ -255,11 +309,38 @@
             }, 1000);
         }
 
-        // Fetch initially
-        fetchServerStatus();
-        
-        // Auto refresh every 30 seconds
-        setInterval(fetchServerStatus, 30000);
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                setAccessState('Login Required', 'Redirecting to the login page...');
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 800);
+                return;
+            }
+
+            try {
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                const role = userDoc.exists() ? userDoc.data().role : '';
+
+                if (role !== 'admin') {
+                    setAccessState('Admin Access Only', 'You do not have permission to open this page. Redirecting...');
+                    setTimeout(() => {
+                        window.location.href = 'admin.html';
+                    }, 1000);
+                    return;
+                }
+
+                statusViewerUser = user;
+                revealStatusPage();
+                await window.fetchServerStatus();
+
+                if (refreshTimer) clearInterval(refreshTimer);
+                refreshTimer = setInterval(window.fetchServerStatus, 30000);
+            } catch (error) {
+                console.error('Admin access verification failed:', error);
+                setAccessState('Access Check Failed', 'Could not verify admin access right now. Please try again.');
+            }
+        });
     </script>
 </body>
 </html>

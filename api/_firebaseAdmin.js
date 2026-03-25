@@ -84,10 +84,25 @@ async function verifyRequestUser(req) {
     return getAdmin().auth().verifyIdToken(idToken);
 }
 
+async function verifyAdminRequest(req) {
+    const tokenData = await verifyRequestUser(req);
+    const userSnap = await getDb().collection('users').doc(tokenData.uid).get();
+    const role = userSnap.exists ? userSnap.data().role : '';
+
+    if (role !== 'admin') {
+        const error = new Error('Admin access is required');
+        error.status = 403;
+        throw error;
+    }
+
+    return tokenData;
+}
+
 module.exports = {
     admin,
     getAdmin,
     getDb,
     getAdminInitError,
-    verifyRequestUser
+    verifyRequestUser,
+    verifyAdminRequest
 };

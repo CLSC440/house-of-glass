@@ -1,9 +1,11 @@
+const { verifyAdminRequest } = require('./_firebaseAdmin');
+
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
   res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     res.status(200).end();
@@ -26,6 +28,8 @@ module.exports = async function handler(req, res) {
   const timeout = setTimeout(() => controller.abort(), 8000);
 
   try {
+    await verifyAdminRequest(req);
+
     const response = await fetch(upstreamUrl, {
       method: 'GET',
       headers: {
