@@ -106,6 +106,45 @@
             transform: translateY(0);
         }
 
+        .detail-nav-arrow {
+            position: absolute;
+            right: 0.9rem;
+            top: 50%;
+            z-index: 45;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.75rem;
+            height: 2.75rem;
+            border-radius: 999px;
+            color: #fff;
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            box-shadow: 0 14px 30px rgba(15, 23, 42, 0.32);
+            backdrop-filter: blur(10px);
+            transform: translateY(-50%);
+            transition: transform 0.2s ease, background 0.2s ease, opacity 0.2s ease, border-color 0.2s ease;
+        }
+        .detail-nav-arrow:hover,
+        .detail-nav-arrow:focus-visible {
+            background: rgba(212, 175, 55, 0.88);
+            border-color: rgba(255, 226, 122, 0.88);
+            transform: translateY(-50%) scale(1.06);
+            outline: none;
+        }
+        .detail-nav-arrow.is-hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-50%) scale(0.92);
+        }
+        @media (min-width: 768px) {
+            .detail-nav-arrow {
+                right: 1.1rem;
+                width: 3rem;
+                height: 3rem;
+            }
+        }
+
         .see-all-link {
             position: relative;
             display: inline-flex;
@@ -552,6 +591,11 @@
             opacity: 0;
             pointer-events: none;
         }
+        .scroll-arrow.is-hidden {
+            opacity: 0 !important;
+            pointer-events: none !important;
+            transform: translateY(-50%) scale(0.92);
+        }
         .dark .scroll-arrow {
             background: #111827;
             color: white;
@@ -570,7 +614,36 @@
         .scroll-arrow-right { right: -1.5rem; }
         
         @media (max-width: 1024px) {
-            .scroll-arrow { display: none; }
+            .scroll-arrow {
+                display: flex;
+                top: 42%;
+                width: 2.7rem;
+                height: 2.7rem;
+                background: rgba(15, 23, 42, 0.78);
+                color: #fff;
+                border-color: rgba(255, 255, 255, 0.12);
+                box-shadow: 0 12px 28px rgba(15, 23, 42, 0.28);
+                backdrop-filter: blur(10px);
+                transition: transform 0.2s ease, opacity 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+            }
+            .category-row-wrapper:hover .scroll-arrow {
+                opacity: 0;
+                pointer-events: none;
+            }
+            .category-row-wrapper.row-touch-active .scroll-arrow:not(.is-hidden) {
+                opacity: 1;
+                pointer-events: auto;
+            }
+            .scroll-arrow-left { left: 0.5rem; }
+            .scroll-arrow-right { right: 0.5rem; }
+            .scroll-arrow:hover,
+            .scroll-arrow:focus-visible {
+                background: rgba(212, 175, 55, 0.92);
+                border-color: rgba(255, 226, 122, 0.92);
+                color: white;
+                outline: none;
+                scale: 1.06;
+            }
         }
     </style>
 </head>
@@ -828,6 +901,11 @@
             <div class="w-full md:w-1/2 bg-gray-100 dark:bg-gray-800 relative group overflow-hidden">
                 <div id="swipeArea" class="flex items-center justify-center p-8 md:p-24 touch-pan-y h-[55vh] md:h-full relative">
                     <img id="mainDetailImg" src="" class="max-w-full max-h-full object-contain rounded-xl select-none transition-transform duration-300">
+                    <button id="detailNextArrow" type="button" class="detail-nav-arrow is-hidden" aria-label="Show next image" onclick="goToNextDetailImage()">
+                        <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.6" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </button>
                     <div id="detailImageLoading" class="absolute inset-0 z-20 flex items-center justify-center bg-white/70 dark:bg-black/45 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-200">
                         <div class="flex flex-col items-center gap-3 rounded-2xl bg-white/85 px-5 py-4 text-brandBlue shadow-xl dark:bg-slate-900/85 dark:text-white">
                             <div class="w-10 h-10 rounded-full border-4 border-brandGold/20 border-t-brandGold animate-spin"></div>
@@ -4214,8 +4292,66 @@
                 const amount = el.clientWidth * 0.8;
                 el.style.scrollBehavior = 'smooth';
                 el.scrollBy({ left: direction * amount, behavior: 'smooth' });
+                revealMobileRowArrows(el, 1600);
+                setTimeout(() => updateCategoryRowArrows(el), 380);
             }
         };
+
+        const mobileRowArrowTimers = new WeakMap();
+
+        function updateCategoryRowArrows(rowContainer) {
+            if (!rowContainer) return;
+
+            const wrapper = rowContainer.closest('.category-row-wrapper');
+            if (!wrapper) return;
+
+            const leftArrow = wrapper.querySelector('.scroll-arrow-left');
+            const rightArrow = wrapper.querySelector('.scroll-arrow-right');
+            const maxScrollLeft = Math.max(0, rowContainer.scrollWidth - rowContainer.clientWidth);
+            const canScroll = maxScrollLeft > 12;
+            const atStart = rowContainer.scrollLeft <= 10;
+            const atEnd = rowContainer.scrollLeft >= maxScrollLeft - 10;
+
+            wrapper.classList.toggle('row-can-scroll', canScroll);
+            if (leftArrow) leftArrow.classList.toggle('is-hidden', !canScroll || atStart);
+            if (rightArrow) rightArrow.classList.toggle('is-hidden', !canScroll || atEnd);
+        }
+
+        function revealMobileRowArrows(rowContainer, duration = 1400) {
+            if (!rowContainer || window.innerWidth > 1024) return;
+
+            const wrapper = rowContainer.closest('.category-row-wrapper');
+            if (!wrapper) return;
+
+            updateCategoryRowArrows(rowContainer);
+            if (!wrapper.classList.contains('row-can-scroll')) return;
+
+            wrapper.classList.add('row-touch-active');
+            const existingTimer = mobileRowArrowTimers.get(wrapper);
+            if (existingTimer) clearTimeout(existingTimer);
+
+            const nextTimer = setTimeout(() => {
+                wrapper.classList.remove('row-touch-active');
+            }, duration);
+
+            mobileRowArrowTimers.set(wrapper, nextTimer);
+        }
+
+        function bindCategoryRowArrowBehavior(rowWrapper, rowContainer) {
+            if (!rowWrapper || !rowContainer) return;
+
+            const syncArrows = () => updateCategoryRowArrows(rowContainer);
+            const handleTouchReveal = () => revealMobileRowArrows(rowContainer);
+
+            syncArrows();
+            rowWrapper.addEventListener('touchstart', handleTouchReveal, { passive: true });
+            rowContainer.addEventListener('scroll', () => {
+                syncArrows();
+                revealMobileRowArrows(rowContainer, 1100);
+            }, { passive: true });
+            requestAnimationFrame(syncArrows);
+            setTimeout(syncArrows, 220);
+        }
 
         function getCategoriesWithProducts() {
             return categories
@@ -4275,6 +4411,8 @@
                 `;
                 rowContainer.appendChild(separator);
             }
+
+            bindCategoryRowArrowBehavior(rowWrapper, rowContainer);
 
             return rowWrapper;
         }
@@ -5089,6 +5227,7 @@
                             // So we rely on the click handler we just set.
 
                             loadDetailImage(v.imageDetails?.[0] || firstImg, { syncVariant: false });
+                            updateDetailNavigation();
                         }
                     };
                     
@@ -5303,6 +5442,22 @@
 
         let variantHighlightSyncToken = 0;
 
+        function updateDetailNavigation() {
+            const nextArrow = document.getElementById('detailNextArrow');
+            if (!nextArrow) return;
+
+            const hasNextImage = !!(currentProduct && Array.isArray(currentProduct.images) && currentImgIdx < currentProduct.images.length - 1);
+            nextArrow.classList.toggle('is-hidden', !hasNextImage || isZoomed);
+            nextArrow.disabled = !hasNextImage;
+        }
+
+        window.goToNextDetailImage = function() {
+            if (isZoomed) return;
+            if (!currentProduct || !Array.isArray(currentProduct.images)) return;
+            if (currentImgIdx >= currentProduct.images.length - 1) return;
+            updateDetailImage(currentImgIdx + 1);
+        }
+
         function updateDetailImage(idx) {
             if (!currentProduct || !currentProduct.images[idx]) return;
             currentImgIdx = idx;
@@ -5321,6 +5476,7 @@
             
             // 1. Sync Thumbnails immediately
             renderThumbnails();
+            updateDetailNavigation();
 
             // 2. Update Main Image and only reveal it once the selected source is ready
             loadDetailImage(targetMedia);
@@ -5423,7 +5579,10 @@
             if(!thumbBar) return;
             thumbBar.innerHTML = '';
             
-            if(!currentProduct || !currentProduct.images) return;
+            if(!currentProduct || !currentProduct.images) {
+                updateDetailNavigation();
+                return;
+            }
 
             currentProduct.images.forEach((img, idx) => {
                 if(!img) return; // Skip empty images
@@ -5439,6 +5598,7 @@
             if (activeThumb) {
                 activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
             }
+            updateDetailNavigation();
         }
 
         const swipeArea = document.getElementById('swipeArea');
@@ -5478,6 +5638,7 @@
             updateProductDeepLink('');
             detailImageLoadToken += 1;
             setDetailImageLoading(false);
+            updateDetailNavigation();
             // Reset zoom on close
             const img = document.getElementById('mainDetailImg');
             if(img) {
@@ -5531,6 +5692,7 @@
                     mainImg.classList.add('transition-transform');
                     mainImg.classList.add('duration-300');
                     if(tBar) tBar.classList.remove('opacity-0', 'pointer-events-none');
+                    updateDetailNavigation();
                     setTimeout(() => {
                         if(!isZoomed) mainImg.style.transformOrigin = "center center"; 
                     }, 300);
@@ -5543,6 +5705,7 @@
                     mainImg.style.transform = "scale(3)";
                     mainImg.style.cursor = "zoom-out";
                     if(tBar) tBar.classList.add('opacity-0', 'pointer-events-none');
+                    updateDetailNavigation();
                     
                     const rect = swipeContainer.getBoundingClientRect();
                     const x = ((e.clientX - rect.left) / rect.width) * 100;
