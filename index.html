@@ -487,6 +487,80 @@
             padding-left: 30px;
         }
 
+        .product-card-meta-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-top: 0.85rem;
+            flex-wrap: wrap;
+        }
+
+        .product-card-label {
+            display: inline-flex;
+            align-items: center;
+            max-width: min(100%, 18rem);
+            padding: 0.58rem 0.92rem;
+            border-radius: 999px;
+            border: 1px solid rgba(212, 175, 55, 0.42);
+            background: linear-gradient(135deg, rgba(18, 25, 38, 0.98), rgba(28, 39, 60, 0.95));
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 18px rgba(212, 175, 55, 0.12);
+            color: #f8fafc;
+        }
+
+        .product-card-label-content {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            min-width: 0;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .product-card-label-part {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 0.68rem;
+            line-height: 1;
+            font-weight: 900;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(248, 250, 252, 0.98);
+        }
+
+        .product-card-label-part.is-primary {
+            color: #f4d24e;
+        }
+
+        .product-card-label-separator {
+            flex: 0 0 auto;
+            font-size: 0.68rem;
+            line-height: 1;
+            font-weight: 900;
+            color: rgba(244, 210, 78, 0.82);
+        }
+
+        .dark .product-card-label {
+            background: linear-gradient(135deg, rgba(9, 14, 26, 0.98), rgba(20, 30, 48, 0.96));
+            border-color: rgba(212, 175, 55, 0.55);
+            box-shadow: 0 14px 28px rgba(2, 6, 23, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 0 22px rgba(212, 175, 55, 0.14);
+        }
+
+        @media (min-width: 768px) {
+            .product-card-label {
+                max-width: min(100%, 21rem);
+                padding: 0.68rem 1rem;
+            }
+
+            .product-card-label-part,
+            .product-card-label-separator {
+                font-size: 0.78rem;
+            }
+        }
+
         @keyframes marqueeTitle {
             0% { transform: translateX(0); }
             100% { transform: translateX(-100%); }
@@ -4766,6 +4840,18 @@
             const initialVariantName = initialVariant?.name || initialVariant?.label || '';
             const initialCardImage = getCardVariantImage(activeCardVariantIdx);
             const initialVariantBadge = getVariantBadgeMarkup(initialVariantName, stockState);
+            const cardLabelParts = [
+                p.category,
+                p.brand || p.manufacturer || p.factory || p.origin || p.company || p.supplier
+            ].map((value) => String(value || '').trim()).filter(Boolean);
+            const cardLabelMarkup = cardLabelParts.length
+                ? `
+                            <div class="product-card-label">
+                                <span class="product-card-label-content">
+                                    ${cardLabelParts.map((part, index) => `<span class="product-card-label-part ${index === 0 ? 'is-primary' : ''}">${part}</span>`).join('<span class="product-card-label-separator">|</span>')}
+                                </span>
+                            </div>`
+                : '';
 
             card.innerHTML = `
                 <div class="product-card-media overflow-hidden h-44 md:h-72 relative bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center">
@@ -4774,8 +4860,6 @@
                     <button onclick="toggleFavorite(event, '${p.id}')" class="card-fav-btn absolute top-3 right-3 z-30 p-2 rounded-full bg-white/90 dark:bg-black/40 backdrop-blur-md shadow-lg hover:scale-110 active:scale-95 transition-all ${isFav ? 'text-red-500' : 'text-gray-400'}">
                         <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
                     </button>
-
-                    <div class="absolute top-3 left-3 bg-brandGold/90 text-white text-[8px] md:text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-widest shadow-lg shadow-brandGold/20">${p.category}</div>
                     
                     <div class="absolute bottom-3 right-3 bg-black/60 text-white text-[8px] md:text-[10px] px-3 py-1 rounded-full backdrop-blur-md font-bold">${p.images.length} Photos</div>
 
@@ -4802,9 +4886,9 @@
                     <div class="title-container mb-1">
                         <h3 class="title-slide text-sm md:text-xl font-black text-brandBlue dark:text-slate-100 uppercase">${p.name}</h3>
                     </div>
-                    <div class="flex justify-between items-center mt-2">
-                        <p class="text-brandGold/80 dark:text-brandGold/60 text-[10px] md:text-xs font-bold italic tracking-wide">View masterpiece <span class="group-hover:translate-x-1 inline-block transition-transform">→</span></p>
-                        ${initialCode ? `<span class="dc-price text-xs font-black text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded" data-code="${initialCode}">...</span>` : ''}
+                    <div class="product-card-meta-row">
+                        ${cardLabelMarkup}
+                        ${initialCode ? `<span class="dc-price shrink-0 text-xs font-black text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded" data-code="${initialCode}">...</span>` : ''}
                     </div>
                 </div>
             `;
