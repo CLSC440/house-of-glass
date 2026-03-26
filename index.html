@@ -704,6 +704,12 @@
             <div class="w-full md:w-1/2 bg-gray-100 dark:bg-gray-800 relative group overflow-hidden">
                 <div id="swipeArea" class="flex items-center justify-center p-8 md:p-24 touch-pan-y h-[55vh] md:h-full relative">
                     <img id="mainDetailImg" src="" class="max-w-full max-h-full object-contain rounded-xl select-none transition-transform duration-300">
+                    <div id="detailImageLoading" class="absolute inset-0 z-20 flex items-center justify-center bg-white/70 dark:bg-black/45 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-200">
+                        <div class="flex flex-col items-center gap-3 rounded-2xl bg-white/85 px-5 py-4 text-brandBlue shadow-xl dark:bg-slate-900/85 dark:text-white">
+                            <div class="w-10 h-10 rounded-full border-4 border-brandGold/20 border-t-brandGold animate-spin"></div>
+                            <span class="text-xs font-bold uppercase tracking-[0.25em]">Loading image</span>
+                        </div>
+                    </div>
                     <button id="detailFavBtn" class="hidden absolute top-4 left-4 z-40 bg-white/90 dark:bg-black/50 backdrop-blur-md text-gray-400 w-9 h-9 rounded-full flex items-center justify-center shadow-xl hover:bg-brandGold hover:text-white dark:hover:bg-brandGold transition-all active:scale-95 border border-black/5 dark:border-white/10" onclick="toggleFavorite(event, currentProduct?.id).then(()=>updateModalFavBtn())">
                         <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
                     </button>
@@ -4641,6 +4647,7 @@
         let currentProduct = null;
         let currentImgIdx = 0;
         let currentVariantIdx = null; // Track selected variant
+        let detailImageLoadToken = 0;
         let touchStartX = 0;
         let touchEndX = 0;
 
@@ -4956,17 +4963,8 @@
                             renderThumbnails(); 
                             // Warning: syncVariantHighlight might override our manual highlight if it doesn't match the image exactly
                             // So we rely on the click handler we just set.
-                            
-                            const img = document.getElementById('mainDetailImg');
-                            img.style.opacity = '0';
-                            setTimeout(() => {
-                                setImageElementSource(img, v.imageDetails?.[0] || firstImg);
-                                img.style.opacity = '1';
-                                isZoomed = false;
-                                img.style.transform = 'scale(1)';
-                                const tBar = document.getElementById('thumbnailBar');
-                                if(tBar) tBar.classList.remove('opacity-0', 'pointer-events-none');
-                            }, 150);
+
+                            loadDetailImage(v.imageDetails?.[0] || firstImg, { syncVariant: false });
                         }
                     };
                     
@@ -5119,34 +5117,89 @@
         }
 
         let isZoomed = false;
+        function setDetailImageLoading(isLoading) {
+            const loadingOverlay = document.getElementById('detailImageLoading');
+            if (!loadingOverlay) return;
+            loadingOverlay.classList.toggle('opacity-0', !isLoading);
+            loadingOverlay.classList.toggle('opacity-100', isLoading);
+        }
+
+        function loadDetailImage(mediaItem, options = {}) {
+            const { syncVariant = true, fallbackToPlaceholder = true } = options;
+            const img = document.getElementById('mainDetailImg');
+            const tBar = document.getElementById('thumbnailBar');
+            if (!img) return;
+
+            const requestToken = ++detailImageLoadToken;
+            const primaryUrl = resolveMediaUrl(mediaItem);
+            const fallbackUrl = resolveMediaFallbackUrl(mediaItem);
+
+            const revealLoadedImage = () => {
+                if (requestToken !== detailImageLoadToken) return;
+                img.style.opacity = '1';
+                setDetailImageLoading(false);
+            };
+
+            const handleImageError = () => {
+                if (requestToken !== detailImageLoadToken) return;
+                if (fallbackUrl && !img.dataset.fallbackUsed) {
+                    img.dataset.fallbackUsed = '1';
+                    img.src = fallbackUrl;
+                    return;
+                }
+                if (img.src !== MEDIA_PLACEHOLDER_URL) {
+                    img.src = MEDIA_PLACEHOLDER_URL;
+                    return;
+                }
+                revealLoadedImage();
+            };
+
+            setDetailImageLoading(true);
+            img.style.opacity = '0';
+            img.dataset.fallbackSrc = fallbackUrl;
+            delete img.dataset.fallbackUsed;
+            img.onload = revealLoadedImage;
+            img.onerror = handleImageError;
+            img.src = primaryUrl || (fallbackToPlaceholder ? MEDIA_PLACEHOLDER_URL : '');
+
+            if (syncVariant) {
+                syncVariantHighlight(mediaItem);
+            }
+
+            if (tBar) tBar.classList.remove('opacity-0', 'pointer-events-none');
+
+            if (img.complete) {
+                if (img.naturalWidth > 0) {
+                    revealLoadedImage();
+                } else {
+                    handleImageError();
+                }
+            }
+        }
+
         let variantHighlightSyncToken = 0;
 
         function updateDetailImage(idx) {
             if (!currentProduct || !currentProduct.images[idx]) return;
             currentImgIdx = idx;
-            const img = document.getElementById('mainDetailImg');
             const targetSrc = currentProduct.images[idx];
             const targetMedia = (currentProduct.imageDetails || [])[idx] || targetSrc;
             const tBar = document.getElementById('thumbnailBar');
             
             // Reset zoom
             isZoomed = false;
-            img.style.transform = 'scale(1)';
-            img.style.cursor = 'zoom-in';
+            const mainImg = document.getElementById('mainDetailImg');
+            if (mainImg) {
+                mainImg.style.transform = 'scale(1)';
+                mainImg.style.cursor = 'zoom-in';
+            }
             if(tBar) tBar.classList.remove('opacity-0', 'pointer-events-none');
             
             // 1. Sync Thumbnails immediately
             renderThumbnails();
 
-            // 2. Sync Variant Selection immediately
-            syncVariantHighlight(targetMedia);
-
-            // 3. Update Main Image with transition
-            img.style.opacity = '0';
-            setTimeout(() => {
-                setImageElementSource(img, targetMedia);
-                img.style.opacity = '1';
-            }, 150);
+            // 2. Update Main Image and only reveal it once the selected source is ready
+            loadDetailImage(targetMedia);
         }
 
         // Dedicated helper to sync variant chips based on the active gallery image
@@ -5299,6 +5352,8 @@
             modal.classList.add('opacity-0', 'pointer-events-none');
             document.body.classList.remove('modal-active');
             updateProductDeepLink('');
+            detailImageLoadToken += 1;
+            setDetailImageLoading(false);
             // Reset zoom on close
             const img = document.getElementById('mainDetailImg');
             if(img) {
