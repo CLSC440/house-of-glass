@@ -1553,15 +1553,18 @@
         let isSidebarCategoriesExpanded = true;
         let isSidebarBrandsExpanded = true;
         let isSidebarOriginExpanded = true;
-        let isSidebarMugExpanded = true;
-        const MUG_FILTER_KEY = '__keyword_mug__';
+        const LEGACY_KEYWORD_FILTER_KEY = '__keyword_mug__';
         const GENERIC_BRAND_LABEL = 'Generic';
         const UNKNOWN_ORIGIN_LABEL = 'Unknown';
         let selectedCategories = new Set();
         let selectedBrands = new Set();
         let selectedOrigins = new Set();
 
-        if (activeCategory !== 'All' && activeCategory !== 'My Favorites' && activeCategory !== MUG_FILTER_KEY) {
+        if (activeCategory === LEGACY_KEYWORD_FILTER_KEY) {
+            activeCategory = 'All';
+        }
+
+        if (activeCategory !== 'All' && activeCategory !== 'My Favorites') {
             selectedCategories = new Set([activeCategory]);
             activeCategory = 'All';
         }
@@ -1572,26 +1575,11 @@
 
         function getActiveCategoryLabel(categoryKey) {
             if (categoryKey === 'All') return 'All | الكل';
-            if (categoryKey === MUG_FILTER_KEY) return 'Mug';
             return categoryKey;
         }
 
         function normalizeFilterValue(value) {
             return String(value || '').trim();
-        }
-
-        function syncFavoriteCategoryVisibility() {
-            if (currentUser) {
-                if (!categories.includes('My Favorites')) {
-                    categories = [categories[0], 'My Favorites', ...categories.slice(1).filter((categoryName) => categoryName !== 'My Favorites')];
-                }
-                return;
-            }
-
-            if (categories.includes('My Favorites')) {
-                categories = categories.filter((categoryName) => categoryName !== 'My Favorites');
-                if (activeCategory === 'My Favorites') activeCategory = 'All';
-            }
         }
 
         function getProductBrandLabel(product = {}) {
@@ -1627,7 +1615,7 @@
         }
 
         function hasSpecialCatalogFilter() {
-            return activeCategory === 'My Favorites' || activeCategory === MUG_FILTER_KEY;
+            return activeCategory === 'My Favorites';
         }
 
         function isUsingFilteredGridView() {
@@ -1669,8 +1657,6 @@
 
             if (activeCategory === 'My Favorites') {
                 filtered = filtered.filter((product) => userFavorites.includes(product.id));
-            } else if (activeCategory === MUG_FILTER_KEY) {
-                filtered = filtered.filter(productMatchesMugFilter);
             }
 
             if (!excludeCategories && selectedCategories.size > 0) {
@@ -1763,7 +1749,6 @@
 
             if (searchQuery) chips.push({ type: 'search', value: searchQuery, label: `Search: ${searchQuery}` });
             if (activeCategory === 'My Favorites') chips.push({ type: 'special', value: 'My Favorites', label: 'My Favorites' });
-            if (activeCategory === MUG_FILTER_KEY) chips.push({ type: 'special', value: MUG_FILTER_KEY, label: 'Contains "mug"' });
 
             selectedCategories.forEach((value) => chips.push({ type: 'category', value, label: value }));
             selectedBrands.forEach((value) => chips.push({ type: 'brand', value, label: `Brand: ${value}` }));
@@ -1775,7 +1760,6 @@
         function getPrimaryFilterDisplayLabel() {
             if (!isUsingFilteredGridView()) return 'Category: All';
             if (activeCategory === 'My Favorites') return 'Category: My Favorites';
-            if (activeCategory === MUG_FILTER_KEY) return 'Category: Mug';
             if (selectedCategories.size === 1 && selectedBrands.size === 0 && selectedOrigins.size === 0 && !searchQuery) {
                 return `Category: ${Array.from(selectedCategories)[0]}`;
             }
@@ -3765,7 +3749,13 @@
                     <button onclick="toggleSidebar()" class="text-gray-400 hover:text-brandBlue dark:hover:text-white text-xl font-bold">✕</button>
                 `;
             }
-            syncFavoriteCategoryVisibility();
+            // Add "My Favorites" to categories if not present
+            if (user && !categories.includes('My Favorites')) {
+                categories.splice(1, 0, 'My Favorites');
+            } else if (!user && categories.includes('My Favorites')) {
+                categories = categories.filter(c => c !== 'My Favorites');
+                if (activeCategory === 'My Favorites') activeCategory = 'All';
+            }
             if (window.applyI18n) {
                 window.applyI18n();
             }
@@ -4263,7 +4253,11 @@
                     
                     const fetchedCats = fetchedCatsData.map(c => c.name);
                     categories = ['All', ...fetchedCats];
-                    syncFavoriteCategoryVisibility();
+                    if (currentUser) {
+                        if (!categories.includes('My Favorites')) {
+                            categories.splice(1, 0, 'My Favorites');
+                        }
+                    }
                     renderCategories();
                     if (areProductsLoaded) renderProducts();
                 });
@@ -4292,6 +4286,7 @@
                         }
 
                         areProductsLoaded = true;
+                        renderCategories();
 
                         if (shouldRenderProducts) {
                             renderProducts();
@@ -4405,30 +4400,6 @@
         window.toggleSidebarOriginSection = function(forceValue) {
             isSidebarOriginExpanded = typeof forceValue === 'boolean' ? forceValue : !isSidebarOriginExpanded;
             syncSidebarOriginAccordion();
-        }
-
-        function syncSidebarMugAccordion() {
-            const content = document.getElementById('sidebarMugSection');
-            const chevron = document.getElementById('sidebarMugChevron');
-            if (!content || !chevron) return;
-
-            content.style.overflow = 'hidden';
-            content.style.transition = 'max-height 280ms ease, opacity 200ms ease';
-
-            if (isSidebarMugExpanded) {
-                content.style.maxHeight = `${content.scrollHeight}px`;
-                content.style.opacity = '1';
-                chevron.classList.add('rotate-180');
-            } else {
-                content.style.maxHeight = '0px';
-                content.style.opacity = '0';
-                chevron.classList.remove('rotate-180');
-            }
-        }
-
-        window.toggleSidebarMugSection = function(forceValue) {
-            isSidebarMugExpanded = typeof forceValue === 'boolean' ? forceValue : !isSidebarMugExpanded;
-            syncSidebarMugAccordion();
         }
 
         window.addEventListener('click', (e) => {
@@ -4557,28 +4528,6 @@
             });
             catList.appendChild(originSection);
 
-            const mugSection = document.createElement('div');
-            mugSection.className = 'contents';
-            mugSection.innerHTML = createSidebarSection({
-                sectionId: 'sidebarMugSection',
-                chevronId: 'sidebarMugChevron',
-                title: 'Special Collections',
-                eyebrow: 'Keyword',
-                iconPath: 'M8 6h8m-9 4h10m-8 4h6M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z',
-                toggleHandler: 'window.toggleSidebarMugSection',
-                bodyMarkup: `
-                    <button type="button" class="w-full text-left px-4 py-3.5 text-sm font-bold transition-all flex items-center gap-3 rounded-2xl ${activeCategory === MUG_FILTER_KEY ? 'text-brandGold border border-brandGold/30 bg-brandGold/10 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}" onclick="selectCategory('${MUG_FILTER_KEY}'); window.toggleSidebar();">
-                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 6h8v8a4 4 0 11-8 0V6z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M16 8h1a3 3 0 010 6h-1" />
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 18h8" />
-                        </svg>
-                        <span>Contains "mug"</span>
-                    </button>
-                `
-            });
-            catList.appendChild(mugSection);
-
             const sidebarButtons = document.getElementById('sidebarCategoryButtons');
 
             categoryEntries.forEach((entry) => {
@@ -4612,7 +4561,6 @@
                 syncSidebarCategoryAccordion();
                 syncSidebarBrandAccordion();
                 syncSidebarOriginAccordion();
-                syncSidebarMugAccordion();
                 if (window.applyI18n) {
                     window.applyI18n();
                 }
@@ -4713,7 +4661,7 @@
                 activeCategory = 'All';
                 selectedCategories.clear();
                 resetVisibleCategoryRows();
-            } else if (cat === 'My Favorites' || cat === MUG_FILTER_KEY) {
+            } else if (cat === 'My Favorites') {
                 activeCategory = cat;
                 selectedCategories.clear();
             } else {
@@ -5069,13 +5017,11 @@
                         ? (localStorage.getItem('lang') === 'ar' ? 'نتائج البحث' : 'Search Results')
                         : (activeCategory === 'My Favorites'
                             ? 'My Favorites'
-                            : activeCategory === MUG_FILTER_KEY
-                                ? 'Mug'
-                                : (selectedCategories.size === 1 && selectedBrands.size === 0 && selectedOrigins.size === 0
-                                    ? Array.from(selectedCategories)[0]
-                                    : (selectedBrands.size === 1 && selectedCategories.size === 0 && selectedOrigins.size === 0
-                                        ? Array.from(selectedBrands)[0]
-                                        : (localStorage.getItem('lang') === 'ar' ? 'نتائج مفلترة' : 'Filtered Results'))));
+                            : (selectedCategories.size === 1 && selectedBrands.size === 0 && selectedOrigins.size === 0
+                                ? Array.from(selectedCategories)[0]
+                                : (selectedBrands.size === 1 && selectedCategories.size === 0 && selectedOrigins.size === 0
+                                    ? Array.from(selectedBrands)[0]
+                                    : (localStorage.getItem('lang') === 'ar' ? 'نتائج مفلترة' : 'Filtered Results'))));
                 
                 backHeader.innerHTML = `
                     <button onclick="window.clearAllCatalogFilters()" class="flex items-center gap-3 group/back text-brandBlue dark:text-brandGold hover:translate-x-[-4px] transition-transform">
