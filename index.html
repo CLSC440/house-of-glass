@@ -1521,8 +1521,12 @@
         let products = [];
         let categories = ['All'];
         let brands = [];
-        let activeCategory = new URLSearchParams(window.location.search).get('category') || 'All';
-        let searchQuery = '';
+        const initialCatalogUrlParams = new URLSearchParams(window.location.search);
+        const parseCatalogUrlListParam = (paramName) => initialCatalogUrlParams.getAll(paramName)
+            .map((value) => String(value || '').trim())
+            .filter(Boolean);
+        let activeCategory = initialCatalogUrlParams.get('category') || 'All';
+        let searchQuery = String(initialCatalogUrlParams.get('search') || '').trim();
         const INITIAL_CATEGORY_ROWS = 3;
         let visibleCategoryRows = INITIAL_CATEGORY_ROWS;
         let pendingCategoryPreloadHandle = null;
@@ -1556,16 +1560,18 @@
         const LEGACY_KEYWORD_FILTER_KEY = '__keyword_mug__';
         const GENERIC_BRAND_LABEL = 'Generic';
         const UNKNOWN_ORIGIN_LABEL = 'Unknown';
-        let selectedCategories = new Set();
-        let selectedBrands = new Set();
-        let selectedOrigins = new Set();
+        let selectedCategories = new Set(parseCatalogUrlListParam('categories'));
+        let selectedBrands = new Set(parseCatalogUrlListParam('brands'));
+        let selectedOrigins = new Set(parseCatalogUrlListParam('origins'));
 
         if (activeCategory === LEGACY_KEYWORD_FILTER_KEY) {
             activeCategory = 'All';
         }
 
         if (activeCategory !== 'All' && activeCategory !== 'My Favorites') {
-            selectedCategories = new Set([activeCategory]);
+            if (!selectedCategories.size) {
+                selectedCategories = new Set([activeCategory]);
+            }
             activeCategory = 'All';
         }
 
@@ -1768,12 +1774,71 @@
 
         function syncCatalogUrlState() {
             const url = new URL(window.location);
-            if (selectedCategories.size === 1 && selectedBrands.size === 0 && selectedOrigins.size === 0 && !searchQuery && activeCategory === 'All') {
+            const trimmedSearchQuery = String(searchQuery || '').trim();
+
+            url.searchParams.delete('category');
+            url.searchParams.delete('search');
+            url.searchParams.delete('categories');
+            url.searchParams.delete('brands');
+            url.searchParams.delete('origins');
+
+            if (trimmedSearchQuery) {
+                url.searchParams.set('search', trimmedSearchQuery);
+            }
+
+            if (activeCategory === 'My Favorites') {
+                url.searchParams.set('category', activeCategory);
+            } else if (selectedCategories.size === 1 && selectedBrands.size === 0 && selectedOrigins.size === 0 && !trimmedSearchQuery && activeCategory === 'All') {
                 url.searchParams.set('category', Array.from(selectedCategories)[0]);
             } else {
-                url.searchParams.delete('category');
+                selectedCategories.forEach((value) => url.searchParams.append('categories', value));
+                selectedBrands.forEach((value) => url.searchParams.append('brands', value));
+                selectedOrigins.forEach((value) => url.searchParams.append('origins', value));
             }
+
             window.history.replaceState({}, '', url);
+        }
+
+        async function copyTextToClipboard(text) {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(text);
+                return;
+            }
+
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = text;
+            tempTextArea.setAttribute('readonly', '');
+            tempTextArea.style.position = 'fixed';
+            tempTextArea.style.opacity = '0';
+            tempTextArea.style.pointerEvents = 'none';
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            document.execCommand('copy');
+            tempTextArea.remove();
+        }
+
+        window.shareCatalogFilters = async function() {
+            const shareUrl = window.location.href;
+            const shareData = {
+                title: document.title,
+                text: localStorage.getItem('lang') === 'ar'
+                    ? 'شوف نفس المنتجات بنفس الفلاتر من الرابط ده'
+                    : 'Open the same filtered products from this link',
+                url: shareUrl
+            };
+
+            try {
+                if (isMobileLikeDevice() && navigator.share) {
+                    await navigator.share(shareData);
+                    return;
+                }
+
+                await copyTextToClipboard(shareUrl);
+                window.showToast(localStorage.getItem('lang') === 'ar' ? 'تم نسخ الرابط' : 'Link copied');
+            } catch (error) {
+                if (error?.name === 'AbortError') return;
+                window.showToast(localStorage.getItem('lang') === 'ar' ? 'تعذر مشاركة الرابط' : 'Could not share link', 'error');
+            }
         }
 
         function updatePrimaryFilterDisplay() {
@@ -2958,6 +3023,10 @@
         const sidebar = document.getElementById('sidebar');
         const sidebarOverlay = document.getElementById('sidebarOverlay');
         const searchInput = document.getElementById('searchInput');
+
+        if (searchInput && searchQuery) {
+            searchInput.value = searchQuery;
+        }
 
         window.togglePassword = (id) => {
             const input = document.getElementById(id);
@@ -4490,8 +4559,8 @@
             sidebarSection.innerHTML = createSidebarSection({
                 sectionId: 'sidebarCategorySection',
                 chevronId: 'sidebarCategoryChevron',
-                title: 'Categories',
-                eyebrow: 'Browse',
+                title: 'Categories | التصنيفات',
+                eyebrow: 'Browse | تصفح',
                 iconPath: 'M4 7h16M4 12h16M4 17h10',
                 toggleHandler: 'window.toggleSidebarCategorySection',
                 bodyMarkup: '<div id="sidebarCategoryButtons" class="space-y-1.5"></div>'
@@ -4503,8 +4572,8 @@
             brandSection.innerHTML = createSidebarSection({
                 sectionId: 'sidebarBrandSection',
                 chevronId: 'sidebarBrandChevron',
-                title: 'Brands',
-                eyebrow: 'Filter',
+                title: 'Brands | الماركات',
+                eyebrow: 'Filter | فلترة',
                 iconPath: 'M20 7l-8.5 8.5a2.121 2.121 0 01-3 0L4 11V4h7l9 3z',
                 toggleHandler: 'window.toggleSidebarBrandSection',
                 bodyMarkup: brandEntries.length
@@ -4518,8 +4587,8 @@
             originSection.innerHTML = createSidebarSection({
                 sectionId: 'sidebarOriginSection',
                 chevronId: 'sidebarOriginChevron',
-                title: 'Origin',
-                eyebrow: 'Filter',
+                title: 'Origin | المنشأ',
+                eyebrow: 'Filter | فلترة',
                 iconPath: 'M12 2a10 10 0 100 20 10 10 0 000-20zm0 0c2.5 2.7 4 6.3 4 10s-1.5 7.3-4 10m0-20C9.5 4.7 8 8.3 8 12s1.5 7.3 4 10m-9-10h18M4.9 7h14.2M4.9 17h14.2',
                 toggleHandler: 'window.toggleSidebarOriginSection',
                 bodyMarkup: originEntries.length
@@ -5054,8 +5123,12 @@
                                 </button>
                             `;
                         }).join('')}
+                        <button type="button" onclick="window.shareCatalogFilters()" class="inline-flex items-center gap-2 rounded-full border border-brandGold/30 bg-brandGold text-brandBlue px-4 py-2 text-xs font-black tracking-wide hover:brightness-105 transition-colors shadow-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M8.684 13.342C9.886 12.646 11.203 12.2 12.566 12c1.364-.2 2.754-.148 4.098.153m-7.98 3.496C9.886 16.354 11.203 16.8 12.566 17c1.364.2 2.754.148 4.098-.153M15 5a3 3 0 110 6 3 3 0 010-6zM6 10a3 3 0 110-6 3 3 0 010 6zm9 13a3 3 0 110-6 3 3 0 010 6z"></path></svg>
+                            <span>Share | مشاركة</span>
+                        </button>
                         <button type="button" onclick="window.clearAllCatalogFilters()" class="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-2 text-xs font-black tracking-wide text-gray-500 dark:text-gray-300 hover:border-brandGold/40 hover:text-brandGold transition-colors">
-                            <span>Clear All</span>
+                            <span>Clear All | مسح الكل</span>
                         </button>
                     `;
                     grid.appendChild(chipsBar);
