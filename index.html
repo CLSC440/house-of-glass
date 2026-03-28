@@ -1520,6 +1520,7 @@
 
         let products = [];
         let categories = ['All'];
+        let brands = [];
         let activeCategory = new URLSearchParams(window.location.search).get('category') || 'All';
         let searchQuery = '';
         const INITIAL_CATEGORY_ROWS = 3;
@@ -1713,13 +1714,16 @@
                 counts.set(brandName, (counts.get(brandName) || 0) + 1);
             });
 
-            return sortFacetEntries(
-                Array.from(counts.entries()).map(([label, count]) => ({
-                    label,
-                    count,
-                    selected: selectedBrands.has(label)
-                }))
-            );
+            const orderedKnownBrands = brands.filter((brandName) => counts.has(brandName));
+            const remainingBrands = Array.from(counts.keys())
+                .filter((brandName) => !orderedKnownBrands.includes(brandName))
+                .sort((leftBrand, rightBrand) => leftBrand.localeCompare(rightBrand, undefined, { sensitivity: 'base' }));
+
+            return [...orderedKnownBrands, ...remainingBrands].map((label) => ({
+                label,
+                count: counts.get(label) || 0,
+                selected: selectedBrands.has(label)
+            }));
         }
 
         function getOriginFacetEntries() {
@@ -4231,6 +4235,17 @@
                     }
                 });
 
+                onSnapshot(collection(db, "categories"), (brandSnapshot) => {
+                    const fetchedBrandsData = brandSnapshot.docs.map((doc, idx) => {
+                        const data = doc.data();
+                        return { name: data.name, order: data.order !== undefined ? data.order : idx };
+                    }).sort((a, b) => a.order - b.order);
+
+                    brands = fetchedBrandsData.map((brand) => brand.name).filter(Boolean);
+                    renderCategories();
+                    if (areProductsLoaded) renderProducts();
+                });
+
                 // Load Categories - Live Listener
                 onSnapshot(collection(db, "productCategories"), (catSnapshot) => {
                     const fetchedCatsData = catSnapshot.docs.map((doc, idx) => {
@@ -4717,6 +4732,27 @@
             }
         };
 
+        window.selectBrandFilter = (brand) => {
+            searchQuery = '';
+            activeCategory = 'All';
+            selectedCategories.clear();
+            selectedOrigins.clear();
+            selectedBrands = new Set([brand]);
+            if(document.getElementById('searchInput')) document.getElementById('searchInput').value = '';
+            updatePrimaryFilterDisplay();
+            syncCatalogUrlState();
+
+            renderProducts();
+            renderCategories();
+
+            const contentSection = document.getElementById('product-grid');
+            if (contentSection) {
+                const yOffset = -150;
+                const y = contentSection.getBoundingClientRect().top + window.pageYOffset + yOffset;
+                window.scrollTo({top: y, behavior: 'smooth'});
+            }
+        };
+
         window.toggleFavorite = async (e, productId) => {
             e.stopPropagation();
             if (!currentUser) {
@@ -4819,13 +4855,21 @@
         }
 
         function getCategoriesWithProducts() {
-            return categories
-                .filter((categoryName) => categoryName !== 'All' && categoryName !== 'My Favorites')
-                .map((catName) => ({
-                    catName,
-                    catProducts: products.filter((product) => product.category === catName)
-                }))
-                .filter(({ catProducts }) => catProducts.length > 0);
+            const brandGroups = new Map();
+
+            products.forEach((product) => {
+                const brandName = getProductBrandLabel(product);
+                if (!brandGroups.has(brandName)) brandGroups.set(brandName, []);
+                brandGroups.get(brandName).push(product);
+            });
+
+            const orderedKnownBrands = brands.filter((brandName) => brandGroups.has(brandName));
+            const remainingBrands = Array.from(brandGroups.keys())
+                .filter((brandName) => !orderedKnownBrands.includes(brandName))
+                .sort((leftBrand, rightBrand) => leftBrand.localeCompare(rightBrand, undefined, { sensitivity: 'base' }));
+
+            return [...orderedKnownBrands, ...remainingBrands]
+                .map((catName) => ({ catName, catProducts: brandGroups.get(catName) || [] }));
         }
 
         function createCategoryRowElement(catName, catProducts, catIdx) {
@@ -4841,7 +4885,7 @@
                         <h2 class="text-xl md:text-3xl font-black text-brandBlue dark:text-brandGold uppercase italic tracking-tighter">${catName}</h2>
                         <div class="w-12 h-1 bg-brandGold rounded-full mt-2"></div>
                     </div>
-                    <button onclick="selectCategory('${catName}')" class="see-all-link text-[10px] md:text-xs font-bold uppercase" aria-label="See all items in ${catName}"><span class="see-all-link-text">SEE ALL | عرض الكل</span><span class="see-all-link-arrow" aria-hidden="true">→</span></button>
+                    <button onclick='window.selectBrandFilter(${JSON.stringify(catName)})' class="see-all-link text-[10px] md:text-xs font-bold uppercase" aria-label="See all items in ${catName}"><span class="see-all-link-text">SEE ALL | عرض الكل</span><span class="see-all-link-arrow" aria-hidden="true">→</span></button>
                 </div>
                 
                 <div class="relative group/row">
@@ -5025,7 +5069,9 @@
                                 ? 'Mug'
                                 : (selectedCategories.size === 1 && selectedBrands.size === 0 && selectedOrigins.size === 0
                                     ? Array.from(selectedCategories)[0]
-                                    : (localStorage.getItem('lang') === 'ar' ? 'نتائج مفلترة' : 'Filtered Results')));
+                                    : (selectedBrands.size === 1 && selectedCategories.size === 0 && selectedOrigins.size === 0
+                                        ? Array.from(selectedBrands)[0]
+                                        : (localStorage.getItem('lang') === 'ar' ? 'نتائج مفلترة' : 'Filtered Results'))));
                 
                 backHeader.innerHTML = `
                     <button onclick="window.clearAllCatalogFilters()" class="flex items-center gap-3 group/back text-brandBlue dark:text-brandGold hover:translate-x-[-4px] transition-transform">
