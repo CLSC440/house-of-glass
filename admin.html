@@ -421,7 +421,8 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7H4m16 0v10a2 2 0 01-2 2H6a2 2 0 01-2-2V7m16 0l-2.5-3h-11L4 7m5 4h6m-6 4h6" />
                         </svg>
                     </a>
-                    <button onclick="openCategoryModal()" class="whitespace-nowrap px-2 md:px-3 py-1.5 md:py-2 rounded-full border border-brandGold text-brandGold text-[10px] md:text-xs font-bold hover:bg-brandGold hover:text-white transition-all shrink-0" data-i18n="categories">Categories</button>
+                    <button onclick="openBrandModal()" class="whitespace-nowrap px-2 md:px-3 py-1.5 md:py-2 rounded-full border border-brandGold text-brandGold text-[10px] md:text-xs font-bold hover:bg-brandGold hover:text-white transition-all shrink-0">Brands</button>
+                    <button onclick="openCategoryModal()" class="whitespace-nowrap px-2 md:px-3 py-1.5 md:py-2 rounded-full border border-brandGold text-brandGold text-[10px] md:text-xs font-bold hover:bg-brandGold hover:text-white transition-all shrink-0">Categories</button>
                     <button onclick="openOrdersModal()" class="relative whitespace-nowrap px-2 md:px-3 py-1.5 md:py-2 rounded-full border border-green-500 text-green-500 text-[10px] md:text-xs font-bold hover:bg-green-500 hover:text-white transition-all shrink-0">
                         <span>Orders</span>
                         <span id="ordersCountBadge" class="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center hidden">0</span>
@@ -467,7 +468,7 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(300px,1.35fr)_repeat(4,minmax(0,1fr))_auto] xl:items-center">
+            <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(300px,1.35fr)_repeat(6,minmax(0,1fr))_auto] xl:items-center">
                 <div class="relative md:col-span-2 xl:col-span-1">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -491,6 +492,14 @@
                     <option value="zero">Views = 0</option>
                     <option value="has-views">Views &gt; 0</option>
                     <option value="top-viewed">Top Viewed</option>
+                </select>
+                <select id="adminBrandFilter" class="w-full min-w-0 px-4 py-3.5 rounded-2xl bg-gray-50 dark:bg-gray-800 dark:text-white border border-transparent focus:border-brandGold focus:ring-0 outline-none cursor-pointer" onchange="filterAdminProducts()">
+                    <option value="All">All Brands</option>
+                    <!-- Brands will be injected here -->
+                </select>
+                <select id="adminOriginFilter" class="w-full min-w-0 px-4 py-3.5 rounded-2xl bg-gray-50 dark:bg-gray-800 dark:text-white border border-transparent focus:border-brandGold focus:ring-0 outline-none cursor-pointer" onchange="filterAdminProducts()">
+                    <option value="All">All Origins</option>
+                    <!-- Origins will be injected here -->
                 </select>
                 <select id="adminCategoryFilter" class="w-full min-w-0 px-4 py-3.5 rounded-2xl bg-gray-50 dark:bg-gray-800 dark:text-white border border-transparent focus:border-brandGold focus:ring-0 outline-none cursor-pointer" onchange="filterAdminProducts()">
                     <option value="All" data-i18n="all_categories">All Categories</option>
@@ -560,6 +569,20 @@
                         <select id="pCategory" class="w-full border dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg p-2 focus:ring-brandGold outline-none">
                             <!-- Options injected by JS -->
                         </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Brand</label>
+                        <select id="pBrand" class="w-full border dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg p-2 focus:ring-brandGold outline-none">
+                            <!-- Options injected by JS -->
+                        </select>
+                        <p class="text-[10px] text-gray-400 mt-1 italic">Brands come from the Brands list. Leave default to save as Generic.</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Origin</label>
+                        <select id="pOrigin" class="w-full border dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg p-2 focus:ring-brandGold outline-none">
+                            <!-- Options injected by JS -->
+                        </select>
+                        <p class="text-[10px] text-gray-400 mt-1 italic">Default is Egyptian | مصري if you leave it unchanged.</p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
@@ -665,17 +688,37 @@
         </div>
     </div>
 
+    <!-- Brand Modal -->
+    <div id="brandModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-[110] overflow-hidden">
+        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50" onclick="closeBrandModal()"></div>
+        <div class="modal-container bg-white dark:bg-darkCard w-11/12 md:max-w-sm mx-auto rounded-2xl shadow-2xl z-50 overflow-hidden">
+            <div class="p-4 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800">
+                <h2 class="text-lg font-bold text-brandBlue dark:text-brandGold italic">Brands</h2>
+                <button onclick="closeBrandModal()" class="text-gray-400 hover:text-red-500 transition-colors">✕</button>
+            </div>
+            <div class="p-4">
+                <div class="flex space-x-2 mb-4">
+                    <input type="text" id="newBrandInput" placeholder="New brand..." class="flex-grow border dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-brandGold bg-gray-50">
+                    <button onclick="addBrand()" class="bg-brandBlue text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg shadow-brandBlue/20">Add</button>
+                </div>
+                <div id="brandAdminList" class="space-y-1.5 max-h-64 overflow-y-auto pr-2 custom-scroll">
+                    <!-- Brands list here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Category Modal -->
     <div id="categoryModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-[110] overflow-hidden">
         <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50" onclick="closeCategoryModal()"></div>
         <div class="modal-container bg-white dark:bg-darkCard w-11/12 md:max-w-sm mx-auto rounded-2xl shadow-2xl z-50 overflow-hidden">
             <div class="p-4 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800">
-                <h2 class="text-lg font-bold text-brandBlue dark:text-brandGold italic" data-i18n="categories">Categories</h2>
+                <h2 class="text-lg font-bold text-brandBlue dark:text-brandGold italic">Categories</h2>
                 <button onclick="closeCategoryModal()" class="text-gray-400 hover:text-red-500 transition-colors">✕</button>
             </div>
             <div class="p-4">
                 <div class="flex space-x-2 mb-4">
-                    <input type="text" id="newCatInput" placeholder="New category..." class="flex-grow border dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-brandGold bg-gray-50">
+                    <input type="text" id="newCatInput" placeholder="New product category..." class="flex-grow border dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-brandGold bg-gray-50">
                     <button onclick="addCategory()" class="bg-brandBlue text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg shadow-brandBlue/20">Add</button>
                 </div>
                 <div id="catAdminList" class="space-y-1.5 max-h-64 overflow-y-auto pr-2 custom-scroll">
@@ -813,6 +856,8 @@
         const auth = getAuth(app);
 
         let products = [];
+        let brands = [];
+        let brandsData = [];
         let categories = [];
         let categoriesData = [];
         let allUsers = [];
@@ -1165,9 +1210,9 @@
                     }
                 });
 
-                // Load Categories - Live Listener
+                // Load Brands - Live Listener
                 onSnapshot(collection(db, "categories"), (catSnapshot) => {
-                    categoriesData = catSnapshot.docs.map((doc, idx) => {
+                    brandsData = catSnapshot.docs.map((doc, idx) => {
                         const data = doc.data();
                         return { 
                             id: doc.id, 
@@ -1176,10 +1221,26 @@
                         };
                     });
                     
-                    // Final sort
+                    brandsData.sort((a, b) => a.order - b.order);
+                    brands = brandsData.map((brand) => brand.name);
+
+                    renderBrandsInUI();
+                });
+
+                // Load Product Categories - Live Listener
+                onSnapshot(collection(db, "productCategories"), (catSnapshot) => {
+                    categoriesData = catSnapshot.docs.map((doc, idx) => {
+                        const data = doc.data();
+                        return {
+                            id: doc.id,
+                            name: data.name,
+                            order: data.order !== undefined ? data.order : idx
+                        };
+                    });
+
                     categoriesData.sort((a, b) => a.order - b.order);
-                    categories = categoriesData.map(c => c.name);
-                    
+                    categories = categoriesData.map((category) => category.name);
+
                     renderCategoriesInUI();
                     filterAdminProducts();
                 });
@@ -1187,6 +1248,7 @@
                 // Load Products - Live Listener
                 onSnapshot(collection(db, "products"), (prodSnapshot) => {
                     products = sortAdminProducts(prodSnapshot.docs.map(doc => normalizeLoadedProduct({ id: doc.id, ...doc.data() })));
+                    renderAdminOriginFilter();
                     filterAdminProducts();
                     renderOrders();
 
@@ -1207,19 +1269,132 @@
             }
         }
 
+        function renderBrandsInUI() {
+            const select = document.getElementById('pBrand');
+            if (select) {
+                const savedVal = normalizeProductMetaValue(select.value);
+                const brandOptions = [...brands];
+                if (savedVal && savedVal !== 'Generic' && !brandOptions.includes(savedVal)) {
+                    brandOptions.unshift(savedVal);
+                }
+                select.innerHTML = `<option value="">Generic</option>` + brandOptions.map((brand) => `<option value="${brand}">${brand}</option>`).join('');
+                select.value = savedVal && (savedVal === 'Generic' || brandOptions.includes(savedVal)) ? savedVal : '';
+            }
+
+            const filterSelect = document.getElementById('adminBrandFilter');
+            if (filterSelect) {
+                const currentFilter = filterSelect.value;
+                filterSelect.innerHTML = `<option value="All">All Brands</option>` + brands.map((brand) => `<option value="${brand}">${brand}</option>`).join('');
+                filterSelect.value = brands.includes(currentFilter) || currentFilter === 'All' ? currentFilter : 'All';
+            }
+
+            const list = document.getElementById('brandAdminList');
+            if (!list) return;
+
+            list.style.position = 'relative';
+            list.innerHTML = brandsData.map((brand) => `
+                <div data-id="${brand.id}" class="flex justify-between items-center bg-white dark:bg-gray-800 p-3 rounded-xl mb-2 group/cat border border-gray-100 dark:border-gray-700/50 hover:border-brandGold/30 transition-all shadow-sm">
+                    <div class="flex items-center space-x-3">
+                        <div class="text-gray-400 drag-handle cursor-grab active:cursor-grabbing p-1 hover:text-brandGold transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
+                            </svg>
+                        </div>
+                        <span class="text-sm font-bold text-brandBlue dark:text-brandGold font-arabic select-none">${brand.name}</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="editBrand('${brand.name.replace(/'/g, "\\'")}')" class="text-blue-500 hover:text-blue-700 text-xs p-1" title="Edit">✎</button>
+                        <button onclick="deleteBrand('${brand.name.replace(/'/g, "\\'")}')" class="text-red-500 hover:text-red-700 text-xs p-1" title="Delete">✕</button>
+                    </div>
+                </div>
+            `).join('');
+
+            if (window.brandSortable) window.brandSortable.destroy();
+            window.brandSortable = new Sortable(list, {
+                animation: 180,
+                handle: '.drag-handle',
+                ghostClass: 'sortable-ghost',
+                chosenClass: 'sortable-chosen',
+                dragClass: 'sortable-drag',
+                direction: 'vertical',
+                forceFallback: true,
+                fallbackOnBody: false,
+                scroll: list,
+                scrollSensitivity: 60,
+                scrollSpeed: 15,
+                delay: 0,
+                touchStartThreshold: 3,
+                onStart: function() {
+                    list.classList.add('is-dragging');
+                    document.body.style.overflow = 'hidden';
+                },
+                onEnd: async function() {
+                    list.classList.remove('is-dragging');
+                    document.body.style.overflow = '';
+                    const items = Array.from(list.querySelectorAll('[data-id]'));
+                    const newOrderData = items.map((item, index) => ({
+                        id: item.dataset.id,
+                        order: index
+                    }));
+
+                    newOrderData.forEach((item) => {
+                        const brand = brandsData.find((entry) => entry.id === item.id);
+                        if (brand) brand.order = item.order;
+                    });
+                    brandsData.sort((a, b) => a.order - b.order);
+                    brands = brandsData.map((brand) => brand.name);
+
+                    try {
+                        const promises = newOrderData.map((item) => updateDoc(doc(db, 'categories', item.id), { order: item.order }));
+                        await Promise.all(promises);
+                    } catch (e) {
+                        console.error('Error saving new brand order:', e);
+                    }
+                }
+            });
+        }
+
+        function getAdminProductOrigin(product = {}) {
+            const explicitOrigin = [
+                product.origin,
+                product.country,
+                product.countryOfOrigin
+            ].map(normalizeProductMetaValue).find(Boolean);
+
+            return explicitOrigin || 'Egyptian | مصري';
+        }
+
+        function renderAdminOriginFilter() {
+            const filterSelect = document.getElementById('adminOriginFilter');
+            if (!filterSelect) return;
+
+            const currentFilter = filterSelect.value;
+            const originValues = Array.from(new Set(
+                products.map((product) => getAdminProductOrigin(product)).filter(Boolean)
+            )).sort((a, b) => a.localeCompare(b));
+
+            filterSelect.innerHTML = `<option value="All">All Origins</option>`
+                + originValues.map((origin) => `<option value="${origin}">${origin}</option>`).join('');
+            filterSelect.value = originValues.includes(currentFilter) || currentFilter === 'All' ? currentFilter : 'All';
+        }
+
         function renderCategoriesInUI() {
             // Update Modal Select
             const select = document.getElementById('pCategory');
-            const savedVal = select.value; // Preserve selection if possible
-            select.innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
-            if(savedVal && categories.includes(savedVal)) select.value = savedVal;
+            const savedVal = normalizeProductMetaValue(select.value);
+            const categoryOptions = [...categories];
+            if (savedVal && !categoryOptions.includes(savedVal)) {
+                categoryOptions.unshift(savedVal);
+            }
+            select.innerHTML = `<option value="">Select category</option>` + categoryOptions.map(c => `<option value="${c}">${c}</option>`).join('');
+            if (savedVal && categoryOptions.includes(savedVal)) select.value = savedVal;
             
             // Update Filter Select
             const filterSelect = document.getElementById('adminCategoryFilter');
             const currentFilter = filterSelect.value;
-            filterSelect.innerHTML = `<option value="All">All Categories</option>` + 
+            filterSelect.innerHTML = `<option value="All">All Categories</option><option value="__uncategorized__">No Category Yet</option>` + 
                                    categories.map(c => `<option value="${c}">${c}</option>`).join('');
-            filterSelect.value = currentFilter;
+            filterSelect.value = categories.includes(currentFilter) || currentFilter === 'All' || currentFilter === '__uncategorized__' ? currentFilter : 'All';
 
             // Update Admin List
             const list = document.getElementById('catAdminList');
@@ -1281,15 +1456,16 @@
                     // Update Firestore
                     try {
                         const promises = newOrderData.map(item => 
-                            updateDoc(doc(db, "categories", item.id), { order: item.order })
+                            updateDoc(doc(db, "productCategories", item.id), { order: item.order })
                         );
                         await Promise.all(promises);
-                        loadData(); // Sync dropdowns and verify state
                     } catch (e) {
                         console.error("Error saving new order:", e);
                     }
                 }
             });
+
+            renderAdminOriginFilter();
         }
 
         function getProductCreatedTimestamp(product = {}) {
@@ -1339,8 +1515,25 @@
             counterText.innerText = `Showing ${filteredCount} of ${totalCount} products`;
         }
 
+        function getAdminProductBrand(product = {}) {
+            const explicitBrand = [
+                product.brand,
+                product.brand_name,
+                product.manufacturer,
+                product.factory,
+                product.company,
+                product.supplier
+            ].map(normalizeProductMetaValue).find(Boolean);
+
+            if (explicitBrand) return explicitBrand;
+            if (brands.includes(product.category)) return product.category;
+            return 'Generic';
+        }
+
         window.filterAdminProducts = function() {
             const search = document.getElementById('adminSearch').value.toLowerCase();
+            const brand = document.getElementById('adminBrandFilter')?.value || 'All';
+            const origin = document.getElementById('adminOriginFilter')?.value || 'All';
             const cat = document.getElementById('adminCategoryFilter').value;
             const barcodeFilter = document.getElementById('adminBarcodeFilter')?.value || 'all';
             const mediaFilter = document.getElementById('adminMediaFilter')?.value || 'all';
@@ -1349,10 +1542,18 @@
             const effectiveSortBy = viewsFilter === 'top-viewed' ? 'most-viewed' : sortBy;
             
             const filtered = products.filter(p => {
+                const productBrand = getAdminProductBrand(p);
+                const productOrigin = getAdminProductOrigin(p);
+                const normalizedCategory = normalizeProductMetaValue(p.category);
                 const matchesSearch = p.name.toLowerCase().includes(search) 
                     || (p.desc && p.desc.toLowerCase().includes(search))
-                    || (p.code && p.code.toLowerCase().includes(search));
-                const matchesCat = cat === 'All' || p.category === cat;
+                    || (p.code && p.code.toLowerCase().includes(search))
+                    || productBrand.toLowerCase().includes(search)
+                    || productOrigin.toLowerCase().includes(search);
+                const matchesBrand = brand === 'All' || productBrand === brand;
+                const matchesOrigin = origin === 'All' || productOrigin === origin;
+                const matchesCat = cat === 'All'
+                    || (cat === '__uncategorized__' ? !normalizedCategory || brands.includes(normalizedCategory) : normalizedCategory === cat);
                 const productHasBarcode = p.code && String(p.code).trim() !== '';
                 const variantsHaveBarcode = (p.variants || []).some(v => v.barcode && String(v.barcode).trim() !== '');
                 const mediaStatus = getProductMediaStatus(p);
@@ -1383,25 +1584,84 @@
                     matchesViewsFilter = viewCount > 0;
                 }
 
-                return matchesSearch && matchesCat && matchesBarcodeFilter && matchesMediaFilter && matchesViewsFilter;
+                return matchesSearch && matchesBrand && matchesOrigin && matchesCat && matchesBarcodeFilter && matchesMediaFilter && matchesViewsFilter;
             });
             
             updateAdminProductsCounter(filtered.length, products.length);
             renderProducts(sortAdminProducts(filtered, effectiveSortBy));
         };
 
+        window.addBrand = async function() {
+            const val = document.getElementById('newBrandInput').value.trim();
+            if (val && !brands.includes(val)) {
+                const nextOrder = brandsData.length > 0
+                    ? Math.max(...brandsData.map((brand) => brand.order || 0)) + 1
+                    : 0;
+                await addDoc(collection(db, 'categories'), {
+                    name: val,
+                    order: nextOrder
+                });
+                document.getElementById('newBrandInput').value = '';
+            }
+        };
+
+        window.editBrand = async function(oldName) {
+            const newName = prompt('Enter new brand name:', oldName);
+            if (newName && newName.trim() !== '' && newName !== oldName) {
+                const cleanName = newName.trim();
+                if (brands.includes(cleanName)) {
+                    showToast('Brand name already exists!', 'error');
+                    return;
+                }
+
+                if (confirm(`Rename brand "${oldName}" to "${cleanName}"?\nThis will update all associated products.`)) {
+                    try {
+                        const brandSnapshot = await getDocs(collection(db, 'categories'));
+                        const brandDoc = brandSnapshot.docs.find((docEntry) => docEntry.data().name === oldName);
+                        if (brandDoc) {
+                            await updateDoc(doc(db, 'categories', brandDoc.id), { name: cleanName });
+                        }
+
+                        const prodSnapshot = await getDocs(query(collection(db, 'products'), where('brand', '==', oldName)));
+                        const updates = prodSnapshot.docs.map((docEntry) => updateDoc(doc(db, 'products', docEntry.id), { brand: cleanName }));
+                        await Promise.all(updates);
+
+                        showToast('Brand updated successfully!');
+                    } catch (e) {
+                        console.error('Error updating brand:', e);
+                        showToast(`Error: ${e.message}`, 'error');
+                    }
+                }
+            }
+        };
+
+        window.deleteBrand = async function(brandName) {
+            if (confirm(`Delete brand "${brandName}"?`)) {
+                const snapshot = await getDocs(collection(db, 'categories'));
+                const brandDoc = snapshot.docs.find((docEntry) => docEntry.data().name === brandName);
+                if (brandDoc) {
+                    await deleteDoc(doc(db, 'categories', brandDoc.id));
+                }
+            }
+        };
+
         window.addCategory = async function() {
             const val = document.getElementById('newCatInput').value.trim();
             if (val && !categories.includes(val)) {
-                const nextOrder = categoriesData.length > 0 
-                    ? Math.max(...categoriesData.map(c => c.order || 0)) + 1 
-                    : 0;
-                await addDoc(collection(db, "categories"), { 
-                    name: val,
-                    order: nextOrder 
-                });
-                document.getElementById('newCatInput').value = '';
-                loadData();
+                try {
+                    const nextOrder = categoriesData.length > 0 
+                        ? Math.max(...categoriesData.map(c => c.order || 0)) + 1 
+                        : 0;
+                    await addDoc(collection(db, "productCategories"), { 
+                        name: val,
+                        order: nextOrder 
+                    });
+                    document.getElementById('newCatInput').value = '';
+                    showToast("Category added successfully!");
+                } catch (e) {
+                    console.error("Error adding category:", e);
+                    showToast(`Error: ${e.message}`, 'error');
+                }
             }
         };
 
@@ -1417,10 +1677,10 @@
                 if (confirm(`Rename category "${oldName}" to "${cleanName}"?\nThis will update all associated products.`)) {
                     try {
                         // 1. Update Category Doc
-                        const catSnapshot = await getDocs(collection(db, "categories"));
+                        const catSnapshot = await getDocs(collection(db, "productCategories"));
                         const catDoc = catSnapshot.docs.find(d => d.data().name === oldName);
                         if (catDoc) {
-                            await updateDoc(doc(db, "categories", catDoc.id), { name: cleanName });
+                            await updateDoc(doc(db, "productCategories", catDoc.id), { name: cleanName });
                         }
 
                         // 2. Update Products
@@ -1429,7 +1689,6 @@
                         await Promise.all(updates);
 
                         showToast("Category updated successfully!");
-                        loadData();
                     } catch (e) {
                         console.error("Error updating category:", e);
                         showToast(`Error: ${e.message}`, 'error');
@@ -1440,11 +1699,16 @@
 
         window.deleteCategory = async function(catName) {
             if (confirm(`Delete category "${catName}"?`)) {
-                const snapshot = await getDocs(collection(db, "categories"));
-                const catDoc = snapshot.docs.find(d => d.data().name === catName);
-                if (catDoc) {
-                    await deleteDoc(doc(db, "categories", catDoc.id));
-                    loadData();
+                try {
+                    const snapshot = await getDocs(collection(db, "productCategories"));
+                    const catDoc = snapshot.docs.find(d => d.data().name === catName);
+                    if (catDoc) {
+                        await deleteDoc(doc(db, "productCategories", catDoc.id));
+                        showToast("Category deleted successfully!");
+                    }
+                } catch (e) {
+                    console.error("Error deleting category:", e);
+                    showToast(`Error: ${e.message}`, 'error');
                 }
             }
         };
@@ -1713,9 +1977,13 @@
             document.getElementById('modalTitle').innerText = isEdit ? 'Update Piece' : 'Add New Piece';
             document.getElementById('productModal').classList.remove('opacity-0', 'pointer-events-none');
             document.body.classList.add('modal-active');
+            refreshProductMetaSuggestions();
+            refreshProductOriginOptions('');
             if(!isEdit) {
                 document.getElementById('productForm').reset();
                 document.getElementById('productId').value = '';
+                document.getElementById('pBrand').value = '';
+                document.getElementById('pOrigin').value = '';
                 document.getElementById('imageInputs').innerHTML = '';
                 document.getElementById('variantInputs').innerHTML = ''; // Clear variants
                 addImageInput();
@@ -1734,6 +2002,40 @@
             document.getElementById('productModal').classList.add('opacity-0', 'pointer-events-none');
             document.body.classList.remove('modal-active');
         };
+
+        function normalizeProductMetaValue(value) {
+            return String(value || '').trim();
+        }
+
+        function buildOriginOptions(selectedValue = '') {
+            const normalizedSelected = normalizeProductMetaValue(selectedValue);
+            const baseOptions = [
+                { value: '', label: 'Default = Egyptian | مصري' },
+                { value: 'French | فرنسي', label: 'French | فرنسي' },
+                { value: 'Turkish | تركي', label: 'Turkish | تركي' },
+                { value: 'Chinese | صيني', label: 'Chinese | صيني' }
+            ];
+
+            if (normalizedSelected && !baseOptions.some((option) => option.value === normalizedSelected)) {
+                baseOptions.push({ value: normalizedSelected, label: normalizedSelected });
+            }
+
+            return baseOptions;
+        }
+
+        function refreshProductOriginOptions(selectedValue = '') {
+            const originSelect = document.getElementById('pOrigin');
+            if (!originSelect) return;
+
+            const normalizedSelected = normalizeProductMetaValue(selectedValue);
+            const options = buildOriginOptions(normalizedSelected);
+            originSelect.innerHTML = options.map((option) => `<option value="${option.value}">${option.label}</option>`).join('');
+            originSelect.value = options.some((option) => option.value === normalizedSelected) ? normalizedSelected : '';
+        }
+
+        function refreshProductMetaSuggestions() {
+            renderBrandsInUI();
+        }
 
         window.addImageInput = function(val = '', isDefault = false) {
             const div = document.createElement('div');
@@ -1933,9 +2235,13 @@
         window.editProduct = function(id) {
             const p = products.find(prod => prod.id === id);
             if (p) {
+                refreshProductMetaSuggestions();
+                refreshProductOriginOptions(p.origin || p.country || p.countryOfOrigin || '');
                 document.getElementById('productId').value = p.id;
                 document.getElementById('pName').value = p.name;
                 document.getElementById('pCategory').value = p.category;
+                document.getElementById('pBrand').value = p.brand || p.brand_name || p.manufacturer || p.factory || p.company || p.supplier || (brands.includes(p.category) ? p.category : '') || '';
+                document.getElementById('pOrigin').value = p.origin || p.country || p.countryOfOrigin || '';
                 document.getElementById('pDesc').value = p.desc;
                 document.getElementById('pCode').value = p.code || '';
                 document.getElementById('pInStock').checked = p.inStock !== false; // Default to true if undefined
@@ -2127,9 +2433,13 @@
                 }
 
                 submitBtn.innerText = "Finalizing...";
+                const normalizedBrand = normalizeProductMetaValue(document.getElementById('pBrand').value) || 'Generic';
+                const normalizedOrigin = normalizeProductMetaValue(document.getElementById('pOrigin').value) || 'Egyptian | مصري';
                 const data = {
                     name: document.getElementById('pName').value,
                     category: document.getElementById('pCategory').value,
+                    brand: normalizedBrand,
+                    origin: normalizedOrigin,
                     desc: document.getElementById('pDesc').value,
                     code: document.getElementById('pCode').value.trim(),
                     inStock: document.getElementById('pInStock').checked,
@@ -2151,6 +2461,8 @@
                 if (oldProduct) {
                     if (oldProduct.name !== data.name) changeLog.push(`Name changed: "${oldProduct.name}" → "${data.name}"`);
                     if (oldProduct.category !== data.category) changeLog.push(`Category changed: "${oldProduct.category}" → "${data.category}"`);
+                    if ((oldProduct.brand || '') !== data.brand) changeLog.push(`Brand changed: "${oldProduct.brand || ''}" → "${data.brand}"`);
+                    if ((oldProduct.origin || '') !== data.origin) changeLog.push(`Origin changed: "${oldProduct.origin || ''}" → "${data.origin}"`);
                     if ((oldProduct.code || '') !== data.code) changeLog.push(`Code changed: "${oldProduct.code || ''}" → "${data.code}"`);
                     if (oldProduct.inStock !== data.inStock) changeLog.push(`Availability changed: ${oldProduct.inStock !== false ? 'In Stock' : 'Out of Stock'} → ${data.inStock ? 'In Stock' : 'Out of Stock'}`);
                     if (oldProduct.desc !== data.desc) {
@@ -2595,6 +2907,20 @@
         }
 
         window.logout = () => signOut(auth);
+        window.openBrandModal = () => {
+            document.getElementById('brandModal').classList.remove('opacity-0', 'pointer-events-none');
+            document.body.classList.add('modal-active');
+            document.body.style.overflow = 'hidden';
+            document.body.style.position = 'fixed';
+            document.body.style.width = '100%';
+        };
+        window.closeBrandModal = () => {
+            document.getElementById('brandModal').classList.add('opacity-0', 'pointer-events-none');
+            document.body.classList.remove('modal-active');
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+        };
         window.openCategoryModal = () => {
             document.getElementById('categoryModal').classList.remove('opacity-0', 'pointer-events-none');
             document.body.classList.add('modal-active');

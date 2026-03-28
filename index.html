@@ -1550,8 +1550,20 @@
         let areProductsLoaded = false;
         let isDeepLinkOpenScheduled = false;
         let isSidebarCategoriesExpanded = true;
+        let isSidebarBrandsExpanded = true;
+        let isSidebarOriginExpanded = true;
         let isSidebarMugExpanded = true;
         const MUG_FILTER_KEY = '__keyword_mug__';
+        const GENERIC_BRAND_LABEL = 'Generic';
+        const UNKNOWN_ORIGIN_LABEL = 'Unknown';
+        let selectedCategories = new Set();
+        let selectedBrands = new Set();
+        let selectedOrigins = new Set();
+
+        if (activeCategory !== 'All' && activeCategory !== 'My Favorites' && activeCategory !== MUG_FILTER_KEY) {
+            selectedCategories = new Set([activeCategory]);
+            activeCategory = 'All';
+        }
 
         function normalizeProductCode(code) {
             return String(code || '').trim().toLowerCase();
@@ -1561,6 +1573,210 @@
             if (categoryKey === 'All') return 'All | الكل';
             if (categoryKey === MUG_FILTER_KEY) return 'Mug';
             return categoryKey;
+        }
+
+        function normalizeFilterValue(value) {
+            return String(value || '').trim();
+        }
+
+        function getProductBrandLabel(product = {}) {
+            const explicitBrand = [
+                product.brand,
+                product.brand_name,
+                product.manufacturer,
+                product.factory,
+                product.company,
+                product.supplier
+            ].map(normalizeFilterValue).find(Boolean);
+
+            const legacyCategoryBrand = normalizeFilterValue(product.category);
+            const canUseLegacyCategoryAsBrand = legacyCategoryBrand
+                && legacyCategoryBrand !== 'All'
+                && !categories.includes(legacyCategoryBrand);
+
+            return explicitBrand || (canUseLegacyCategoryAsBrand ? legacyCategoryBrand : '') || GENERIC_BRAND_LABEL;
+        }
+
+        function getProductOriginLabel(product = {}) {
+            const explicitOrigin = [
+                product.origin,
+                product.country,
+                product.countryOfOrigin
+            ].map(normalizeFilterValue).find(Boolean);
+
+            return explicitOrigin || UNKNOWN_ORIGIN_LABEL;
+        }
+
+        function hasStructuredCatalogFilters() {
+            return selectedCategories.size > 0 || selectedBrands.size > 0 || selectedOrigins.size > 0;
+        }
+
+        function hasSpecialCatalogFilter() {
+            return activeCategory === 'My Favorites' || activeCategory === MUG_FILTER_KEY;
+        }
+
+        function isUsingFilteredGridView() {
+            return Boolean(searchQuery) || hasStructuredCatalogFilters() || hasSpecialCatalogFilter();
+        }
+
+        function matchesProductSearch(product, queryText) {
+            const query = normalizeFilterValue(queryText).toLowerCase();
+            if (!query) return true;
+
+            const haystacks = [
+                product.name,
+                product.nameAr,
+                product.category,
+                product.desc,
+                product.code,
+                getProductBrandLabel(product),
+                getProductOriginLabel(product)
+            ];
+
+            const directMatch = haystacks.some((value) => String(value || '').toLowerCase().includes(query));
+            if (directMatch) return true;
+
+            return (product.variants || []).some((variant) => {
+                return [variant?.name, variant?.label, variant?.barcode, variant?.code]
+                    .some((value) => String(value || '').toLowerCase().includes(query));
+            });
+        }
+
+        function getFilteredProducts(options = {}) {
+            const {
+                excludeCategories = false,
+                excludeBrands = false,
+                excludeOrigins = false,
+                excludeSearch = false
+            } = options;
+
+            let filtered = products.slice();
+
+            if (activeCategory === 'My Favorites') {
+                filtered = filtered.filter((product) => userFavorites.includes(product.id));
+            } else if (activeCategory === MUG_FILTER_KEY) {
+                filtered = filtered.filter(productMatchesMugFilter);
+            }
+
+            if (!excludeCategories && selectedCategories.size > 0) {
+                filtered = filtered.filter((product) => selectedCategories.has(product.category));
+            }
+
+            if (!excludeBrands && selectedBrands.size > 0) {
+                filtered = filtered.filter((product) => selectedBrands.has(getProductBrandLabel(product)));
+            }
+
+            if (!excludeOrigins && selectedOrigins.size > 0) {
+                filtered = filtered.filter((product) => selectedOrigins.has(getProductOriginLabel(product)));
+            }
+
+            if (!excludeSearch && searchQuery) {
+                filtered = filtered.filter((product) => matchesProductSearch(product, searchQuery));
+            }
+
+            return filtered;
+        }
+
+        function sortFacetEntries(entries = []) {
+            return entries.sort((a, b) => {
+                if (b.count !== a.count) return b.count - a.count;
+                return a.label.localeCompare(b.label);
+            });
+        }
+
+        function getCategoryFacetEntries() {
+            const sourceProducts = getFilteredProducts({ excludeCategories: true });
+            const counts = new Map();
+
+            sourceProducts.forEach((product) => {
+                const categoryName = normalizeFilterValue(product.category);
+                if (!categoryName) return;
+                counts.set(categoryName, (counts.get(categoryName) || 0) + 1);
+            });
+
+            return categories
+                .filter((categoryName) => categoryName !== 'All' && categoryName !== 'My Favorites')
+                .map((categoryName) => ({
+                    label: categoryName,
+                    count: counts.get(categoryName) || 0,
+                    selected: selectedCategories.has(categoryName)
+                }))
+                .filter((entry) => entry.count > 0 || entry.selected);
+        }
+
+        function getBrandFacetEntries() {
+            const sourceProducts = getFilteredProducts({ excludeBrands: true });
+            const counts = new Map();
+
+            sourceProducts.forEach((product) => {
+                const brandName = getProductBrandLabel(product);
+                counts.set(brandName, (counts.get(brandName) || 0) + 1);
+            });
+
+            return sortFacetEntries(
+                Array.from(counts.entries()).map(([label, count]) => ({
+                    label,
+                    count,
+                    selected: selectedBrands.has(label)
+                }))
+            );
+        }
+
+        function getOriginFacetEntries() {
+            const sourceProducts = getFilteredProducts({ excludeOrigins: true });
+            const counts = new Map();
+
+            sourceProducts.forEach((product) => {
+                const originName = getProductOriginLabel(product);
+                counts.set(originName, (counts.get(originName) || 0) + 1);
+            });
+
+            return sortFacetEntries(
+                Array.from(counts.entries()).map(([label, count]) => ({
+                    label,
+                    count,
+                    selected: selectedOrigins.has(label)
+                }))
+            );
+        }
+
+        function getCatalogActiveFilterChips() {
+            const chips = [];
+
+            if (searchQuery) chips.push({ type: 'search', value: searchQuery, label: `Search: ${searchQuery}` });
+            if (activeCategory === 'My Favorites') chips.push({ type: 'special', value: 'My Favorites', label: 'My Favorites' });
+            if (activeCategory === MUG_FILTER_KEY) chips.push({ type: 'special', value: MUG_FILTER_KEY, label: 'Contains "mug"' });
+
+            selectedCategories.forEach((value) => chips.push({ type: 'category', value, label: value }));
+            selectedBrands.forEach((value) => chips.push({ type: 'brand', value, label: `Brand: ${value}` }));
+            selectedOrigins.forEach((value) => chips.push({ type: 'origin', value, label: `Origin: ${value}` }));
+
+            return chips;
+        }
+
+        function getPrimaryFilterDisplayLabel() {
+            if (!isUsingFilteredGridView()) return 'Category: All';
+            if (activeCategory === 'My Favorites') return 'Category: My Favorites';
+            if (activeCategory === MUG_FILTER_KEY) return 'Category: Mug';
+            if (selectedCategories.size === 1 && selectedBrands.size === 0 && selectedOrigins.size === 0 && !searchQuery) {
+                return `Category: ${Array.from(selectedCategories)[0]}`;
+            }
+            return `Filters: ${getCatalogActiveFilterChips().length}`;
+        }
+
+        function syncCatalogUrlState() {
+            const url = new URL(window.location);
+            if (selectedCategories.size === 1 && selectedBrands.size === 0 && selectedOrigins.size === 0 && !searchQuery && activeCategory === 'All') {
+                url.searchParams.set('category', Array.from(selectedCategories)[0]);
+            } else {
+                url.searchParams.delete('category');
+            }
+            window.history.replaceState({}, '', url);
+        }
+
+        function updatePrimaryFilterDisplay() {
+            const filterDisplay = document.getElementById('activeFilterDisplay');
+            if (filterDisplay) filterDisplay.innerText = getPrimaryFilterDisplayLabel();
         }
 
         function resetVisibleCategoryRows() {
@@ -4016,7 +4232,7 @@
                 });
 
                 // Load Categories - Live Listener
-                onSnapshot(collection(db, "categories"), (catSnapshot) => {
+                onSnapshot(collection(db, "productCategories"), (catSnapshot) => {
                     const fetchedCatsData = catSnapshot.docs.map((doc, idx) => {
                         const data = doc.data();
                         return { name: data.name, order: data.order !== undefined ? data.order : idx };
@@ -4124,6 +4340,54 @@
             syncSidebarCategoryAccordion();
         }
 
+        function syncSidebarBrandAccordion() {
+            const content = document.getElementById('sidebarBrandSection');
+            const chevron = document.getElementById('sidebarBrandChevron');
+            if (!content || !chevron) return;
+
+            content.style.overflow = 'hidden';
+            content.style.transition = 'max-height 280ms ease, opacity 200ms ease';
+
+            if (isSidebarBrandsExpanded) {
+                content.style.maxHeight = `${content.scrollHeight}px`;
+                content.style.opacity = '1';
+                chevron.classList.add('rotate-180');
+            } else {
+                content.style.maxHeight = '0px';
+                content.style.opacity = '0';
+                chevron.classList.remove('rotate-180');
+            }
+        }
+
+        window.toggleSidebarBrandSection = function(forceValue) {
+            isSidebarBrandsExpanded = typeof forceValue === 'boolean' ? forceValue : !isSidebarBrandsExpanded;
+            syncSidebarBrandAccordion();
+        }
+
+        function syncSidebarOriginAccordion() {
+            const content = document.getElementById('sidebarOriginSection');
+            const chevron = document.getElementById('sidebarOriginChevron');
+            if (!content || !chevron) return;
+
+            content.style.overflow = 'hidden';
+            content.style.transition = 'max-height 280ms ease, opacity 200ms ease';
+
+            if (isSidebarOriginExpanded) {
+                content.style.maxHeight = `${content.scrollHeight}px`;
+                content.style.opacity = '1';
+                chevron.classList.add('rotate-180');
+            } else {
+                content.style.maxHeight = '0px';
+                content.style.opacity = '0';
+                chevron.classList.remove('rotate-180');
+            }
+        }
+
+        window.toggleSidebarOriginSection = function(forceValue) {
+            isSidebarOriginExpanded = typeof forceValue === 'boolean' ? forceValue : !isSidebarOriginExpanded;
+            syncSidebarOriginAccordion();
+        }
+
         function syncSidebarMugAccordion() {
             const content = document.getElementById('sidebarMugSection');
             const chevron = document.getElementById('sidebarMugChevron');
@@ -4156,11 +4420,69 @@
         });
 
                 function renderCategories() {
-            document.getElementById('activeFilterDisplay').innerText = `Category: ${getActiveCategoryLabel(activeCategory)}`;
+            updatePrimaryFilterDisplay();
             const catList = document.getElementById('categoryList');
             const catDropdown = document.getElementById('catDropdown');
             catList.innerHTML = '';
             catDropdown.innerHTML = '';
+
+            const categoryEntries = getCategoryFacetEntries();
+            const brandEntries = getBrandFacetEntries();
+            const originEntries = getOriginFacetEntries();
+
+            const createFacetButtonMarkup = (entry, type) => {
+                const icon = entry.selected
+                    ? '<span class="w-5 h-5 rounded-full bg-brandGold text-brandBlue flex items-center justify-center text-[10px] font-black shrink-0">✓</span>'
+                    : '<span class="w-5 h-5 rounded-full border border-gray-300 dark:border-gray-600 flex items-center justify-center shrink-0"></span>';
+
+                const encodedLabel = JSON.stringify(entry.label).replace(/"/g, '&quot;');
+
+                return `
+                    <button
+                        type="button"
+                        class="w-full text-left px-4 py-3.5 text-sm font-bold transition-all flex items-center justify-between gap-3 rounded-2xl ${entry.selected ? 'text-brandGold border border-brandGold/30 bg-brandGold/10 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}"
+                        onclick="window.toggleFilterSelection('${type}', ${encodedLabel})"
+                    >
+                        <span class="flex items-center gap-3 min-w-0">
+                            ${icon}
+                            <span class="truncate">${entry.label}</span>
+                        </span>
+                        <span class="shrink-0 text-[11px] font-black ${entry.selected ? 'text-brandGold' : 'text-gray-400 dark:text-gray-500'}">(${entry.count})</span>
+                    </button>
+                `;
+            };
+
+            const createSidebarSection = ({ sectionId, chevronId, title, eyebrow, iconPath, toggleHandler, bodyMarkup }) => `
+                <div class="px-3 mt-3 first:mt-0">
+                    <div class="rounded-[26px] border border-gray-200/80 dark:border-gray-700/80 bg-white/80 dark:bg-gray-900/50 backdrop-blur-sm shadow-sm overflow-hidden">
+                        <button type="button" onclick="${toggleHandler}()" class="w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50/80 dark:hover:bg-gray-800/80">
+                            <span class="flex items-center gap-3 min-w-0">
+                                <span class="w-10 h-10 rounded-2xl bg-brandGold/10 text-brandGold flex items-center justify-center shrink-0">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="${iconPath}" />
+                                    </svg>
+                                </span>
+                                <span class="min-w-0">
+                                    <span class="block text-[10px] font-black uppercase tracking-[0.3em] text-brandGold/80">${eyebrow}</span>
+                                    <span class="block text-sm font-black text-brandBlue dark:text-white">${title}</span>
+                                </span>
+                            </span>
+                            <svg id="${chevronId}" class="w-5 h-5 text-brandGold transition-transform duration-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        <div id="${sectionId}" class="px-2 pb-2">
+                            <div class="space-y-1.5">${bodyMarkup}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const allBtn = document.createElement('button');
+            allBtn.className = `w-full text-left px-4 py-3 text-sm font-bold transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center ${!isUsingFilteredGridView() ? 'text-brandGold bg-brandGold/5' : 'text-gray-600 dark:text-gray-400'}`;
+            allBtn.innerText = 'All Categories | الكل';
+            allBtn.onclick = () => { selectCategory('All'); document.getElementById('catDropdown').classList.add('hidden'); };
+            catDropdown.appendChild(allBtn);
 
                     if (currentUser && categories.includes('My Favorites')) {
                         const favoritesBtn = document.createElement('button');
@@ -4174,85 +4496,94 @@
                     }
 
             const sidebarSection = document.createElement('div');
-            sidebarSection.className = 'px-3';
-            sidebarSection.innerHTML = `
-                <div class="rounded-[26px] border border-gray-200/80 dark:border-gray-700/80 bg-white/80 dark:bg-gray-900/50 backdrop-blur-sm shadow-sm overflow-hidden">
-                    <button type="button" onclick="window.toggleSidebarCategorySection()" class="w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50/80 dark:hover:bg-gray-800/80">
-                        <span class="flex items-center gap-3 min-w-0">
-                            <span class="w-10 h-10 rounded-2xl bg-brandGold/10 text-brandGold flex items-center justify-center shrink-0">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h10" />
-                                </svg>
-                            </span>
-                            <span class="min-w-0">
-                                <span class="block text-[10px] font-black uppercase tracking-[0.3em] text-brandGold/80">Browse</span>
-                                <span class="block text-sm font-black text-brandBlue dark:text-white" data-i18n="categories">Categories</span>
-                            </span>
-                        </span>
-                        <svg id="sidebarCategoryChevron" class="w-5 h-5 text-brandGold transition-transform duration-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </button>
-                    <div id="sidebarCategorySection" class="px-2 pb-2">
-                        <div id="sidebarCategoryButtons" class="space-y-1.5"></div>
-                    </div>
-                </div>
-            `;
+            sidebarSection.className = 'contents';
+            sidebarSection.innerHTML = createSidebarSection({
+                sectionId: 'sidebarCategorySection',
+                chevronId: 'sidebarCategoryChevron',
+                title: 'Categories',
+                eyebrow: 'Browse',
+                iconPath: 'M4 7h16M4 12h16M4 17h10',
+                toggleHandler: 'window.toggleSidebarCategorySection',
+                bodyMarkup: '<div id="sidebarCategoryButtons" class="space-y-1.5"></div>'
+            });
             catList.appendChild(sidebarSection);
 
+            const brandSection = document.createElement('div');
+            brandSection.className = 'contents';
+            brandSection.innerHTML = createSidebarSection({
+                sectionId: 'sidebarBrandSection',
+                chevronId: 'sidebarBrandChevron',
+                title: 'Brands',
+                eyebrow: 'Filter',
+                iconPath: 'M20 7l-8.5 8.5a2.121 2.121 0 01-3 0L4 11V4h7l9 3z',
+                toggleHandler: 'window.toggleSidebarBrandSection',
+                bodyMarkup: brandEntries.length
+                    ? brandEntries.map((entry) => createFacetButtonMarkup(entry, 'brand')).join('')
+                    : '<p class="px-4 py-3 text-xs font-bold text-gray-400">No brands yet</p>'
+            });
+            catList.appendChild(brandSection);
+
+            const originSection = document.createElement('div');
+            originSection.className = 'contents';
+            originSection.innerHTML = createSidebarSection({
+                sectionId: 'sidebarOriginSection',
+                chevronId: 'sidebarOriginChevron',
+                title: 'Origin',
+                eyebrow: 'Filter',
+                iconPath: 'M12 2a10 10 0 100 20 10 10 0 000-20zm0 0c2.5 2.7 4 6.3 4 10s-1.5 7.3-4 10m0-20C9.5 4.7 8 8.3 8 12s1.5 7.3 4 10m-9-10h18M4.9 7h14.2M4.9 17h14.2',
+                toggleHandler: 'window.toggleSidebarOriginSection',
+                bodyMarkup: originEntries.length
+                    ? originEntries.map((entry) => createFacetButtonMarkup(entry, 'origin')).join('')
+                    : '<p class="px-4 py-3 text-xs font-bold text-gray-400">No origins yet</p>'
+            });
+            catList.appendChild(originSection);
+
             const mugSection = document.createElement('div');
-            mugSection.className = 'px-3 mt-3';
-            mugSection.innerHTML = `
-                <div class="rounded-[26px] border border-gray-200/80 dark:border-gray-700/80 bg-white/80 dark:bg-gray-900/50 backdrop-blur-sm shadow-sm overflow-hidden">
-                    <button type="button" onclick="window.toggleSidebarMugSection()" class="w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50/80 dark:hover:bg-gray-800/80">
-                        <span class="flex items-center gap-3 min-w-0">
-                            <span class="w-10 h-10 rounded-2xl bg-brandGold/10 text-brandGold flex items-center justify-center shrink-0">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 6h8m-9 4h10m-8 4h6M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z" />
-                                </svg>
-                            </span>
-                            <span class="min-w-0">
-                                <span class="block text-[10px] font-black uppercase tracking-[0.3em] text-brandGold/80">Keyword</span>
-                                <span class="block text-sm font-black text-brandBlue dark:text-white">Mug Filter</span>
-                            </span>
-                        </span>
-                        <svg id="sidebarMugChevron" class="w-5 h-5 text-brandGold transition-transform duration-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            mugSection.className = 'contents';
+            mugSection.innerHTML = createSidebarSection({
+                sectionId: 'sidebarMugSection',
+                chevronId: 'sidebarMugChevron',
+                title: 'Special Collections',
+                eyebrow: 'Keyword',
+                iconPath: 'M8 6h8m-9 4h10m-8 4h6M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z',
+                toggleHandler: 'window.toggleSidebarMugSection',
+                bodyMarkup: `
+                    <button type="button" class="w-full text-left px-4 py-3.5 text-sm font-bold transition-all flex items-center gap-3 rounded-2xl ${activeCategory === MUG_FILTER_KEY ? 'text-brandGold border border-brandGold/30 bg-brandGold/10 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}" onclick="selectCategory('${MUG_FILTER_KEY}'); window.toggleSidebar();">
+                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 6h8v8a4 4 0 11-8 0V6z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16 8h1a3 3 0 010 6h-1" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 18h8" />
                         </svg>
+                        <span>Contains "mug"</span>
                     </button>
-                    <div id="sidebarMugSection" class="px-2 pb-2">
-                        <div class="space-y-1.5">
-                            <button type="button" class="w-full text-left px-4 py-3.5 text-sm font-bold transition-all flex items-center gap-3 rounded-2xl ${activeCategory === MUG_FILTER_KEY ? 'text-brandGold border border-brandGold/30 bg-brandGold/10 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}" onclick="selectCategory('${MUG_FILTER_KEY}'); window.toggleSidebar();">
-                                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 6h8v8a4 4 0 11-8 0V6z" />
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16 8h1a3 3 0 010 6h-1" />
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 18h8" />
-                                </svg>
-                                <span>Contains "mug"</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
+                `
+            });
             catList.appendChild(mugSection);
 
             const sidebarButtons = document.getElementById('sidebarCategoryButtons');
 
-            categories.forEach(cat => {
-                if (cat === 'My Favorites') return;
+            categoryEntries.forEach((entry) => {
+                const cat = entry.label;
 
                 // Sidebar
                 const btn = document.createElement('button');
-                btn.className = `w-full text-left px-4 py-3.5 text-sm font-bold transition-all flex items-center space-x-3 rounded-2xl ${activeCategory === cat ? 'text-brandGold border border-brandGold/30 bg-brandGold/10 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`;
+                btn.className = `w-full text-left px-4 py-3.5 text-sm font-bold transition-all flex items-center justify-between gap-3 rounded-2xl ${entry.selected ? 'text-brandGold border border-brandGold/30 bg-brandGold/10 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`;
                 btn.innerHTML = `
-                    <span>${getActiveCategoryLabel(cat)}</span>
+                    <span class="flex items-center gap-3 min-w-0">
+                        ${entry.selected
+                            ? '<span class="w-5 h-5 rounded-full bg-brandGold text-brandBlue flex items-center justify-center text-[10px] font-black shrink-0">✓</span>'
+                            : '<span class="w-5 h-5 rounded-full border border-gray-300 dark:border-gray-600 flex items-center justify-center shrink-0"></span>'}
+                        <span class="truncate">${getActiveCategoryLabel(cat)}</span>
+                    </span>
+                    <span class="shrink-0 text-[11px] font-black ${entry.selected ? 'text-brandGold' : 'text-gray-400 dark:text-gray-500'}">(${entry.count})</span>
                 `;
-                btn.onclick = () => { selectCategory(cat); window.toggleSidebar(); };
+                btn.onclick = () => { window.toggleFilterSelection('category', cat); };
                 sidebarButtons.appendChild(btn);
 
                 // Dropdown
                 const dropBtn = document.createElement('button');
-                dropBtn.className = `w-full text-left px-4 py-3 text-sm font-bold transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center ${activeCategory === cat ? 'text-brandGold bg-brandGold/5' : 'text-gray-600 dark:text-gray-400'}`;
+                const isDropdownActive = selectedCategories.size === 1 && selectedCategories.has(cat) && selectedBrands.size === 0 && selectedOrigins.size === 0 && activeCategory === 'All';
+                dropBtn.className = `w-full text-left px-4 py-3 text-sm font-bold transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center ${isDropdownActive ? 'text-brandGold bg-brandGold/5' : 'text-gray-600 dark:text-gray-400'}`;
                 dropBtn.innerText = getActiveCategoryLabel(cat);
                 dropBtn.onclick = () => { selectCategory(cat); document.getElementById('catDropdown').classList.add('hidden'); };
                 catDropdown.appendChild(dropBtn);
@@ -4260,6 +4591,8 @@
 
             requestAnimationFrame(() => {
                 syncSidebarCategoryAccordion();
+                syncSidebarBrandAccordion();
+                syncSidebarOriginAccordion();
                 syncSidebarMugAccordion();
                 if (window.applyI18n) {
                     window.applyI18n();
@@ -4267,8 +4600,65 @@
             });
         }
 
+        window.toggleFilterSelection = function(type, value) {
+            const normalizedValue = normalizeFilterValue(value);
+            if (!normalizedValue) return;
+
+            if (type === 'category') {
+                activeCategory = 'All';
+                if (selectedCategories.has(normalizedValue)) selectedCategories.delete(normalizedValue);
+                else selectedCategories.add(normalizedValue);
+            } else if (type === 'brand') {
+                if (selectedBrands.has(normalizedValue)) selectedBrands.delete(normalizedValue);
+                else selectedBrands.add(normalizedValue);
+            } else if (type === 'origin') {
+                if (selectedOrigins.has(normalizedValue)) selectedOrigins.delete(normalizedValue);
+                else selectedOrigins.add(normalizedValue);
+            }
+
+            if (!isUsingFilteredGridView()) resetVisibleCategoryRows();
+
+            syncCatalogUrlState();
+            renderProducts();
+            renderCategories();
+        };
+
+        window.removeCatalogFilter = function(type, value) {
+            if (type === 'search') {
+                searchQuery = '';
+                if (document.getElementById('searchInput')) document.getElementById('searchInput').value = '';
+            } else if (type === 'special') {
+                activeCategory = 'All';
+            } else if (type === 'category') {
+                selectedCategories.delete(value);
+            } else if (type === 'brand') {
+                selectedBrands.delete(value);
+            } else if (type === 'origin') {
+                selectedOrigins.delete(value);
+            }
+
+            if (!isUsingFilteredGridView()) resetVisibleCategoryRows();
+
+            syncCatalogUrlState();
+            renderProducts();
+            renderCategories();
+        };
+
+        window.clearAllCatalogFilters = function() {
+            activeCategory = 'All';
+            searchQuery = '';
+            selectedCategories.clear();
+            selectedBrands.clear();
+            selectedOrigins.clear();
+            if (document.getElementById('searchInput')) document.getElementById('searchInput').value = '';
+            resetVisibleCategoryRows();
+            syncCatalogUrlState();
+            renderProducts();
+            renderCategories();
+        };
+
         window.showMoreCategoryRows = () => {
-            if (activeCategory !== 'All' || searchQuery !== '') return;
+            if (isUsingFilteredGridView()) return;
 
             const categoriesWithProducts = getCategoriesWithProducts();
             const alreadyRenderedRows = Math.min(visibleCategoryRows, categoriesWithProducts.length);
@@ -4299,20 +4689,21 @@
         };
 
                 window.selectCategory = (cat) => {
-            activeCategory = cat;
             searchQuery = ''; // Clear search when selecting a category
-            if (cat === 'All') resetVisibleCategoryRows();
-            if(document.getElementById('searchInput')) document.getElementById('searchInput').value = '';
-            document.getElementById('activeFilterDisplay').innerText = `Category: ${getActiveCategoryLabel(cat)}`;
-
-            // Update the URL without reloading
-            const url = new URL(window.location);
             if (cat === 'All') {
-                url.searchParams.delete('category');
+                activeCategory = 'All';
+                selectedCategories.clear();
+                resetVisibleCategoryRows();
+            } else if (cat === 'My Favorites' || cat === MUG_FILTER_KEY) {
+                activeCategory = cat;
+                selectedCategories.clear();
             } else {
-                url.searchParams.set('category', cat);
+                activeCategory = 'All';
+                selectedCategories = new Set([cat]);
             }
-            window.history.pushState({}, '', url);
+            if(document.getElementById('searchInput')) document.getElementById('searchInput').value = '';
+            updatePrimaryFilterDisplay();
+            syncCatalogUrlState();
 
             renderProducts();
             renderCategories();
@@ -4508,7 +4899,7 @@
         function preloadCategoryRowsInBackground(rowsToPreload, startIndex = 0, profile = getCategoryPreloadProfile()) {
             resetCategoryRowPreload();
 
-            if (!rowsToPreload.length || activeCategory !== 'All' || searchQuery !== '' || !profile.enabled) return;
+            if (!rowsToPreload.length || isUsingFilteredGridView() || !profile.enabled) return;
 
             bindCategoryPreloadInteractionHooks();
 
@@ -4517,7 +4908,7 @@
 
             const work = (deadline) => {
                 if (preloadGeneration !== categoryPreloadGeneration) return;
-                if (activeCategory !== 'All' || searchQuery !== '') return;
+                if (isUsingFilteredGridView()) return;
 
                 if (shouldPauseCategoryPreload(profile)) {
                     pendingCategoryPreloadHandle = scheduleIdleWork(work);
@@ -4550,7 +4941,7 @@
 
         function queueCategoryRowsPreload(rowsToPreload, startIndex = 0) {
             const profile = getCategoryPreloadProfile();
-            if (!rowsToPreload.length || !profile.enabled || activeCategory !== 'All' || searchQuery !== '') return;
+            if (!rowsToPreload.length || !profile.enabled || isUsingFilteredGridView()) return;
 
             const preloadGeneration = categoryPreloadGeneration;
             const showMoreWrapper = document.getElementById('showMoreRowsWrapper');
@@ -4619,17 +5010,25 @@
             if (loadingSkeleton) loadingSkeleton.remove();
             
             // If search is active or specific category is selected, use grid mode
-            if (activeCategory !== 'All' || searchQuery !== '') {
+            if (isUsingFilteredGridView()) {
                 grid.className = "grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-10";
                 
                 // Add Back Header
                 const backHeader = document.createElement('div');
                 backHeader.className = 'col-span-full flex items-center justify-between mb-8 pb-6 border-b border-gray-100 dark:border-gray-800/50 reveal';
                 
-                    const titleText = searchQuery !== '' ? (localStorage.getItem('lang') === 'ar' ? 'نتائج البحث' : 'Search Results') : getActiveCategoryLabel(activeCategory);
+                    const titleText = searchQuery !== ''
+                        ? (localStorage.getItem('lang') === 'ar' ? 'نتائج البحث' : 'Search Results')
+                        : (activeCategory === 'My Favorites'
+                            ? 'My Favorites'
+                            : activeCategory === MUG_FILTER_KEY
+                                ? 'Mug'
+                                : (selectedCategories.size === 1 && selectedBrands.size === 0 && selectedOrigins.size === 0
+                                    ? Array.from(selectedCategories)[0]
+                                    : (localStorage.getItem('lang') === 'ar' ? 'نتائج مفلترة' : 'Filtered Results')));
                 
                 backHeader.innerHTML = `
-                    <button onclick="selectCategory('All')" class="flex items-center gap-3 group/back text-brandBlue dark:text-brandGold hover:translate-x-[-4px] transition-transform">
+                    <button onclick="window.clearAllCatalogFilters()" class="flex items-center gap-3 group/back text-brandBlue dark:text-brandGold hover:translate-x-[-4px] transition-transform">
                         <div class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-brandGold/10 flex items-center justify-center group-hover/back:bg-brandGold group-hover/back:text-white transition-all shadow-sm">
                             <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
                         </div>
@@ -4645,22 +5044,28 @@
                 `;
                 grid.appendChild(backHeader);
 
-                let filtered = products;
-                if (activeCategory === 'My Favorites') {
-                    filtered = products.filter(p => userFavorites.includes(p.id));
-                } else if (activeCategory === MUG_FILTER_KEY) {
-                    filtered = filtered.filter(productMatchesMugFilter);
-                } else if (activeCategory !== 'All') {
-                    filtered = filtered.filter(p => p.category === activeCategory);
+                const activeChips = getCatalogActiveFilterChips();
+                if (activeChips.length > 0) {
+                    const chipsBar = document.createElement('div');
+                    chipsBar.className = 'col-span-full mb-8 flex flex-wrap items-center gap-3 reveal';
+                    chipsBar.innerHTML = `
+                        ${activeChips.map((chip) => {
+                            const encodedValue = JSON.stringify(chip.value).replace(/"/g, '&quot;');
+                            return `
+                                <button type="button" onclick="window.removeCatalogFilter('${chip.type}', ${encodedValue})" class="inline-flex items-center gap-2 rounded-full border border-brandGold/25 bg-brandGold/10 px-4 py-2 text-xs font-black tracking-wide text-brandBlue dark:text-brandGold hover:bg-brandGold/15 transition-colors">
+                                    <span>${chip.label}</span>
+                                    <span class="text-brandGold">✕</span>
+                                </button>
+                            `;
+                        }).join('')}
+                        <button type="button" onclick="window.clearAllCatalogFilters()" class="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-2 text-xs font-black tracking-wide text-gray-500 dark:text-gray-300 hover:border-brandGold/40 hover:text-brandGold transition-colors">
+                            <span>Clear All</span>
+                        </button>
+                    `;
+                    grid.appendChild(chipsBar);
                 }
 
-                if (searchQuery) {
-                    const q = searchQuery.toLowerCase();
-                    filtered = filtered.filter(p => 
-                        p.name.toLowerCase().includes(q) || 
-                        (p.category && p.category.toLowerCase().includes(q))
-                    );
-                }
+                const filtered = getFilteredProducts();
 
                 if (filtered.length === 0 && products.length > 0) {
                     grid.innerHTML = `<div class="col-span-full py-20 flex flex-col items-center justify-center gap-2 text-gray-400 italic text-lg">
@@ -4840,15 +5245,12 @@
             const initialVariantName = initialVariant?.name || initialVariant?.label || '';
             const initialCardImage = getCardVariantImage(activeCardVariantIdx);
             const initialVariantBadge = getVariantBadgeMarkup(initialVariantName, stockState);
-            const cardLabelParts = [
-                p.category,
-                p.brand || p.manufacturer || p.factory || p.origin || p.company || p.supplier
-            ].map((value) => String(value || '').trim()).filter(Boolean);
-            const cardLabelMarkup = cardLabelParts.length
+            const cardBrandLabel = getProductBrandLabel(p);
+            const cardLabelMarkup = cardBrandLabel
                 ? `
                             <div class="product-card-label">
                                 <span class="product-card-label-content">
-                                    ${cardLabelParts.map((part, index) => `<span class="product-card-label-part ${index === 0 ? 'is-primary' : ''}">${part}</span>`).join('<span class="product-card-label-separator">|</span>')}
+                                    <span class="product-card-label-part is-primary">${cardBrandLabel}</span>
                                 </span>
                             </div>`
                 : '';
@@ -4963,8 +5365,10 @@
 
         searchInput.oninput = (e) => {
             searchQuery = e.target.value;
-            if (searchQuery === '') resetVisibleCategoryRows();
+            if (!searchQuery && !isUsingFilteredGridView()) resetVisibleCategoryRows();
+            syncCatalogUrlState();
             renderProducts();
+            renderCategories();
         };
 
         function initReveal() {

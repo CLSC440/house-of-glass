@@ -39,6 +39,11 @@ service cloud.firestore {
       allow write: if isAdminOrModerator();
     }
 
+    match /productCategories/{docId} {
+      allow read: if true;
+      allow write: if isAdminOrModerator();
+    }
+
     match /settings/contact {
       allow read: if true;
       allow write: if isAdminOrModerator();
