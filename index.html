@@ -1580,6 +1580,20 @@
             return String(value || '').trim();
         }
 
+        function syncFavoriteCategoryVisibility() {
+            if (currentUser) {
+                if (!categories.includes('My Favorites')) {
+                    categories = [categories[0], 'My Favorites', ...categories.slice(1).filter((categoryName) => categoryName !== 'My Favorites')];
+                }
+                return;
+            }
+
+            if (categories.includes('My Favorites')) {
+                categories = categories.filter((categoryName) => categoryName !== 'My Favorites');
+                if (activeCategory === 'My Favorites') activeCategory = 'All';
+            }
+        }
+
         function getProductBrandLabel(product = {}) {
             const explicitBrand = [
                 product.brand,
@@ -3751,13 +3765,7 @@
                     <button onclick="toggleSidebar()" class="text-gray-400 hover:text-brandBlue dark:hover:text-white text-xl font-bold">✕</button>
                 `;
             }
-            // Add "My Favorites" to categories if not present
-            if (user && !categories.includes('My Favorites')) {
-                categories.splice(1, 0, 'My Favorites');
-            } else if (!user && categories.includes('My Favorites')) {
-                categories = categories.filter(c => c !== 'My Favorites');
-                if (activeCategory === 'My Favorites') activeCategory = 'All';
-            }
+            syncFavoriteCategoryVisibility();
             if (window.applyI18n) {
                 window.applyI18n();
             }
@@ -4255,11 +4263,7 @@
                     
                     const fetchedCats = fetchedCatsData.map(c => c.name);
                     categories = ['All', ...fetchedCats];
-                    if (currentUser) {
-                        if (!categories.includes('My Favorites')) {
-                            categories.splice(1, 0, 'My Favorites');
-                        }
-                    }
+                    syncFavoriteCategoryVisibility();
                     renderCategories();
                     if (areProductsLoaded) renderProducts();
                 });
