@@ -1647,6 +1647,12 @@
             return isAvailable;
         }
 
+        function getFilteredCatalogVisibilitySignature() {
+            return getFilteredProducts().map((product) => {
+                return String(product.id || getInventoryCode(product) || product.code || product.name || 'product');
+            }).join('|');
+        }
+
         function hasSpecialCatalogFilter() {
             return activeCategory === 'My Favorites';
         }
@@ -4205,11 +4211,17 @@
         async function refreshLiveStockStatus(force = false) {
             if (!areProductsLoaded) return;
             try {
+                const previousFilteredSignature = hideOutOfStockProducts ? getFilteredCatalogVisibilitySignature() : '';
                 await getDcStockMap(force);
                 resetProductCatalogAvailabilityCache();
                 if (hideOutOfStockProducts) {
-                    renderProducts();
-                    renderCategories();
+                    const nextFilteredSignature = getFilteredCatalogVisibilitySignature();
+                    if (nextFilteredSignature !== previousFilteredSignature) {
+                        renderProducts();
+                        renderCategories();
+                    } else {
+                        syncRenderedProductCardsUi();
+                    }
                 } else {
                     syncRenderedProductCardsUi();
                 }
