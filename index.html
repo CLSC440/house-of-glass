@@ -1554,15 +1554,18 @@
         let isAuthResolved = false;
         let areProductsLoaded = false;
         let isDeepLinkOpenScheduled = false;
-        let isSidebarCategoriesExpanded = true;
-        let isSidebarBrandsExpanded = true;
-        let isSidebarOriginExpanded = true;
+        let isSidebarCategoriesExpanded = false;
+        let isSidebarBrandsExpanded = false;
+        let isSidebarOriginExpanded = false;
+        let isSidebarStockExpanded = false;
         const LEGACY_KEYWORD_FILTER_KEY = '__keyword_mug__';
         const GENERIC_BRAND_LABEL = 'Generic';
         const UNKNOWN_ORIGIN_LABEL = 'Unknown';
         let selectedCategories = new Set(parseCatalogUrlListParam('categories'));
         let selectedBrands = new Set(parseCatalogUrlListParam('brands'));
         let selectedOrigins = new Set(parseCatalogUrlListParam('origins'));
+        let hideOutOfStockProducts = initialCatalogUrlParams.get('stock') === 'in-stock';
+        const productCatalogAvailabilityCache = new Map();
 
         if (activeCategory === LEGACY_KEYWORD_FILTER_KEY) {
             activeCategory = 'All';
@@ -1617,7 +1620,31 @@
         }
 
         function hasStructuredCatalogFilters() {
-            return selectedCategories.size > 0 || selectedBrands.size > 0 || selectedOrigins.size > 0;
+            return selectedCategories.size > 0 || selectedBrands.size > 0 || selectedOrigins.size > 0 || hideOutOfStockProducts;
+        }
+
+        function resetProductCatalogAvailabilityCache() {
+            productCatalogAvailabilityCache.clear();
+        }
+
+        function getProductCatalogAvailabilityCacheKey(product = {}) {
+            const productIdentity = product.id || getInventoryCode(product) || product.code || product.name || 'product';
+            return `${String(productIdentity)}::${dcStockMapCacheTime || 0}`;
+        }
+
+        function isProductAvailableForCatalog(product = {}) {
+            const cacheKey = getProductCatalogAvailabilityCacheKey(product);
+            if (productCatalogAvailabilityCache.has(cacheKey)) {
+                return productCatalogAvailabilityCache.get(cacheKey);
+            }
+
+            const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
+            const isAvailable = hasVariants
+                ? product.variants.some((_, variantIdx) => getProductStockState(product, variantIdx).retailAvailable)
+                : getProductStockState(product, null).retailAvailable;
+
+            productCatalogAvailabilityCache.set(cacheKey, isAvailable);
+            return isAvailable;
         }
 
         function hasSpecialCatalogFilter() {
@@ -1656,7 +1683,8 @@
                 excludeCategories = false,
                 excludeBrands = false,
                 excludeOrigins = false,
-                excludeSearch = false
+                excludeSearch = false,
+                excludeStock = false
             } = options;
 
             let filtered = products.slice();
@@ -1679,6 +1707,10 @@
 
             if (!excludeSearch && searchQuery) {
                 filtered = filtered.filter((product) => matchesProductSearch(product, searchQuery));
+            }
+
+            if (!excludeStock && hideOutOfStockProducts) {
+                filtered = filtered.filter((product) => isProductAvailableForCatalog(product));
             }
 
             return filtered;
@@ -1750,11 +1782,25 @@
             );
         }
 
+        function getStockFacetEntries() {
+            const sourceProducts = getFilteredProducts({ excludeStock: true });
+            const availableCount = sourceProducts.reduce((sum, product) => {
+                return sum + (isProductAvailableForCatalog(product) ? 1 : 0);
+            }, 0);
+
+            return [{
+                label: 'In Stock Only | المتاح فقط',
+                count: availableCount,
+                selected: hideOutOfStockProducts
+            }];
+        }
+
         function getCatalogActiveFilterChips() {
             const chips = [];
 
             if (searchQuery) chips.push({ type: 'search', value: searchQuery, label: `Search: ${searchQuery}` });
             if (activeCategory === 'My Favorites') chips.push({ type: 'special', value: 'My Favorites', label: 'My Favorites' });
+            if (hideOutOfStockProducts) chips.push({ type: 'stock', value: 'in-stock', label: 'In Stock Only | المتاح فقط' });
 
             selectedCategories.forEach((value) => chips.push({ type: 'category', value, label: value }));
             selectedBrands.forEach((value) => chips.push({ type: 'brand', value, label: `Brand: ${value}` }));
@@ -1766,7 +1812,7 @@
         function getPrimaryFilterDisplayLabel() {
             if (!isUsingFilteredGridView()) return 'Category: All';
             if (activeCategory === 'My Favorites') return 'Category: My Favorites';
-            if (selectedCategories.size === 1 && selectedBrands.size === 0 && selectedOrigins.size === 0 && !searchQuery) {
+            if (selectedCategories.size === 1 && selectedBrands.size === 0 && selectedOrigins.size === 0 && !searchQuery && !hideOutOfStockProducts) {
                 return `Category: ${Array.from(selectedCategories)[0]}`;
             }
             return `Filters: ${getCatalogActiveFilterChips().length}`;
@@ -1781,6 +1827,7 @@
             url.searchParams.delete('categories');
             url.searchParams.delete('brands');
             url.searchParams.delete('origins');
+            url.searchParams.delete('stock');
 
             if (trimmedSearchQuery) {
                 url.searchParams.set('search', trimmedSearchQuery);
@@ -1788,12 +1835,15 @@
 
             if (activeCategory === 'My Favorites') {
                 url.searchParams.set('category', activeCategory);
-            } else if (selectedCategories.size === 1 && selectedBrands.size === 0 && selectedOrigins.size === 0 && !trimmedSearchQuery && activeCategory === 'All') {
+            } else if (selectedCategories.size === 1 && selectedBrands.size === 0 && selectedOrigins.size === 0 && !trimmedSearchQuery && !hideOutOfStockProducts && activeCategory === 'All') {
                 url.searchParams.set('category', Array.from(selectedCategories)[0]);
             } else {
                 selectedCategories.forEach((value) => url.searchParams.append('categories', value));
                 selectedBrands.forEach((value) => url.searchParams.append('brands', value));
                 selectedOrigins.forEach((value) => url.searchParams.append('origins', value));
+                if (hideOutOfStockProducts) {
+                    url.searchParams.set('stock', 'in-stock');
+                }
             }
 
             window.history.replaceState({}, '', url);
@@ -4156,7 +4206,13 @@
             if (!areProductsLoaded) return;
             try {
                 await getDcStockMap(force);
-                syncRenderedProductCardsUi();
+                resetProductCatalogAvailabilityCache();
+                if (hideOutOfStockProducts) {
+                    renderProducts();
+                    renderCategories();
+                } else {
+                    syncRenderedProductCardsUi();
+                }
                 if (currentProduct && !modal.classList.contains('opacity-0')) {
                     updateDetailPricing();
                     updateModalFavBtn();
@@ -4471,6 +4527,30 @@
             syncSidebarOriginAccordion();
         }
 
+        function syncSidebarStockAccordion() {
+            const content = document.getElementById('sidebarStockSection');
+            const chevron = document.getElementById('sidebarStockChevron');
+            if (!content || !chevron) return;
+
+            content.style.overflow = 'hidden';
+            content.style.transition = 'max-height 280ms ease, opacity 200ms ease';
+
+            if (isSidebarStockExpanded) {
+                content.style.maxHeight = `${content.scrollHeight}px`;
+                content.style.opacity = '1';
+                chevron.classList.add('rotate-180');
+            } else {
+                content.style.maxHeight = '0px';
+                content.style.opacity = '0';
+                chevron.classList.remove('rotate-180');
+            }
+        }
+
+        window.toggleSidebarStockSection = function(forceValue) {
+            isSidebarStockExpanded = typeof forceValue === 'boolean' ? forceValue : !isSidebarStockExpanded;
+            syncSidebarStockAccordion();
+        }
+
         window.addEventListener('click', (e) => {
             const dropdown = document.getElementById('catDropdown');
             if (dropdown && !dropdown.classList.contains('hidden') && !e.target.closest('.group\\/cat')) {
@@ -4488,6 +4568,7 @@
             const categoryEntries = getCategoryFacetEntries();
             const brandEntries = getBrandFacetEntries();
             const originEntries = getOriginFacetEntries();
+            const stockEntries = getStockFacetEntries();
 
             const createFacetButtonMarkup = (entry, type) => {
                 const icon = entry.selected
@@ -4597,6 +4678,19 @@
             });
             catList.appendChild(originSection);
 
+            const stockSection = document.createElement('div');
+            stockSection.className = 'contents';
+            stockSection.innerHTML = createSidebarSection({
+                sectionId: 'sidebarStockSection',
+                chevronId: 'sidebarStockChevron',
+                title: 'Availability | التوفر',
+                eyebrow: 'Filter | فلترة',
+                iconPath: 'M9 12l2 2 4-4m5-2a9 9 0 11-18 0 9 9 0 0118 0z',
+                toggleHandler: 'window.toggleSidebarStockSection',
+                bodyMarkup: stockEntries.map((entry) => createFacetButtonMarkup(entry, 'stock')).join('')
+            });
+            catList.appendChild(stockSection);
+
             const sidebarButtons = document.getElementById('sidebarCategoryButtons');
 
             categoryEntries.forEach((entry) => {
@@ -4630,6 +4724,7 @@
                 syncSidebarCategoryAccordion();
                 syncSidebarBrandAccordion();
                 syncSidebarOriginAccordion();
+                syncSidebarStockAccordion();
                 if (window.applyI18n) {
                     window.applyI18n();
                 }
@@ -4650,6 +4745,8 @@
             } else if (type === 'origin') {
                 if (selectedOrigins.has(normalizedValue)) selectedOrigins.delete(normalizedValue);
                 else selectedOrigins.add(normalizedValue);
+            } else if (type === 'stock') {
+                hideOutOfStockProducts = !hideOutOfStockProducts;
             }
 
             if (!isUsingFilteredGridView()) resetVisibleCategoryRows();
@@ -4671,6 +4768,8 @@
                 selectedBrands.delete(value);
             } else if (type === 'origin') {
                 selectedOrigins.delete(value);
+            } else if (type === 'stock') {
+                hideOutOfStockProducts = false;
             }
 
             if (!isUsingFilteredGridView()) resetVisibleCategoryRows();
@@ -4686,6 +4785,7 @@
             selectedCategories.clear();
             selectedBrands.clear();
             selectedOrigins.clear();
+            hideOutOfStockProducts = false;
             if (document.getElementById('searchInput')) document.getElementById('searchInput').value = '';
             resetVisibleCategoryRows();
             syncCatalogUrlState();
@@ -5108,6 +5208,28 @@
                     </div>
                 `;
                 grid.appendChild(backHeader);
+
+                const stockToggleBar = document.createElement('div');
+                stockToggleBar.className = 'col-span-full mb-5 flex items-center justify-between gap-4 rounded-2xl border border-brandGold/20 bg-white/85 dark:bg-gray-900/70 px-4 py-3 shadow-sm reveal';
+                stockToggleBar.innerHTML = `
+                    <div class="min-w-0">
+                        <p class="text-[10px] font-black uppercase tracking-[0.26em] text-brandGold/80">Availability | التوفر</p>
+                        <p class="mt-1 text-sm font-black text-brandBlue dark:text-white">In Stock Only | المتاح فقط</p>
+                    </div>
+                    <button
+                        type="button"
+                        role="switch"
+                        aria-checked="${hideOutOfStockProducts ? 'true' : 'false'}"
+                        onclick="window.toggleFilterSelection('stock', 'in-stock')"
+                        class="inline-flex items-center gap-3 rounded-full border px-3 py-2 transition-all ${hideOutOfStockProducts ? 'border-brandGold bg-brandGold/15 text-brandBlue dark:text-brandGold shadow-sm' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-300'}"
+                    >
+                        <span class="text-[11px] font-black uppercase tracking-[0.22em]">${hideOutOfStockProducts ? 'ON' : 'OFF'}</span>
+                        <span class="relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${hideOutOfStockProducts ? 'bg-brandGold' : 'bg-gray-300 dark:bg-gray-700'}">
+                            <span class="inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${hideOutOfStockProducts ? 'translate-x-6' : 'translate-x-1'}"></span>
+                        </span>
+                    </button>
+                `;
+                grid.appendChild(stockToggleBar);
 
                 const activeChips = getCatalogActiveFilterChips();
                 if (activeChips.length > 0) {
