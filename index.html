@@ -5322,7 +5322,7 @@
             card.dataset.activeVariantIdx = activeCardVariantIdx === null ? '' : String(activeCardVariantIdx);
             card.className = 'reveal cursor-pointer group bg-white dark:bg-darkCard/80 backdrop-blur-md rounded-xl md:rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden transition-all duration-700 border border-transparent dark:border-gray-800 hover:border-gray-200';
             card.style.transitionDelay = `${idx * 50}ms`;
-            card.onclick = () => showDetails(p.id);
+            card.onclick = () => showDetails(p.id, activeCardVariantIdx);
 
             const getCardVariantImage = (variantIdx) => {
                 const variant = resolveVariantForCart(p, variantIdx);
