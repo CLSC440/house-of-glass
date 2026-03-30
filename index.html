@@ -6610,9 +6610,9 @@
             return { nextCollection, didChange };
         }
 
-        function getCartLimitToastMessage(stockType, limit, source = 'default') {
+        function getCartLimitToastMessage(stockType, limit, source = 'generic') {
             if (source === 'card' && stockType === 'retail') {
-                return `Available Stock: ${limit} Only | المتوفر في المخزن: ${limit} فقط`;
+                return `Available Stock | المتوفر في المخزن = ${limit}`;
             }
             if (stockType === 'wholesale') {
                 return `Maximum | الحد الأقصى = ${limit} carton`;
@@ -6620,7 +6620,7 @@
             return `Maximum | الحد الأقصى = ${limit} pack`;
         }
 
-        window.addToCart = function(productId, variantIdx = null, qty = 1, source = 'default') {
+        window.addToCart = function(productId, variantIdx = null, qty = 1, source = 'generic') {
             const product = products.find(p => p.id === productId);
             if (!product) return;
             qty = Math.max(1, qty);
