@@ -6912,11 +6912,11 @@
                 }).join('');
 
                 div.innerHTML = `
-                    <div class="flex items-start gap-4 mb-2">
-                        <div class="w-16 h-16 bg-white dark:bg-gray-700 rounded-lg p-2 flex-shrink-0 border dark:border-gray-600">
-                            <img src="${mainItem.image}" class="w-full h-full object-contain">
+                    <div class="flex items-start gap-4 mb-2 cursor-pointer group" onclick="closeCart(); showDetails('${mainItem.productId}');">
+                        <div class="w-16 h-16 bg-white dark:bg-gray-700 rounded-lg p-2 flex-shrink-0 border dark:border-gray-600 transition-colors group-hover:border-brandGold">
+                            <img src="${mainItem.image}" class="w-full h-full object-contain transition-transform group-hover:scale-105">
                         </div>
-                        <div class="flex-grow pt-1">
+                        <div class="flex-grow pt-1 transition-opacity group-hover:opacity-80">
                             <h4 class="font-black text-brandBlue dark:text-brandGold text-sm md:text-base leading-tight">${mainItem.name}</h4>
                             <p class="text-[9px] text-gray-400 uppercase tracking-widest mt-1">${group.variants.length} Option${group.variants.length > 1 ? 's' : ''} Selected</p>
                         </div>
@@ -7204,11 +7204,11 @@
                 }).join('');
 
                 div.innerHTML = `
-                    <div class="flex items-start gap-4 mb-2">
-                        <div class="w-16 h-16 bg-white dark:bg-gray-700 rounded-lg p-2 flex-shrink-0 border border-brandGold/20">
-                            <img src="${mainItem.image}" class="w-full h-full object-contain">
+                    <div class="flex items-start gap-4 mb-2 cursor-pointer group" onclick="closeWholesaleCart(); showDetails('${mainItem.productId}');">
+                        <div class="w-16 h-16 bg-white dark:bg-gray-700 rounded-lg p-2 flex-shrink-0 border border-brandGold/20 transition-colors group-hover:border-brandGold">
+                            <img src="${mainItem.image}" class="w-full h-full object-contain transition-transform group-hover:scale-105">
                         </div>
-                        <div class="flex-grow pt-1">
+                        <div class="flex-grow pt-1 transition-opacity group-hover:opacity-80">
                             <h4 class="font-black text-brandGold text-sm md:text-base leading-tight">${mainItem.name}</h4>
                             <p class="text-[9px] text-gray-400 uppercase tracking-widest mt-1">${group.variants.length} Option${group.variants.length > 1 ? 's' : ''} Selected</p>
                         </div>
