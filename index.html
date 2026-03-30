@@ -5502,7 +5502,7 @@
             if (cardAddBtn) {
                 cardAddBtn.addEventListener('click', (event) => {
                     event.stopPropagation();
-                    addToCart(p.id, activeCardVariantIdx, 1, 'card');
+                    addToCart(p.id, activeCardVariantIdx);
                 });
             }
 
@@ -5632,7 +5632,7 @@
                 return;
             }
 
-            warning.innerText = `Maximum | الحد الأقصى = ${limit}`;
+            warning.innerText = `Available Stock | المتوفر في المخزن = ${limit}`;
             warning.classList.remove('hidden');
         }
 
@@ -6610,17 +6610,14 @@
             return { nextCollection, didChange };
         }
 
-        function getCartLimitToastMessage(stockType, limit, source = 'generic') {
-            if (source === 'card' && stockType === 'retail') {
-                return `Available Stock | المتوفر في المخزن = ${limit}`;
-            }
+        function getCartLimitToastMessage(stockType, limit) {
             if (stockType === 'wholesale') {
-                return `Maximum | الحد الأقصى = ${limit} carton`;
+                return `Available Stock | المتوفر في المخزن = ${limit} carton`;
             }
-            return `Maximum | الحد الأقصى = ${limit} pack`;
+            return `Available Stock | المتوفر في المخزن = ${limit} pack`;
         }
 
-        window.addToCart = function(productId, variantIdx = null, qty = 1, source = 'generic') {
+        window.addToCart = function(productId, variantIdx = null, qty = 1) {
             const product = products.find(p => p.id === productId);
             if (!product) return;
             qty = Math.max(1, qty);
@@ -6653,7 +6650,7 @@
                 const nextQuantity = existingItem.quantity + qty;
                 if (cartLimit !== null && nextQuantity > cartLimit) {
                     existingItem.quantity = cartLimit;
-                    window.showToast(getCartLimitToastMessage('retail', cartLimit, source), "error");
+                    window.showToast(getCartLimitToastMessage('retail', cartLimit), "error");
                 } else {
                     existingItem.quantity = nextQuantity;
                     window.showToast(qty > 1 ? `${qty} added to cart!` : "Quantity updated in cart!");
@@ -6665,7 +6662,7 @@
             } else {
                 if (cartLimit !== null && qty > cartLimit) {
                     qty = cartLimit;
-                    window.showToast(getCartLimitToastMessage('retail', cartLimit, source), "error");
+                    window.showToast(getCartLimitToastMessage('retail', cartLimit), "error");
                 }
                 if (qty <= 0) {
                     window.showToast("Showroom stock is out of stock", "error");
