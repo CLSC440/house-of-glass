@@ -6182,6 +6182,7 @@
             const overlay = document.getElementById('outOfStockOverlay');
             const mainImg = document.getElementById('mainDetailImg');
             const baseStockState = currentProduct ? getProductStockState(currentProduct, currentVariantIdx) : null;
+            const previousVariantIdx = currentVariantIdx;
             
             // Reset state
             overlay.classList.toggle('opacity-0', !baseStockState?.globalOutOfStock);
@@ -6260,6 +6261,11 @@
                     }
                     break;
                 }
+            }
+
+            if (matched && previousVariantIdx !== currentVariantIdx) {
+                updateDetailPricing();
+                updateModalFavBtn();
             }
 
             document.getElementById('enquiryBtn').href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
