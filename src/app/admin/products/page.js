@@ -490,10 +490,9 @@ export default function AdminProducts() {
                 return rightUpdatedAt - leftUpdatedAt;
             });
 }, [allProducts, search, mediaFilter, viewsFilter, brandFilter, originFilter, categoryFilter, sortBy]);
-        setModalOpen(true);
-    };
 
-    const handleAdd = () => {
+    const handleEdit = (product) => {
+        setEditingProduct(product);
         setEditingProduct(null);
         setModalOpen(true);
     };
