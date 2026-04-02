@@ -13,28 +13,95 @@ export default function AdminStock() {
     const [lastSyncAt, setLastSyncAt] = useState(null);
     const [expandedIds, setExpandedIds] = useState(new Set());
 
+    const normalizeCode = (val) => String(val || '').trim().toLowerCase();
+
+    const getProductMatchCodes = (product = {}) => {
+        return Array.from(new Set([
+            product.code,
+            product.barcode,
+            product.productCode,
+            product.sku,
+            product.itemCode
+        ].map(normalizeCode).filter(Boolean)));
+    };
+
+    const normalizeWarehouseName = (name) => String(name || '').replace(/\s+/g, '');
+
+    const getWarehouseBuckets = (item = {}) => {
+        let retailStock = 0;
+        let wholesaleStock = 0;
+
+        (item.stock_by_warehouse || item.stockByWarehouse || []).forEach((warehouse) => {
+            const warehouseId = Number(warehouse?.warehouse_id || warehouse?.warehouseId || 0);
+            const normalizedName = normalizeWarehouseName(warehouse?.warehouse_name || warehouse?.warehouseName);
+            const quantity = Number(warehouse?.quantity || 0);
+
+            if (warehouseId === 1) {
+                retailStock += quantity;
+                return;
+            }
+
+            if (warehouseId === 2) {
+                wholesaleStock += quantity;
+                return;
+            }
+
+            if (!normalizedName) return;
+
+            if (normalizedName.includes('مخزنالمعرض') || normalizedName.includes('showroom')) {
+                retailStock += quantity;
+                return;
+            }
+
+            if (normalizedName.includes('المخزنالرئيسي') || normalizedName.includes('warehouse')) {
+                wholesaleStock += quantity;
+            }
+        });
+
+        if (retailStock === 0 && wholesaleStock === 0) {
+            const totalStock = Number(item.total_stock || item.totalStock || 0);
+            if (Number.isFinite(totalStock) && totalStock > 0) {
+                wholesaleStock = totalStock;
+            }
+        }
+
+        return { retailStock, wholesaleStock };
+    };
+
+    const getStockItems = (payload) => {
+        if (Array.isArray(payload)) return payload;
+        if (Array.isArray(payload?.products)) return payload.products;
+        if (Array.isArray(payload?.data)) return payload.data;
+        return [];
+    };
+
     const fetchStock = async (force = false) => {
         setIsSyncing(true);
         try {
-            // Note: Since this is a static exported frontend, this fetches from the backend serverless function
-            // Ensure you migrate '/api/dc/stock' to Next.js API Routes ('src/app/api/dc/stock/route.js') later.
             const res = await fetch('/api/dc/stock' + (force ? '?cache_bypass=true' : ''));
             if (!res.ok) throw new Error('Fetch failed');
             const data = await res.json();
             
             const map = {};
-            if (data.data) {
-                data.data.forEach(item => {
-                    const code = (item.code || item.barcode || '').trim().toLowerCase();
-                    if (code) {
-                        map[code] = {
-                            barcode: item.barcode,
-                            retailStock: parseInt(item.retail_qty || 0, 10),
-                            wholesaleStock: parseInt(item.wholesale_qty || 0, 10),
-                        };
-                    }
-                });
-            }
+            getStockItems(data).forEach((item) => {
+                const buckets = getWarehouseBuckets(item);
+                const stockEntry = {
+                    barcode: item.barcode || item.code || '-',
+                    retailStock: buckets.retailStock,
+                    wholesaleStock: buckets.wholesaleStock,
+                    totalStock: Number(item.total_stock || item.totalStock || 0)
+                };
+
+                [item.barcode, item.code, item.product_code, item.productCode, item.id]
+                    .map(normalizeCode)
+                    .filter(Boolean)
+                    .forEach((key) => {
+                        if (!map[key]) {
+                            map[key] = stockEntry;
+                        }
+                    });
+            });
+
             setStockMap(map);
             setLastSyncAt(new Date());
         } catch (err) {
@@ -51,21 +118,19 @@ export default function AdminStock() {
         }
     }, [productsLoading, allProducts.length]);
 
-    const normalizeCode = (val) => (val || '').trim().toLowerCase();
-
     // Map Stock to Products
     const mergedRows = useMemo(() => {
         return allProducts.map(product => {
-            const pCode = normalizeCode(product.code);
-            const parentStock = pCode ? stockMap[pCode] : null;
+            const parentCodes = getProductMatchCodes(product);
+            const parentStock = parentCodes.map((code) => stockMap[code]).find(Boolean) || null;
 
             const variants = Array.isArray(product.variants) ? product.variants.map((v, i) => {
-                const vCode = normalizeCode(v.code || v.barcode);
-                const vStock = vCode ? stockMap[vCode] : null;
+                const variantCodes = getProductMatchCodes(v);
+                const vStock = variantCodes.map((code) => stockMap[code]).find(Boolean) || null;
                 return {
                     id: `${product.id}-v${i}`,
                     name: v.name || `Variant ${i+1}`,
-                    code: vCode,
+                    code: variantCodes[0] || '',
                     matchedBarcode: vStock?.barcode || '-',
                     retailStock: vStock?.retailStock || 0,
                     wholesaleStock: vStock?.wholesaleStock || 0,
@@ -74,14 +139,26 @@ export default function AdminStock() {
             }) : [];
 
             const hasVariants = variants.length > 0;
+            const uniqueVariantStockRows = [];
+            const seenVariantKeys = new Set();
+
+            variants.forEach((variant, index) => {
+                const variantKey = variant.code || (variant.linked ? normalizeCode(variant.matchedBarcode) : `${product.id}-variant-${index}`);
+                if (!variantKey || seenVariantKeys.has(variantKey)) {
+                    return;
+                }
+
+                seenVariantKeys.add(variantKey);
+                uniqueVariantStockRows.push(variant);
+            });
             
             let retailStock = parentStock ? parentStock.retailStock : 0;
             let wholesaleStock = parentStock ? parentStock.wholesaleStock : 0;
             let isLinked = !!parentStock;
 
             if (hasVariants) {
-                retailStock = variants.reduce((sum, v) => sum + v.retailStock, 0);
-                wholesaleStock = variants.reduce((sum, v) => sum + v.wholesaleStock, 0);
+                retailStock = uniqueVariantStockRows.reduce((sum, v) => sum + v.retailStock, 0);
+                wholesaleStock = uniqueVariantStockRows.reduce((sum, v) => sum + v.wholesaleStock, 0);
                 isLinked = variants.some(v => v.linked);
             }
 
@@ -111,7 +188,9 @@ export default function AdminStock() {
                 statusTone,
                 statusText,
                 hasVariants,
-                variants
+                variants,
+                uniqueVariantCodeCount: uniqueVariantStockRows.length,
+                hasSharedVariantCode: hasVariants && uniqueVariantStockRows.length < variants.length
             };
         });
     }, [allProducts, stockMap]);
@@ -283,14 +362,25 @@ export default function AdminStock() {
                                         <tr className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                                             <td className="px-4 py-4">
                                                 {row.hasVariants && (
-                                                    <button onClick={() => toggleExpand(row.id)} className="w-8 h-8 rounded-full border border-brandGold/30 bg-brandGold/10 text-brandGold flex items-center justify-center hover:bg-brandGold hover:text-white transition-colors">
+                                                    <button onClick={() => toggleExpand(row.id)} className="w-10 h-10 rounded-full border-2 border-white/20 bg-gradient-to-b from-white/10 to-black/10 text-brandGold flex items-center justify-center hover:border-brandGold/40 hover:bg-brandGold/10 hover:text-white transition-colors shadow-[0_0_0_3px_rgba(255,255,255,0.06)]">
                                                         <i className={'fa-solid fa-chevron-right transition-transform ' + (expandedIds.has(row.id) ? 'rotate-90' : '')}></i>
                                                     </button>
                                                 )}
                                             </td>
                                             <td className="px-4 py-4 font-bold text-brandBlue dark:text-white">
-                                                {row.title || row.name}
-                                                {row.hasVariants && <span className="ml-2 text-[10px] bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-md text-gray-600 dark:text-gray-300">{row.variants.length} Variants</span>}
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span>{row.title || row.name}</span>
+                                                    {row.hasVariants ? (
+                                                        <>
+                                                            <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600 dark:bg-slate-700/80 dark:text-slate-200">
+                                                                {row.variants.length} Variants
+                                                            </span>
+                                                            <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] ${row.hasSharedVariantCode ? 'bg-brandGold/15 text-brandGold' : 'bg-blue-500/10 text-blue-400'}`}>
+                                                                {row.hasSharedVariantCode ? 'Shared Code' : `${row.uniqueVariantCodeCount} Codes`}
+                                                            </span>
+                                                        </>
+                                                    ) : null}
+                                                </div>
                                             </td>
                                             <td className="px-4 py-4 font-mono text-xs">{row.code || '-'}</td>
                                             <td className="px-4 py-4 font-mono text-xs">{row.matchedBarcode || '-'}</td>
@@ -316,29 +406,79 @@ export default function AdminStock() {
                                                 </span>
                                             </td>
                                         </tr>
-                                        {row.hasVariants && expandedIds.has(row.id) && row.variants.map((v, idx) => (
-                                            <tr key={v.id || idx} className="bg-gray-50/50 dark:bg-gray-800/20 border-b border-gray-100 dark:border-gray-800/50">
-                                                <td className="px-4 py-3 border-l-2 border-brandGold/30"></td>
-                                                <td className="px-4 py-3 pl-8 text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
-                                                    <i className="fa-solid fa-turn-up rotate-90 text-gray-300 dark:text-gray-600 text-xs"></i>
-                                                    {v.name}
-                                                </td>
-                                                <td className="px-4 py-3 text-xs font-mono text-gray-500">{v.code || '-'}</td>
-                                                <td className="px-4 py-3 text-xs font-mono text-gray-500">{v.matchedBarcode || '-'}</td>
-                                                <td className="px-4 py-3">
-                                                    {v.retailStock > 0 
-                                                        ? <span className="inline-flex min-w-[3rem] justify-center px-3 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 text-xs font-black">{v.retailStock}</span>
-                                                        : <span className="inline-flex justify-center px-3 py-0.5 rounded-full bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300 text-[10px] font-black uppercase tracking-wider">Out</span>
-                                                    }
-                                                </td>
-                                                <td className="px-4 py-3 text-gray-400 text-xs text-center">-</td>
-                                                <td className="px-4 py-3">
-                                                    <span className={'inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ' + (v.linked ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400')}>
-                                                        {v.linked ? 'Linked' : 'Unlinked'}
-                                                    </span>
+                                        {row.hasVariants && expandedIds.has(row.id) && (
+                                            <tr className="bg-[#121a2d] border-b border-gray-100 dark:border-gray-800/50">
+                                                <td colSpan="7" className="px-6 py-5">
+                                                    <div className="rounded-[1.6rem] border border-white/8 bg-white/[0.02] p-4 md:p-5">
+                                                        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                                                            <div>
+                                                                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-brandGold">Variant Breakdown</p>
+                                                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                                                    {row.hasSharedVariantCode
+                                                                        ? 'These variants share the same inventory code, so the parent stock is counted once.'
+                                                                        : 'Each variant uses its own inventory code, so parent stock is the total of all variant codes.'}
+                                                                </p>
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                <span className="rounded-full bg-slate-200 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600 dark:bg-slate-700/80 dark:text-slate-200">
+                                                                    {row.variants.length} variants
+                                                                </span>
+                                                                <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${row.hasSharedVariantCode ? 'bg-brandGold/15 text-brandGold' : 'bg-blue-500/10 text-blue-400'}`}>
+                                                                    {row.hasSharedVariantCode ? '1 shared inventory code' : `${row.uniqueVariantCodeCount} unique inventory codes`}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="grid gap-3">
+                                                            {row.variants.map((v, idx) => (
+                                                                <div key={v.id || idx} className="grid gap-3 rounded-[1.15rem] border border-white/8 bg-[#18223a] px-4 py-3 text-sm md:grid-cols-[minmax(0,1.6fr)_minmax(120px,0.8fr)_minmax(120px,0.8fr)_110px_110px_120px] md:items-center">
+                                                                    <div className="flex items-center gap-3 min-w-0">
+                                                                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.05] text-slate-400">
+                                                                            <i className="fa-solid fa-code-branch text-xs"></i>
+                                                                        </span>
+                                                                        <div className="min-w-0">
+                                                                            <p className="truncate font-bold text-white">{v.name}</p>
+                                                                            <p className="mt-0.5 text-[11px] text-slate-500">Variant {idx + 1}</p>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div>
+                                                                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 md:hidden">Code</p>
+                                                                        <p className="font-mono text-xs text-slate-300">{v.code || '-'}</p>
+                                                                    </div>
+
+                                                                    <div>
+                                                                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 md:hidden">Barcode</p>
+                                                                        <p className="font-mono text-xs text-slate-400">{v.matchedBarcode || '-'}</p>
+                                                                    </div>
+
+                                                                    <div>
+                                                                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 md:hidden">Showroom</p>
+                                                                        {v.retailStock > 0
+                                                                            ? <span className="inline-flex min-w-[3.4rem] justify-center rounded-full bg-blue-500/12 px-3 py-1 text-xs font-black text-blue-400">{v.retailStock}</span>
+                                                                            : <span className="inline-flex justify-center rounded-full bg-red-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-red-300">Out</span>}
+                                                                    </div>
+
+                                                                    <div>
+                                                                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 md:hidden">Warehouse</p>
+                                                                        {v.wholesaleStock > 0
+                                                                            ? <span className="inline-flex min-w-[3.4rem] justify-center rounded-full bg-amber-500/12 px-3 py-1 text-xs font-black text-amber-300">{v.wholesaleStock}</span>
+                                                                            : <span className="inline-flex justify-center rounded-full bg-red-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-red-300">Out</span>}
+                                                                    </div>
+
+                                                                    <div>
+                                                                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 md:hidden">Status</p>
+                                                                        <span className={'inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] ' + (v.linked ? 'bg-green-500/10 text-green-400' : 'bg-slate-500/10 text-slate-400')}>
+                                                                            {v.linked ? 'Linked' : 'Unlinked'}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
                                                 </td>
                                             </tr>
-                                        ))}
+                                        )}
                                     </React.Fragment>
                                 ))
                             )}

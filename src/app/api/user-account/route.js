@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createRequire } from 'module';
+import { normalizeUserRole } from '@/lib/user-roles';
 
 const require = createRequire(import.meta.url);
 const { admin, getDb, verifyRequestUser } = require('../../../api/_firebaseAdmin.js');
@@ -208,6 +209,15 @@ async function deleteDirectoryEntriesForUser(db, batch, uid, userData = {}) {
     }
 }
 
+async function requireAdmin(db, callerUid) {
+    const callerSnap = await db.collection('users').doc(callerUid).get();
+    const role = normalizeUserRole(callerSnap.exists ? callerSnap.data()?.role : '');
+
+    if (role !== 'admin') {
+        throw createError(403, 'Admin access is required for this action.');
+    }
+}
+
 function getAuthorizationHeader(request) {
     return request.headers.get('authorization') || '';
 }
@@ -218,9 +228,8 @@ async function verifyUserFromRequest(request) {
 }
 
 export async function POST(request) {
-    const db = getDb();
-
     try {
+        const db = getDb();
         const body = await request.json().catch(() => ({}));
         const action = normalizeString(body?.action, 64);
 
@@ -279,12 +288,12 @@ export async function POST(request) {
             await ensureValueAvailable(db, 'phone', nextProfile.phone, tokenData.uid);
             await ensureValueAvailable(db, 'email', nextProfile.authEmailLowercase, tokenData.uid);
 
-            const role = currentProfile.role || 'customer';
+            const role = normalizeUserRole(currentProfile.role || 'customer');
 
             await db.runTransaction(async (transaction) => {
                 const liveSnap = await transaction.get(userRef);
                 const liveProfile = liveSnap.exists ? liveSnap.data() : {};
-                const liveRole = liveProfile.role || role || 'customer';
+                const liveRole = normalizeUserRole(liveProfile.role || role || 'customer');
 
                 if (!ALLOWED_ROLES.has(liveRole)) throw createError(400, 'Invalid role on user profile.');
 
@@ -329,6 +338,53 @@ export async function POST(request) {
             await batch.commit();
             await admin.auth().deleteUser(tokenData.uid);
             return NextResponse.json({ success: true });
+        }
+
+        if (action === 'adminDeleteUser') {
+            const tokenData = await verifyUserFromRequest(request);
+            await requireAdmin(db, tokenData.uid);
+
+            const uid = normalizeString(body?.uid, 128);
+            if (!uid) throw createError(400, 'uid is required.');
+
+            const userRef = db.collection('users').doc(uid);
+            const userSnap = await userRef.get();
+            const batch = db.batch();
+
+            if (userSnap.exists) {
+                await deleteDirectoryEntriesForUser(db, batch, uid, userSnap.data());
+                batch.delete(userRef);
+            }
+
+            await batch.commit();
+
+            try {
+                await admin.auth().deleteUser(uid);
+            } catch (error) {
+                if (error.code !== 'auth/user-not-found') {
+                    throw error;
+                }
+            }
+
+            return NextResponse.json({ success: true });
+        }
+
+        if (action === 'adminUpdateUserRole') {
+            const tokenData = await verifyUserFromRequest(request);
+            await requireAdmin(db, tokenData.uid);
+
+            const uid = normalizeString(body?.uid, 128);
+            const role = normalizeUserRole(body?.role);
+
+            if (!uid) throw createError(400, 'uid is required.');
+            if (!ALLOWED_ROLES.has(role)) throw createError(400, 'Invalid role provided.');
+
+            await db.collection('users').doc(uid).set({
+                role,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            return NextResponse.json({ success: true, role });
         }
 
         throw createError(400, 'Unsupported action.');

@@ -6,6 +6,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '@/lib/firebase';
 import Link from 'next/link';
 import { checkAccountAvailability, upsertCurrentUserProfile } from '@/lib/account-api';
+import { isAdminRole, normalizeUserRole } from '@/lib/user-roles';
 
 function SignupForm() {
     const router = useRouter();
@@ -132,9 +133,9 @@ function SignupForm() {
     const handleRedirect = (userData = null) => {
         const redirectParam = searchParams.get('redirect');
         
-        if (userData && (userData.role === 'admin' || userData.role === 'moderator')) {
+        if (userData && isAdminRole(normalizeUserRole(userData.role))) {
             sessionStorage.setItem('isAdmin', 'true');
-            sessionStorage.setItem('userRole', userData.role);
+            sessionStorage.setItem('userRole', normalizeUserRole(userData.role));
             router.push('/admin');
         } else {
             sessionStorage.removeItem('isAdmin');

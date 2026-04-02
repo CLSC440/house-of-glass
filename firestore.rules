@@ -1,0 +1,110 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function currentUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function currentUserExists() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function currentUserRole() {
+      return currentUserExists()
+        ? currentUserDoc().data.role
+        : null;
+    }
+
+    function isAdmin() {
+      return currentUserRole() == 'admin';
+    }
+
+    function isModerator() {
+      return currentUserRole() == 'moderator';
+    }
+
+    function isAdminLike() {
+      return isAdmin() || isModerator();
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update, delete: if isAdminLike();
+    }
+
+    match /productCategories/{categoryId} {
+      allow read: if true;
+      allow create, update, delete: if isAdminLike();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create, update, delete: if isAdminLike();
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdminLike();
+      allow create: if isOwner(userId) || isAdminLike();
+      allow update: if isAdmin()
+        || (
+          isOwner(userId)
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.uid == resource.data.uid
+        );
+      allow delete: if isAdmin();
+    }
+
+    match /user_directory/{directoryId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAdminLike()
+        || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create, delete: if isAdminLike();
+      allow update: if isAdminLike()
+        || (
+          isSignedIn()
+          && resource.data.userId == request.auth.uid
+          && request.resource.data.userId == resource.data.userId
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly(['read'])
+        );
+    }
+
+    match /login_lookup/{lookupId} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAdminLike()
+        || (isSignedIn() && resource.data.customer != null && resource.data.customer.uid == request.auth.uid);
+      allow create: if isSignedIn()
+        && request.resource.data.customer != null
+        && request.resource.data.customer.uid == request.auth.uid;
+      allow update, delete: if isAdminLike();
+    }
+
+    match /settings/{settingId} {
+      allow read: if settingId == 'contact'
+        || (settingId == 'orderCounter' && isSignedIn())
+        || isAdminLike();
+      allow write: if (settingId == 'orderCounter' && isSignedIn())
+        || isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

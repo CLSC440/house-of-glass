@@ -1,26 +1,34 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { auth } from '@/lib/firebase';
+import { usePathname, useRouter } from 'next/navigation';
+import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { useGallery } from '@/contexts/GalleryContext';
+import { getUserRoleLabel, isAdminRole, normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
 
 export default function Header() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [user, setUser] = useState(null);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [isAdminRedirecting, setIsAdminRedirecting] = useState(false);
+    const [accountPanelOpen, setAccountPanelOpen] = useState(false);
+    const [userProfile, setUserProfile] = useState(null);
+    const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
     const [expandedSections, setExpandedSections] = useState({
-        categories: true,
+        categories: false,
         brands: false,
         origins: false,
-        stock: true
+        stock: false
     });
     const pathname = usePathname();
+    const router = useRouter();
     const {
         categories,
         activeCategory,
         setActiveCategory,
+        filteredProducts,
         cartCount,
         openCart,
         isWholesaleCustomer,
@@ -39,21 +47,86 @@ export default function Header() {
     } = useGallery();
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        let unsubscribeProfile = null;
+
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             setUser(currentUser);
-            if (typeof window !== 'undefined') {
-                setIsAdmin(sessionStorage.getItem('isAdmin') === 'true');
+            if (unsubscribeProfile) {
+                unsubscribeProfile();
+                unsubscribeProfile = null;
+            }
+
+            if (currentUser) {
+                unsubscribeProfile = onSnapshot(doc(db, 'users', currentUser.uid), (userSnap) => {
+                    if (!userSnap.exists()) {
+                        setUserProfile(null);
+                        setIsAdmin(false);
+                        return;
+                    }
+
+                    const profileData = userSnap.data();
+                    const normalizedRole = normalizeUserRole(profileData?.role);
+
+                    setUserProfile(profileData);
+                    setIsAdmin(isAdminRole(normalizedRole));
+
+                    if (typeof window !== 'undefined') {
+                        sessionStorage.setItem('userRole', normalizedRole || '');
+                        sessionStorage.setItem('isAdmin', isAdminRole(normalizedRole) ? 'true' : 'false');
+                    }
+                }, (error) => {
+                    console.error('Error fetching header user profile:', error);
+                    setUserProfile(null);
+                    setIsAdmin(false);
+                });
+            } else {
+                setUserProfile(null);
+                setIsAdmin(false);
+                setAccountPanelOpen(false);
+
+                if (typeof window !== 'undefined') {
+                    sessionStorage.removeItem('userRole');
+                    sessionStorage.removeItem('isAdmin');
+                }
             }
         });
-        return () => unsubscribe();
+        return () => {
+            if (unsubscribeProfile) {
+                unsubscribeProfile();
+            }
+            unsubscribe();
+        };
     }, []);
+
+    useEffect(() => {
+        setAccountPanelOpen(false);
+    }, [pathname]);
+
+    useEffect(() => {
+        setAvatarLoadFailed(false);
+    }, [user?.photoURL, userProfile?.photoURL]);
 
     const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
     const closeSidebar = () => setIsSidebarOpen(false);
+    const toggleAccountPanel = () => setAccountPanelOpen((currentValue) => !currentValue);
+    const closeAccountPanel = () => setAccountPanelOpen(false);
     const handleCategorySelect = (categoryName) => {
         setActiveCategory(categoryName);
         closeSidebar();
     };
+    const showFavoritesShortcut = user && categories.includes('My Favorites');
+    const inStockOnlyCount = filteredProducts.filter((product) => {
+        if (product.stockStatus === 'out_of_stock') {
+            return false;
+        }
+
+        const stockLimit = Number(product.remainingQuantity);
+        if (Number.isFinite(stockLimit) && stockLimit > 0) {
+            return true;
+        }
+
+        return stockLimit <= 0 ? false : true;
+    }).length;
     const toggleSection = (sectionName) => {
         setExpandedSections((currentSections) => ({
             ...currentSections,
@@ -66,8 +139,47 @@ export default function Header() {
             sessionStorage.removeItem('isAdmin');
             sessionStorage.removeItem('userRole');
         }
+        closeAccountPanel();
         closeSidebar();
     };
+
+    const navigateToAdminDashboard = () => {
+        if (isAdminRedirecting) {
+            return;
+        }
+
+        setIsAdminRedirecting(true);
+        closeAccountPanel();
+        closeSidebar();
+
+        if (typeof window !== 'undefined') {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    window.location.assign('/admin');
+                });
+            });
+            return;
+        }
+
+        router.push('/admin');
+    };
+
+    const getDisplayRole = () => {
+        return getUserRoleLabel(userProfile?.displayRole || userProfile?.role).toUpperCase();
+    };
+
+    const getFirstName = () => {
+        const source = userProfile?.firstName || userProfile?.name || user?.displayName || user?.email || 'there';
+        return String(source).trim().split(/\s+/)[0] || 'there';
+    };
+
+    const getAvatarLabel = () => {
+        const source = userProfile?.name || user?.displayName || user?.email || 'U';
+        return String(source).trim().charAt(0).toUpperCase() || 'U';
+    };
+
+    const profilePhotoUrl = userProfile?.photoURL || user?.photoURL || '';
+    const shouldShowProfilePhoto = Boolean(profilePhotoUrl) && !avatarLoadFailed;
 
     return (
         <>
@@ -118,25 +230,124 @@ export default function Header() {
                                 Home
                             </Link>
                             {isAdmin && (
-                                <Link href="/admin" className="text-sm font-bold text-gray-500 dark:text-gray-300 hover:text-brandGold transition-colors">
-                                    Admin
-                                </Link>
+                                <button
+                                    type="button"
+                                    onClick={navigateToAdminDashboard}
+                                    disabled={isAdminRedirecting}
+                                    className="text-sm font-bold text-gray-500 dark:text-gray-300 hover:text-brandGold transition-colors disabled:cursor-wait disabled:text-brandGold"
+                                >
+                                    {isAdminRedirecting ? 'Loading Admin...' : 'Admin'}
+                                </button>
                             )}
                         </nav>
 
                         {user ? (
-                            <Link href="/profile" className="hidden md:flex order-last flex-shrink-0 items-center justify-between space-x-3 md:space-x-4 px-4 py-2 md:px-5 md:py-2.5 bg-gray-50 dark:bg-gray-800 rounded-full border border-gray-100 dark:border-gray-700 shadow-[0_12px_30px_rgba(32,41,61,0.15)] min-w-[190px] md:min-w-[220px] hover:-translate-y-0.5 transition-all">
-                                <div className="google-account-avatar">{user.displayName?.charAt(0).toUpperCase() || 'U'}</div>
-                                <span className="text-xs font-bold text-gray-800 dark:text-slate-200 truncate">{user.displayName || user.email || 'User'}</span>
-                            </Link>
+                            <button
+                                type="button"
+                                onClick={toggleAccountPanel}
+                                className="google-account-pill order-last flex-shrink-0"
+                                aria-label="Open account panel"
+                            >
+                                {shouldShowProfilePhoto ? (
+                                    <img src={profilePhotoUrl} alt={user.displayName || user.email || 'User'} className="google-account-avatar h-full w-full object-cover" onError={() => setAvatarLoadFailed(true)} />
+                                ) : (
+                                    <DefaultAccountAvatar label={getAvatarLabel()} compact />
+                                )}
+                            </button>
                         ) : (
-                            <Link href="/login" className="hidden md:flex order-last flex-shrink-0 items-center justify-between px-4 py-2 bg-gray-50 dark:bg-gray-800 rounded-full border border-gray-100 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                            <Link href="/login" className="flex order-last flex-shrink-0 items-center justify-between px-4 py-2 bg-gray-50 dark:bg-gray-800 rounded-full border border-gray-100 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
                                 <span className="text-xs font-bold text-brandBlue dark:text-brandGold">Login</span>
                             </Link>
                         )}
                     </div>
                 </div>
             </header>
+
+            {user && accountPanelOpen && (
+                <>
+                    <div className="fixed inset-0 z-[160] bg-black/10" onClick={closeAccountPanel}></div>
+                    <div className="fixed right-3 top-24 z-[165] w-[calc(100vw-1.5rem)] max-w-sm overflow-hidden rounded-[2rem] border border-brandGold/20 bg-[#171f36]/95 shadow-[0_30px_70px_rgba(5,10,23,0.52)] backdrop-blur-xl md:right-8" id="accountPanel">
+                        <div className="max-h-[80vh] overflow-y-auto custom-scroll">
+                            <div className="border-b border-white/10 bg-gradient-to-b from-white/[0.04] to-transparent px-6 pb-5 pt-6">
+                                <div className="flex items-center justify-between gap-3">
+                                    <p className="truncate text-sm font-semibold text-slate-300">{userProfile?.email || user?.email || ''}</p>
+                                    <button type="button" onClick={closeAccountPanel} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-slate-300 transition-colors hover:bg-white/15 hover:text-white">
+                                        <i className="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
+
+                                <div className="mt-6 flex flex-col items-center text-center">
+                                    <div className="flex h-28 w-28 items-center justify-center rounded-full border border-white/10 bg-[#0c1120] shadow-[0_0_0_6px_rgba(255,255,255,0.08)]">
+                                        {shouldShowProfilePhoto ? (
+                                            <img src={profilePhotoUrl} alt={user.displayName || user.email || 'User'} className="h-full w-full rounded-full object-cover" onError={() => setAvatarLoadFailed(true)} />
+                                        ) : (
+                                            <DefaultAccountAvatar label={getAvatarLabel()} large />
+                                        )}
+                                    </div>
+                                    <p className="mt-5 text-[2.2rem] font-medium leading-none text-white">Hi, {getFirstName()}!</p>
+                                    <p className="mt-2 text-xs font-black uppercase tracking-[0.28em] text-brandGold">{getDisplayRole()}</p>
+                                    {isAdmin && (
+                                        <button type="button" onClick={navigateToAdminDashboard} disabled={isAdminRedirecting} className="mt-5 inline-flex items-center justify-center gap-2 rounded-full border border-brandGold/35 bg-brandGold/10 px-6 py-3 text-sm font-black text-brandGold transition-all hover:border-brandGold/55 hover:bg-brandGold/16 disabled:cursor-wait disabled:opacity-80">
+                                            {isAdminRedirecting ? (
+                                                <>
+                                                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-brandGold/35 border-t-brandGold"></span>
+                                                    <span>Loading Dashboard...</span>
+                                                </>
+                                            ) : (
+                                                'Admin Dashboard'
+                                            )}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="space-y-3 bg-gradient-to-b from-white/[0.04] via-white/[0.02] to-black/10 p-5">
+                                <AccountPanelLink
+                                    href="/profile#order-history"
+                                    title="Retail History"
+                                    subtitle="Your recent retail orders"
+                                    onClick={closeAccountPanel}
+                                />
+                                {(isWholesaleCustomer || normalizeUserRole(userProfile?.role) !== USER_ROLE_VALUES.CST_RETAIL) && (
+                                    <AccountPanelLink
+                                        href="/profile#order-history"
+                                        title="Wholesale History"
+                                        subtitle="Previous wholesale orders"
+                                        onClick={closeAccountPanel}
+                                    />
+                                )}
+                                <AccountPanelLink
+                                    href="/profile#profile-settings"
+                                    title="Settings"
+                                    subtitle="Profile, phone and password"
+                                    onClick={closeAccountPanel}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleSignOut}
+                                    className="flex w-full items-center justify-between rounded-[1.6rem] border border-white/10 bg-red-500/10 px-5 py-4 text-left transition-all hover:border-red-400/40 hover:bg-red-500/15"
+                                >
+                                    <span>
+                                        <span className="block text-sm font-black text-red-400">Sign out</span>
+                                        <span className="block text-[10px] uppercase tracking-[0.24em] text-slate-400">End current session</span>
+                                    </span>
+                                    <span className="text-red-400">→</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {isAdminRedirecting && (
+                <div className="fixed inset-0 z-[220] flex items-center justify-center bg-[#060b17]/72 backdrop-blur-sm">
+                    <div className="flex min-w-[220px] flex-col items-center rounded-[1.8rem] border border-brandGold/20 bg-[#171f36]/95 px-8 py-7 shadow-[0_24px_60px_rgba(5,10,23,0.5)]">
+                        <span className="h-10 w-10 animate-spin rounded-full border-[3px] border-brandGold/25 border-t-brandGold"></span>
+                        <p className="mt-4 text-sm font-black uppercase tracking-[0.24em] text-brandGold">Loading Admin</p>
+                        <p className="mt-2 text-center text-xs text-slate-300">Preparing dashboard and redirecting...</p>
+                    </div>
+                </div>
+            )}
 
             <div className={`fixed inset-0 bg-black/50 z-[60] transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} onClick={closeSidebar}></div>
 
@@ -149,20 +360,34 @@ export default function Header() {
                     <button onClick={closeSidebar} className="text-gray-400 hover:text-brandBlue dark:hover:text-white text-xl font-bold">✕</button>
                 </div>
                 
-                <div className="flex-grow overflow-y-auto py-4 px-4 space-y-4">
-                    <button
-                        type="button"
-                        onClick={() => handleCategorySelect('All')}
-                        className={`w-full text-left rounded-xl px-4 py-3 font-bold transition-colors ${activeCategory === 'All' && activeFilterChips.length === 0 ? 'bg-brandGold text-white' : 'bg-gray-50 text-brandBlue hover:bg-brandGold/10 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'}`}
-                    >
-                        All Categories
-                    </button>
+                <div className="flex-grow overflow-y-auto px-3 py-4 space-y-3">
+                    {showFavoritesShortcut ? (
+                        <button
+                            type="button"
+                            onClick={() => handleCategorySelect('My Favorites')}
+                            className={`mx-0 w-full rounded-2xl border px-5 py-4 text-left text-sm font-bold transition-all ${activeCategory === 'My Favorites' ? 'border-brandGold/30 bg-brandGold/10 text-brandGold shadow-sm' : 'border-gray-200/70 bg-white/80 text-gray-600 hover:bg-gray-50 dark:border-gray-700/80 dark:bg-gray-900/50 dark:text-gray-400 dark:hover:bg-gray-800'}`}
+                        >
+                            <span className="flex items-center gap-3">
+                                <svg className="h-5 w-5 shrink-0 fill-current" viewBox="0 0 24 24">
+                                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                                </svg>
+                                <span>My Favorites</span>
+                            </span>
+                        </button>
+                    ) : null}
 
                     <SidebarFilterSection
-                        title="Categories"
+                        title="Categories | التصنيفات"
+                        eyebrow="Browse | تصفح"
+                        iconPath="M4 7h16M4 12h16M4 17h10"
                         isExpanded={expandedSections.categories}
                         onToggle={() => toggleSection('categories')}
                     >
+                        <FilterEntryButton
+                            label="All Categories | الكل"
+                            selected={activeCategory === 'All' && activeFilterChips.length === 0}
+                            onClick={() => handleCategorySelect('All')}
+                        />
                         {categoryFacetEntries.map((entry) => (
                             <FilterEntryButton
                                 key={entry.label}
@@ -175,7 +400,9 @@ export default function Header() {
                     </SidebarFilterSection>
 
                     <SidebarFilterSection
-                        title="Brands"
+                        title="Brands | الماركات"
+                        eyebrow="Filter | فلترة"
+                        iconPath="M20.59 13.41 11 3H4v7l9.59 9.59a2 2 0 0 0 2.82 0l4.18-4.18a2 2 0 0 0 0-2.82zM7 7h.01"
                         isExpanded={expandedSections.brands}
                         onToggle={() => toggleSection('brands')}
                     >
@@ -191,7 +418,9 @@ export default function Header() {
                     </SidebarFilterSection>
 
                     <SidebarFilterSection
-                        title="Origin"
+                        title="Origin | المنشأ"
+                        eyebrow="Filter | فلترة"
+                        iconPath="M12 2a10 10 0 100 20 10 10 0 000-20zm0 0c2.5 2.7 4 6.3 4 10s-1.5 7.3-4 10m0-20C9.5 4.7 8 8.3 8 12s1.5 7.3 4 10m-9-10h18M4.9 7h14.2M4.9 17h14.2"
                         isExpanded={expandedSections.origins}
                         onToggle={() => toggleSection('origins')}
                     >
@@ -207,13 +436,15 @@ export default function Header() {
                     </SidebarFilterSection>
 
                     <SidebarFilterSection
-                        title="Stock"
+                        title="Availability | التوفر"
+                        eyebrow="Filter | فلترة"
+                        iconPath="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l4.16 2.38M21 16V8M3.27 6.96 12 12l8.73-5.04M12 22V12M15.5 21a3.5 3.5 0 1 0 0-7a3.5 3.5 0 0 0 0 7zm-1.15-3.35 1.05 1.05 1.8-2.05"
                         isExpanded={expandedSections.stock}
                         onToggle={() => toggleSection('stock')}
                     >
                         <FilterEntryButton
                             label="In Stock Only | المتاح فقط"
-                            count={categories.length > 0 ? undefined : undefined}
+                            count={inStockOnlyCount}
                             selected={hideOutOfStockProducts}
                             onClick={toggleStockFilter}
                         />
@@ -237,9 +468,9 @@ export default function Header() {
                                 My Profile
                             </Link>
                             {isAdmin && (
-                                <Link href="/admin" onClick={closeSidebar} className="block text-center bg-brandGold/10 text-brandGold py-3 rounded-xl font-bold border border-brandGold/40 hover:bg-brandGold hover:text-white transition-colors">
-                                    Admin Dashboard
-                                </Link>
+                                <button type="button" onClick={navigateToAdminDashboard} disabled={isAdminRedirecting} className="block w-full text-center bg-brandGold/10 text-brandGold py-3 rounded-xl font-bold border border-brandGold/40 hover:bg-brandGold hover:text-white transition-colors disabled:cursor-wait disabled:opacity-80">
+                                    {isAdminRedirecting ? 'Loading Dashboard...' : 'Admin Dashboard'}
+                                </button>
                             )}
                             <button onClick={handleSignOut} className="block w-full text-center bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 py-3 rounded-xl font-bold transition-colors">
                                 Sign Out
@@ -256,14 +487,42 @@ export default function Header() {
     );
 }
 
-function SidebarFilterSection({ title, isExpanded, onToggle, children }) {
+function AccountPanelLink({ href, title, subtitle, onClick }) {
     return (
-        <section className="rounded-2xl border border-gray-100 bg-gray-50/80 p-3 dark:border-gray-800 dark:bg-gray-900/30">
-            <button type="button" onClick={onToggle} className="flex w-full items-center justify-between px-1 py-1.5 text-left">
-                <span className="text-xs font-black uppercase tracking-[0.2em] text-brandGold">{title}</span>
-                <i className={`fa-solid fa-chevron-down text-xs text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}></i>
+        <Link
+            href={href}
+            onClick={onClick}
+            className="flex w-full items-center justify-between rounded-[1.6rem] border border-white/10 bg-white/[0.05] px-5 py-4 text-left transition-all hover:border-brandGold/30 hover:bg-white/[0.08]"
+        >
+            <span>
+                <span className="block text-sm font-black text-white">{title}</span>
+                <span className="block text-[10px] uppercase tracking-[0.24em] text-slate-400">{subtitle}</span>
+            </span>
+            <span className="text-brandGold">→</span>
+        </Link>
+    );
+}
+
+function SidebarFilterSection({ title, eyebrow, iconPath, isExpanded, onToggle, children }) {
+    return (
+        <section className="overflow-hidden rounded-[26px] border border-gray-200/80 bg-white/80 shadow-sm backdrop-blur-sm dark:border-gray-700/80 dark:bg-gray-900/50">
+            <button type="button" onClick={onToggle} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50/80 dark:hover:bg-gray-800/80">
+                <span className="flex min-w-0 items-center gap-4">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-brandGold/10 text-brandGold">
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8">
+                            <path strokeLinecap="round" strokeLinejoin="round" d={iconPath} />
+                        </svg>
+                    </span>
+                    <span className="min-w-0">
+                        <span className="block text-[10px] font-black uppercase tracking-[0.3em] text-brandGold/80">{eyebrow}</span>
+                        <span className="block text-sm font-black text-brandBlue dark:text-white">{title}</span>
+                    </span>
+                </span>
+                <svg className={`h-5 w-5 shrink-0 text-brandGold transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
             </button>
-            {isExpanded && <div className="mt-2 space-y-2">{children}</div>}
+            {isExpanded && <div className="px-2 pb-2"><div className="space-y-1.5">{children}</div></div>}
         </section>
     );
 }
@@ -273,12 +532,35 @@ function FilterEntryButton({ label, count, selected, onClick }) {
         <button
             type="button"
             onClick={onClick}
-            className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left transition-colors ${selected ? 'bg-brandGold text-white' : 'bg-[#1f2b42] text-gray-200 hover:bg-brandGold/15 dark:bg-[#243047]'}`}
+            className={`flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3.5 text-left text-sm font-bold transition-all ${selected ? 'border border-brandGold/30 bg-brandGold/10 text-brandGold shadow-sm' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}`}
         >
-            <span className="truncate text-sm font-medium">{label}</span>
+            <span className="flex min-w-0 items-center gap-3">
+                {selected ? (
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brandGold text-[10px] font-black text-brandBlue">✓</span>
+                ) : (
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-gray-300 dark:border-gray-600"></span>
+                )}
+                <span className="truncate">{label}</span>
+            </span>
             {typeof count === 'number' ? (
-                <span className={`ml-3 rounded-full px-2 py-0.5 text-[10px] font-black ${selected ? 'bg-white/15 text-white' : 'bg-white/10 text-brandGold'}`}>{count}</span>
+                <span className={`shrink-0 text-[11px] font-black ${selected ? 'text-brandGold' : 'text-gray-400 dark:text-gray-500'}`}>({count})</span>
             ) : null}
         </button>
+    );
+}
+
+function DefaultAccountAvatar({ label, compact = false, large = false }) {
+    const sizeClassName = large ? 'h-24 w-24 text-3xl' : compact ? 'h-full w-full text-sm' : 'h-full w-full text-base';
+
+    return (
+        <div className={`google-account-avatar relative overflow-hidden border border-brandGold/30 bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.16),transparent_34%),linear-gradient(180deg,#151b2d_0%,#090d18_100%)] text-brandGold shadow-[0_12px_28px_rgba(0,0,0,0.35)] ${sizeClassName}`}>
+            <svg className="absolute inset-0 h-full w-full text-brandGold/75" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+                <circle cx="32" cy="24" r="12" fill="currentColor" opacity="0.88" />
+                <path d="M14 56c1.8-10.5 9.48-16 18-16s16.2 5.5 18 16" fill="currentColor" opacity="0.88" />
+            </svg>
+            <span className="absolute left-1/2 top-[37%] flex -translate-x-1/2 -translate-y-1/2 items-center justify-center text-[0.78em] font-black uppercase leading-none text-[#0c1120]">
+                {label}
+            </span>
+        </div>
     );
 }

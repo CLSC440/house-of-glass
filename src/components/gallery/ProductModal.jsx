@@ -1,8 +1,8 @@
 'use client';
 import { useGallery } from '@/contexts/GalleryContext';
 import { useEffect, useState } from 'react';
-
-const WHATSAPP_NUMBER = '201026600350';
+import { AnimatedTestimonials } from '@/components/ui/animated-testimonials';
+import { buildWhatsAppUrl, useSiteSettings } from '@/lib/use-site-settings';
 
 export default function ProductModal() {
     const { selectedProduct, setSelectedProduct, addToCart, addToWholesaleCart, isWholesaleCustomer } = useGallery();
@@ -37,6 +37,25 @@ export default function ProductModal() {
 function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWholesaleCart, isWholesaleCustomer }) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [quantity, setQuantity] = useState(1);
+    const { siteSettings } = useSiteSettings();
+    
+    const fallbackDesc = selectedProduct.desc || selectedProduct.description || '';
+    const productDisplayName = selectedProduct.title || selectedProduct.name || '';
+
+    const splitBilingualLabel = (value) => {
+        const normalizedValue = String(value || '').trim();
+        if (!normalizedValue.includes('|')) {
+            return { english: normalizedValue, arabic: '' };
+        }
+
+        const parts = normalizedValue.split('|').map((part) => part.trim()).filter(Boolean);
+        const arabicPart = parts.find((part) => /[\u0600-\u06FF]/.test(part)) || '';
+        const englishPart = parts.find((part) => /[A-Za-z]/.test(part)) || parts[0] || '';
+
+        return { english: englishPart, arabic: arabicPart };
+    };
+
+    const productNameParts = splitBilingualLabel(productDisplayName);
 
     const images = (() => {
         if (selectedProduct.url) {
@@ -61,7 +80,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
     const safeImageIndex = hasImages ? Math.min(currentImageIndex, images.length - 1) : 0;
     const currentMedia = hasImages ? images[safeImageIndex] : null;
     const metadata = [selectedProduct.category, selectedProduct.brand, selectedProduct.origin].filter(Boolean);
-    const enquiryText = encodeURIComponent(`مرحباً، أستفسر عن المنتج: ${selectedProduct.title || selectedProduct.name}`);
+    const enquiryText = `مرحباً، أستفسر عن المنتج: ${selectedProduct.title || selectedProduct.name}`;
     const stockLimit = Number.isFinite(Number(selectedProduct.remainingQuantity)) && Number(selectedProduct.remainingQuantity) > 0
         ? Number(selectedProduct.remainingQuantity)
         : null;
@@ -97,6 +116,169 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
     const handleAddToWholesaleCart = () => {
         addToWholesaleCart(selectedProduct, quantity);
     };
+
+    const hasVariants = Array.isArray(selectedProduct.variants) && selectedProduct.variants.length > 0;
+    const [activeVariantIndex, setActiveVariantIndex] = useState(0);
+    const [subImageIndex, setSubImageIndex] = useState(0);
+
+    const getVariantAllImages = (variant) => {
+        let imgs = [];
+        if (Array.isArray(variant?.images) && variant.images.length > 0) {
+            imgs = variant.images.map(img => img?.url || img?.primaryUrl || img);
+        } else if (Array.isArray(variant?.media) && variant.media.length > 0) {
+            imgs = variant.media.map(m => m?.url || m?.primaryUrl || m);
+        } else if (variant?.image) {
+            imgs = [variant.image];
+        }
+        
+        if (imgs.length === 0) {
+            imgs = images.map(img => img.url || img);
+        }
+        return imgs.filter(Boolean);
+    };
+
+    const handleActiveVariantChange = (idx) => {
+        setActiveVariantIndex(idx);
+        setSubImageIndex(0);
+    };
+
+    const variantsAsTestimonials = hasVariants ? selectedProduct.variants.map((v, idx) => {
+        const vImages = getVariantAllImages(v);
+        const displayImage = idx === activeVariantIndex && vImages[subImageIndex] ? vImages[subImageIndex] : vImages[0];
+        
+        return {
+            src: displayImage,
+            name: v.name || v.label || selectedProduct.title || selectedProduct.name || `Variant ${idx + 1}`,
+            designation: v.price ? `${v.price} ج.م` : (v.code || 'House of Glass'),
+            quote: fallbackDesc || v.desc || v.description || '',
+            originalVariant: v
+        };
+    }) : [];
+
+    const activeVariant = hasVariants ? selectedProduct.variants[activeVariantIndex] : null;
+    const activeVariantImages = hasVariants ? getVariantAllImages(activeVariant) : [];
+
+    const renderVariantsExtra = (activeIndex, setActiveIndex) => {
+        const variant = selectedProduct.variants[activeIndex];
+        const vPrice = Number(variant.price || selectedProduct.price || 0);
+        return (
+            <div className="mt-8 space-y-6">
+                {/* 1. Variant Labels (Pills) */}
+                <div>
+                   <p className="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider">اختر الشكل / الموديل:</p>
+                   <div className="flex flex-wrap gap-2">
+                       {selectedProduct.variants.map((v, idx) => (
+                           <button
+                               key={idx}
+                               onClick={() => setActiveIndex(idx)}
+                               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border-2 ${
+                                   activeIndex === idx 
+                                   ? 'bg-brandGold text-brandBlue border-brandGold shadow-lg shadow-brandGold/25 scale-105' 
+                                   : 'bg-white/5 dark:bg-neutral-800/50 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-neutral-700 hover:border-brandGold/50'
+                               }`}
+                           >
+                               {v.name || v.label || `موديل ${idx + 1}`}
+                           </button>
+                       ))}
+                   </div>
+                </div>
+
+                {/* 2. Sub-images of current variant */}
+                {activeVariantImages.length > 1 && (
+                    <div className="flex gap-3 overflow-x-auto hide-scroll pb-2 mb-4">
+                        {activeVariantImages.map((imgUrl, i) => (
+                            <button
+                                key={i}
+                                onClick={() => setSubImageIndex(i)}
+                                className={`w-16 h-16 rounded-xl border-2 overflow-hidden flex-shrink-0 transition-all shadow-md ${
+                                    subImageIndex === i 
+                                        ? 'border-brandGold opacity-100 ring-2 ring-brandGold/30 ring-offset-2 dark:ring-offset-[#121926]' 
+                                        : 'border-transparent opacity-50 hover:opacity-100 grayscale-[30%] hover:grayscale-0'
+                                }`}
+                            >
+                                <img src={imgUrl} alt={`صورة فرعية ${i + 1}`} className="w-full h-full object-cover" />
+                            </button>
+                        ))}
+                    </div>
+                )}
+                
+                {/* 3. Price & Action */}
+                <div className="space-y-4 pt-2">
+                    <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-neutral-800/50 rounded-2xl border border-gray-100 dark:border-neutral-800">
+                        <div>
+                            <p className="text-xs text-gray-500 font-medium">السعر</p>
+                            <p className="text-xl font-bold text-gray-900 dark:text-white">
+                                {vPrice > 0 ? `${vPrice.toLocaleString()} ج.م` : 'تواصل معنا لمعرفة السعر'}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-stretch gap-2">
+                        <div className="flex items-center overflow-hidden rounded-xl border-2 border-brandGold/20 bg-white dark:bg-neutral-900">
+                            <button type="button" onClick={decreaseQuantity} className="flex h-12 w-10 items-center justify-center text-lg font-black text-brandGold transition-colors hover:bg-brandGold/10">
+                                -
+                            </button>
+                            <span className="min-w-12 border-x border-brandGold/15 px-3 text-center text-sm font-black text-brandBlue dark:text-white">{quantity}</span>
+                            <button type="button" onClick={increaseQuantity} className="flex h-12 w-10 items-center justify-center text-lg font-black text-brandGold transition-colors hover:bg-brandGold/10">
+                                +
+                            </button>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => addToCart(variant, quantity)}
+                            className="flex-1 rounded-xl border-2 border-brandGold bg-brandGold px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-brandBlue transition-all hover:bg-white hover:text-brandBlue shadow-xl"
+                        >
+                            اضف للعربة
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    if (hasVariants) {
+        return (
+            <div key={selectedProduct.id || selectedProduct.code || selectedProduct.name} className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6" dir="rtl">
+                <div
+                    className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+                    onClick={closeModal}
+                ></div>
+
+                <div className="relative w-full max-w-6xl max-h-[90vh] bg-white dark:bg-darkCard rounded-[2rem] shadow-2xl overflow-hidden flex flex-col transform transition-all">
+                    
+                    <button
+                        onClick={closeModal}
+                        className="absolute top-4 right-4 z-50 w-10 h-10 bg-white/20 hover:bg-white/90 text-gray-800 backdrop-blur-md rounded-full flex items-center justify-center transition-all shadow-sm border border-gray-100 dark:border-neutral-800"
+                    >
+                        <i className="fa-solid fa-xmark"></i>
+                    </button>
+
+                    <div className="w-full h-full overflow-y-auto hide-scroll flex flex-col pb-8">
+                        <div className="px-8 mt-8 text-center">
+                            <h2 className="text-3xl font-black text-brandBlue dark:text-white tracking-tighter">
+                                {productNameParts.english ? <span dir="ltr">{productNameParts.english}</span> : null}
+                                {productNameParts.english && productNameParts.arabic ? <span className="mx-2 text-brandGold">|</span> : null}
+                                {productNameParts.arabic ? <span dir="rtl">{productNameParts.arabic}</span> : null}
+                            </h2>
+                            <p className="mt-2 text-sm text-gray-500 font-medium">استعرض الخيارات المتاحة لهذا المنتج</p>
+                        </div>
+
+                        <div className="flex-grow" dir="ltr">
+                            <AnimatedTestimonials 
+                                testimonials={variantsAsTestimonials} 
+                                onActiveChange={handleActiveVariantChange}
+                                renderExtra={(idx, setActiveIndex) => (
+                                    <div dir="rtl">
+                                        {renderVariantsExtra(idx, setActiveIndex)}
+                                    </div>
+                                )}
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div key={selectedProduct.id || selectedProduct.code || selectedProduct.name} className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6" dir="rtl">
@@ -241,11 +423,11 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                             </div>
                         )}
                         
-                        {(selectedProduct.description || '') !== '' && (
+                        {fallbackDesc !== '' && (
                             <div className="mt-6">
                                 <h3 className="font-bold text-gray-900 dark:text-white mb-2">وصف المنتج</h3>
                                 <div className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed whitespace-pre-wrap">
-                                    {selectedProduct.description}
+                                    {fallbackDesc}
                                 </div>
                             </div>
                         )}
@@ -304,7 +486,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                         </div>
 
                         <a 
-                            href={`https://wa.me/${WHATSAPP_NUMBER}?text=${enquiryText}`}
+                            href={buildWhatsAppUrl(siteSettings.whatsapp, enquiryText)}
                             target="_blank" 
                             rel="noreferrer"
                             className="w-full py-4 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl flex items-center justify-center gap-2 font-bold transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"

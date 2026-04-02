@@ -1,10 +1,14 @@
 'use client';
 
+import { useSiteSettings } from '@/lib/use-site-settings';
+
 export default function FloatingActions() {
+    const { derivedSettings } = useSiteSettings();
+
     return (
         <div className="fixed bottom-6 right-6 z-[80] flex flex-col items-center gap-3 transition-all duration-500">
             <a 
-                href="https://wa.me/201026600350" 
+                href={derivedSettings.whatsappUrl}
                 target="_blank" 
                 rel="noopener noreferrer" 
                 className="bg-[#25D366] text-white p-3 rounded-full shadow-2xl hover:scale-110 transition-all flex items-center group"

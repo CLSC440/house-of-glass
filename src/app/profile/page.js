@@ -1,13 +1,32 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signOut, updateProfile } from 'firebase/auth';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import Link from 'next/link';
 import { deleteOwnAccount, upsertCurrentUserProfile } from '@/lib/account-api';
+import { uploadToImageKit } from '@/lib/imagekit-client';
 import { parseTimestamp } from '@/lib/utils/format';
 import { mergeOrderItemsIntoStorage } from '@/lib/cart-storage';
+
+function buildAvatarLabel(userData, user) {
+    return String(userData?.name || user?.displayName || user?.email || 'U').trim().charAt(0).toUpperCase() || 'U';
+}
+
+function ProfileFallbackAvatar({ label, className = '' }) {
+    return (
+        <div className={`relative overflow-hidden rounded-full border border-brandGold/30 bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.16),transparent_34%),linear-gradient(180deg,#151b2d_0%,#090d18_100%)] text-brandGold shadow-[0_12px_28px_rgba(0,0,0,0.35)] ${className}`}>
+            <svg className="absolute inset-0 h-full w-full text-brandGold/75" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+                <circle cx="32" cy="24" r="12" fill="currentColor" opacity="0.88" />
+                <path d="M14 56c1.8-10.5 9.48-16 18-16s16.2 5.5 18 16" fill="currentColor" opacity="0.88" />
+            </svg>
+            <span className="absolute left-1/2 top-[37%] flex -translate-x-1/2 -translate-y-1/2 items-center justify-center text-[0.78em] font-black uppercase leading-none text-[#0c1120]">
+                {label}
+            </span>
+        </div>
+    );
+}
 
 export default function UserProfile() {
     const router = useRouter();
@@ -22,9 +41,15 @@ export default function UserProfile() {
         lastName: '',
         name: '',
         phone: '',
-        email: ''
+        email: '',
+        photoURL: ''
     });
     const [saveMessage, setSaveMessage] = useState({ type: '', text: '' });
+    const [selectedPhotoFile, setSelectedPhotoFile] = useState(null);
+    const [selectedPhotoPreview, setSelectedPhotoPreview] = useState('');
+    const [removeProfilePhoto, setRemoveProfilePhoto] = useState(false);
+    const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+    const [isSavingProfile, setIsSavingProfile] = useState(false);
 
     const [orders, setOrders] = useState([]);
     const [ordersLoading, setOrdersLoading] = useState(true);
@@ -48,7 +73,8 @@ export default function UserProfile() {
                         lastName: data.lastName || '',
                         name: data.name || '',
                         phone: data.phone || '',
-                        email: data.email || data.authEmail || ''
+                        email: data.email || data.authEmail || '',
+                        photoURL: data.photoURL || currentUser.photoURL || ''
                     });
                 }
             } catch (err) {
@@ -92,25 +118,124 @@ export default function UserProfile() {
         }
     }, [user, loading, userData]);
 
+    useEffect(() => {
+        return () => {
+            if (selectedPhotoPreview) {
+                URL.revokeObjectURL(selectedPhotoPreview);
+            }
+        };
+    }, [selectedPhotoPreview]);
+
+    const displayedProfilePhoto = removeProfilePhoto
+        ? ''
+        : (selectedPhotoPreview || formData.photoURL || userData?.photoURL || user?.photoURL || '');
+
+    const handlePhotoSelection = (event) => {
+        const nextFile = event.target.files?.[0] || null;
+
+        if (!nextFile) {
+            return;
+        }
+
+        if (!nextFile.type.startsWith('image/')) {
+            setSaveMessage({ type: 'error', text: 'Please choose an image file only.' });
+            return;
+        }
+
+        if (selectedPhotoPreview) {
+            URL.revokeObjectURL(selectedPhotoPreview);
+        }
+
+        const previewUrl = URL.createObjectURL(nextFile);
+        setSelectedPhotoFile(nextFile);
+        setSelectedPhotoPreview(previewUrl);
+        setRemoveProfilePhoto(false);
+        setAvatarLoadFailed(false);
+        setSaveMessage({ type: '', text: '' });
+    };
+
+    const handleRemoveProfilePhoto = () => {
+        if (selectedPhotoPreview) {
+            URL.revokeObjectURL(selectedPhotoPreview);
+        }
+
+        setSelectedPhotoFile(null);
+        setSelectedPhotoPreview('');
+        setRemoveProfilePhoto(true);
+        setAvatarLoadFailed(false);
+    };
+
+    const handleCancelEdit = () => {
+        if (selectedPhotoPreview) {
+            URL.revokeObjectURL(selectedPhotoPreview);
+        }
+
+        setSelectedPhotoFile(null);
+        setSelectedPhotoPreview('');
+        setRemoveProfilePhoto(false);
+        setAvatarLoadFailed(false);
+        setFormData((currentValue) => ({
+            ...currentValue,
+            photoURL: userData?.photoURL || user?.photoURL || ''
+        }));
+        setIsEditing(false);
+    };
+
     const handleSave = async (e) => {
         e.preventDefault();
         setSaveMessage({ type: '', text: '' });
+        setIsSavingProfile(true);
+
         try {
+            let photoURL = removeProfilePhoto ? '' : (formData.photoURL || userData?.photoURL || user?.photoURL || '');
+            let photoMeta = removeProfilePhoto ? null : (userData?.photoMeta || null);
+
+            if (selectedPhotoFile) {
+                const uploadedPhoto = await uploadToImageKit(user, selectedPhotoFile, {
+                    folder: `/users/${user.uid}/profile`,
+                    fileName: `profile_${user.uid}_${Date.now()}.${selectedPhotoFile.name.split('.').pop() || 'jpg'}`,
+                    tags: ['profile-photo']
+                });
+                photoURL = uploadedPhoto.primaryUrl;
+                photoMeta = uploadedPhoto;
+            }
+
             const response = await upsertCurrentUserProfile(user, {
                 username: formData.username,
                 firstName: formData.firstName,
                 lastName: formData.lastName,
                 name: formData.name,
                 phone: formData.phone,
-                email: formData.email
+                email: formData.email,
+                photoURL,
+                photoMeta
             });
+
+            await updateProfile(user, {
+                displayName: response.profile?.name || formData.name || user.displayName || null,
+                photoURL: photoURL || null
+            });
+
             setUserData(response.profile);
+            setFormData((currentValue) => ({
+                ...currentValue,
+                photoURL: response.profile?.photoURL || ''
+            }));
+            if (selectedPhotoPreview) {
+                URL.revokeObjectURL(selectedPhotoPreview);
+            }
+            setSelectedPhotoFile(null);
+            setSelectedPhotoPreview('');
+            setRemoveProfilePhoto(false);
+            setAvatarLoadFailed(false);
             setIsEditing(false);
             setSaveMessage({ type: 'success', text: 'Profile updated successfully!' });
             setTimeout(() => setSaveMessage({ type: '', text: '' }), 3000);
         } catch (err) {
             console.error(err);
             setSaveMessage({ type: 'error', text: 'Failed to update profile.' });
+        } finally {
+            setIsSavingProfile(false);
         }
     };
 
@@ -176,7 +301,7 @@ export default function UserProfile() {
                     
                     {/* Left Column: Personal info */}
                     <div className="lg:col-span-1 space-y-6">
-                        <div className="bg-white dark:bg-darkCard rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
+                        <div id="profile-settings" className="bg-white dark:bg-darkCard rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-800 scroll-mt-28">
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-lg font-black text-brandBlue dark:text-white flex items-center gap-2">
                                     <i className="fa-regular fa-user text-brandGold"></i> Profile Details
@@ -196,6 +321,32 @@ export default function UserProfile() {
 
                             {isEditing ? (
                                 <form onSubmit={handleSave} className="space-y-4">
+                                    <div className="rounded-[1.6rem] border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-gray-800/40">
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-brandGold/20 bg-white shadow-sm dark:bg-darkCard">
+                                                {displayedProfilePhoto && !avatarLoadFailed ? (
+                                                    <img src={displayedProfilePhoto} alt={formData.name || user?.displayName || 'Profile'} className="h-full w-full object-cover" onError={() => setAvatarLoadFailed(true)} />
+                                                ) : (
+                                                    <ProfileFallbackAvatar label={buildAvatarLabel(userData, user)} className="h-full w-full" />
+                                                )}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-sm font-black text-brandBlue dark:text-white">Profile Photo</p>
+                                                <p className="mt-1 text-xs text-gray-500">Upload a square image and it will appear in the account icon immediately after saving.</p>
+                                                <div className="mt-3 flex flex-wrap gap-2">
+                                                    <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-brandGold/25 bg-brandGold/10 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-brandGold transition-colors hover:bg-brandGold hover:text-white">
+                                                        <input type="file" accept="image/*" className="hidden" onChange={handlePhotoSelection} />
+                                                        Choose Photo
+                                                    </label>
+                                                    {(displayedProfilePhoto || selectedPhotoFile) ? (
+                                                        <button type="button" onClick={handleRemoveProfilePhoto} className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-red-500 transition-colors hover:bg-red-500 hover:text-white dark:border-red-900/40 dark:bg-red-900/10">
+                                                            Remove Photo
+                                                        </button>
+                                                    ) : null}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <div>
                                         <label className="block text-xs font-bold text-gray-500 mb-1">Username</label>
                                         <input type="text" name="username" value={formData.username} onChange={(e) => setFormData({...formData, username: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 outline-none focus:border-brandGold text-sm font-medium" />
@@ -223,15 +374,19 @@ export default function UserProfile() {
                                         <input type="text" name="phone" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 outline-none focus:border-brandGold text-sm font-medium" />
                                     </div>
                                     <div className="flex gap-2 pt-2">
-                                        <button type="submit" className="flex-1 bg-brandGold text-white font-bold py-2.5 rounded-xl hover:bg-brandBlue transition-colors shadow-sm">Save</button>
-                                        <button type="button" onClick={() => setIsEditing(false)} className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-bold py-2.5 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Cancel</button>
+                                        <button type="submit" disabled={isSavingProfile} className="flex-1 bg-brandGold text-white font-bold py-2.5 rounded-xl hover:bg-brandBlue transition-colors shadow-sm disabled:cursor-wait disabled:opacity-70">{isSavingProfile ? 'Saving...' : 'Save'}</button>
+                                        <button type="button" onClick={handleCancelEdit} disabled={isSavingProfile} className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-bold py-2.5 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:cursor-wait disabled:opacity-70">Cancel</button>
                                     </div>
                                 </form>
                             ) : (
                                 <div className="space-y-4">
                                     <div className="flex items-start gap-4 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/30">
-                                        <div className="w-10 h-10 rounded-full bg-brandGold/10 text-brandGold flex items-center justify-center shrink-0">
-                                            <span className="font-black">{userData?.name?.charAt(0) || 'U'}</span>
+                                        <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-brandGold/20 bg-white text-brandGold dark:bg-darkCard">
+                                            {displayedProfilePhoto && !avatarLoadFailed ? (
+                                                <img src={displayedProfilePhoto} alt={userData?.name || user?.displayName || 'Profile'} className="h-full w-full object-cover" onError={() => setAvatarLoadFailed(true)} />
+                                            ) : (
+                                                <ProfileFallbackAvatar label={buildAvatarLabel(userData, user)} className="h-full w-full" />
+                                            )}
                                         </div>
                                         <div>
                                             <p className="text-sm font-black text-brandBlue dark:text-white">{userData?.name || 'Adding Name...'}</p>
@@ -265,7 +420,7 @@ export default function UserProfile() {
 
                     {/* Right Column: Orders History */}
                     <div className="lg:col-span-2 space-y-6">
-                        <div className="bg-white dark:bg-darkCard rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
+                        <div id="order-history" className="bg-white dark:bg-darkCard rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-800 scroll-mt-28">
                             <h2 className="text-lg font-black text-brandBlue dark:text-white flex items-center gap-2 mb-6">
                                 <i className="fa-solid fa-box-open text-brandGold"></i> Order History
                             </h2>

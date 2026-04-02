@@ -132,6 +132,7 @@ Verification completed:
 - final polishing for exact spacing, motion, and small interaction details
 - broader regression pass across all routes
 - final documentation cleanup
+- isolated component-lab routes for testing non-parity UI ideas safely
 
 ## 7. Old Vs New Comparison Checklist
 
@@ -222,6 +223,170 @@ Current assessment:
 - admin exists in new site
 - parity is still incomplete
 
+### 7.6 Legacy Toolbar Findings
+
+Source investigated:
+
+- `C:/Users/Mohamed/Gallary Website/admin.html`
+- `backup_index.html` for storefront/account-adjacent reference where needed
+- available legacy source now includes the real old admin dashboard file
+
+Important scope note:
+
+- The screenshot toolbar is confirmed to come from the old `admin.html` dashboard shell.
+- Most actions are now directly provable from old-source markup and handlers.
+- Only minor visibility conditions remain partially implicit where buttons are rendered with `hidden` classes and later shown by runtime role/config logic.
+
+Confirmed from code:
+
+1. `Toolbar close / expand button`
+	 - Confirmed handler: `toggleToolbar()`.
+	 - Markup: left-most circular button inside `#adminToolbar`.
+	 - What it does:
+		 - toggles the toolbar `expanded` class
+		 - swaps the icon between back-chevron and `X`
+		 - resets horizontal scroll on the actions row when opening
+	 - Legacy purpose:
+		 - collapse/expand the floating admin toolbar, not navigate away.
+
+2. `Moon / theme toggle`
+	 - Confirmed handler: `window.toggleDarkMode()`.
+	 - What it does:
+		 - toggles the `dark` class on `document.documentElement`
+		 - persists manual theme in `localStorage.darkMode`
+		 - when auto theme is enabled, stores override time and resets back after 10 minutes
+	 - Legacy purpose:
+		 - quick admin theme override.
+
+3. `Users / Team`
+	 - Confirmed handler: `window.openUsersModal()`.
+	 - Toolbar markup id: `manageUsersBtn`.
+	 - Visibility note:
+		 - rendered with `hidden`, so it is shown conditionally by runtime logic/role.
+	 - What it does:
+		 - opens the users management modal
+		 - loads all users from Firestore `users`
+		 - supports search, role sorting, role changes, and user deletion
+	 - Legacy purpose:
+		 - operational user management for admins.
+
+4. `Gear / Settings`
+	 - Confirmed handler: `window.openSettingsModal()`.
+	 - What it does:
+		 - opens the admin settings modal
+		 - loads site settings fields like WhatsApp number, phone, price increase, Facebook link, WhatsApp channel, and maps link
+	 - Legacy purpose:
+		 - site-wide operational settings, not account settings.
+
+5. `Server Status`
+	 - Confirmed toolbar item: anchor `id="serverStatusBtn"` linking to `server-status.html`.
+	 - Visibility note:
+		 - rendered with `hidden`, so likely shown only under specific runtime conditions.
+	 - Legacy purpose:
+		 - quick access to server health/status page.
+
+6. `WhatsApp Server`
+	 - Confirmed toolbar item: anchor to `whatsapp-server.html`.
+	 - Legacy purpose:
+		 - quick access to WhatsApp server/integration operations.
+
+7. `Stock Sync`
+	 - Confirmed toolbar item: anchor to `admin-stock.html` with title `Stock Sync`.
+	 - Legacy purpose:
+		 - quick access to stock synchronization/admin stock tooling.
+
+8. `Brands`
+	 - Confirmed handler: `window.openBrandModal()` and `window.closeBrandModal()`.
+	 - Supporting data flow:
+		 - Firestore listener on collection `categories` populates `brandsData` and `brands`
+		 - `renderBrandsInUI()` updates modal list and filter select
+		 - Sortable is used to reorder brands and persist `order`
+	 - What it does:
+		 - opens the dedicated brands admin modal
+		 - supports listing, adding, renaming, deleting, and reordering brands
+	 - Legacy purpose:
+		 - brands are an admin-managed taxonomy, not only a quick storefront filter.
+
+9. `Categories`
+	 - Confirmed handler: `window.openCategoryModal()` and `window.closeCategoryModal()`.
+	 - Supporting data flow:
+		 - Firestore listener on collection `productCategories` populates `categoriesData` and `categories`
+		 - `renderCategoriesInUI()` updates modal list and filter select
+		 - Sortable is used to reorder categories and persist `order`
+	 - What it does:
+		 - opens the dedicated categories admin modal
+		 - supports listing, adding, renaming, deleting, and reordering categories
+	 - Legacy purpose:
+		 - product taxonomy management.
+
+10. `Orders`
+	 - Confirmed handler: `window.openOrdersModal()` and `window.closeOrdersModal()`.
+	 - Supporting behavior:
+		 - starts a Firestore listener on `orders`, ordered by `orderDate desc`
+		 - keeps `allOrders` live in memory
+		 - updates `ordersCountBadge` with pending order count
+		 - supports filtering by `all`, `retail`, `wholesale`, and `pending`
+		 - supports search and status updates
+	 - Legacy purpose:
+		 - live admin order operations panel.
+
+11. `Reorder Rows`
+	 - Confirmed handler: `window.openReorderModal()` and `window.closeReorderModal()`.
+	 - Supporting behavior:
+		 - opens `#reorderModal`
+		 - calls `renderReorderRows()`
+		 - groups products by ordered categories
+		 - creates horizontal Sortable rows per category
+		 - saves homepage row/product order through `saveNewProductOrder()`
+	 - Legacy purpose:
+		 - homepage merchandising control by row and product order.
+
+12. `+ Add Product`
+	 - Confirmed handler: `openModal()`.
+	 - Supporting behavior:
+		 - opens the product modal
+		 - resets form for create mode when `isEdit` is false
+		 - prepares brand/origin suggestions and image inputs
+		 - same modal is reused for edit mode elsewhere via `window.openModal(true)` / edit flow
+	 - Legacy purpose:
+		 - primary entry point for creating products.
+
+13. `View Site / Home`
+	 - Confirmed toolbar item: anchor to `index.html` with title `View Site`.
+	 - Visual form:
+		 - uses the site favicon/logo inside a circular gold-toned button.
+	 - Legacy purpose:
+		 - jump from admin back to the storefront.
+
+14. `Logout`
+	 - Confirmed handler: `logout()`.
+	 - Supporting behavior:
+		 - implemented as `window.logout = () => signOut(auth)`.
+	 - Legacy purpose:
+		 - direct sign-out shortcut from admin toolbar.
+
+15. `Account Settings exists separately but is not the same as toolbar gear`
+	 - Confirmed legacy account handler: `window.openUserSettingsModal()` in `backup_index.html`.
+	 - Important distinction:
+		 - this belongs to storefront/account flows.
+		 - it is different from admin toolbar `openSettingsModal()` in `admin.html`.
+
+Parity implication for the Next.js rebuild:
+
+- The admin toolbar parity target is now much clearer from `admin.html` and should be treated as source-of-truth behavior for:
+	 - toolbar expand/collapse
+	 - theme toggle
+	 - users modal
+	 - admin settings modal
+	 - stock/server/WhatsApp shortcut links
+	 - brands and categories management modals
+	 - live orders modal with pending badge
+	 - homepage row reordering modal
+	 - add-product modal
+	 - view-site shortcut
+	 - logout shortcut
+- The older `backup_index.html` remains useful for storefront/account parity, but it should no longer be the main reference for the admin toolbar now that `admin.html` is available.
+
 ## 8. Execution Plan And Tracking Table
 
 Status legend:
@@ -242,7 +407,7 @@ Status legend:
 | P7 | Live stock and pricing parity | Cart and product logic honor old stock and pricing rules | old DC-linked cart logic and stock checks | IN PROGRESS | stock clamp test, price sync test, role price test, endpoint smoke test | Storefront now hydrates from live DC feeds; manual parity check still pending |
 | P8 | Order history parity | Profile/history flow closer to old website | old order history modal and account panel | IN PROGRESS | order history view test, filtering test, route test | Type badges and richer history details started |
 | P9 | Reorder behavior | User can reorder from old history | old orderAgain behavior | IN PROGRESS | reorder test, cart merge test, unavailable-item handling test | First reorder pass started |
-| P10 | Admin parity | Admin routes behave closer to old system | old admin pages and operational flows | TODO | per-page manual test, build, data mutation tests | Large workstream |
+| P10 | Admin parity | Admin routes behave closer to old system | old admin pages and operational flows | IN PROGRESS | per-page manual test, build, data mutation tests | Dashboard shell and navigation received first major parity pass |
 | P11 | API migration parity | Legacy serverless logic moved into App Router where needed | old api folder | IN PROGRESS | endpoint smoke tests, build | Only part of the migration is done |
 | P12 | Server status parity | Status pages reach old functionality | old local/cloud server status flows | TODO | route test, data load test, failure-state test | Still partial |
 | P13 | Final polish and regression | Exact detail alignment and stability | whole old site | TODO | full regression checklist, build, lint triage | Final phase |
@@ -434,3 +599,78 @@ The next best sequence is:
 - Regression spot check: partial pass
 - Result: Variant card flip behavior is implemented and build-safe.
 - Remaining gap: verify the flip feel, mobile tap behavior, and whether the visual treatment should be more subtle to stay aligned with old-site tone.
+
+### Update - 2026-03-31 - Animated Testimonials Lab
+
+- Status: IN PROGRESS
+- What changed: Initialized shadcn with Aceternity registry support, added the Animated Testimonials component, adapted the demo data to House Of Glass collection imagery, and created an isolated preview route for evaluating the motion style safely outside the main storefront.
+- Files touched: components.json, src/components/ui/animated-testimonials.jsx, src/components/animated-testimonials-demo.jsx, src/app/component-lab/animated-testimonials/page.js, package.json, src/app/globals.css, src/components/ui/button.jsx, src/lib/utils.js.
+- Comparison against old website: This is an exploratory UI lab path and not a parity step. It exists to test whether the motion language is worth adapting into a product-focused section later.
+- Tests run:
+- Diagnostics: pass
+- Build: pass
+- Manual UI test: route opened for localhost preview
+- Data flow test: not applicable
+- Regression spot check: partial pass
+- Result: Component is installed and previewable without affecting the main storefront flow.
+- Remaining gap: decide whether to adapt this animation language into a product-variant showcase or leave it as a lab-only experiment.
+
+### Update - 2026-03-31 - P10
+
+- Status: IN PROGRESS
+- What changed: Refreshed the admin dashboard shell with a stronger dark control-room layout, restored a more deliberate sidebar/navigation treatment, upgraded KPI cards with more meaningful metrics, and improved the recent orders table hierarchy with better customer fallbacks, order type badges, and corrected `ج.م` currency formatting.
+- Files touched: src/app/admin/layout.js, src/app/admin/page.js, src/components/admin/AdminSidebar.jsx, src/components/admin/DashboardStats.jsx, src/components/admin/OrdersTable.jsx.
+- Comparison against old website: The admin home now feels more intentional and operational instead of a generic placeholder, but deeper parity for products, orders workflows, stock tooling, and users management is still pending.
+- Tests run:
+- Diagnostics: pass
+- Build: pass
+- Manual UI test: pending user validation on localhost
+- Data flow test: pass at Firestore snapshot rendering level
+- Regression spot check: partial pass
+- Result: First admin dashboard parity pass completed and build-safe.
+- Remaining gap: finish parity for the rest of the admin routes, add action-level workflows, and verify mobile/admin usability against the legacy system.
+
+### Update - 2026-03-31 - P10 Orders Detail Pass
+
+- Status: IN PROGRESS
+- What changed: Tightened the admin orders page spacing and visual density, normalized order amount/date/customer parsing against mixed legacy and new payload shapes, and added expandable per-order details showing customer info, order metadata, and full item lines with quantities and line totals.
+- Files touched: src/app/admin/orders/page.js, src/lib/utils/admin-orders.js.
+- Comparison against old website: The orders route is now materially more useful for operations because each order can be inspected in place instead of only showing a flat row, but parity still needs richer filtering, notes/shipping workflows, and action coverage.
+- Tests run:
+- Diagnostics: pass
+- Build: pass
+- Manual UI test: pending user validation on localhost
+- Data flow test: pass at Firestore snapshot rendering level
+- Regression spot check: partial pass
+- Result: Orders page now supports practical review of order contents and details in the admin flow.
+- Remaining gap: add filters/search, better shipping/address coverage if available in data, and align products/users/stock pages to the same quality bar.
+
+### Update - 2026-04-01 - P10 Products Parity Pass
+
+- Status: IN PROGRESS
+- What changed: Rebuilt the admin products route from a simple table into a legacy-style dark control view with a top filter toolbar, richer product cards, retail/net/wholesale pricing blocks, expandable variant pricing rows, and a product history/details modal with graceful fallback when no stored audit trail exists.
+- Files touched: src/app/admin/products/page.js.
+- Comparison against old website: The products route now follows the old admin dashboard direction much more closely in structure and visual hierarchy instead of feeling like a generic CRUD table, but exact filter wording, live edit-history persistence, and final spacing polish still need localhost validation against the legacy screen.
+- Tests run:
+- Diagnostics: pass
+- Build: pass
+- Manual UI test: pending user validation on localhost
+- Data flow test: pass at existing Firestore product rendering level
+- Regression spot check: partial pass
+- Result: First major admin products parity pass completed and production build stayed healthy.
+- Remaining gap: verify the page against the old screen on representative products, decide whether product history should become persisted audit data instead of fallback metadata only, and continue parity work on stock/users action-level flows.
+
+### Update - 2026-04-01 - P10 Products Refinement Pass
+
+- Status: IN PROGRESS
+- What changed: Refined the admin products parity pass to consume live DC discount fields, corrected net-versus-discount rendering, improved DC product matching with `product_code`, aligned the sort label with the old screen, removed extra generic badge noise, and updated media/status presentation to sit closer to the legacy product cards.
+- Files touched: src/app/admin/products/page.js, src/contexts/GalleryContext.jsx.
+- Comparison against old website: The new route now matches the old product cards more accurately at the data and visual level, especially around discount-aware net pricing and tighter metadata hierarchy, though final spacing and per-product validation are still pending manual localhost comparison.
+- Tests run:
+- Diagnostics: pass
+- Build: pass
+- Manual UI test: pending user validation on localhost
+- Data flow test: pass at live DC merge level
+- Regression spot check: partial pass
+- Result: Product pricing and card presentation moved materially closer to the old admin dashboard without regressing the app build.
+- Remaining gap: final manual comparison for representative products and optional persisted edit-history support if exact operational parity is required.

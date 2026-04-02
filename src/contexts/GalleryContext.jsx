@@ -1,14 +1,11 @@
 'use client';
 import { createContext, useContext, useState, useEffect } from 'react';
-import { addDoc, collection, doc, getDoc, onSnapshot, query } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, onSnapshot, query, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { CART_STORAGE_KEY, WHOLESALE_CART_STORAGE_KEY } from '@/lib/cart-storage';
+import { isWholesaleRole, normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
 
 const noop = () => {};
-
-function isWholesaleRole(role) {
-    return ['cst_wholesale', 'wholesale', 'admin', 'moderator'].includes(String(role || '').toLowerCase());
-}
 
 function parsePrice(value) {
     if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -41,6 +38,7 @@ function getDcItemMatchCodes(item = {}) {
     return getUniqueValues([
         item.barcode,
         item.code,
+        item.product_code,
         item.productCode,
         item.sku,
         item.itemCode,
@@ -50,6 +48,7 @@ function getDcItemMatchCodes(item = {}) {
 
 function getDcFeedItems(payload) {
     if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.products)) return payload.products;
     if (Array.isArray(payload?.data)) return payload.data;
     return [];
 }
@@ -57,6 +56,53 @@ function getDcFeedItems(payload) {
 function parseCount(value) {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeWarehouseName(value) {
+    return String(value || '').replace(/\s+/g, '');
+}
+
+function getDcWarehouseBuckets(item = {}) {
+    let showroomStock = 0;
+    let warehouseStock = 0;
+
+    (item.stock_by_warehouse || item.stockByWarehouse || []).forEach((warehouseEntry) => {
+        const warehouseId = Number(warehouseEntry?.warehouse_id || warehouseEntry?.warehouseId || 0);
+        const warehouseName = normalizeWarehouseName(warehouseEntry?.warehouse_name || warehouseEntry?.warehouseName);
+        const quantity = Number(warehouseEntry?.quantity || 0);
+
+        if (!Number.isFinite(quantity) || quantity <= 0) return;
+
+        if (warehouseId === 1) {
+            showroomStock += quantity;
+            return;
+        }
+
+        if (warehouseId === 2) {
+            warehouseStock += quantity;
+            return;
+        }
+
+        if (!warehouseName) return;
+
+        if (warehouseName.includes('مخزنالمعرض') || warehouseName.includes('showroom')) {
+            showroomStock += quantity;
+            return;
+        }
+
+        if (warehouseName.includes('المخزنالرئيسي') || warehouseName.includes('warehouse')) {
+            warehouseStock += quantity;
+        }
+    });
+
+    if (showroomStock === 0 && warehouseStock === 0) {
+        const totalStock = getDcTotalStock(item);
+        if (Number.isFinite(totalStock) && totalStock > 0) {
+            warehouseStock = totalStock;
+        }
+    }
+
+    return { showroomStock, warehouseStock };
 }
 
 function getWarehouseStockTotal(stockByWarehouse) {
@@ -103,6 +149,18 @@ function mergeProductWithDcData(product, dcProduct, dcStock) {
 
     const retailPrice = getProductPrice({ ...product, ...dcProduct, ...dcStock });
     const wholesalePrice = getProductWholesalePrice({ ...product, ...dcProduct, ...dcStock });
+    const warehouseBuckets = getDcWarehouseBuckets(liveEntry || {});
+    const discountAmount = parsePrice(
+        dcProduct?.discount_amount
+        || dcProduct?.discountAmount
+        || dcProduct?.discount
+        || dcStock?.discount_amount
+        || dcStock?.discountAmount
+        || dcStock?.discount
+        || product?.discount_amount
+        || product?.discountAmount
+        || product?.discount
+    );
     const totalStock = getDcTotalStock(liveEntry);
     const threshold = getProductLowStockThreshold(product);
     const manufacturer = normalizeFilterValue(dcStock?.manufacturer || dcProduct?.manufacturer);
@@ -120,6 +178,11 @@ function mergeProductWithDcData(product, dcProduct, dcStock) {
             wholesalePrice,
             wholesale_price: wholesalePrice,
             cartonPrice: wholesalePrice
+        } : {}),
+        ...(discountAmount > 0 ? {
+            discountAmount,
+            discount_amount: discountAmount,
+            discount: discountAmount
         } : {})
     };
 
@@ -132,11 +195,49 @@ function mergeProductWithDcData(product, dcProduct, dcStock) {
         remainingQuantity: totalStock,
         totalStock,
         total_stock: totalStock,
+        showroomStock: warehouseBuckets.showroomStock,
+        retailStock: warehouseBuckets.showroomStock,
+        warehouseStock: warehouseBuckets.warehouseStock,
+        wholesaleStock: warehouseBuckets.warehouseStock,
+        stock_by_warehouse: liveEntry?.stock_by_warehouse || liveEntry?.stockByWarehouse || product?.stock_by_warehouse,
+        stockByWarehouse: liveEntry?.stockByWarehouse || liveEntry?.stock_by_warehouse || product?.stockByWarehouse,
         stockStatus: totalStock <= 0
             ? 'out_of_stock'
             : totalStock <= threshold
                 ? 'low_stock'
                 : 'in_stock'
+    };
+}
+
+function enrichProductVariantsWithDcData(product, dcProductsMap, dcStockMap) {
+    const variants = Array.isArray(product?.variants) ? product.variants : null;
+    if (!variants || variants.length === 0) return product;
+
+    return {
+        ...product,
+        variants: variants.map((variant) => {
+            const variantCodes = getProductMatchCodes(variant);
+            const dcVariantProduct = variantCodes.map((code) => dcProductsMap[code]).find(Boolean) || null;
+            const dcVariantStock = variantCodes.map((code) => dcStockMap[code]).find(Boolean) || null;
+            const liveEntry = dcVariantStock || dcVariantProduct;
+            const stockBuckets = getDcWarehouseBuckets(liveEntry || {});
+            const totalStock = getDcTotalStock(liveEntry || {});
+
+            return {
+                ...variant,
+                matchedBarcode: dcVariantStock?.barcode || dcVariantProduct?.barcode || '-',
+                showroomStock: stockBuckets.showroomStock,
+                retailStock: stockBuckets.showroomStock,
+                warehouseStock: stockBuckets.warehouseStock,
+                wholesaleStock: stockBuckets.warehouseStock,
+                totalStock: Number.isFinite(totalStock) ? totalStock : 0,
+                total_stock: Number.isFinite(totalStock) ? totalStock : 0,
+                stockStatus: Number.isFinite(totalStock)
+                    ? (totalStock <= 0 ? 'out_of_stock' : 'in_stock')
+                    : String(variant?.stockStatus || ''),
+                isLinked: !!liveEntry
+            };
+        })
     };
 }
 
@@ -212,6 +313,11 @@ function getProductStockLimit(product) {
 
 function normalizeFilterValue(value) {
     return String(value || '').trim();
+}
+
+function getProductSortOrder(product = {}) {
+    const numericOrder = Number(product.order);
+    return Number.isFinite(numericOrder) ? numericOrder : Number.MAX_SAFE_INTEGER;
 }
 
 function getProductBrandLabel(product = {}) {
@@ -311,6 +417,7 @@ export function GalleryProvider({ children }) {
     const [dcProductsMap, setDcProductsMap] = useState({});
     const [dcStockMap, setDcStockMap] = useState({});
     const [categories, setCategories] = useState([]);
+    const [brands, setBrands] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [userRole, setUserRole] = useState('');
     
@@ -341,6 +448,15 @@ export function GalleryProvider({ children }) {
             setCategories(fetchedCats);
         });
 
+        // Fetch Brands
+        const unsubscribeBrands = onSnapshot(collection(db, 'categories'), (snapshot) => {
+            const fetchedBrands = snapshot.docs.map((doc, idx) => {
+                const data = doc.data();
+                return { id: doc.id, name: data.name, order: data.order !== undefined ? data.order : idx };
+            }).sort((a, b) => a.order - b.order);
+            setBrands(fetchedBrands);
+        });
+
         // Fetch Products
         const q = query(collection(db, 'products'));
         const unsubscribeProducts = onSnapshot(q, (snapshot) => {
@@ -354,6 +470,7 @@ export function GalleryProvider({ children }) {
 
         return () => {
             unsubscribeCategories();
+            unsubscribeBrands();
             unsubscribeProducts();
         };
     }, []);
@@ -401,13 +518,13 @@ export function GalleryProvider({ children }) {
             try {
                 const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
                 if (userDoc.exists()) {
-                    setUserRole(userDoc.data().role || 'customer');
+                    setUserRole(normalizeUserRole(userDoc.data().role));
                 } else {
-                    setUserRole('customer');
+                    setUserRole(USER_ROLE_VALUES.CST_RETAIL);
                 }
             } catch (error) {
                 console.error('Failed to resolve user role:', error);
-                setUserRole('customer');
+                setUserRole(USER_ROLE_VALUES.CST_RETAIL);
             }
         });
 
@@ -547,12 +664,26 @@ export function GalleryProvider({ children }) {
         window.history.replaceState({}, '', nextUrl);
     }, []);
 
-    const catalogProducts = products.map((product) => {
-        const productCodes = getProductMatchCodes(product);
-        const dcProduct = productCodes.map((code) => dcProductsMap[code]).find(Boolean);
-        const dcStock = productCodes.map((code) => dcStockMap[code]).find(Boolean);
-        return mergeProductWithDcData(product, dcProduct, dcStock);
-    });
+    const catalogProducts = products
+        .map((product) => {
+            const productCodes = getProductMatchCodes(product);
+            const dcProduct = productCodes.map((code) => dcProductsMap[code]).find(Boolean);
+            const dcStock = productCodes.map((code) => dcStockMap[code]).find(Boolean);
+            const mergedProduct = mergeProductWithDcData(product, dcProduct, dcStock);
+            return enrichProductVariantsWithDcData(mergedProduct, dcProductsMap, dcStockMap);
+        })
+        .sort((leftProduct, rightProduct) => {
+            const leftOrder = getProductSortOrder(leftProduct);
+            const rightOrder = getProductSortOrder(rightProduct);
+
+            if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+
+            const leftUpdatedAt = leftProduct?.updatedAt?.seconds || 0;
+            const rightUpdatedAt = rightProduct?.updatedAt?.seconds || 0;
+            if (rightUpdatedAt !== leftUpdatedAt) return rightUpdatedAt - leftUpdatedAt;
+
+            return String(leftProduct.title || leftProduct.name || '').localeCompare(String(rightProduct.title || rightProduct.name || ''));
+        });
 
     const resolvedSelectedProduct = findMatchingProduct(catalogProducts, selectedProduct) || selectedProduct;
 
@@ -888,6 +1019,31 @@ export function GalleryProvider({ children }) {
     const wholesaleCartCount = wholesaleCartItems.reduce((sum, item) => sum + item.quantity, 0);
     const wholesaleCartSubtotal = wholesaleCartItems.reduce((sum, item) => sum + ((Number(item.price) || 0) * item.quantity), 0);
 
+    const allocateWebsiteOrderRef = async () => {
+        const counterRef = doc(db, 'settings', 'orderCounter');
+
+        try {
+            const nextNumber = await runTransaction(db, async (transaction) => {
+                const counterSnap = await transaction.get(counterRef);
+                const currentNumber = Number(counterSnap.data()?.lastWebsiteOrderNumber || 1000);
+                const safeCurrentNumber = Number.isFinite(currentNumber) && currentNumber >= 1000 ? currentNumber : 1000;
+                const nextValue = safeCurrentNumber + 1;
+
+                transaction.set(counterRef, {
+                    lastWebsiteOrderNumber: nextValue,
+                    updatedAt: serverTimestamp()
+                }, { merge: true });
+
+                return nextValue;
+            });
+
+            return `WEB-${nextNumber}`;
+        } catch (error) {
+            console.warn('Falling back to timestamp-based website order ref', error);
+            return `WEB-${Date.now()}`;
+        }
+    };
+
     const buildOrderPayload = ({ currentUser, profileData, items, totalPrice, itemCount, orderType }) => {
         const customerName = profileData.name
             || [profileData.firstName, profileData.lastName].filter(Boolean).join(' ')
@@ -904,14 +1060,14 @@ export function GalleryProvider({ children }) {
                 name: customerName,
                 email: customerEmail,
                 phone: customerPhone,
-                role: profileData.role || 'customer'
+                role: normalizeUserRole(profileData.role || USER_ROLE_VALUES.CST_RETAIL)
             },
             customerInfo: {
                 uid: currentUser.uid,
                 fullName: customerName,
                 email: customerEmail,
                 phone: customerPhone,
-                role: profileData.role || 'customer'
+                role: normalizeUserRole(profileData.role || USER_ROLE_VALUES.CST_RETAIL)
             },
             items,
             totalPrice,
@@ -961,6 +1117,8 @@ export function GalleryProvider({ children }) {
                 itemCount: cartCount,
                 orderType: 'retail'
             });
+
+            orderData.websiteOrderRef = await allocateWebsiteOrderRef();
 
             await addDoc(collection(db, 'orders'), orderData);
             clearCart();
@@ -1020,6 +1178,8 @@ export function GalleryProvider({ children }) {
                 orderType: 'wholesale'
             });
 
+            orderData.websiteOrderRef = await allocateWebsiteOrderRef();
+
             await addDoc(collection(db, 'orders'), orderData);
             clearWholesaleCart();
             closeWholesaleCart();
@@ -1039,6 +1199,7 @@ export function GalleryProvider({ children }) {
             filteredProducts,
             allProducts: catalogProducts,
             categories,
+            brands,
             isLoading,
             userRole,
             isWholesaleCustomer,

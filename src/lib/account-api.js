@@ -13,9 +13,18 @@ async function callAccountApi(action, payload = {}, idToken = null) {
         body: JSON.stringify({ action, ...payload })
     });
 
-    const responseData = await response.json().catch(() => ({}));
+    const responseText = await response.text();
+    let responseData = {};
+
+    if (responseText) {
+        try {
+            responseData = JSON.parse(responseText);
+        } catch {
+            responseData = {};
+        }
+    }
     if (!response.ok || responseData?.success === false) {
-        throw new Error(responseData?.error || responseData?.message || 'Request failed');
+        throw new Error(responseData?.error || responseData?.message || responseText || `Request failed (${response.status})`);
     }
 
     return responseData;

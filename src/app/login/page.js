@@ -6,6 +6,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '@/lib/firebase';
 import Link from 'next/link';
 import { resolveLoginIdentifier, upsertCurrentUserProfile } from '@/lib/account-api';
+import { isAdminRole, normalizeUserRole } from '@/lib/user-roles';
 
 function LoginForm() {
     const router = useRouter();
@@ -20,15 +21,119 @@ function LoginForm() {
         if (!redirectParam) return;
     }, [searchParams]);
 
+    const normalizeEgyptPhoneForLogin = (value) => {
+        const rawValue = String(value || '').trim();
+        const digits = rawValue.replace(/\D/g, '');
+
+        if (/^01[0125]\d{8}$/.test(digits)) return `+20${digits.slice(1)}`;
+        if (/^1[0125]\d{8}$/.test(digits)) return `+20${digits}`;
+        if (/^20\d{10}$/.test(digits)) return `+${digits}`;
+        if (/^\+20\d{10}$/.test(rawValue)) return rawValue;
+
+        return '';
+    };
+
+    const buildPhoneCredentialEmail = (phone) => {
+        const digits = String(phone || '').replace(/\D/g, '');
+        return digits ? `phone${digits}@users.houseofglass.app` : '';
+    };
+
+    const resolveIdentifierFromLoginLookup = async (rawIdentifier) => {
+        const trimmedIdentifier = String(rawIdentifier || '').trim();
+        if (!trimmedIdentifier) return '';
+
+        const normalizedIdentifier = trimmedIdentifier.toLowerCase();
+        const normalizedPhone = normalizeEgyptPhoneForLogin(trimmedIdentifier);
+        const lookupDocIds = [];
+
+        if (trimmedIdentifier.includes('@')) {
+            lookupDocIds.push(`email:${normalizedIdentifier}`);
+        }
+
+        lookupDocIds.push(`username:${normalizedIdentifier.replace(/\s+/g, '')}`);
+
+        if (normalizedPhone) {
+            lookupDocIds.push(`phone:${normalizedPhone}`);
+        }
+
+        for (const lookupDocId of Array.from(new Set(lookupDocIds))) {
+            const lookupSnap = await getDoc(doc(db, 'login_lookup', lookupDocId));
+            if (lookupSnap.exists()) {
+                return String(lookupSnap.data()?.authEmail || '').trim().toLowerCase();
+            }
+        }
+
+        return '';
+    };
+
+    const buildLoginCandidates = async (rawIdentifier) => {
+        const trimmedIdentifier = String(rawIdentifier || '').trim();
+        const normalizedIdentifier = trimmedIdentifier.toLowerCase();
+        const candidates = [];
+
+        if (!trimmedIdentifier) return candidates;
+
+        if (trimmedIdentifier.includes('@')) {
+            candidates.push(normalizedIdentifier);
+        }
+
+        try {
+            const resolvedEmail = await resolveLoginIdentifier(trimmedIdentifier);
+            if (resolvedEmail) {
+                candidates.unshift(String(resolvedEmail).trim().toLowerCase());
+            }
+        } catch (error) {
+            console.warn('Identifier resolution fallback triggered:', error);
+        }
+
+        try {
+            const lookupResolvedEmail = await resolveIdentifierFromLoginLookup(trimmedIdentifier);
+            if (lookupResolvedEmail) {
+                candidates.unshift(lookupResolvedEmail);
+            }
+        } catch (error) {
+            console.warn('Login lookup fallback triggered:', error);
+        }
+
+        const normalizedPhone = normalizeEgyptPhoneForLogin(trimmedIdentifier);
+        if (normalizedPhone) {
+            const phoneCredentialEmail = buildPhoneCredentialEmail(normalizedPhone);
+            if (phoneCredentialEmail) {
+                candidates.push(phoneCredentialEmail.toLowerCase());
+            }
+        }
+
+        if (candidates.length === 0) {
+            candidates.push(normalizedIdentifier);
+        }
+
+        return Array.from(new Set(candidates.filter(Boolean)));
+    };
+
     const handleLogin = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
 
         try {
-            const resolvedEmail = await resolveLoginIdentifier(identifier).catch(() => identifier.trim().toLowerCase());
-            const userCredential = await signInWithEmailAndPassword(auth, resolvedEmail, password);
-            await checkRoleAndRedirect(userCredential.user.uid);
+            const loginCandidates = await buildLoginCandidates(identifier);
+            let authenticatedUser = null;
+            let lastError = null;
+
+            for (const candidate of loginCandidates) {
+                try {
+                    authenticatedUser = await signInWithEmailAndPassword(auth, candidate, password);
+                    break;
+                } catch (error) {
+                    lastError = error;
+                }
+            }
+
+            if (!authenticatedUser) {
+                throw lastError || new Error('Invalid credentials or password!');
+            }
+
+            await checkRoleAndRedirect(authenticatedUser.user.uid);
         } catch (err) {
             console.error(err);
             setError('Invalid credentials or password!');
@@ -61,9 +166,10 @@ function LoginForm() {
             
             if (userDoc.exists()) {
                 const userData = userDoc.data();
-                if (userData.role === 'admin' || userData.role === 'moderator') {
+                const normalizedRole = normalizeUserRole(userData.role);
+                if (isAdminRole(normalizedRole)) {
                     sessionStorage.setItem('isAdmin', 'true');
-                    sessionStorage.setItem('userRole', userData.role);
+                    sessionStorage.setItem('userRole', normalizedRole);
                     router.push('/admin');
                     return;
                 }

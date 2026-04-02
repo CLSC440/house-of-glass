@@ -1,9 +1,34 @@
 'use client';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useGallery } from '@/contexts/GalleryContext';
 
+const ARABIC_TEXT_PATTERN = /[\u0600-\u06FF]/;
+const LATIN_TEXT_PATTERN = /[A-Za-z]/;
+
+function splitBilingualLabel(value) {
+    const normalizedValue = String(value || '').trim();
+    if (!normalizedValue) {
+        return { english: '', arabic: '', fallback: '' };
+    }
+
+    const segments = normalizedValue.split('|').map((segment) => segment.trim()).filter(Boolean);
+    const searchPool = segments.length > 0 ? segments : [normalizedValue];
+    const arabic = searchPool.find((segment) => ARABIC_TEXT_PATTERN.test(segment)) || '';
+    const english = searchPool.find((segment) => LATIN_TEXT_PATTERN.test(segment)) || '';
+
+    if (english || arabic) {
+        return {
+            english,
+            arabic,
+            fallback: searchPool.find((segment) => segment !== english && segment !== arabic) || ''
+        };
+    }
+
+    return { english: '', arabic: '', fallback: normalizedValue };
+}
+
 export default function ProductGrid() {
-    const { filteredProducts, isLoading, setSelectedProduct } = useGallery();
+    const { filteredProducts, categories, isLoading, setSelectedProduct, activeCategory, activeFilterChips } = useGallery();
     const [flippedCards, setFlippedCards] = useState({});
 
     const getImageUrl = (product) => {
@@ -53,6 +78,30 @@ export default function ProductGrid() {
         setSelectedProduct(product);
     };
 
+    const productSections = useMemo(() => {
+        const availableCategoryNames = Array.from(new Set(
+            filteredProducts
+                .map((product) => String(product.category || '').trim() || 'Uncategorized')
+                .filter(Boolean)
+        ));
+
+        const orderedCategoryNames = [
+            ...categories
+                .map((category) => String(category?.name || '').trim())
+                .filter((name) => name && availableCategoryNames.includes(name)),
+            ...availableCategoryNames.filter((name) => !categories.some((category) => String(category?.name || '').trim() === name))
+        ];
+
+        return orderedCategoryNames
+            .map((categoryName) => ({
+                categoryName,
+                products: filteredProducts.filter((product) => (String(product.category || '').trim() || 'Uncategorized') === categoryName)
+            }))
+            .filter((section) => section.products.length > 0);
+    }, [categories, filteredProducts]);
+
+    const shouldUseCategoryRows = activeCategory === 'All' && activeFilterChips.length === 0;
+
     const getStockBadge = (stockStatus, isHidden, remainingQuantity) => {
         if (isHidden) return null;
         if (stockStatus === 'in_stock') {
@@ -86,13 +135,25 @@ export default function ProductGrid() {
 
     if (isLoading) {
         return (
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-10">
-                {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                    <div key={i} className="group relative bg-white dark:bg-darkCard rounded-[2rem] p-4 flex flex-col justify-between border border-gray-100 dark:border-gray-800 animate-pulse h-[350px]">
-                        <div className="w-full h-48 bg-gray-200 dark:bg-gray-700 rounded-[1.5rem] mb-4"></div>
-                        <div className="space-y-3">
-                            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-                            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+            <div className="space-y-10 md:space-y-12">
+                {[1, 2, 3].map((sectionIndex) => (
+                    <div key={sectionIndex} className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div className="h-7 w-40 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse"></div>
+                            <div className="h-6 w-14 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse"></div>
+                        </div>
+                        <div className="flex gap-6 overflow-x-auto hide-scroll pb-2">
+                            {[1, 2, 3, 4].map((cardIndex) => (
+                                <div key={`${sectionIndex}-${cardIndex}`} className="w-[240px] md:w-[270px] flex-none">
+                                    <div className="group relative bg-white dark:bg-darkCard rounded-[2rem] p-4 flex flex-col justify-between border border-gray-100 dark:border-gray-800 animate-pulse min-h-[28rem]">
+                                        <div className="w-full h-48 bg-gray-200 dark:bg-gray-700 rounded-[1.5rem] mb-4"></div>
+                                        <div className="space-y-3">
+                                            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                                            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 ))}
@@ -110,177 +171,229 @@ export default function ProductGrid() {
         );
     }
 
-    return (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-10">
-            {filteredProducts.map((product) => {
-                const productId = product.id || product.code || product.name;
-                const stockStatus = product.stockStatus || 'in_stock';
-                const isHidden = product.isHidden || false;
-                const remainingQuantity = product.remainingQuantity || 0;
-                const imageUrl = getImageUrl(product);
-                const metaParts = getMetaParts(product);
-                const variants = getVariantEntries(product);
-                const hasVariants = variants.length > 0;
-                const isFlipped = Boolean(flippedCards[productId]);
-                const featuredVariants = variants.slice(0, 4);
-                
-                return (
+    const renderProductCard = (product) => {
+        const productId = product.id || product.code || product.name;
+        const stockStatus = product.stockStatus || 'in_stock';
+        const isHidden = product.isHidden || false;
+        const remainingQuantity = product.remainingQuantity || 0;
+        const imageUrl = getImageUrl(product);
+        const metaParts = getMetaParts(product);
+        const variants = getVariantEntries(product);
+        const hasVariants = variants.length > 0;
+        const isFlipped = Boolean(flippedCards[productId]);
+
+        return (
+            <div 
+                key={productId}
+                className="group relative mb-4 [perspective:1800px]"
+            >
+                {hasVariants && (
+                    <>
+                        <div className="absolute inset-0 top-3 left-3 bg-white/50 dark:bg-darkCard/50 border border-gray-100 dark:border-gray-800 rounded-[2rem] shadow-sm transform -rotate-3 -z-10 transition-transform duration-500 group-hover:-rotate-6"></div>
+                        <div className="absolute inset-0 top-6 left-6 bg-white/30 dark:bg-darkCard/30 border border-gray-100 dark:border-gray-800 rounded-[2rem] shadow-sm transform -rotate-6 -z-20 transition-transform duration-500 group-hover:-rotate-12"></div>
+                    </>
+                )}
+                <div className={`relative min-h-[28rem] transition-transform duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                     <div 
-                        key={productId}
-                        className="relative [perspective:1800px]"
+                        onClick={() => openProductDetails(product)}
+                        className={`absolute inset-0 rounded-[2rem] bg-white dark:bg-darkCard p-4 flex flex-col justify-between shadow-sm hover:shadow-2xl hover:shadow-brandGold/10 transition-all duration-500 border border-gray-100 hover:border-brandGold/30 dark:border-gray-800/80 hover:-translate-y-2 cursor-pointer [backface-visibility:hidden]
+                        ${stockStatus === 'out_of_stock' ? 'opacity-80 grayscale-[20%]' : ''}`}
                     >
-                        <div className={`relative min-h-[28rem] transition-transform duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
-                            <div 
-                                onClick={() => openProductDetails(product)}
-                                className={`group absolute inset-0 rounded-[2rem] bg-white dark:bg-darkCard p-4 flex flex-col justify-between shadow-sm hover:shadow-2xl hover:shadow-brandGold/10 transition-all duration-500 border border-gray-100 hover:border-brandGold/30 dark:border-gray-800/80 hover:-translate-y-2 cursor-pointer [backface-visibility:hidden]
-                                ${stockStatus === 'out_of_stock' ? 'opacity-80 grayscale-[20%]' : ''}`}
+                        {getStockBadge(stockStatus, isHidden, remainingQuantity)}
+
+                        {hasVariants && (
+                            <button
+                                type="button"
+                                onClick={(event) => toggleCardFlip(productId, event)}
+                                title={`${variants.length} variants`}
+                                aria-label={`Show ${variants.length} variants`}
+                                className="absolute top-4 left-4 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-brandGold/30 bg-white/90 text-brandBlue shadow-lg backdrop-blur-md transition-all hover:border-brandGold hover:bg-brandGold hover:text-white dark:bg-black/70 dark:text-white"
                             >
-                                {getStockBadge(stockStatus, isHidden, remainingQuantity)}
+                                <i className="fa-solid fa-arrows-rotate text-[10px]"></i>
+                            </button>
+                        )}
 
-                                {hasVariants && (
-                                    <button
-                                        type="button"
-                                        onClick={(event) => toggleCardFlip(productId, event)}
-                                        className="absolute top-4 left-4 z-20 inline-flex items-center gap-2 rounded-full border border-brandGold/30 bg-white/90 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-brandBlue shadow-lg backdrop-blur-md transition-all hover:border-brandGold hover:bg-brandGold hover:text-white dark:bg-black/70 dark:text-white"
-                                    >
-                                        <i className="fa-solid fa-arrows-rotate text-[10px]"></i>
-                                        {variants.length} VARIANTS
-                                    </button>
-                                )}
-
-                                <div className="relative w-full aspect-[4/5] rounded-[1.5rem] overflow-hidden mb-6 bg-gray-50 dark:bg-gray-800/50">
-                                    {imageUrl ? (
-                                        <img 
-                                            src={imageUrl}
-                                            alt={product.title || product.name} 
-                                            className="object-cover w-full h-full transition-transform duration-700 group-hover:scale-110"
-                                            loading="lazy"
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-400">
-                                            <i className="fa-regular fa-image text-4xl hidden sm:block"></i>
-                                        </div>
-                                    )}
-
-                                    {product.images && product.images.length > 1 && (
-                                        <div className="absolute bottom-4 right-4 bg-white/90 dark:bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-2 shadow-lg">
-                                            <i className="fa-solid fa-images text-gray-600 dark:text-gray-300"></i>
-                                            <span className="text-gray-900 dark:text-white">+{product.images.length - 1}</span>
-                                        </div>
-                                    )}
-                                    
-                                    <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:block"></div>
-                                    
-                                    <div className="absolute bottom-6 left-0 right-0 px-6 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 hidden md:block">
-                                        <button className="w-full bg-white text-gray-900 font-bold py-3.5 rounded-xl shadow-xl flex items-center justify-center gap-2 hover:bg-brandGold hover:text-white transition-colors">
-                                            <i className="fa-regular fa-eye"></i>
-                                            عرض التفاصيل
-                                        </button>
-                                    </div>
+                        <div className="relative w-full aspect-[4/5] rounded-[1.5rem] overflow-hidden mb-6 bg-gray-50 dark:bg-gray-800/50">
+                            {imageUrl ? (
+                                <img 
+                                    src={imageUrl}
+                                    alt={product.title || product.name} 
+                                    className="object-cover w-full h-full transition-transform duration-700 group-hover:scale-110"
+                                    loading="lazy"
+                                />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-400">
+                                    <i className="fa-regular fa-image text-4xl hidden sm:block"></i>
                                 </div>
+                            )}
 
-                                <div className="px-2">
-                                    <div className="title-container">
-                                        <h3 className="title-slide font-bold text-gray-900 dark:text-white text-lg md:text-xl mb-2 leading-tight group-hover:text-brandGold transition-colors" dir="rtl">
-                                            {product.title || product.name}
-                                        </h3>
-                                    </div>
-
-                                    {metaParts.length > 0 && (
-                                        <div className="product-card-meta-row" dir="rtl">
-                                            <div className="product-card-label">
-                                                <div className="product-card-label-content">
-                                                    {metaParts.map((part, index) => (
-                                                        <span key={`${productId}-${part}`} className={`product-card-label-part ${index === 0 ? 'is-primary' : ''}`}>
-                                                            {index > 0 && <span className="product-card-label-separator">•</span>}
-                                                            {part}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                    
-                                    <div className="flex items-center justify-between mt-4" dir="rtl">
-                                        <div>
-                                            <span className="text-gray-400 text-[10px] md:text-xs font-medium mb-1 uppercase tracking-widest block hidden md:block">السعر</span>
-                                            {product.price ? (
-                                                <div className="flex items-baseline gap-1.5">
-                                                    <span className="font-black text-gray-900 dark:text-white text-xl md:text-2xl tracking-tight">{product.price}</span>
-                                                    <span className="text-brandGold font-bold text-xs md:text-sm">ج.م</span>
-                                                </div>
-                                            ) : (
-                                                <span className="font-bold text-brandGold text-sm">تواصل معنا</span>
-                                            )}
-                                        </div>
-                                        
-                                        <button className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gray-50 dark:bg-gray-800/50 hover:bg-brandGold hover:text-white text-gray-400 flex items-center justify-center transition-all duration-300 shadow-sm border border-gray-100 dark:border-gray-800 focus:scale-95 group/btn">
-                                            <i className="fa-solid fa-arrow-left -rotate-45 group-hover/btn:rotate-0 transition-transform duration-300"></i>
-                                        </button>
-                                    </div>
+                            {product.images && product.images.length > 1 && (
+                                <div className="absolute bottom-4 right-4 bg-white/90 dark:bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-2 shadow-lg">
+                                    <i className="fa-solid fa-images text-gray-600 dark:text-gray-300"></i>
+                                    <span className="text-gray-900 dark:text-white">+{product.images.length - 1}</span>
                                 </div>
+                            )}
+                            
+                            <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:block"></div>
+                            
+                            <div className="absolute bottom-6 left-0 right-0 px-6 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 hidden md:block">
+                                <button className="w-full bg-white text-gray-900 font-bold py-3.5 rounded-xl shadow-xl flex items-center justify-center gap-2 hover:bg-brandGold hover:text-white transition-colors">
+                                    <i className="fa-regular fa-eye"></i>
+                                    عرض التفاصيل
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="px-2">
+                            <div className="title-container">
+                                <h3 className="title-slide font-bold text-gray-900 dark:text-white text-lg md:text-xl mb-2 leading-tight group-hover:text-brandGold transition-colors" dir="rtl">
+                                    {product.title || product.name}
+                                </h3>
                             </div>
 
-                            <div className="absolute inset-0 rounded-[2rem] bg-[#121926] p-4 text-white shadow-2xl border border-brandGold/25 [transform:rotateY(180deg)] [backface-visibility:hidden]">
-                                <div className="relative flex h-full flex-col overflow-hidden rounded-[1.5rem] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.18),transparent_42%),linear-gradient(160deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))] p-5">
+                            {metaParts.length > 0 && (
+                                <div className="product-card-meta-row" dir="rtl">
+                                    <div className="product-card-label">
+                                        <div className="product-card-label-content">
+                                            {metaParts.map((part, index) => (
+                                                <span key={`${productId}-${part}`} className={`product-card-label-part ${index === 0 ? 'is-primary' : ''}`}>
+                                                    {index > 0 && <span className="product-card-label-separator">•</span>}
+                                                    {(() => {
+                                                        const labelParts = splitBilingualLabel(part);
+
+                                                        return (
+                                                            <span className="product-card-label-text">
+                                                                {labelParts.english ? (
+                                                                    <bdi className="product-card-label-token is-latin" dir="ltr">{labelParts.english}</bdi>
+                                                                ) : null}
+                                                                {labelParts.english && labelParts.arabic ? (
+                                                                    <span className="product-card-label-inline-separator" aria-hidden="true">|</span>
+                                                                ) : null}
+                                                                {labelParts.arabic ? (
+                                                                    <bdi className="product-card-label-token is-arabic" dir="rtl">{labelParts.arabic}</bdi>
+                                                                ) : null}
+                                                                {labelParts.fallback && !labelParts.english && !labelParts.arabic ? (
+                                                                    <bdi className="product-card-label-token" dir="auto">{labelParts.fallback}</bdi>
+                                                                ) : null}
+                                                            </span>
+                                                        );
+                                                    })()}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            <div className="flex items-center justify-between mt-4" dir="rtl">
+                                <div>
+                                    <span className="text-gray-400 text-[10px] md:text-xs font-medium mb-1 uppercase tracking-widest block hidden md:block">السعر</span>
+                                    {product.price ? (
+                                        <div className="flex items-baseline gap-1.5">
+                                            <span className="font-black text-gray-900 dark:text-white text-xl md:text-2xl tracking-tight">{product.price}</span>
+                                            <span className="text-brandGold font-bold text-xs md:text-sm">ج.م</span>
+                                        </div>
+                                    ) : (
+                                        <span className="font-bold text-brandGold text-sm">تواصل معنا</span>
+                                    )}
+                                </div>
+                                
+                                <button className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gray-50 dark:bg-gray-800/50 hover:bg-brandGold hover:text-white text-gray-400 flex items-center justify-center transition-all duration-300 shadow-sm border border-gray-100 dark:border-gray-800 focus:scale-95 group/btn">
+                                    <i className="fa-solid fa-arrow-left -rotate-45 group-hover/btn:rotate-0 transition-transform duration-300"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="absolute inset-0 rounded-[2rem] bg-[#121926] p-4 text-white shadow-2xl border border-brandGold/25 [transform:rotateY(180deg)] [backface-visibility:hidden]">
+                        <div className="relative flex h-full flex-col overflow-hidden rounded-[1.5rem] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.18),transparent_42%),linear-gradient(160deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))] p-5">
+                            <button
+                                type="button"
+                                onClick={(event) => toggleCardFlip(productId, event)}
+                                className="absolute top-4 left-4 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition-colors hover:border-brandGold hover:bg-brandGold hover:text-brandBlue"
+                            >
+                                <i className="fa-solid fa-rotate-left"></i>
+                            </button>
+
+                            <div className="pr-10 text-right" dir="rtl">
+                                <p className="text-[10px] font-black uppercase tracking-[0.35em] text-brandGold">Variant Stack</p>
+                                <h3 className="mt-2 text-xl font-black leading-tight text-white">{product.title || product.name}</h3>
+                                <p className="mt-2 text-sm text-white/70">هذا المنتج متوفر بعدة اختيارات. اقلب الكارت لاستعراض سريع قبل فتح التفاصيل.</p>
+                            </div>
+
+                            <div className="variant-stack-scroll mt-5 min-h-0 flex-1 overflow-y-auto pr-1.5">
+                                <div className="grid grid-cols-2 gap-3">
+                                    {variants.map((variant, index) => {
+                                        const variantLabel = getVariantLabel(variant, index);
+                                        const variantImageUrl = getVariantImageUrl(variant);
+                                        const variantCode = variant?.barcode || variant?.code || '';
+
+                                        return (
+                                            <div key={`${productId}-variant-${index}`} className="rounded-2xl border border-white/10 bg-white/6 p-2.5 backdrop-blur-sm">
+                                                <div className="mb-2 flex aspect-square items-center justify-center overflow-hidden rounded-[1rem] bg-white/8">
+                                                    {variantImageUrl ? (
+                                                        <img src={variantImageUrl} alt={variantLabel} className="h-full w-full object-cover" loading="lazy" />
+                                                    ) : (
+                                                        <i className="fa-regular fa-image text-lg text-white/40"></i>
+                                                    )}
+                                                </div>
+                                                <p className="line-clamp-2 text-xs font-bold leading-5 text-white" dir="rtl">{variantLabel}</p>
+                                                {variantCode ? (
+                                                    <p className="mt-1 truncate text-[10px] font-medium uppercase tracking-[0.14em] text-white/45">{variantCode}</p>
+                                                ) : null}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                <div className="space-y-3 pt-5">
                                     <button
                                         type="button"
-                                        onClick={(event) => toggleCardFlip(productId, event)}
-                                        className="absolute top-4 left-4 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition-colors hover:border-brandGold hover:bg-brandGold hover:text-brandBlue"
+                                        onClick={(event) => openProductDetails(product, event)}
+                                        className="w-full rounded-2xl border border-brandGold/40 bg-brandGold px-4 py-3 text-xs font-black uppercase tracking-[0.2em] text-brandBlue transition-all hover:bg-white hover:text-brandBlue"
                                     >
-                                        <i className="fa-solid fa-rotate-left"></i>
+                                        Open Variants | عرض الاختيارات
                                     </button>
-
-                                    <div className="pr-10 text-right" dir="rtl">
-                                        <p className="text-[10px] font-black uppercase tracking-[0.35em] text-brandGold">Variant Stack</p>
-                                        <h3 className="mt-2 text-xl font-black leading-tight text-white">{product.title || product.name}</h3>
-                                        <p className="mt-2 text-sm text-white/70">هذا المنتج متوفر بعدة اختيارات. اقلب الكارت لاستعراض سريع قبل فتح التفاصيل.</p>
-                                    </div>
-
-                                    <div className="mt-5 grid grid-cols-2 gap-3">
-                                        {featuredVariants.map((variant, index) => {
-                                            const variantLabel = getVariantLabel(variant, index);
-                                            const variantImageUrl = getVariantImageUrl(variant);
-                                            const variantCode = variant?.barcode || variant?.code || '';
-
-                                            return (
-                                                <div key={`${productId}-variant-${index}`} className="rounded-2xl border border-white/10 bg-white/6 p-2.5 backdrop-blur-sm">
-                                                    <div className="mb-2 flex aspect-square items-center justify-center overflow-hidden rounded-[1rem] bg-white/8">
-                                                        {variantImageUrl ? (
-                                                            <img src={variantImageUrl} alt={variantLabel} className="h-full w-full object-cover" loading="lazy" />
-                                                        ) : (
-                                                            <i className="fa-regular fa-image text-lg text-white/40"></i>
-                                                        )}
-                                                    </div>
-                                                    <p className="line-clamp-2 text-xs font-bold leading-5 text-white" dir="rtl">{variantLabel}</p>
-                                                    {variantCode ? (
-                                                        <p className="mt-1 truncate text-[10px] font-medium uppercase tracking-[0.14em] text-white/45">{variantCode}</p>
-                                                    ) : null}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-
-                                    <div className="mt-auto space-y-3 pt-5">
-                                        {variants.length > featuredVariants.length ? (
-                                            <p className="text-right text-[11px] font-bold uppercase tracking-[0.14em] text-brandGold/85" dir="rtl">
-                                                +{variants.length - featuredVariants.length} variants more inside details
-                                            </p>
-                                        ) : null}
-                                        <button
-                                            type="button"
-                                            onClick={(event) => openProductDetails(product, event)}
-                                            className="w-full rounded-2xl border border-brandGold/40 bg-brandGold px-4 py-3 text-xs font-black uppercase tracking-[0.2em] text-brandBlue transition-all hover:bg-white hover:text-brandBlue"
-                                        >
-                                            Open Variants | عرض الاختيارات
-                                        </button>
-                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                )
-            })}
+                </div>
+            </div>
+        );
+    };
+
+    if (!shouldUseCategoryRows) {
+        return (
+            <div className="grid grid-cols-2 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:gap-10">
+                {filteredProducts.map((product) => renderProductCard(product))}
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-10 md:space-y-12">
+            {productSections.map((section) => (
+                <section key={section.categoryName} className="space-y-4">
+                    <div className="flex items-center justify-between gap-4 border-b border-white/8 pb-2">
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-brandGold/75">Category Row</p>
+                            <h2 className="mt-1 text-2xl font-black text-white dark:text-white">{section.categoryName}</h2>
+                        </div>
+                        <span className="rounded-full border border-brandGold/20 bg-brandGold/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-brandGold">
+                            {section.products.length} items
+                        </span>
+                    </div>
+
+                    <div className="flex gap-6 overflow-x-auto hide-scroll pb-4">
+                        {section.products.map((product) => (
+                            <div key={product.id || product.code || product.name} className="w-[240px] flex-none sm:w-[255px] md:w-[270px]">
+                                {renderProductCard(product)}
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            ))}
         </div>
     );
 }
