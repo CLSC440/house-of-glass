@@ -122,10 +122,10 @@ function normalizeVariant(variant, index) {
 
     return {
         ...variant,
-        id: variant?.id || variant?.code || `variant-${index}`,
+        id: variant?.id || variant?.code || variant?.barcode || variant?.sku || variant?.itemCode || `variant-${index}`,
         name: stringifyValue(variant?.name || variant?.label || ''),
         label: stringifyValue(variant?.label || variant?.name || ''),
-        code: stringifyValue(variant?.code || ''),
+        code: stringifyValue(variant?.code || variant?.barcode || variant?.productCode || variant?.sku || variant?.itemCode || ''),
         price: stringifyValue(variant?.price || variant?.retailPrice || variant?.retail_price || ''),
         wholesalePrice: stringifyValue(variant?.wholesalePrice || variant?.wholesale_price || variant?.cartonPrice || ''),
         discountAmount: stringifyValue(
@@ -149,7 +149,7 @@ function buildInitialFormData(product) {
 
     return {
         name: product?.name || product?.title || '',
-        code: product?.code || '',
+        code: (product?.code || product?.barcode || product?.itemCode || product?.sku || product?.productCode || '').toString().trim(),
         category: product?.category || 'All',
         brand: product?.brand || '',
         origin: product?.origin || '',
@@ -483,7 +483,10 @@ export default function AdminProductModal({ isOpen, onClose, product, categories
                                     </label>
 
                                     <label className="block">
-                                        <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Product code</span>
+                                        <div className="mb-2 flex items-center justify-between">
+                                            <span className="block text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Product code</span>
+                                            {formData.isGloballyAvailable === false ? null : <span className="hidden"></span>}
+                                        </div>
                                         <input
                                             type="text"
                                             value={formData.code}
@@ -656,9 +659,10 @@ export default function AdminProductModal({ isOpen, onClose, product, categories
                                                                 <span className="mb-1.5 block text-[9px] font-black uppercase tracking-[0.18em] text-slate-500">Code</span>
                                                                 <input
                                                                     type="text"
+                                                                    disabled={variant.isLinked}
                                                                     value={variant.code}
                                                                     onChange={(event) => updateVariant(index, 'code', event.target.value)}
-                                                                    className="w-full rounded-xl border border-white/10 bg-[#0f1728] px-3 py-2 text-sm text-white outline-none transition focus:border-brandGold/60"
+                                                                    className={`w-full rounded-xl border border-white/10 px-3 py-2 text-sm text-white outline-none transition focus:border-brandGold/60 ${variant.isLinked ? 'bg-[#0f1728]/50 text-slate-400 cursor-not-allowed' : 'bg-[#0f1728]'}`}
                                                                 />
                                                             </label>
 
