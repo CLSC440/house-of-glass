@@ -197,7 +197,9 @@ export default function AdminProductModal({ isOpen, onClose, product, categories
     if (!isOpen) return null;
 
     const categoryOptions = Array.isArray(categories) ? categories : [];
-    const brandOptions = Array.isArray(brands) ? brands : [];
+    const brandOptionsList = Array.isArray(brands) ? brands : [];
+    const hasGeneric = brandOptionsList.some(b => String(b.name || b).toLowerCase() === 'generic');
+    const brandOptions = hasGeneric ? brandOptionsList : [...brandOptionsList, { id: 'generic-fallback', name: 'Generic' }];
     const orderedImages = reorderPrimaryFirst(formData.imageDetails);
     const imageCount = orderedImages.filter((item) => item.url).length;
     const variantCount = formData.variants.length;

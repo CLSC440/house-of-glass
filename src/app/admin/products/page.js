@@ -389,12 +389,6 @@ function ProductHistoryModal({ product, onClose, onDelete }) {
     );
 }
 
-const BARCODE_FILTERS = [
-    { value: 'all', label: 'All Barcode' },
-    { value: 'with-barcode', label: 'With Barcode' },
-    { value: 'without-barcode', label: 'Without Barcode' }
-];
-
 const MEDIA_FILTERS = [
     { value: 'all', label: 'All Media' },
     { value: 'with-media', label: 'Has Media' },
@@ -422,7 +416,6 @@ const SORT_OPTIONS = [
 export default function AdminProducts() {
     const { allProducts, categories, brands, isLoading } = useGallery();
     const [search, setSearch] = useState('');
-    const [barcodeFilter, setBarcodeFilter] = useState('all');
     const [mediaFilter, setMediaFilter] = useState('all');
     const [viewsFilter, setViewsFilter] = useState('all');
     const [brandFilter, setBrandFilter] = useState('all');
@@ -461,18 +454,13 @@ export default function AdminProducts() {
                 const searchMatches = !searchValue || [
                     getProductTitle(product),
                     product?.code,
-                    product?.barcode,
-                    product?.category,
-                    getProductBrand(product),
-                    getProductOrigin(product),
-                    ...variants.flatMap((variant) => [variant?.name, variant?.label, variant?.code, variant?.barcode])
-                ].some((value) => String(value || '').toLowerCase().includes(searchValue));
+        product?.category,
+        getProductBrand(product),
+        getProductOrigin(product),
+        ...variants.flatMap((variant) => [variant?.name, variant?.label, variant?.code])
+    ].some((value) => String(value || '').toLowerCase().includes(searchValue));
 
-                if (!searchMatches) return false;
-
-                if (barcodeFilter === 'with-barcode' && !String(product?.barcode || '').trim()) return false;
-                if (barcodeFilter === 'without-barcode' && String(product?.barcode || '').trim()) return false;
-
+    if (!searchMatches) return false;
                 const mediaCount = getMediaCount(product);
                 if (mediaFilter === 'with-media' && mediaCount <= 0) return false;
                 if (mediaFilter === 'without-media' && mediaCount > 0) return false;
@@ -501,10 +489,7 @@ export default function AdminProducts() {
                 const leftUpdatedAt = leftProduct?.updatedAt?.seconds || 0;
                 return rightUpdatedAt - leftUpdatedAt;
             });
-    }, [allProducts, search, barcodeFilter, mediaFilter, viewsFilter, brandFilter, originFilter, categoryFilter, sortBy]);
-
-    const handleEdit = (product) => {
-        setEditingProduct(product);
+}, [allProducts, search, mediaFilter, viewsFilter, brandFilter, originFilter, categoryFilter, sortBy]);
         setModalOpen(true);
     };
 
@@ -578,10 +563,6 @@ export default function AdminProducts() {
                             className="h-12 w-full rounded-[0.95rem] border border-white/6 bg-[#222b41] pl-12 pr-4 text-base text-white outline-none transition-colors placeholder:text-slate-500 focus:border-brandGold/35"
                         />
                     </label>
-
-                    <select value={barcodeFilter} onChange={(event) => setBarcodeFilter(event.target.value)} className="h-12 rounded-[0.95rem] border border-white/6 bg-[#222b41] px-4 text-sm font-semibold text-white outline-none transition-colors focus:border-brandGold/35">
-                        {BARCODE_FILTERS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                    </select>
 
                     <select value={mediaFilter} onChange={(event) => setMediaFilter(event.target.value)} className="h-12 rounded-[0.95rem] border border-white/6 bg-[#222b41] px-4 text-sm font-semibold text-white outline-none transition-colors focus:border-brandGold/35">
                         {MEDIA_FILTERS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
