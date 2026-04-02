@@ -223,8 +223,19 @@ function enrichProductVariantsWithDcData(product, dcProductsMap, dcStockMap) {
             const stockBuckets = getDcWarehouseBuckets(liveEntry || {});
             const totalStock = getDcTotalStock(liveEntry || {});
 
+            const variantRetailPrice = getProductPrice({ ...variant, ...dcVariantProduct, ...dcVariantStock });
+            const variantWholesalePrice = getProductWholesalePrice({ ...variant, ...dcVariantProduct, ...dcVariantStock });
+            const variantDiscountAmount = parsePrice(
+                dcVariantProduct?.discount_amount || dcVariantProduct?.discountAmount || dcVariantProduct?.discount ||
+                dcVariantStock?.discount_amount || dcVariantStock?.discountAmount || dcVariantStock?.discount ||
+                variant?.discount_amount || variant?.discountAmount || variant?.discount
+            );
+
             return {
                 ...variant,
+                ...(variantRetailPrice > 0 ? { price: variantRetailPrice, retailPrice: variantRetailPrice, retail_price: variantRetailPrice } : {}),
+                ...(variantWholesalePrice > 0 ? { wholesalePrice: variantWholesalePrice, wholesale_price: variantWholesalePrice, cartonPrice: variantWholesalePrice } : {}),
+                ...(variantDiscountAmount > 0 ? { discountAmount: variantDiscountAmount, discount_amount: variantDiscountAmount, discount: variantDiscountAmount, discountValue: variantDiscountAmount } : {}),
                 matchedBarcode: dcVariantStock?.barcode || dcVariantProduct?.barcode || '-',
                 showroomStock: stockBuckets.showroomStock,
                 retailStock: stockBuckets.showroomStock,
