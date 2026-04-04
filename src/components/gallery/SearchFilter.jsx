@@ -38,8 +38,8 @@ export default function SearchFilter() {
     }, []);
 
     return (
-        <div className="max-w-7xl w-full mx-auto px-4 -mt-8 md:-mt-10 relative z-20">
-            <div className="bg-white dark:bg-darkCard/90 backdrop-blur-2xl rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.06)] p-4 md:p-6 flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-6 border border-brandGold/20">
+        <div className="relative z-20 mx-auto -mt-8 w-full max-w-7xl isolate px-4 md:-mt-10">
+            <div className="relative z-30 flex flex-col space-y-4 overflow-visible rounded-2xl border border-brandGold/20 bg-white p-4 shadow-[0_20px_40px_rgba(0,0,0,0.06)] backdrop-blur-2xl dark:bg-darkCard/90 md:flex-row md:space-x-6 md:space-y-0 md:p-6">
                 <div className="flex-grow relative">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6 absolute left-4 top-1/2 min-w-[20px] -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -53,7 +53,7 @@ export default function SearchFilter() {
                     />
                 </div>
 
-                <div ref={dropdownRef} className="relative group/cat">
+                <div ref={dropdownRef} className={`relative z-40 group/cat ${isDropdownOpen ? 'md:z-[90]' : ''}`}>
                     <button onClick={toggleCatDropdown} className="w-full h-full min-w-[160px] flex items-center justify-between px-5 md:px-6 bg-brandGold/5 text-brandGold rounded-xl font-bold py-3 md:py-4 hover:bg-brandGold/10 transition-all text-sm md:text-base border border-brandGold/10">
                         <span>{selectedCategories.length > 0 || activeCategory !== 'All' ? primaryFilterDisplayLabel : `Category: ${activeCategory}`}</span>
                         <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ml-2 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -62,7 +62,7 @@ export default function SearchFilter() {
                     </button>
                     
                     {isDropdownOpen && (
-                        <div className="absolute right-0 top-full mt-2 w-full min-w-[200px] max-h-60 overflow-y-auto bg-white dark:bg-darkCard rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 py-2 z-[60] custom-scroll">
+                        <div className="custom-scroll absolute right-0 top-full z-[100] mt-2 max-h-60 w-full min-w-[200px] overflow-y-auto rounded-xl border border-gray-100 bg-white py-2 shadow-2xl dark:border-gray-700 dark:bg-darkCard">
                             <button 
                                 onClick={() => handleCategorySelect('All')}
                                 className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 text-sm font-bold text-brandBlue dark:text-gray-200"
@@ -84,7 +84,7 @@ export default function SearchFilter() {
             </div>
 
             {(activeFilterChips.length > 0 || searchQuery.trim()) && (
-                <div className="mt-4 rounded-2xl border border-brandGold/10 bg-white/80 p-4 shadow-[0_20px_40px_rgba(0,0,0,0.04)] backdrop-blur-2xl dark:bg-darkCard/80">
+                <div className="relative z-10 mt-4 rounded-2xl border border-brandGold/10 bg-white/80 p-4 shadow-[0_20px_40px_rgba(0,0,0,0.04)] backdrop-blur-2xl dark:bg-darkCard/80">
                     <div className="flex flex-wrap items-center gap-2">
                         {activeFilterChips.map((chip) => (
                             <button
