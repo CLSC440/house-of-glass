@@ -235,7 +235,7 @@ function ProductDetailCard({ iconClassName, iconWrapperClassName, label, value, 
 }
 
 export default function ProductModal() {
-    const { selectedProduct, setSelectedProduct, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, allProducts } = useGallery();
+    const { selectedProduct, setSelectedProduct, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, allProducts, getProductStockLimit, getProductStockStatus } = useGallery();
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const lastSyncedShareCodeRef = useRef('');
@@ -325,11 +325,13 @@ export default function ProductModal() {
             isWholesaleCustomer={isWholesaleCustomer}
             userRole={userRole}
             dcLiveUpdateAt={dcLiveUpdateAt}
+            getProductStockLimit={getProductStockLimit}
+            getProductStockStatus={getProductStockStatus}
         />
     );
 }
 
-function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt }) {
+function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, getProductStockLimit, getProductStockStatus }) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [quantity, setQuantity] = useState(1);
     const [wholesaleQuantity, setWholesaleQuantity] = useState(1);
@@ -443,12 +445,13 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
     );
     const canViewAdminPricing = isAdminRole(userRole);
     const isStrictWholesaleUser = normalizeUserRole(userRole) === USER_ROLE_VALUES.CST_WHOLESALE;
+    const displayOrderType = isStrictWholesaleUser ? 'wholesale' : 'retail';
 
     const increaseQuantity = () => {
         setQuantity((currentValue) => {
             const nextValue = currentValue + 1;
-            if (stockLimit === null) return nextValue;
-            return Math.min(nextValue, stockLimit);
+            if (retailStockLimit === null) return nextValue;
+            return Math.min(nextValue, retailStockLimit);
         });
     };
 
@@ -457,7 +460,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
     };
 
     const increaseWholesaleQuantity = () => {
-        setWholesaleQuantity((currentValue) => clampQuantityValue(currentValue + 1, stockLimit));
+        setWholesaleQuantity((currentValue) => clampQuantityValue(currentValue + 1, wholesaleStockLimit));
     };
 
     const decreaseWholesaleQuantity = () => {
@@ -466,12 +469,12 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
 
     const handleWholesaleQuantityInputChange = (event) => {
         const rawValue = String(event.target.value || '').replace(/\D/g, '');
-        setWholesaleQuantity(clampQuantityValue(rawValue === '' ? 1 : rawValue, stockLimit));
+        setWholesaleQuantity(clampQuantityValue(rawValue === '' ? 1 : rawValue, wholesaleStockLimit));
     };
 
     const handleQuantityInputChange = (event) => {
         const rawValue = String(event.target.value || '').replace(/\D/g, '');
-        setQuantity(clampQuantityValue(rawValue === '' ? 1 : rawValue, stockLimit));
+        setQuantity(clampQuantityValue(rawValue === '' ? 1 : rawValue, retailStockLimit));
     };
 
     const handleAddToCart = () => {
@@ -569,30 +572,23 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
     const primaryDisplayPrice = isStrictWholesaleUser ? netPriceValue : retailPriceValue;
     const canShowWholesaleOrder = isWholesaleCustomer && wholesalePriceValue > 0;
 
-    const resolveStockLimit = (entry) => {
-        const explicitLimit = Number(entry?.remainingQuantity ?? entry?.totalStock ?? entry?.total_stock);
-        if (Number.isFinite(explicitLimit) && explicitLimit > 0) {
-            return explicitLimit;
-        }
+    const resolveStockLimit = (entry, orderType = 'retail') => getProductStockLimit(entry || {}, orderType);
+    const resolveStockStatus = (entry, orderType = 'retail') => getProductStockStatus(entry || {}, orderType);
 
-        if (entry?.stockStatus === 'out_of_stock') {
-            return 0;
-        }
-
-        return null;
-    };
-
-    const stockLimit = hasVariants ? resolveStockLimit(activeVariant) : resolveStockLimit(selectedProduct);
-    const isOutOfStock = hasVariants
-        ? String(activeVariant?.stockStatus || '').toLowerCase() === 'out_of_stock' || stockLimit === 0
-        : selectedProduct.stockStatus === 'out_of_stock' || stockLimit === 0;
+    const retailStockLimit = hasVariants ? resolveStockLimit(activeVariant, 'retail') : resolveStockLimit(selectedProduct, 'retail');
+    const wholesaleStockLimit = hasVariants ? resolveStockLimit(activeVariant, 'wholesale') : resolveStockLimit(selectedProduct, 'wholesale');
+    const retailStockStatus = hasVariants ? resolveStockStatus(activeVariant, 'retail') : resolveStockStatus(selectedProduct, 'retail');
+    const wholesaleStockStatus = hasVariants ? resolveStockStatus(activeVariant, 'wholesale') : resolveStockStatus(selectedProduct, 'wholesale');
+    const stockLimit = displayOrderType === 'wholesale' ? wholesaleStockLimit : retailStockLimit;
+    const normalizedStockStatus = displayOrderType === 'wholesale' ? wholesaleStockStatus : retailStockStatus;
+    const retailOutOfStock = retailStockStatus === 'out_of_stock' || retailStockLimit === 0;
+    const wholesaleOutOfStock = wholesaleStockStatus === 'out_of_stock' || wholesaleStockLimit === 0;
+    const isOutOfStock = normalizedStockStatus === 'out_of_stock' || stockLimit === 0;
     const showStockLimitMessage = stockLimit !== null && quantity >= stockLimit;
-    const activeStockSource = hasVariants ? (activeVariant || selectedProduct) : selectedProduct;
-    const normalizedStockStatus = String(activeStockSource?.stockStatus || '').toLowerCase();
     const stockLabel = isOutOfStock
         ? 'نفدت الكمية'
         : normalizedStockStatus === 'low_stock'
-            ? (activeStockSource?.remainingQuantity ? `كمية محدودة (${activeStockSource.remainingQuantity})` : 'كمية محدودة')
+            ? (stockLimit !== null ? `كمية محدودة (${stockLimit})` : 'كمية محدودة')
             : 'متوفر';
     const stockCaption = isOutOfStock
         ? 'سيتم التحديث بمجرد توفر شحنة جديدة.'
@@ -611,10 +607,14 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
             : 'fa-solid fa-check';
 
     useEffect(() => {
-        if (stockLimit === null) return;
-        setQuantity((currentValue) => Math.min(Math.max(1, currentValue), stockLimit || 1));
-        setWholesaleQuantity((currentValue) => Math.min(Math.max(1, currentValue), stockLimit || 1));
-    }, [stockLimit]);
+        if (retailStockLimit !== null) {
+            setQuantity((currentValue) => Math.min(Math.max(1, currentValue), retailStockLimit || 1));
+        }
+
+        if (wholesaleStockLimit !== null) {
+            setWholesaleQuantity((currentValue) => Math.min(Math.max(1, currentValue), wholesaleStockLimit || 1));
+        }
+    }, [retailStockLimit, wholesaleStockLimit]);
 
     const closeLightbox = () => {
         setLightboxState((currentValue) => ({ ...currentValue, isOpen: false }));
@@ -777,20 +777,26 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
         const variantNetPrice = variantExplicitNetPrice > 0 ? variantExplicitNetPrice : Math.max(0, variantRetailPrice - variantDiscountValue);
         const vPrice = isStrictWholesaleUser ? variantNetPrice : variantRetailPrice;
         const getVariantAvailability = (candidateVariant) => {
-            const stockStatus = String(candidateVariant?.stockStatus || '').toLowerCase();
-            const totalStock = Number(candidateVariant?.totalStock ?? candidateVariant?.total_stock ?? candidateVariant?.remainingQuantity);
+            const candidateStatus = resolveStockStatus(candidateVariant, displayOrderType);
+            const candidateStockLimit = resolveStockLimit(candidateVariant, displayOrderType);
 
-            if (stockStatus === 'out_of_stock') return 'out';
-            if (Number.isFinite(totalStock) && totalStock <= 0) return 'out';
+            if (candidateStatus === 'out_of_stock') return 'out';
+            if (candidateStockLimit === 0) return 'out';
             return 'available';
         };
-        const variantStockLimit = resolveStockLimit(variant);
-        const variantOutOfStock = String(variant?.stockStatus || '').toLowerCase() === 'out_of_stock' || variantStockLimit === 0;
-        const variantNormalizedStockStatus = String(variant?.stockStatus || '').toLowerCase();
+        const variantRetailStockLimit = resolveStockLimit(variant, 'retail');
+        const variantWholesaleStockLimit = resolveStockLimit(variant, 'wholesale');
+        const variantRetailStockStatus = resolveStockStatus(variant, 'retail');
+        const variantWholesaleStockStatus = resolveStockStatus(variant, 'wholesale');
+        const variantStockLimit = displayOrderType === 'wholesale' ? variantWholesaleStockLimit : variantRetailStockLimit;
+        const variantNormalizedStockStatus = displayOrderType === 'wholesale' ? variantWholesaleStockStatus : variantRetailStockStatus;
+        const variantRetailOutOfStock = variantRetailStockStatus === 'out_of_stock' || variantRetailStockLimit === 0;
+        const variantWholesaleOutOfStock = variantWholesaleStockStatus === 'out_of_stock' || variantWholesaleStockLimit === 0;
+        const variantOutOfStock = variantNormalizedStockStatus === 'out_of_stock' || variantStockLimit === 0;
         const variantStockLabel = variantOutOfStock
             ? 'نفدت الكمية'
             : variantNormalizedStockStatus === 'low_stock'
-                ? (variant?.remainingQuantity ? `كمية محدودة (${variant.remainingQuantity})` : 'كمية محدودة')
+                ? (variantStockLimit !== null ? `كمية محدودة (${variantStockLimit})` : 'كمية محدودة')
                 : 'متوفر';
         const variantStockCaption = variantOutOfStock
             ? 'هذا الموديل غير متاح حالياً.'
@@ -807,7 +813,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
             : variantNormalizedStockStatus === 'low_stock'
                 ? 'fa-solid fa-exclamation'
                 : 'fa-solid fa-check';
-        const variantShowStockLimitMessage = variantStockLimit !== null && quantity >= variantStockLimit;
+        const variantShowStockLimitMessage = variantRetailStockLimit !== null && quantity >= variantRetailStockLimit;
 
         return (
             <div className="mt-2 space-y-5 md:mt-4 md:space-y-6">
@@ -876,9 +882,9 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
 
                     {isWholesaleCustomer && variantWholesalePrice > 0 ? renderWholesaleOrderCard({
                         priceValue: variantWholesalePrice,
-                        isOutOfStockValue: variantOutOfStock,
+                        isOutOfStockValue: variantWholesaleOutOfStock,
                         description: 'أضف هذا الموديل إلى مسار الجملة بشكل منفصل.',
-                        stockLimitValue: variantStockLimit,
+                        stockLimitValue: variantWholesaleStockLimit,
                         onAdd: () => addToWholesaleCart(variant, wholesaleQuantity)
                     }) : null}
 
@@ -907,15 +913,15 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                         <button
                             type="button"
                             onClick={() => addToCart(variant, quantity)}
-                            disabled={variantOutOfStock}
+                            disabled={variantRetailOutOfStock}
                             className="flex-1 rounded-xl border-2 border-emerald-700 bg-emerald-700 px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-white transition-all hover:border-emerald-800 hover:bg-emerald-800 shadow-xl disabled:border-emerald-700/20 disabled:bg-emerald-700/20 disabled:text-emerald-50/80"
                         >
-                            {variantOutOfStock ? 'غير متوفر حالياً' : 'ADD PACK | اضف عبوة'}
+                            {variantRetailOutOfStock ? 'غير متوفر حالياً' : 'ADD PACK | اضف عبوة'}
                         </button>
                     </div>
                     {variantShowStockLimitMessage ? (
                         <p className="text-[11px] font-bold text-amber-600 dark:text-amber-300">
-                            وصلت للكمية المتاحة في المخزن: {variantStockLimit}
+                            وصلت للكمية المتاحة حالياً: {variantRetailStockLimit}
                         </p>
                     ) : null}
                     </div>
@@ -1065,8 +1071,8 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                                 <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-white/45">Choose Variant | اختر الشكل</p>
                                 <div className="flex flex-wrap gap-2">
                                     {selectedProduct.variants.map((variantEntry, idx) => {
-                                        const availability = String(variantEntry?.stockStatus || '').toLowerCase() === 'out_of_stock'
-                                            || Number(variantEntry?.totalStock ?? variantEntry?.total_stock ?? variantEntry?.remainingQuantity) === 0
+                                        const availability = resolveStockStatus(variantEntry, displayOrderType) === 'out_of_stock'
+                                            || resolveStockLimit(variantEntry, displayOrderType) === 0
                                             ? 'out'
                                             : 'available';
 
@@ -1138,9 +1144,9 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                         <div className="mt-auto space-y-3 border-t border-gray-100 pt-6 dark:border-gray-800">
                             {canShowWholesaleOrder ? renderWholesaleOrderCard({
                                 priceValue: wholesalePriceValue,
-                                isOutOfStockValue: isOutOfStock,
+                                isOutOfStockValue: wholesaleOutOfStock,
                                 description: 'أضف كراتين الجملة في مسار منفصل عن العربة العادية.',
-                                stockLimitValue: stockLimit,
+                                stockLimitValue: wholesaleStockLimit,
                                 onAdd: () => addToWholesaleCart(activeVariant, wholesaleQuantity)
                             }) : null}
 
@@ -1168,17 +1174,17 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                                     <button
                                         type="button"
                                         onClick={() => addToCart(activeVariant, quantity)}
-                                        disabled={isOutOfStock}
+                                        disabled={retailOutOfStock}
                                         className="w-full rounded-xl border-2 border-emerald-700 bg-emerald-700 px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-white transition-all hover:border-emerald-800 hover:bg-emerald-800 disabled:cursor-not-allowed disabled:border-emerald-700/20 disabled:bg-emerald-700/20 disabled:text-emerald-50/80"
                                     >
-                                        {isOutOfStock ? 'غير متوفر حالياً' : 'ADD PACK | اضف عبوة'}
+                                        {retailOutOfStock ? 'غير متوفر حالياً' : 'ADD PACK | اضف عبوة'}
                                     </button>
                                 </div>
                                 {showStockLimitMessage ? (
-                                    <p className="mt-2 text-[11px] font-bold text-amber-600 dark:text-amber-300">وصلت للكمية المتاحة في المخزن: {stockLimit}</p>
+                                    <p className="mt-2 text-[11px] font-bold text-amber-600 dark:text-amber-300">وصلت للكمية المتاحة حالياً: {retailStockLimit}</p>
                                 ) : null}
-                                {stockLimit !== null ? (
-                                    <p className="mt-2 text-[10px] font-bold text-gray-400">الحد الأقصى المتاح حالياً: {stockLimit}</p>
+                                {retailStockLimit !== null ? (
+                                    <p className="mt-2 text-[10px] font-bold text-gray-400">الحد الأقصى المتاح حالياً: {retailStockLimit}</p>
                                 ) : null}
                             </div>
                         </div>
@@ -1454,9 +1460,9 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                     <div className="mt-auto pt-6 border-t border-gray-100 dark:border-gray-800 space-y-3">
                         {canShowWholesaleOrder ? renderWholesaleOrderCard({
                             priceValue: wholesalePrice,
-                            isOutOfStockValue: isOutOfStock,
+                            isOutOfStockValue: wholesaleOutOfStock,
                             description: 'أضف كراتين الجملة في مسار منفصل عن العربة العادية.',
-                            stockLimitValue: stockLimit,
+                            stockLimitValue: wholesaleStockLimit,
                             onAdd: handleAddToWholesaleCart
                         }) : null}
 
@@ -1485,17 +1491,17 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                                 <button
                                     type="button"
                                     onClick={handleAddToCart}
-                                    disabled={isOutOfStock}
+                                    disabled={retailOutOfStock}
                                     className="flex-1 rounded-xl border-2 border-emerald-700 bg-emerald-700 px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-white transition-all hover:border-emerald-800 hover:bg-emerald-800 disabled:cursor-not-allowed disabled:border-emerald-700/20 disabled:bg-emerald-700/20 disabled:text-emerald-50/80"
                                 >
-                                    {isOutOfStock ? 'غير متوفر حالياً' : 'ADD PACK | اضف عبوة'}
+                                    {retailOutOfStock ? 'غير متوفر حالياً' : 'ADD PACK | اضف عبوة'}
                                 </button>
                             </div>
                             {showStockLimitMessage ? (
-                                <p className="mt-2 text-[11px] font-bold text-amber-600 dark:text-amber-300">وصلت للكمية المتاحة في المخزن: {stockLimit}</p>
+                                <p className="mt-2 text-[11px] font-bold text-amber-600 dark:text-amber-300">وصلت للكمية المتاحة حالياً: {retailStockLimit}</p>
                             ) : null}
-                            {stockLimit !== null ? (
-                                <p className="mt-2 text-[10px] font-bold text-gray-400">الحد الأقصى المتاح حالياً: {stockLimit}</p>
+                            {retailStockLimit !== null ? (
+                                <p className="mt-2 text-[10px] font-bold text-gray-400">الحد الأقصى المتاح حالياً: {retailStockLimit}</p>
                             ) : null}
                         </div>
 

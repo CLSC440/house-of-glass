@@ -225,6 +225,7 @@ function enrichProductVariantsWithDcData(product, dcProductsMap, dcStockMap) {
             const liveEntry = dcVariantStock || dcVariantProduct;
             const stockBuckets = getDcWarehouseBuckets(liveEntry || {});
             const totalStock = getDcTotalStock(liveEntry || {});
+            const hasLiveStock = Number.isFinite(totalStock);
 
             const variantRetailPrice = getProductPrice({ ...variant, ...dcVariantProduct, ...dcVariantStock });
             const variantWholesalePrice = getProductWholesalePrice({ ...variant, ...dcVariantProduct, ...dcVariantStock });
@@ -239,16 +240,21 @@ function enrichProductVariantsWithDcData(product, dcProductsMap, dcStockMap) {
                 ...(variantRetailPrice > 0 ? { price: variantRetailPrice, retailPrice: variantRetailPrice, retail_price: variantRetailPrice } : {}),
                 ...(variantWholesalePrice > 0 ? { wholesalePrice: variantWholesalePrice, wholesale_price: variantWholesalePrice, cartonPrice: variantWholesalePrice } : {}),
                 ...(variantDiscountAmount > 0 ? { discountAmount: variantDiscountAmount, discount_amount: variantDiscountAmount, discount: variantDiscountAmount, discountValue: variantDiscountAmount } : {}),
-                matchedBarcode: dcVariantStock?.barcode || dcVariantProduct?.barcode || '-',
-                showroomStock: stockBuckets.showroomStock,
-                retailStock: stockBuckets.showroomStock,
-                warehouseStock: stockBuckets.warehouseStock,
-                wholesaleStock: stockBuckets.warehouseStock,
-                totalStock: Number.isFinite(totalStock) ? totalStock : 0,
-                total_stock: Number.isFinite(totalStock) ? totalStock : 0,
-                stockStatus: Number.isFinite(totalStock)
-                    ? (totalStock <= 0 ? 'out_of_stock' : 'in_stock')
-                    : String(variant?.stockStatus || ''),
+                ...(dcVariantStock?.barcode || dcVariantProduct?.barcode ? {
+                    matchedBarcode: dcVariantStock?.barcode || dcVariantProduct?.barcode || '-'
+                } : {}),
+                ...(hasLiveStock ? {
+                    remainingQuantity: totalStock,
+                    showroomStock: stockBuckets.showroomStock,
+                    retailStock: stockBuckets.showroomStock,
+                    warehouseStock: stockBuckets.warehouseStock,
+                    wholesaleStock: stockBuckets.warehouseStock,
+                    totalStock,
+                    total_stock: totalStock,
+                    stock_by_warehouse: liveEntry?.stock_by_warehouse || liveEntry?.stockByWarehouse || variant?.stock_by_warehouse,
+                    stockByWarehouse: liveEntry?.stockByWarehouse || liveEntry?.stock_by_warehouse || variant?.stockByWarehouse,
+                    stockStatus: totalStock <= 0 ? 'out_of_stock' : 'in_stock'
+                } : {}),
                 isLinked: !!liveEntry
             };
         })
@@ -409,23 +415,50 @@ function getFirstAvailableStockCount(values = []) {
 function getProductStockLimit(product, orderType = 'retail') {
     if (product.stockStatus === 'out_of_stock') return 0;
 
-    return orderType === 'wholesale'
+    const dedicatedStockLimit = orderType === 'wholesale'
         ? getFirstAvailableStockCount([
             product.wholesaleStock,
-            product.warehouseStock,
+            product.warehouseStock
+        ])
+        : getFirstAvailableStockCount([
+            product.retailStock,
+            product.showroomStock
+        ]);
+
+    if (dedicatedStockLimit !== null) {
+        return dedicatedStockLimit;
+    }
+
+    return orderType === 'wholesale'
+        ? getFirstAvailableStockCount([
             product.remainingQuantity,
             product.totalStock,
             product.total_stock,
             product.quantity
         ])
         : getFirstAvailableStockCount([
-            product.retailStock,
-            product.showroomStock,
             product.remainingQuantity,
             product.totalStock,
             product.total_stock,
             product.quantity
         ]);
+}
+
+function getProductStockStatus(product, orderType = 'retail') {
+    const stockLimit = getProductStockLimit(product, orderType);
+    const fallbackStatus = String(product?.stockStatus || 'in_stock').toLowerCase();
+
+    if (stockLimit === 0) {
+        return 'out_of_stock';
+    }
+
+    if (stockLimit !== null) {
+        return stockLimit <= getProductLowStockThreshold(product) ? 'low_stock' : 'in_stock';
+    }
+
+    return fallbackStatus === 'out_of_stock' || fallbackStatus === 'low_stock'
+        ? fallbackStatus
+        : 'in_stock';
 }
 
 function normalizeFilterValue(value) {
@@ -522,6 +555,8 @@ const GalleryContext = createContext({
     removeFromWholesaleCart: noop,
     updateWholesaleCartQuantity: noop,
     getCartItemStockLimit: () => null,
+    getProductStockLimit: () => null,
+    getProductStockStatus: () => 'in_stock',
     clearWholesaleCart: noop,
     checkoutWholesaleCart: async () => ({ ok: false }),
     isCheckingOut: false,
@@ -936,8 +971,10 @@ export function GalleryProvider({ children }) {
         const normalizedCategory = normalizeFilterValue(product.category);
         const productBrand = getProductBrandLabel(product);
         const productOrigin = getProductOriginLabel(product);
-        const stockLimit = getProductStockLimit(product);
-        const hasStock = stockLimit === null ? product.stockStatus !== 'out_of_stock' : stockLimit > 0;
+        const stockOrderType = normalizeUserRole(userRole) === USER_ROLE_VALUES.CST_WHOLESALE ? 'wholesale' : 'retail';
+        const stockLimit = getProductStockLimit(product, stockOrderType);
+        const stockStatus = getProductStockStatus(product, stockOrderType);
+        const hasStock = stockLimit === null ? stockStatus !== 'out_of_stock' : stockLimit > 0;
 
         if (selectedCategories.length > 0 && !selectedCategories.includes(normalizedCategory)) return false;
         if (selectedBrands.length > 0 && !selectedBrands.includes(productBrand)) return false;
@@ -1548,6 +1585,8 @@ export function GalleryProvider({ children }) {
             removeFromWholesaleCart,
             updateWholesaleCartQuantity,
             getCartItemStockLimit,
+            getProductStockLimit,
+            getProductStockStatus,
             clearWholesaleCart,
             checkoutWholesaleCart,
             isCheckingOut,

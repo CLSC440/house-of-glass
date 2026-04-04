@@ -78,7 +78,7 @@ function getNetPrice(product) {
 }
 
 export default function ProductGrid() {
-    const { filteredProducts, categories, brands, isLoading, setSelectedProduct, activeCategory, activeFilterChips, userRole, dcLiveUpdateAt } = useGallery();
+    const { filteredProducts, categories, brands, isLoading, setSelectedProduct, activeCategory, activeFilterChips, userRole, dcLiveUpdateAt, getProductStockLimit, getProductStockStatus } = useGallery();
     const [flippedCards, setFlippedCards] = useState({});
     const [showLiveIndicator, setShowLiveIndicator] = useState(false);
     const [visibleCategoryRows, setVisibleCategoryRows] = useState(INITIAL_CATEGORY_ROWS);
@@ -346,9 +346,10 @@ export default function ProductGrid() {
 
     const renderProductCard = (product) => {
         const productId = product.id || product.code || product.name;
-        const stockStatus = product.stockStatus || 'in_stock';
+        const stockOrderType = isStrictWholesaleUser ? 'wholesale' : 'retail';
+        const stockStatus = getProductStockStatus(product, stockOrderType);
         const isHidden = product.isHidden || false;
-        const remainingQuantity = product.remainingQuantity || 0;
+        const remainingQuantity = getProductStockLimit(product, stockOrderType) || 0;
         const imageUrl = getImageUrl(product);
         const metaParts = getMetaParts(product);
         const variants = getVariantEntries(product);

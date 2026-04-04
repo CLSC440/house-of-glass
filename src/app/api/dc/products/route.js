@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 
 const DEFAULT_DC_PRODUCTS_URL = 'https://glass-system-backend.onrender.com/public/products';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   const upstreamUrl = process.env.DC_PUBLIC_PRODUCTS_URL || DEFAULT_DC_PRODUCTS_URL;
   const controller = new AbortController();
@@ -14,7 +16,7 @@ export async function GET() {
         Accept: 'application/json'
       },
       signal: controller.signal,
-      next: { revalidate: 60 }
+      cache: 'no-store'
     });
 
     const payload = await response.text();
@@ -32,7 +34,11 @@ export async function GET() {
       }, { status: response.status });
     }
 
-    return NextResponse.json(parsed || []);
+    return NextResponse.json(parsed || [], {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate'
+      }
+    });
   } catch (error) {
     const isAbort = error && error.name === 'AbortError';
     return NextResponse.json({

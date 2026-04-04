@@ -31,6 +31,9 @@ export default function Header() {
         setActiveCategory,
         filteredProducts,
         selectedProduct,
+        userRole,
+        getProductStockLimit,
+        getProductStockStatus,
         cartCount,
         openCart,
         isWholesaleCustomer,
@@ -117,17 +120,14 @@ export default function Header() {
         closeSidebar();
     };
     const showFavoritesShortcut = user && categories.includes('My Favorites');
+    const stockOrderType = normalizeUserRole(userRole) === USER_ROLE_VALUES.CST_WHOLESALE ? 'wholesale' : 'retail';
     const inStockOnlyCount = filteredProducts.filter((product) => {
-        if (product.stockStatus === 'out_of_stock') {
+        if (getProductStockStatus(product, stockOrderType) === 'out_of_stock') {
             return false;
         }
 
-        const stockLimit = Number(product.remainingQuantity);
-        if (Number.isFinite(stockLimit) && stockLimit > 0) {
-            return true;
-        }
-
-        return stockLimit <= 0 ? false : true;
+        const stockLimit = getProductStockLimit(product, stockOrderType);
+        return stockLimit === null ? true : stockLimit > 0;
     }).length;
     const toggleSection = (sectionName) => {
         setExpandedSections((currentSections) => ({
