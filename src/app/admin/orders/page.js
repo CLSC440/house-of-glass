@@ -39,7 +39,21 @@ const STATUS_STYLES = {
 };
 
 function getCustomerEmail(order) {
-    return order.customer?.email || order.customerInfo?.email || 'Not provided';
+    const email = [
+        order.customer?.email,
+        order.customer?.authEmail,
+        order.customer?.authEmailLowercase,
+        order.customerInfo?.email,
+        order.customerInfo?.authEmail,
+        order.customerInfo?.authEmailLowercase,
+        order.customerEmail,
+        order.email,
+        order.authEmail
+    ]
+        .map((value) => String(value || '').trim())
+        .find(Boolean);
+
+    return email || 'Not provided';
 }
 
 function getCustomerGovernorate(order) {
@@ -216,7 +230,7 @@ function buildEditableItem(item, orderType, catalogEntries, index) {
 function buildEditForm(order, catalogEntries) {
     return {
         customerName: getOrderCustomerName(order),
-        customerEmail: getCustomerEmail(order),
+        customerEmail: getCustomerEmail(order) === 'Not provided' ? '' : getCustomerEmail(order),
         customerPhone: getOrderCustomerPhone(order) || '',
         orderType: order.orderType || 'retail',
         status: normalizeOrderStatus(order.status),
