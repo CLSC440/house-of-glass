@@ -5,6 +5,7 @@ import { collection, query, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Link from 'next/link';
 import { getOrderAmount } from '@/lib/utils/admin-orders';
+import { normalizeOrderStatus } from '@/lib/utils/order-status';
 
 export default function DashboardStats() {
     const { allProducts } = useGallery();
@@ -21,11 +22,11 @@ export default function DashboardStats() {
             let pending = 0;
             snapshot.docs.forEach(doc => {
                 const data = doc.data();
-                const status = String(data.status || 'pending').toLowerCase();
+                const status = normalizeOrderStatus(data.status);
                 if (status !== 'cancelled') {
                     revenue += getOrderAmount(data);
                 }
-                if (status === 'pending' || status === 'processing') {
+                if (status === 'pending' || status === 'confirmed') {
                     pending += 1;
                 }
             });

@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, query, onSnapshot, doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
@@ -14,6 +14,7 @@ const ROLE_MENU_OPTIONS = MANAGEABLE_USER_ROLES.map((role) => ({
 
 export default function AdminUsers() {
     const [users, setUsers] = useState([]);
+    const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [currentUserRole, setCurrentUserRole] = useState(USER_ROLE_VALUES.MODERATOR);
     const [openRoleMenuId, setOpenRoleMenuId] = useState(null);
@@ -105,6 +106,30 @@ export default function AdminUsers() {
     const canManageUsers = normalizeUserRole(currentUserRole) === USER_ROLE_VALUES.ADMIN;
     const legacyRetailUsers = users.filter((user) => String(user.role || '').trim().toLowerCase() === 'cst_retail');
 
+    const filteredUsers = useMemo(() => {
+        const normalizedQuery = String(searchQuery || '').trim().toLowerCase();
+        if (!normalizedQuery) return users;
+
+        return users.filter((user) => {
+            const searchValues = [
+                user.id,
+                user.name,
+                user.email,
+                user.authEmail,
+                user.emailLowercase,
+                user.authEmailLowercase,
+                user.username,
+                user.usernameLowercase,
+                user.phone,
+                user.role,
+                getUserRoleLabel(user.role),
+                parseTimestamp(user.createdAt)
+            ];
+
+            return searchValues.some((value) => String(value || '').toLowerCase().includes(normalizedQuery));
+        });
+    }, [searchQuery, users]);
+
     const normalizeEmailForLookup = (value) => String(value || '').trim().toLowerCase();
     const normalizeUsernameForLookup = (value) => String(value || '').trim().toLowerCase().replace(/\s+/g, '');
     const normalizePhoneForLookup = (value) => {
@@ -183,7 +208,7 @@ export default function AdminUsers() {
             return;
         } catch (error) {
             const message = String(error?.message || '');
-            const canUseClientFallback = /firebase_service_account is not configured/i.test(message);
+            const canUseClientFallback = /firebase[_ ]service[_ ]account/i.test(message);
 
             if (!canUseClientFallback) {
                 throw error;
@@ -382,8 +407,26 @@ export default function AdminUsers() {
                 ) : null}
             </div>
 
-            <div className="bg-white dark:bg-darkCard rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
+            <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <label className="relative block w-full lg:max-w-md">
+                    <i className="fa-solid fa-magnifying-glass pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(event) => setSearchQuery(event.target.value)}
+                        placeholder="Search by name, email, phone, role, ID..."
+                        className="h-12 w-full rounded-[1rem] border border-white/8 bg-[#1a2337] pl-12 pr-4 text-sm text-white outline-none transition-colors placeholder:text-slate-500 focus:border-brandGold/35"
+                    />
+                </label>
+
+                <div className="inline-flex items-center gap-3 self-start rounded-full border border-brandGold/15 bg-brandGold/8 px-4 py-2 text-sm font-black text-slate-200">
+                    <span className="uppercase tracking-[0.2em] text-brandGold">Results</span>
+                    <span className="text-slate-300">Showing {filteredUsers.length} of {users.length} users</span>
+                </div>
+            </div>
+
+            <div className="rounded-3xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-darkCard overflow-visible">
+                <div className="overflow-x-auto overflow-y-visible rounded-3xl">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 text-sm font-semibold text-gray-500 dark:text-gray-400">
@@ -395,14 +438,14 @@ export default function AdminUsers() {
                                 <th className="p-4 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            {users.length === 0 ? (
+                        <tbody className="align-top min-h-[520px]">
+                            {filteredUsers.length === 0 ? (
                                 <tr>
-                                    <td colSpan="6" className="text-center py-12 text-gray-400">No users found.</td>
+                                    <td colSpan="6" className="text-center py-12 text-gray-400">{searchQuery.trim() ? 'No users matched your search.' : 'No users found.'}</td>
                                 </tr>
                             ) : (
-                                users.map((user) => (
-                                    <tr key={user.id} className="border-b border-gray-50 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/20">
+                                filteredUsers.map((user) => (
+                                    <tr key={user.id} className={`border-b border-gray-50 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/20 ${openRoleMenuId === user.id ? 'relative z-20' : 'relative z-0'}`}>
                                         <td className="p-4">
                                             <div className="font-bold text-gray-900 dark:text-white">{user.name || 'Anonymous User'}</div>
                                             <div className="text-xs text-gray-500 font-mono mt-0.5">ID: {user.id.slice(0, 8)}...</div>
@@ -467,6 +510,11 @@ export default function AdminUsers() {
                                     </tr>
                                 ))
                             )}
+                            {filteredUsers.length > 0 && filteredUsers.length < 6 ? (
+                                <tr aria-hidden="true">
+                                    <td colSpan="6" className="h-[320px] border-0 p-0"></td>
+                                </tr>
+                            ) : null}
                         </tbody>
                     </table>
                 </div>

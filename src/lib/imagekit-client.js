@@ -93,3 +93,34 @@ export async function uploadToImageKit(currentUser, file, options = {}) {
 
     return buildImageKitMediaRecord(data, options.fallbackUrl || '');
 }
+
+export async function deleteImageKitFiles(currentUser, fileIds = []) {
+    const normalizedFileIds = Array.from(new Set((fileIds || []).filter(Boolean)));
+    if (normalizedFileIds.length === 0) {
+        return { deleted: [], failed: [] };
+    }
+
+    if (!currentUser) {
+        throw new Error('Login required before deleting ImageKit media');
+    }
+
+    const idToken = await currentUser.getIdToken();
+    const response = await fetch('/api/imagekit-media', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ fileIds: normalizedFileIds })
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error(payload.error || 'Failed to delete ImageKit media');
+    }
+
+    return {
+        deleted: Array.isArray(payload.deleted) ? payload.deleted : [],
+        failed: Array.isArray(payload.failed) ? payload.failed : []
+    };
+}

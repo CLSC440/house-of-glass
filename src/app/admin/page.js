@@ -12,11 +12,11 @@ export default function AdminDashboard() {
     const { allProducts, categories } = useGallery();
 
     return (
-        <div className="mx-auto w-full max-w-7xl space-y-6">
+        <div className="mx-auto w-full max-w-7xl space-y-5">
             <FloatingDockDemo
                 allProducts={allProducts}
                 categories={categories}
-                onAddProduct={() => router.push('/admin/products')}
+                onAddProduct={() => router.push('/admin/products?action=add')}
             />
 
             <header className="rounded-[1.8rem] border border-white/8 bg-[radial-gradient(circle_at_top,rgba(193,155,78,0.14),transparent_34%),linear-gradient(180deg,rgba(22,31,53,0.98),rgba(13,19,34,0.98))] px-6 py-6 shadow-[0_20px_44px_rgba(4,8,20,0.28)] md:px-7 md:py-7">

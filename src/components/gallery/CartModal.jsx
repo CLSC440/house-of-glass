@@ -24,6 +24,7 @@ export default function CartModal() {
         closeWholesaleCart,
         removeFromWholesaleCart,
         updateWholesaleCartQuantity,
+        getCartItemStockLimit,
         checkoutWholesaleCart,
         isCheckingOutWholesale
     } = useGallery();
@@ -62,6 +63,7 @@ export default function CartModal() {
                 checkoutLabel="Checkout Order | اتمام الطلب"
                 priceLabel="السعر"
                 accent="retail"
+                getCartItemStockLimit={getCartItemStockLimit}
             />
             <CartDialog
                 isOpen={isWholesaleCartOpen}
@@ -77,6 +79,7 @@ export default function CartModal() {
                 checkoutLabel="Checkout Wholesale | اتمام طلب الجملة"
                 priceLabel="Wholesale"
                 accent="wholesale"
+                getCartItemStockLimit={getCartItemStockLimit}
             />
         </>
     );
@@ -95,7 +98,8 @@ function CartDialog({
     isCheckingOut,
     checkoutLabel,
     priceLabel,
-    accent
+    accent,
+    getCartItemStockLimit
 }) {
     if (!isOpen) return null;
 
@@ -150,7 +154,11 @@ function CartDialog({
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            {items.map((item) => (
+                            {items.map((item) => {
+                                const stockLimit = getCartItemStockLimit(item, accent === 'wholesale' ? 'wholesale' : 'retail');
+                                const isAtStockLimit = stockLimit !== null && item.quantity >= stockLimit;
+
+                                return (
                                 <div key={item.cartId} className={`rounded-[1.5rem] border p-4 shadow-[0_6px_20px_rgba(196,164,81,0.08)] ${accentClasses.item}`}>
                                     <div className="flex items-start gap-4">
                                         <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-[1.2rem] border border-gray-100 bg-white p-2 dark:border-gray-700 dark:bg-darkCard">
@@ -173,6 +181,11 @@ function CartDialog({
                                                     <p className={`text-lg font-black ${accent === 'wholesale' ? 'text-brandGold' : 'text-green-600'}`}>
                                                         {(Number(item.price) || 0).toLocaleString()} ج.م
                                                     </p>
+                                                    {accent === 'wholesale' && stockLimit !== null ? (
+                                                        <p className="mt-2 text-[11px] font-bold text-brandGold/80 dark:text-brandGold/70">
+                                                            {stockLimit === 0 ? 'غير متاح حالياً' : `الكمية المتاحة: ${stockLimit}`}
+                                                        </p>
+                                                    ) : null}
                                                 </div>
 
                                                 <div className={`flex items-center rounded-2xl border bg-white shadow-sm dark:bg-gray-900 ${accentClasses.qty}`}>
@@ -180,7 +193,7 @@ function CartDialog({
                                                         -
                                                     </button>
                                                     <span className="min-w-10 border-x border-current/15 px-3 text-center text-sm font-black text-brandBlue dark:text-white">{item.quantity}</span>
-                                                    <button type="button" onClick={() => updateCartQuantity(item.cartId, item.quantity + 1)} className={`flex h-11 w-11 items-center justify-center text-lg font-black transition-colors ${accentClasses.qtyHover}`}>
+                                                    <button type="button" onClick={() => updateCartQuantity(item.cartId, item.quantity + 1)} disabled={accent === 'wholesale' && isAtStockLimit} className={`flex h-11 w-11 items-center justify-center text-lg font-black transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${accentClasses.qtyHover}`}>
                                                         +
                                                     </button>
                                                 </div>
@@ -188,7 +201,8 @@ function CartDialog({
                                         </div>
                                     </div>
                                 </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>

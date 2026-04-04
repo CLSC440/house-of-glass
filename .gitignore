@@ -29,12 +29,18 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+build-log.txt
+db-out.txt
 
 # env files (can opt-in for committing if needed)
 .env*
 
 # vercel
 .vercel
+
+# local tooling artifacts
+.tmp/
+.tmp-*.mjs
 
 # typescript
 *.tsbuildinfo

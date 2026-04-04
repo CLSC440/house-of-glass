@@ -36,6 +36,25 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function signedInEmail() {
+      return isSignedIn() && request.auth.token.email != null
+        ? request.auth.token.email
+        : null;
+    }
+
+    function orderBelongsToSignedInUser() {
+      return isSignedIn() && (
+        (resource.data.customer != null && resource.data.customer.uid == request.auth.uid)
+        || (
+          signedInEmail() != null
+          && (
+            (resource.data.customer != null && resource.data.customer.email == signedInEmail())
+            || (resource.data.customerInfo != null && resource.data.customerInfo.email == signedInEmail())
+          )
+        )
+      );
+    }
+
     match /products/{productId} {
       allow read: if true;
       allow create, update, delete: if isAdminLike();
@@ -87,8 +106,7 @@ service cloud.firestore {
     }
 
     match /orders/{orderId} {
-      allow read: if isAdminLike()
-        || (isSignedIn() && resource.data.customer != null && resource.data.customer.uid == request.auth.uid);
+      allow read: if isAdminLike() || orderBelongsToSignedInUser();
       allow create: if isSignedIn()
         && request.resource.data.customer != null
         && request.resource.data.customer.uid == request.auth.uid;

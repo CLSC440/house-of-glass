@@ -74,3 +74,13 @@ export async function adminUpdateUserRole(currentUser, uid, role) {
     const idToken = await currentUser.getIdToken();
     return callAccountApi('adminUpdateUserRole', { uid, role }, idToken);
 }
+
+export async function getOwnOrders(currentUser) {
+    if (!currentUser) {
+        throw new Error('Authentication required');
+    }
+
+    const idToken = await currentUser.getIdToken();
+    const responseData = await callAccountApi('getOwnOrders', {}, idToken);
+    return Array.isArray(responseData.orders) ? responseData.orders : [];
+}

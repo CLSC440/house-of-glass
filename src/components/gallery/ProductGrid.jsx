@@ -1,9 +1,23 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useGallery } from '@/contexts/GalleryContext';
+import AdminProductModal from '@/components/admin/AdminProductModal';
+import { isAdminRole, normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
 
 const ARABIC_TEXT_PATTERN = /[\u0600-\u06FF]/;
 const LATIN_TEXT_PATTERN = /[A-Za-z]/;
+const LIVE_INDICATOR_DURATION_MS = 8000;
+const INITIAL_CATEGORY_ROWS = 3;
+const CATEGORY_ROWS_STORAGE_KEY = 'gallery-visible-category-rows';
+const EDIT_SCROLL_POSITION_STORAGE_KEY = 'gallery-edit-scroll-position';
+const EDIT_SCROLL_RESTORE_STORAGE_KEY = 'gallery-edit-restore-scroll';
+const SHOW_MORE_ARABIC_LINES = [
+    'لسه في مفاجأت',
+    'خبينا الباقي هنا',
+    'لسه في احلى',
+    'اكتشف الباقي',
+    'لسه في اكتر'
+];
 
 function splitBilingualLabel(value) {
     const normalizedValue = String(value || '').trim();
@@ -27,9 +41,138 @@ function splitBilingualLabel(value) {
     return { english: '', arabic: '', fallback: normalizedValue };
 }
 
+function parsePrice(value) {
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? numericValue : 0;
+}
+
+function getRetailPrice(product) {
+    return parsePrice(product?.price || product?.retailPrice || product?.retail_price);
+}
+
+function getWholesalePrice(product) {
+    return parsePrice(
+        product?.wholesalePrice
+        || product?.wholesale_price
+        || product?.cartonPrice
+        || product?.wholesaleCartonPrice
+        || product?.priceWholesale
+        || product?.bulkPrice
+        || product?.bulk_price
+    );
+}
+
+function getDiscountValue(product) {
+    return parsePrice(
+        product?.discountAmount
+        || product?.discount_amount
+        || product?.discount
+        || product?.discountValue
+    );
+}
+
+function getNetPrice(product) {
+    const explicitNet = parsePrice(product?.netPrice || product?.net_price || product?.net);
+    if (explicitNet > 0) return explicitNet;
+    return Math.max(0, getRetailPrice(product) - getDiscountValue(product));
+}
+
 export default function ProductGrid() {
-    const { filteredProducts, categories, isLoading, setSelectedProduct, activeCategory, activeFilterChips } = useGallery();
+    const { filteredProducts, categories, brands, isLoading, setSelectedProduct, activeCategory, activeFilterChips, userRole, dcLiveUpdateAt } = useGallery();
     const [flippedCards, setFlippedCards] = useState({});
+    const [showLiveIndicator, setShowLiveIndicator] = useState(false);
+    const [visibleCategoryRows, setVisibleCategoryRows] = useState(INITIAL_CATEGORY_ROWS);
+    const [selectedShowMoreArabicLine] = useState(() => SHOW_MORE_ARABIC_LINES[
+        Math.floor(Math.random() * SHOW_MORE_ARABIC_LINES.length)
+    ]);
+    const [editingProduct, setEditingProduct] = useState(null);
+    const savedScrollPositionRef = useRef(0);
+    const shouldRestoreScrollRef = useRef(false);
+
+    useEffect(() => {
+        if (userRole !== 'admin' || !dcLiveUpdateAt) {
+            setShowLiveIndicator(false);
+            return undefined;
+        }
+
+        setShowLiveIndicator(true);
+        const timeoutId = window.setTimeout(() => {
+            setShowLiveIndicator(false);
+        }, LIVE_INDICATOR_DURATION_MS);
+
+        return () => window.clearTimeout(timeoutId);
+    }, [userRole, dcLiveUpdateAt]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const shouldUseStoredRows = activeCategory === 'All' && activeFilterChips.length === 0;
+        if (!shouldUseStoredRows) {
+            window.sessionStorage.removeItem(CATEGORY_ROWS_STORAGE_KEY);
+            setVisibleCategoryRows(INITIAL_CATEGORY_ROWS);
+            return;
+        }
+
+        const storedRows = Number(window.sessionStorage.getItem(CATEGORY_ROWS_STORAGE_KEY));
+        if (Number.isFinite(storedRows) && storedRows >= INITIAL_CATEGORY_ROWS) {
+            setVisibleCategoryRows(storedRows);
+            return;
+        }
+
+        setVisibleCategoryRows(INITIAL_CATEGORY_ROWS);
+    }, [activeCategory, activeFilterChips]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        if (activeCategory === 'All' && activeFilterChips.length === 0) {
+            window.sessionStorage.setItem(CATEGORY_ROWS_STORAGE_KEY, String(visibleCategoryRows));
+            return;
+        }
+
+        window.sessionStorage.removeItem(CATEGORY_ROWS_STORAGE_KEY);
+    }, [activeCategory, activeFilterChips, visibleCategoryRows]);
+
+    useEffect(() => {
+        if (editingProduct) {
+            return undefined;
+        }
+
+        const shouldRestoreFromSession = typeof window !== 'undefined'
+            && window.sessionStorage.getItem(EDIT_SCROLL_RESTORE_STORAGE_KEY) === 'true';
+
+        if (!shouldRestoreScrollRef.current && !shouldRestoreFromSession) {
+            return undefined;
+        }
+
+        shouldRestoreScrollRef.current = false;
+        if (typeof window !== 'undefined') {
+            window.sessionStorage.removeItem(EDIT_SCROLL_RESTORE_STORAGE_KEY);
+        }
+
+        const storedScrollY = typeof window !== 'undefined'
+            ? Number(window.sessionStorage.getItem(EDIT_SCROLL_POSITION_STORAGE_KEY))
+            : NaN;
+        const targetScrollY = Number.isFinite(storedScrollY) ? storedScrollY : savedScrollPositionRef.current;
+
+        const restoreScroll = () => window.scrollTo({ top: targetScrollY, left: 0, behavior: 'auto' });
+        const animationFrameId = window.requestAnimationFrame(() => {
+            restoreScroll();
+            window.requestAnimationFrame(restoreScroll);
+        });
+        const timeoutId = window.setTimeout(restoreScroll, 180);
+        const timeoutIdLate = window.setTimeout(restoreScroll, 420);
+
+        return () => {
+            window.cancelAnimationFrame(animationFrameId);
+            window.clearTimeout(timeoutId);
+            window.clearTimeout(timeoutIdLate);
+        };
+    }, [editingProduct, filteredProducts]);
 
     const getImageUrl = (product) => {
         const firstImage = Array.isArray(product.images) ? product.images[0] : null;
@@ -38,7 +181,7 @@ export default function ProductGrid() {
     };
 
     const getMetaParts = (product) => {
-        return [product.category, product.brand, product.origin].filter(Boolean).slice(0, 2);
+        return [product.brand].filter(Boolean);
     };
 
     const getVariantEntries = (product) => {
@@ -78,6 +221,29 @@ export default function ProductGrid() {
         setSelectedProduct(product);
     };
 
+    const openProductEditor = (product, event) => {
+        event.stopPropagation();
+        savedScrollPositionRef.current = window.scrollY || window.pageYOffset || 0;
+        if (typeof window !== 'undefined') {
+            window.sessionStorage.setItem(EDIT_SCROLL_POSITION_STORAGE_KEY, String(savedScrollPositionRef.current));
+            window.sessionStorage.setItem(CATEGORY_ROWS_STORAGE_KEY, String(visibleCategoryRows));
+            window.sessionStorage.removeItem(EDIT_SCROLL_RESTORE_STORAGE_KEY);
+        }
+        shouldRestoreScrollRef.current = false;
+        setSelectedProduct(null);
+        setEditingProduct(product || null);
+    };
+
+    const closeProductEditor = () => {
+        shouldRestoreScrollRef.current = true;
+        if (typeof window !== 'undefined') {
+            window.sessionStorage.setItem(EDIT_SCROLL_RESTORE_STORAGE_KEY, 'true');
+            window.sessionStorage.setItem(EDIT_SCROLL_POSITION_STORAGE_KEY, String(savedScrollPositionRef.current));
+            window.sessionStorage.setItem(CATEGORY_ROWS_STORAGE_KEY, String(visibleCategoryRows));
+        }
+        setEditingProduct(null);
+    };
+
     const productSections = useMemo(() => {
         const availableCategoryNames = Array.from(new Set(
             filteredProducts
@@ -101,6 +267,13 @@ export default function ProductGrid() {
     }, [categories, filteredProducts]);
 
     const shouldUseCategoryRows = activeCategory === 'All' && activeFilterChips.length === 0;
+    const visibleSections = shouldUseCategoryRows
+        ? productSections.slice(0, visibleCategoryRows)
+        : productSections;
+    const hasMoreCategoryRows = shouldUseCategoryRows && productSections.length > visibleCategoryRows;
+    const isAdminUser = isAdminRole(userRole);
+    const isStrictWholesaleUser = normalizeUserRole(userRole) === USER_ROLE_VALUES.CST_WHOLESALE;
+    const shouldShowWholesaleSummary = isStrictWholesaleUser || isAdminUser;
 
     const getStockBadge = (stockStatus, isHidden, remainingQuantity) => {
         if (isHidden) return null;
@@ -181,6 +354,11 @@ export default function ProductGrid() {
         const variants = getVariantEntries(product);
         const hasVariants = variants.length > 0;
         const isFlipped = Boolean(flippedCards[productId]);
+        const retailPrice = getRetailPrice(product);
+        const wholesalePrice = getWholesalePrice(product);
+        const discountValue = getDiscountValue(product);
+        const netPrice = getNetPrice(product);
+        const primaryDisplayPrice = isStrictWholesaleUser ? netPrice : retailPrice;
 
         return (
             <div 
@@ -193,13 +371,25 @@ export default function ProductGrid() {
                         <div className="absolute inset-0 top-6 left-6 bg-white/30 dark:bg-darkCard/30 border border-gray-100 dark:border-gray-800 rounded-[2rem] shadow-sm transform -rotate-6 -z-20 transition-transform duration-500 group-hover:-rotate-12"></div>
                     </>
                 )}
-                <div className={`relative min-h-[28rem] transition-transform duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
+                <div className={`relative min-h-[28rem] sm:min-h-[30rem] md:min-h-[32rem] transition-transform duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                     <div 
                         onClick={() => openProductDetails(product)}
                         className={`absolute inset-0 rounded-[2rem] bg-white dark:bg-darkCard p-4 flex flex-col justify-between shadow-sm hover:shadow-2xl hover:shadow-brandGold/10 transition-all duration-500 border border-gray-100 hover:border-brandGold/30 dark:border-gray-800/80 hover:-translate-y-2 cursor-pointer [backface-visibility:hidden]
                         ${stockStatus === 'out_of_stock' ? 'opacity-80 grayscale-[20%]' : ''}`}
                     >
                         {getStockBadge(stockStatus, isHidden, remainingQuantity)}
+
+                        {isAdminUser ? (
+                            <button
+                                type="button"
+                                onClick={(event) => openProductEditor(product, event)}
+                                title="Edit product"
+                                aria-label="Edit product"
+                                className="absolute right-4 top-16 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-brandGold/35 bg-white/90 text-brandBlue shadow-lg backdrop-blur-md transition-all hover:border-brandGold hover:bg-brandGold hover:text-white dark:bg-black/70 dark:text-white"
+                            >
+                                <i className="fa-solid fa-pen-to-square text-[11px]"></i>
+                            </button>
+                        ) : null}
 
                         {hasVariants && (
                             <button
@@ -213,7 +403,7 @@ export default function ProductGrid() {
                             </button>
                         )}
 
-                        <div className="relative w-full aspect-[4/5] rounded-[1.5rem] overflow-hidden mb-6 bg-gray-50 dark:bg-gray-800/50">
+                        <div className="relative w-full aspect-[2/3] rounded-[1.5rem] overflow-hidden mb-6 bg-gray-50 dark:bg-gray-800/50">
                             {imageUrl ? (
                                 <img 
                                     src={imageUrl}
@@ -244,7 +434,7 @@ export default function ProductGrid() {
                             </div>
                         </div>
 
-                        <div className="px-2">
+                        <div>
                             <div className="title-container">
                                 <h3 className="title-slide font-bold text-gray-900 dark:text-white text-lg md:text-xl mb-2 leading-tight group-hover:text-brandGold transition-colors" dir="rtl">
                                     {product.title || product.name}
@@ -252,9 +442,9 @@ export default function ProductGrid() {
                             </div>
 
                             {metaParts.length > 0 && (
-                                <div className="product-card-meta-row" dir="rtl">
-                                    <div className="product-card-label">
-                                        <div className="product-card-label-content">
+                                <div className="product-card-meta-row justify-center -mx-1 px-0" dir="rtl">
+                                    <div className="product-card-label w-full max-w-none justify-center px-1 text-center">
+                                        <div className="product-card-label-content justify-center">
                                             {metaParts.map((part, index) => (
                                                 <span key={`${productId}-${part}`} className={`product-card-label-part ${index === 0 ? 'is-primary' : ''}`}>
                                                     {index > 0 && <span className="product-card-label-separator">•</span>}
@@ -288,10 +478,31 @@ export default function ProductGrid() {
                             <div className="flex items-center justify-between mt-4" dir="rtl">
                                 <div>
                                     <span className="text-gray-400 text-[10px] md:text-xs font-medium mb-1 uppercase tracking-widest block hidden md:block">السعر</span>
-                                    {product.price ? (
-                                        <div className="flex items-baseline gap-1.5">
-                                            <span className="font-black text-gray-900 dark:text-white text-xl md:text-2xl tracking-tight">{product.price}</span>
-                                            <span className="text-brandGold font-bold text-xs md:text-sm">ج.م</span>
+                                    {showLiveIndicator ? (
+                                        <span className="mb-1 inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-300">
+                                            <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse"></span>
+                                            DC Live Update
+                                        </span>
+                                    ) : null}
+                                    {primaryDisplayPrice > 0 ? (
+                                        <div>
+                                            <div className="flex items-baseline gap-1.5">
+                                                <span className="font-black text-gray-900 dark:text-white text-xl md:text-2xl tracking-tight">{primaryDisplayPrice.toLocaleString()}</span>
+                                                <span className="text-brandGold font-bold text-xs md:text-sm">ج.م</span>
+                                                {isAdminUser ? (
+                                                    <span className="ml-2 text-lg font-black text-red-500 md:text-xl">
+                                                        {discountValue > 0 ? discountValue.toLocaleString() : '0'}
+                                                    </span>
+                                                ) : null}
+                                            </div>
+                                            {shouldShowWholesaleSummary ? (
+                                                <div className="mt-1">
+                                                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-brandGold">Wholesale | سعر الكرتونة</p>
+                                                    <p className="mt-1 text-sm font-black text-brandGold">
+                                                        {wholesalePrice > 0 ? `${wholesalePrice.toLocaleString()} ج.م` : 'غير متاح'}
+                                                    </p>
+                                                </div>
+                                            ) : null}
                                         </div>
                                     ) : (
                                         <span className="font-bold text-brandGold text-sm">تواصل معنا</span>
@@ -373,7 +584,7 @@ export default function ProductGrid() {
 
     return (
         <div className="space-y-10 md:space-y-12">
-            {productSections.map((section) => (
+            {visibleSections.map((section) => (
                 <section key={section.categoryName} className="space-y-4">
                     <div className="flex items-center justify-between gap-4 border-b border-white/8 pb-2">
                         <div>
@@ -394,6 +605,34 @@ export default function ProductGrid() {
                     </div>
                 </section>
             ))}
+
+            {hasMoreCategoryRows ? (
+                <div className="flex justify-center px-4 md:px-0">
+                    <button
+                        type="button"
+                        onClick={() => setVisibleCategoryRows(productSections.length)}
+                        className="group inline-flex w-fit max-w-full items-center gap-3 rounded-[2rem] border border-brandGold/35 bg-gradient-to-r from-brandGold/12 via-white to-brandGold/8 px-4 py-3 text-brandBlue shadow-[0_18px_45px_rgba(212,175,55,0.12)] transition-all hover:-translate-y-0.5 hover:border-brandGold hover:shadow-[0_24px_60px_rgba(212,175,55,0.2)] dark:from-brandGold/15 dark:via-darkCard dark:to-brandGold/10 dark:text-brandGold md:gap-4 md:rounded-full md:px-6 md:py-3.5"
+                    >
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brandGold text-brandBlue shadow-lg shadow-brandGold/30 transition-transform group-hover:scale-110 group-hover:rotate-[-8deg] md:h-10 md:w-10">
+                            <svg className="h-4 w-4 md:h-5 md:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                            </svg>
+                        </span>
+                        <span className="min-w-0 inline-flex flex-col items-start text-left leading-none">
+                            <span className="font-arabic text-[1.05rem] font-black leading-tight tracking-tight text-brandGold md:text-xl">{selectedShowMoreArabicLine}</span>
+                            <span className="mt-1 text-[9px] font-black uppercase tracking-[0.2em] text-brandBlue/70 dark:text-brandGold/70 md:text-xs md:tracking-[0.28em]">Discover More Pieces</span>
+                        </span>
+                    </button>
+                </div>
+            ) : null}
+
+            <AdminProductModal
+                isOpen={Boolean(editingProduct)}
+                onClose={closeProductEditor}
+                product={editingProduct}
+                categories={categories}
+                brands={brands}
+            />
         </div>
     );
 }

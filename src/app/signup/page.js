@@ -9,6 +9,12 @@ import { checkAccountAvailability, upsertCurrentUserProfile } from '@/lib/accoun
 import { isAdminRole, normalizeUserRole } from '@/lib/user-roles';
 
 function SignupForm() {
+    const markNotificationPromptPending = () => {
+        if (typeof window !== 'undefined') {
+            sessionStorage.setItem('hog_prompt_notifications_after_login', '1');
+        }
+    };
+
     const router = useRouter();
     const searchParams = useSearchParams();
     
@@ -23,9 +29,19 @@ function SignupForm() {
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const handlePasswordChange = (e) => {
+        const nextPassword = e.target.value;
+        setFormData((currentValue) => ({
+            ...currentValue,
+            password: nextPassword,
+            confirmPassword: nextPassword
+        }));
     };
 
     const normalizeEgyptPhoneForSignup = (value) => {
@@ -134,17 +150,19 @@ function SignupForm() {
         const redirectParam = searchParams.get('redirect');
         
         if (userData && isAdminRole(normalizeUserRole(userData.role))) {
+            markNotificationPromptPending();
             sessionStorage.setItem('isAdmin', 'true');
             sessionStorage.setItem('userRole', normalizeUserRole(userData.role));
             router.push('/admin');
         } else {
+            markNotificationPromptPending();
             sessionStorage.removeItem('isAdmin');
             router.push(redirectParam === 'checkout' ? '/?action=checkout' : '/');
         }
     };
 
     return (
-        <div className="bg-white dark:bg-darkBg font-sans flex items-center justify-center min-h-screen px-4 pt-12 pb-12 transition-colors duration-300">
+        <div className="bg-white dark:bg-darkBg font-sans flex min-h-screen items-center justify-center px-4 transition-colors duration-300">
             {loading && (
                 <div className="fixed inset-0 z-[200] bg-white dark:bg-brandBlue flex flex-col items-center justify-center transition-opacity duration-300">
                     <div className="relative flex flex-col items-center">
@@ -159,142 +177,196 @@ function SignupForm() {
                 </div>
             )}
 
-            <div className="max-w-md w-full bg-white dark:bg-darkCard rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 p-6 md:p-8 mt-8">
-                <div className="text-center mb-6 md:mb-8">
-                    <Link href="/" className="inline-block group mb-4">
-                        <div className="relative inline-flex items-center justify-center z-1">
-                            <img src="/logo.png" alt="House Of Glass" className="h-20 md:h-24 w-auto transform transition-transform group-hover:scale-105" />
+            <div className="w-full max-w-[30rem] rounded-2xl border border-gray-100 bg-white px-6 pb-6 pt-3 shadow-2xl dark:border-gray-800 dark:bg-darkCard md:px-8 md:pb-8 md:pt-4">
+                <div className="mb-5 text-center md:mb-6">
+                    <Link href="/" className="group mb-4 inline-block">
+                        <div className="inline-flex items-center justify-center rounded-lg">
+                            <img src="/logo.png" alt="Logo" className="mx-auto h-16 w-auto transition-transform group-hover:scale-105 md:h-20" />
                         </div>
                     </Link>
-                    <h1 className="text-2xl md:text-3xl font-black text-brandBlue dark:text-white mt-4 tracking-tight">Join House of Glass</h1>
-                    <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm">Create an account for faster checkout</p>
-                </div>
-
-                {error && (
-                    <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm p-4 rounded-xl font-semibold mb-6 flex items-center gap-3">
-                        <i className="fa-solid fa-circle-exclamation"></i> {error}
+                    <div className="space-y-0.5">
+                        <h1 className="text-xl font-bold italic text-brandBlue dark:text-brandGold md:text-2xl">Create Account</h1>
+                        <p className="font-arabic text-sm font-bold text-brandBlue dark:text-brandGold md:text-base" dir="rtl">إنشاء حساب</p>
                     </div>
-                )}
+                    <div className="mt-1 space-y-0.5 text-xs text-gray-500 dark:text-slate-400 md:text-sm">
+                        <p>Join us to save your favorite pieces</p>
+                        <p className="font-arabic" dir="rtl">انضم إلينا لحفظ قطعك المفضلة</p>
+                    </div>
+                </div>
 
                 <form onSubmit={handleSignup} className="space-y-4">
                     <div>
-                        <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">Username</label>
-                        <input 
+                        <label className="flex items-center justify-between text-xs font-medium text-gray-700 dark:text-slate-300 md:text-sm">
+                            <span>Username</span>
+                            <span className="font-arabic" dir="rtl">اسم المستخدم</span>
+                        </label>
+                        <input
                             name="username"
-                            type="text" 
+                            type="text"
                             required
                             value={formData.username}
                             onChange={handleChange}
-                            className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-brandGold focus:border-transparent transition-all font-medium" 
-                            placeholder="e.g. name123" 
+                            className="mt-1 block w-full rounded-xl border border-gray-200 bg-white p-2.5 text-brandBlue outline-none focus:ring-2 focus:ring-brandGold dark:border-gray-700 dark:bg-gray-800 dark:text-slate-200 md:p-3"
+                            placeholder="e.g. name123"
                         />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">First Name</label>
-                            <input 
+                            <label className="flex items-center justify-between text-xs font-medium text-gray-700 dark:text-slate-300 md:text-sm">
+                                <span>First Name</span>
+                                <span className="font-arabic" dir="rtl">الاسم الأول</span>
+                            </label>
+                            <input
                                 name="firstName"
-                                type="text" 
+                                type="text"
                                 required
                                 value={formData.firstName}
                                 onChange={handleChange}
-                                className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-brandGold focus:border-transparent transition-all font-medium" 
+                                className="mt-1 block w-full rounded-xl border border-gray-200 bg-white p-2.5 text-brandBlue outline-none focus:ring-2 focus:ring-brandGold dark:border-gray-700 dark:bg-gray-800 dark:text-slate-200 md:p-3"
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">Last Name</label>
-                            <input 
+                            <label className="flex items-center justify-between text-xs font-medium text-gray-700 dark:text-slate-300 md:text-sm">
+                                <span>Last Name</span>
+                                <span className="font-arabic" dir="rtl">الاسم الأخير</span>
+                            </label>
+                            <input
                                 name="lastName"
-                                type="text" 
+                                type="text"
                                 required
                                 value={formData.lastName}
                                 onChange={handleChange}
-                                className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-brandGold focus:border-transparent transition-all font-medium" 
+                                className="mt-1 block w-full rounded-xl border border-gray-200 bg-white p-2.5 text-brandBlue outline-none focus:ring-2 focus:ring-brandGold dark:border-gray-700 dark:bg-gray-800 dark:text-slate-200 md:p-3"
                             />
                         </div>
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">Email Address (Optional)</label>
-                        <input 
+                        <label className="flex items-center justify-between text-xs font-medium text-gray-700 dark:text-slate-300 md:text-sm">
+                            <span>Email Address (Optional)</span>
+                            <span className="font-arabic" dir="rtl">البريد الإلكتروني (اختياري)</span>
+                        </label>
+                        <input
                             name="email"
-                            type="email" 
+                            type="email"
                             value={formData.email}
                             onChange={handleChange}
-                            className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-brandGold focus:border-transparent transition-all font-medium" 
-                            placeholder="example@mail.com" 
+                            className="mt-1 block w-full rounded-xl border border-gray-200 bg-white p-2.5 text-brandBlue outline-none focus:ring-2 focus:ring-brandGold dark:border-gray-700 dark:bg-gray-800 dark:text-slate-200 md:p-3"
+                            placeholder="e.g. name@example.com"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">Phone Number (Required)</label>
-                        <div className="flex group">
-                            <span className="inline-flex items-center justify-center bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-l-xl px-3 text-sm text-gray-500 dark:text-gray-400 font-bold tracking-wider">+20</span>
-                            <input 
+                        <label className="flex items-center justify-between text-xs font-medium text-gray-700 dark:text-slate-300 md:text-sm">
+                            <span>Phone Number (Required)</span>
+                            <span className="font-arabic" dir="rtl">رقم الهاتف (إجباري)</span>
+                        </label>
+                        <div className="mt-1 flex group">
+                            <span className="flex items-center justify-center rounded-l-xl border border-gray-200 bg-gray-100 px-3 text-sm font-bold tracking-wider text-gray-500 dark:border-gray-700 dark:bg-gray-700 dark:text-slate-400">
+                                +20
+                            </span>
+                            <input
                                 name="phone"
-                                type="tel" 
+                                type="tel"
                                 required
                                 value={formData.phone}
                                 onChange={handleChange}
-                                className="flex-1 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-r-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-brandGold focus:border-transparent transition-all font-medium text-gray-900 dark:text-white" 
-                                placeholder="01xxxxxxxxx" 
+                                className="flex-1 block rounded-r-xl border border-gray-200 bg-white p-2.5 text-brandBlue outline-none focus:ring-2 focus:ring-brandGold dark:border-gray-700 dark:bg-gray-800 dark:text-slate-200 md:p-3"
+                                placeholder="01XXXXXXXXX"
                             />
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">Password</label>
-                            <input 
+                    <div>
+                        <label className="flex items-center justify-between text-xs font-medium text-gray-700 dark:text-slate-300 md:text-sm">
+                            <span>Password</span>
+                            <span className="font-arabic" dir="rtl">كلمة المرور</span>
+                        </label>
+                        <div className="group relative">
+                            <input
                                 name="password"
-                                type="password" 
+                                type={showPassword ? 'text' : 'password'}
                                 required
                                 minLength="6"
                                 value={formData.password}
-                                onChange={handleChange}
-                                className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-brandGold focus:border-transparent transition-all font-medium" 
-                                placeholder="Min. 6 chars" 
+                                onChange={handlePasswordChange}
+                                className="mt-1 block w-full rounded-xl border border-gray-200 bg-white p-2.5 text-brandBlue outline-none transition-all focus:ring-2 focus:ring-brandGold ltr:pr-10 rtl:pl-10 dark:border-gray-700 dark:bg-gray-800 dark:text-slate-200 md:p-3"
+                                placeholder="••••••••"
                             />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword((currentValue) => !currentValue)}
+                                className="absolute top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-brandGold ltr:right-3 rtl:left-3"
+                                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                            </button>
                         </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">Confirm</label>
-                            <input 
-                                name="confirmPassword"
-                                type="password" 
-                                required
-                                value={formData.confirmPassword}
-                                onChange={handleChange}
-                                className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-brandGold focus:border-transparent transition-all font-medium" 
-                                placeholder="Match password" 
-                            />
-                        </div>
+                        <input type="hidden" name="confirmPassword" value={formData.confirmPassword} readOnly />
                     </div>
-                    
-                    <button type="submit" className="w-full bg-brandGold hover:bg-brandBlue text-white font-bold rounded-xl px-4 py-4 mt-2 transition-all transform hover:-translate-y-0.5 shadow-lg shadow-brandGold/30">
-                        Create Account
+
+                    <div className={`${error ? '' : 'hidden'} text-center text-[10px] italic text-red-500 md:text-xs`}>
+                        {error}
+                    </div>
+
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full rounded-xl border border-brandGold/30 bg-brandBlue p-3.5 text-sm font-bold text-white shadow-lg transition-all hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-70 md:p-4 md:text-base"
+                    >
+                        Create Account | إنشاء حساب
                     </button>
                 </form>
 
-                <div className="relative my-8">
-                    <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-gray-200 dark:border-gray-800"></div>
-                    </div>
-                    <div className="relative flex justify-center text-xs">
-                        <span className="bg-white dark:bg-darkCard px-4 text-gray-500 font-semibold uppercase tracking-wider">Or register with</span>
+                <div className="mt-6 flex items-center gap-3">
+                    <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
+                    <span className="text-[10px] uppercase tracking-[0.3em] text-gray-400 md:text-xs">OR</span>
+                    <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
+                </div>
+
+                <button
+                    onClick={handleGoogleSignup}
+                    type="button"
+                    disabled={loading}
+                    className="mt-5 flex w-full items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm font-bold text-brandBlue shadow-sm transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-70 dark:border-gray-700 dark:bg-gray-800 dark:text-slate-200 dark:hover:bg-gray-700 md:px-5 md:py-4 md:text-base"
+                >
+                    <svg className="h-5 w-5" viewBox="0 0 48 48" aria-hidden="true">
+                        <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303C33.766 32.653 29.201 36 24 36c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.954 4 4 12.954 4 24s8.954 20 20 20 20-8.954 20-20c0-1.341-.138-2.651-.389-3.917z" />
+                        <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 16.108 19.01 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4c-7.681 0-14.344 4.327-17.694 10.691z" />
+                        <path fill="#4CAF50" d="M24 44c5.128 0 9.805-1.961 13.333-5.148l-6.161-5.212C29.137 35.091 26.695 36 24 36c-5.176 0-9.73-3.331-11.284-7.946l-6.52 5.025C9.52 39.556 16.227 44 24 44z" />
+                        <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.02 12.02 0 0 1-4.131 5.64l.002-.001 6.161 5.212C36.87 39.306 44 34 44 24c0-1.341-.138-2.651-.389-3.917z" />
+                    </svg>
+                    <span className="flex flex-col items-center text-center leading-tight">
+                        <span>Continue with Google</span>
+                        <span className="font-arabic text-xs md:text-sm" dir="rtl">المتابعة باستخدام جوجل</span>
+                    </span>
+                </button>
+
+                <div className="mt-6 text-center">
+                    <div className="space-y-1 text-sm text-gray-500">
+                        <p>Already have an account? <span className="font-arabic" dir="rtl">لديك حساب بالفعل؟</span></p>
+                        <Link href="/login" className="inline-flex items-center gap-2 font-bold text-brandBlue hover:underline dark:text-brandGold">
+                            <span>Login here</span>
+                            <span className="text-brandGold/70">|</span>
+                            <span className="font-arabic" dir="rtl">سجل الدخول</span>
+                        </Link>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4">
-                    <button onClick={handleGoogleSignup} type="button" className="flex items-center justify-center gap-3 w-full bg-white dark:bg-gray-800 border-2 border-gray-100 dark:border-gray-700 hover:border-brandGold dark:hover:border-brandGold text-gray-700 dark:text-gray-300 font-bold rounded-xl px-4 py-3.5 transition-all">
-                        <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
-                        Google Sign Up
-                    </button>
+                <div className="mt-8 border-t border-gray-100 pt-6 text-center dark:border-gray-800">
+                    <p className="mb-1 text-[10px] italic tracking-[0.2em] text-gray-400 uppercase">Premium Home Glassware</p>
+                    <p className="font-arabic text-xl font-black text-[#163159] dark:text-brandGold" dir="rtl">ال عاشور عدس</p>
                 </div>
 
-                <p className="mt-8 text-center text-sm font-semibold text-gray-600 dark:text-gray-400">
-                    Already have an account? <Link href="/login" className="text-brandGold hover:text-brandBlue dark:hover:text-white transition-colors">Sign in</Link>
-                </p>
+                <div className="mt-6 text-center">
+                    <Link href="/" className="text-xs text-gray-400 transition-colors hover:text-brandBlue">
+                        ← Back to Gallery
+                    </Link>
+                </div>
             </div>
         </div>
     );

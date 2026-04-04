@@ -2,13 +2,15 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, signOut, updateProfile } from 'firebase/auth';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import Link from 'next/link';
-import { deleteOwnAccount, upsertCurrentUserProfile } from '@/lib/account-api';
-import { uploadToImageKit } from '@/lib/imagekit-client';
+import { deleteOwnAccount, getOwnOrders, upsertCurrentUserProfile } from '@/lib/account-api';
+import { deleteImageKitFiles, uploadToImageKit } from '@/lib/imagekit-client';
 import { parseTimestamp } from '@/lib/utils/format';
 import { mergeOrderItemsIntoStorage } from '@/lib/cart-storage';
+import { getOrderAmount, getOrderDateValue, getOrderExternalRef } from '@/lib/utils/admin-orders';
+import { getOrderStatusHistory, getOrderStatusMeta, getOrderTrackingSteps, normalizeOrderStatus } from '@/lib/utils/order-status';
 
 function buildAvatarLabel(userData, user) {
     return String(userData?.name || user?.displayName || user?.email || 'U').trim().charAt(0).toUpperCase() || 'U';
@@ -26,6 +28,57 @@ function ProfileFallbackAvatar({ label, className = '' }) {
             </span>
         </div>
     );
+}
+
+function OrderTrackingSteps({ status }) {
+    const normalizedStatus = normalizeOrderStatus(status);
+    const steps = getOrderTrackingSteps(normalizedStatus);
+    const isReceivedOrder = normalizedStatus === 'received';
+
+    if (normalizedStatus === 'cancelled') {
+        const cancelledMeta = getOrderStatusMeta('cancelled');
+        return (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50/80 p-4 dark:border-rose-900/30 dark:bg-rose-900/10">
+                <div className="flex items-start gap-3">
+                    <span className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-rose-500/12 text-rose-500 dark:text-rose-300">
+                        <i className="fa-solid fa-ban"></i>
+                    </span>
+                    <div>
+                        <p className="text-sm font-black text-rose-700 dark:text-rose-300">{cancelledMeta.customerLabel}</p>
+                        <p className="mt-1 text-xs text-rose-600/80 dark:text-rose-200/80">{cancelledMeta.description}</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="grid gap-3 md:grid-cols-4">
+            {steps.map((step, index) => {
+                const isCompleted = step.state === 'completed' || (isReceivedOrder && step.state === 'current');
+                const isCurrent = step.state === 'current' && !isReceivedOrder;
+
+                return (
+                    <div key={step.value} className={`relative overflow-hidden rounded-2xl border px-4 py-5 ${isCurrent ? 'border-brandGold/35 bg-brandGold/10 dark:bg-brandGold/10' : isCompleted ? 'border-emerald-200 bg-emerald-50/80 dark:border-emerald-900/30 dark:bg-emerald-900/10' : 'border-gray-200 bg-gray-50/80 dark:border-gray-800 dark:bg-gray-900/30'}`}>
+                        <div className="flex min-h-[168px] flex-col items-center justify-center gap-4 text-center">
+                            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-black ${isCurrent ? 'bg-brandGold text-brandBlue' : isCompleted ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
+                                {isCompleted ? <i className="fa-solid fa-check"></i> : index + 1}
+                            </span>
+                            <div className="flex max-w-full flex-col items-center text-center">
+                                <p className={`text-xs font-black uppercase tracking-[0.16em] ${isCurrent ? 'text-brandGold' : isCompleted ? 'text-emerald-600 dark:text-emerald-300' : 'text-gray-400'}`}>{step.label}</p>
+                                <p className="mt-2 max-w-[10ch] text-balance text-[15px] font-semibold leading-[1.45] text-brandBlue dark:text-white sm:max-w-[12ch]">{step.customerLabel}</p>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+function isTerminalOrderStatus(status) {
+    const normalizedStatus = normalizeOrderStatus(status);
+    return normalizedStatus === 'completed' || normalizedStatus === 'received' || normalizedStatus === 'cancelled';
 }
 
 export default function UserProfile() {
@@ -53,6 +106,7 @@ export default function UserProfile() {
 
     const [orders, setOrders] = useState([]);
     const [ordersLoading, setOrdersLoading] = useState(true);
+    const [expandedOrderSummaries, setExpandedOrderSummaries] = useState({});
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -91,21 +145,8 @@ export default function UserProfile() {
         const fetchOrders = async () => {
             try {
                 setOrdersLoading(true);
-                const userEmail = user.email || (userData ? (userData.email || userData.authEmail) : null);
-                if (userEmail) {
-                    const q = query(
-                        collection(db, 'orders'), 
-                        where('customer.email', '==', userEmail)
-                    );
-                    const querySnapshot = await getDocs(q);
-                    let fetchedOrders = [];
-                    querySnapshot.forEach((doc) => {
-                        fetchedOrders.push({ id: doc.id, ...doc.data() });
-                    });
-
-                    fetchedOrders.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-                    setOrders(fetchedOrders);
-                }
+                const fetchedOrders = await getOwnOrders(user);
+                setOrders(fetchedOrders);
             } catch (err) {
                 console.error('Error fetching orders:', err);
             } finally {
@@ -165,6 +206,13 @@ export default function UserProfile() {
         setAvatarLoadFailed(false);
     };
 
+    const toggleOrderSummary = (orderId) => {
+        setExpandedOrderSummaries((currentValue) => ({
+            ...currentValue,
+            [orderId]: !currentValue[orderId]
+        }));
+    };
+
     const handleCancelEdit = () => {
         if (selectedPhotoPreview) {
             URL.revokeObjectURL(selectedPhotoPreview);
@@ -185,10 +233,13 @@ export default function UserProfile() {
         e.preventDefault();
         setSaveMessage({ type: '', text: '' });
         setIsSavingProfile(true);
+        let uploadedPhotoFileId = '';
 
         try {
+            const previousPhotoMeta = userData?.photoMeta || null;
+            const previousPhotoFileId = previousPhotoMeta?.provider === 'imagekit' ? previousPhotoMeta.fileId || '' : '';
             let photoURL = removeProfilePhoto ? '' : (formData.photoURL || userData?.photoURL || user?.photoURL || '');
-            let photoMeta = removeProfilePhoto ? null : (userData?.photoMeta || null);
+            let photoMeta = removeProfilePhoto ? null : previousPhotoMeta;
 
             if (selectedPhotoFile) {
                 const uploadedPhoto = await uploadToImageKit(user, selectedPhotoFile, {
@@ -196,6 +247,7 @@ export default function UserProfile() {
                     fileName: `profile_${user.uid}_${Date.now()}.${selectedPhotoFile.name.split('.').pop() || 'jpg'}`,
                     tags: ['profile-photo']
                 });
+                uploadedPhotoFileId = uploadedPhoto.fileId || '';
                 photoURL = uploadedPhoto.primaryUrl;
                 photoMeta = uploadedPhoto;
             }
@@ -230,9 +282,28 @@ export default function UserProfile() {
             setAvatarLoadFailed(false);
             setIsEditing(false);
             setSaveMessage({ type: 'success', text: 'Profile updated successfully!' });
+
+            const nextPhotoFileId = photoMeta?.provider === 'imagekit' ? photoMeta.fileId || '' : '';
+            const shouldDeletePreviousPhoto = previousPhotoFileId && previousPhotoFileId !== nextPhotoFileId && (removeProfilePhoto || Boolean(selectedPhotoFile));
+
+            if (shouldDeletePreviousPhoto) {
+                try {
+                    await deleteImageKitFiles(user, [previousPhotoFileId]);
+                } catch (cleanupError) {
+                    console.error('Failed to delete previous profile photo from ImageKit:', cleanupError);
+                }
+            }
+
             setTimeout(() => setSaveMessage({ type: '', text: '' }), 3000);
         } catch (err) {
             console.error(err);
+            if (uploadedPhotoFileId) {
+                try {
+                    await deleteImageKitFiles(user, [uploadedPhotoFileId]);
+                } catch (cleanupError) {
+                    console.error('Failed to clean up uploaded profile photo after save error:', cleanupError);
+                }
+            }
             setSaveMessage({ type: 'error', text: 'Failed to update profile.' });
         } finally {
             setIsSavingProfile(false);
@@ -445,21 +516,33 @@ export default function UserProfile() {
                                 <div className="space-y-4">
                                     {orders.map(order => (
                                         <div key={order.id} className="border border-gray-100 dark:border-gray-800 rounded-2xl p-4 hover:border-brandGold/30 transition-colors">
-                                            <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-4 border-b border-gray-50 dark:border-gray-800/50">
+                                            {(() => {
+                                                const normalizedStatus = normalizeOrderStatus(order.status);
+                                                const statusMeta = getOrderStatusMeta(normalizedStatus);
+                                                const statusHistory = getOrderStatusHistory(order);
+                                                const latestStatusEntry = statusHistory[statusHistory.length - 1];
+                                                const isReceivedOrder = normalizedStatus === 'received';
+                                                const isTerminalStatus = isTerminalOrderStatus(normalizedStatus);
+                                                const isExpanded = expandedOrderSummaries[order.id] ?? !isTerminalStatus;
+
+                                                return (
+                                                    <>
+                                            <div className={`flex flex-wrap items-center gap-3 ${isExpanded ? 'mb-4 border-b border-gray-50 pb-4 dark:border-gray-800/50' : ''}`}>
                                                 <div>
                                                     <span className="text-xs font-bold text-gray-400 block mb-1">Order ID</span>
-                                                    <span className="font-mono text-sm font-black text-brandBlue dark:text-white">#{order.id.slice(0, 8)}</span>
+                                                    <span className="font-mono text-sm font-black text-brandBlue dark:text-white">#{getOrderExternalRef(order)}</span>
                                                 </div>
                                                 <div>
                                                     <span className="text-xs font-bold text-gray-400 block mb-1">Date</span>
                                                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                        {parseTimestamp(order.createdAt || order.orderDate)}
+                                                        {parseTimestamp(getOrderDateValue(order))}
                                                     </span>
                                                 </div>
                                                 <div>
                                                     <span className="text-xs font-bold text-gray-400 block mb-1">Status</span>
-                                                    <span className={'inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'}>
-                                                        {order.status || 'Processing'}
+                                                    <span className={'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-wider ' + statusMeta.lightBadgeClass}>
+                                                        <span className={`h-2 w-2 rounded-full ${statusMeta.dotClass}`}></span>
+                                                        {statusMeta.customerLabel}
                                                     </span>
                                                 </div>
                                                 <div>
@@ -470,7 +553,49 @@ export default function UserProfile() {
                                                 </div>
                                                 <div className="text-right">
                                                     <span className="text-xs font-bold text-gray-400 block mb-1">Total Amount</span>
-                                                    <span className="text-base font-black text-brandGold">{(order.totalPrice || 0).toLocaleString()} ج.م</span>
+                                                    <span className="text-base font-black text-brandGold">{getOrderAmount(order).toLocaleString()} ج.م</span>
+                                                </div>
+                                                {isTerminalStatus ? (
+                                                    <div className="ml-auto flex items-center self-stretch sm:self-auto">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => toggleOrderSummary(order.id)}
+                                                            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-gray-50 text-gray-500 transition-colors hover:border-brandGold/35 hover:bg-brandGold/10 hover:text-brandGold dark:border-gray-800 dark:bg-gray-900/30 dark:text-gray-300"
+                                                            aria-label={isExpanded ? 'Collapse order details' : 'Expand order details'}
+                                                            aria-expanded={isExpanded}
+                                                        >
+                                                            <i className={`fa-solid ${isExpanded ? 'fa-chevron-up' : 'fa-chevron-down'} text-sm`}></i>
+                                                        </button>
+                                                    </div>
+                                                ) : null}
+                                            </div>
+
+                                            {isExpanded ? (
+                                            <>
+                                            <div className="mb-4 space-y-4 rounded-[1.5rem] border border-gray-100 bg-gray-50/70 p-4 dark:border-gray-800 dark:bg-gray-900/20">
+                                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                                    <div>
+                                                        <p className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400">Order Tracking</p>
+                                                        <p className="mt-2 text-sm font-semibold text-brandBlue dark:text-white">{statusMeta.description}</p>
+                                                    </div>
+                                                    <div className="text-left md:text-right">
+                                                        <p className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400">Last Update</p>
+                                                        <p className="mt-2 text-sm font-semibold text-gray-700 dark:text-gray-300">{parseTimestamp(latestStatusEntry?.at || order.statusUpdatedAt || getOrderDateValue(order))}</p>
+                                                    </div>
+                                                </div>
+
+                                                <OrderTrackingSteps status={order.status} />
+
+                                                <div>
+                                                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400">Status History</p>
+                                                    <div className="mt-3 flex flex-wrap gap-2">
+                                                        {statusHistory.slice().reverse().map((entry, index) => (
+                                                            <div key={`${entry.status}-${entry.at}-${index}`} className={`rounded-xl border px-3 py-2 ${isReceivedOrder ? 'border-emerald-200 bg-emerald-50/80 dark:border-emerald-900/30 dark:bg-emerald-900/10' : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-darkCard'}`}>
+                                                                <p className={`text-[10px] font-black uppercase tracking-[0.16em] ${isReceivedOrder ? 'text-emerald-700 dark:text-emerald-300' : 'text-brandGold'}`}>{entry.customerLabel || entry.label}</p>
+                                                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{parseTimestamp(entry.at)}</p>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             </div>
                                             
@@ -496,6 +621,11 @@ export default function UserProfile() {
                                                     Order Again
                                                 </button>
                                             </div>
+                                            </>
+                                            ) : null}
+                                                    </>
+                                                );
+                                            })()}
                                         </div>
                                     ))}
                                 </div>

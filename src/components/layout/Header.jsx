@@ -7,6 +7,7 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useGallery } from '@/contexts/GalleryContext';
 import { getUserRoleLabel, isAdminRole, normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
+import NotificationsCenter from '@/components/layout/NotificationsCenter';
 
 export default function Header() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -29,6 +30,7 @@ export default function Header() {
         activeCategory,
         setActiveCategory,
         filteredProducts,
+        selectedProduct,
         cartCount,
         openCart,
         isWholesaleCustomer,
@@ -240,6 +242,8 @@ export default function Header() {
                                 </button>
                             )}
                         </nav>
+
+                        <NotificationsCenter user={user} isAccountPanelOpen={accountPanelOpen} onBeforeOpen={closeAccountPanel} isProductModalOpen={Boolean(selectedProduct)} />
 
                         {user ? (
                             <button

@@ -1,9 +1,12 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useGallery } from '@/contexts/GalleryContext';
 import AdminProductModal from '@/components/admin/AdminProductModal';
+import FloatingDockDemo from '@/components/floating-dock-demo';
 import { parseTimestamp } from '@/lib/utils/format';
-import { db } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
+import { deleteImageKitFiles } from '@/lib/imagekit-client';
 import { doc, deleteDoc } from 'firebase/firestore';
 
 function parseNumber(value) {
@@ -286,6 +289,48 @@ function getProductHistoryEntries(product) {
     return Array.isArray(rawHistory) ? rawHistory : [];
 }
 
+function collectImageKitFileIds(product = {}) {
+    const collected = [];
+    const mainMedia = Array.isArray(product?.imageDetails) && product.imageDetails.length > 0
+        ? product.imageDetails
+        : Array.isArray(product?.images)
+            ? product.images
+            : [];
+
+    mainMedia.forEach((entry) => {
+        if (typeof entry === 'string') return;
+
+        const provider = String(entry?.provider || '').toLowerCase();
+        const url = entry?.url || entry?.primaryUrl || '';
+        if ((provider === 'imagekit' || url.includes('ik.imagekit.io')) && entry?.fileId) {
+            collected.push(entry.fileId);
+        }
+    });
+
+    const variants = Array.isArray(product?.variants) ? product.variants : [];
+    variants.forEach((variant) => {
+        const variantMedia = Array.isArray(variant?.imageDetails) && variant.imageDetails.length > 0
+            ? variant.imageDetails
+            : Array.isArray(variant?.images)
+                ? variant.images
+                : variant?.image
+                    ? [variant.image]
+                    : [];
+
+        variantMedia.forEach((entry) => {
+            if (typeof entry === 'string') return;
+
+            const provider = String(entry?.provider || '').toLowerCase();
+            const url = entry?.url || entry?.primaryUrl || '';
+            if ((provider === 'imagekit' || url.includes('ik.imagekit.io')) && entry?.fileId) {
+                collected.push(entry.fileId);
+            }
+        });
+    });
+
+    return Array.from(new Set(collected));
+}
+
 function ProductHistoryModal({ product, onClose, onDelete }) {
     useEffect(() => {
         const handleEscape = (event) => {
@@ -377,7 +422,7 @@ function ProductHistoryModal({ product, onClose, onDelete }) {
                     <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Code: {normalizeLabel(product?.code || product?.barcode, 'N/A')}</div>
                     <button
                         type="button"
-                        onClick={() => onDelete(product.id)}
+                        onClick={() => onDelete(product)}
                         className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-2.5 text-xs font-black uppercase tracking-[0.18em] text-rose-300 transition-colors hover:bg-rose-500/18"
                     >
                         <i className="fa-solid fa-trash"></i>
@@ -414,6 +459,8 @@ const SORT_OPTIONS = [
 ];
 
 export default function AdminProducts() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const { allProducts, categories, brands, isLoading } = useGallery();
     const [search, setSearch] = useState('');
     const [mediaFilter, setMediaFilter] = useState('all');
@@ -427,6 +474,7 @@ export default function AdminProducts() {
     const [modalOpen, setModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
     const [historyProduct, setHistoryProduct] = useState(null);
+    const [deletingProductId, setDeletingProductId] = useState('');
 
     const categoryOptions = [
         'all',
@@ -501,15 +549,40 @@ export default function AdminProducts() {
         setModalOpen(true);
     };
 
-    const handleDelete = async (id) => {
+    const handleDelete = async (productToDelete) => {
+        const targetProduct = typeof productToDelete === 'string'
+            ? allProducts.find((entry) => entry.id === productToDelete) || { id: productToDelete }
+            : productToDelete;
+        const targetId = targetProduct?.id;
+
+        if (!targetId) return;
         if (!window.confirm('Are you sure you want to delete this product?')) return;
 
         try {
-            await deleteDoc(doc(db, 'products', id));
+            setDeletingProductId(targetId);
+
+            const removableFileIds = collectImageKitFileIds(targetProduct);
+            const currentUser = auth.currentUser;
+
+            if (currentUser && removableFileIds.length > 0) {
+                try {
+                    await deleteImageKitFiles(currentUser, removableFileIds);
+                } catch (mediaError) {
+                    console.error('Failed to delete ImageKit media during product removal', mediaError);
+                }
+            }
+
+            await deleteDoc(doc(db, 'products', targetId));
             setHistoryProduct(null);
+            if (editingProduct?.id === targetId) {
+                setEditingProduct(null);
+                setModalOpen(false);
+            }
         } catch (err) {
             console.error(err);
             alert('Failed to delete product');
+        } finally {
+            setDeletingProductId('');
         }
     };
 
@@ -529,8 +602,42 @@ export default function AdminProducts() {
         });
     }, [filteredProducts]);
 
+    useEffect(() => {
+        if (searchParams.get('action') !== 'add') return;
+
+        setEditingProduct(null);
+        setModalOpen(true);
+
+        const nextParams = new URLSearchParams(searchParams.toString());
+        nextParams.delete('action');
+        const nextQuery = nextParams.toString();
+        router.replace(nextQuery ? `/admin/products?${nextQuery}` : '/admin/products');
+    }, [router, searchParams]);
+
+    useEffect(() => {
+        const editProductId = searchParams.get('edit');
+        if (!editProductId || isLoading) return;
+
+        const matchedProduct = allProducts.find((product) => product.id === editProductId);
+        if (matchedProduct) {
+            setEditingProduct(matchedProduct);
+            setModalOpen(true);
+        }
+
+        const nextParams = new URLSearchParams(searchParams.toString());
+        nextParams.delete('edit');
+        const nextQuery = nextParams.toString();
+        router.replace(nextQuery ? `/admin/products?${nextQuery}` : '/admin/products');
+    }, [allProducts, isLoading, router, searchParams]);
+
     return (
         <div className="mx-auto max-w-7xl space-y-5">
+            <FloatingDockDemo
+                allProducts={allProducts}
+                categories={categories}
+                onAddProduct={handleAdd}
+            />
+
             <header className="flex flex-col gap-3 rounded-[1.45rem] border border-white/8 bg-[radial-gradient(circle_at_top,rgba(193,155,78,0.14),transparent_34%),linear-gradient(180deg,rgba(22,31,53,0.98),rgba(13,19,34,0.98))] px-5 py-5 shadow-[0_18px_40px_rgba(4,8,20,0.24)] lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <p className="text-[11px] font-black uppercase tracking-[0.28em] text-brandGold/70">Products Control</p>
@@ -804,6 +911,8 @@ export default function AdminProducts() {
                 product={editingProduct}
                 categories={categories}
                 brands={brands}
+                onDelete={handleDelete}
+                deleteLoading={Boolean(editingProduct?.id) && deletingProductId === editingProduct.id}
             />
 
             <ProductHistoryModal

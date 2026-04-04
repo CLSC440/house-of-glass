@@ -5,6 +5,7 @@ import { db } from '@/lib/firebase';
 import Link from 'next/link';
 import { parseTimestamp } from '@/lib/utils/format';
 import { getOrderAmount, getOrderCustomerName, getOrderCustomerPhone, getOrderDateValue, getOrderExternalRef } from '@/lib/utils/admin-orders';
+import { getOrderStatusMeta } from '@/lib/utils/order-status';
 
 export default function OrdersTable() {
     const [recentOrders, setRecentOrders] = useState([]);
@@ -26,14 +27,6 @@ export default function OrdersTable() {
 
         return () => unsubscribe();
     }, []);
-
-    const STATUS_COLORS = {
-        pending: 'bg-yellow-500/10 text-yellow-300',
-        processing: 'bg-blue-500/10 text-blue-300',
-        shipped: 'bg-indigo-500/10 text-indigo-300',
-        completed: 'bg-green-500/10 text-green-400',
-        cancelled: 'bg-red-500/10 text-red-400'
-    };
 
     if (loading) {
         return <div className="rounded-[1.7rem] border border-white/8 bg-[#161f35] p-7 text-center text-slate-400">Loading recent orders...</div>;
@@ -71,7 +64,10 @@ export default function OrdersTable() {
                                 </td>
                             </tr>
                         ) : (
-                            recentOrders.map((order) => (
+                            recentOrders.map((order) => {
+                                const statusMeta = getOrderStatusMeta(order.status);
+
+                                return (
                                 <tr key={order.id} className="border-b border-white/5 transition-colors hover:bg-white/[0.03]">
                                     <td className="py-4 pr-4 font-mono text-[11px] font-semibold text-slate-300 md:text-xs">
                                         #{getOrderExternalRef(order)}
@@ -92,12 +88,13 @@ export default function OrdersTable() {
                                         </span>
                                     </td>
                                     <td className="py-4 px-4">
-                                        <span className={'inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider md:text-xs ' + STATUS_COLORS[order.status || 'pending']}>
-                                            {order.status || 'pending'}
+                                        <span className={'inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider md:text-xs ' + statusMeta.darkBadgeClass}>
+                                            {statusMeta.label}
                                         </span>
                                     </td>
                                 </tr>
-                            ))
+                                );
+                            })
                         )}
                     </tbody>
                 </table>

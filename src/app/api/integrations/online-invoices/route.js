@@ -24,12 +24,92 @@ function normalizeCode(value) {
     return String(value || '').trim();
 }
 
+function normalizeLookupText(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function getUniqueValues(values = []) {
+    return Array.from(new Set((values || []).filter(Boolean)));
+}
+
+function getItemCandidateCodes(item = {}) {
+    return getUniqueValues([
+        item.productCode,
+        item.barcode,
+        item.code,
+        item.product_code,
+        item.sku,
+        item.itemCode
+    ].map(normalizeCode));
+}
+
+function getItemLookupKeys(item = {}) {
+    return getUniqueValues([
+        item.productId,
+        item.cartId,
+        item.productCode,
+        item.barcode,
+        item.code,
+        item.product_code,
+        item.sku,
+        item.itemCode
+    ].map(normalizeCode));
+}
+
+function getItemTitleCandidates(item = {}) {
+    return getUniqueValues([
+        item.title,
+        item.name,
+        item.variantLabel,
+        item.variantName,
+        item.variant
+    ].map(normalizeLookupText));
+}
+
+function getProductPrimaryCode(product = {}) {
+    return normalizeCode(product.code || product.barcode || product.productCode || product.sku || product.itemCode);
+}
+
+function getVariantPrimaryCode(variant = {}) {
+    return normalizeCode(variant.barcode || variant.code || variant.productCode || variant.sku || variant.itemCode);
+}
+
+function getVariantLabel(variant = {}) {
+    return String(variant?.name || variant?.label || variant?.title || '').trim();
+}
+
+function matchesVariantToItem(variant = {}, item = {}) {
+    const variantCode = getVariantPrimaryCode(variant);
+    const itemLookupKeys = getItemLookupKeys(item);
+    if (variantCode && itemLookupKeys.includes(variantCode)) {
+        return true;
+    }
+
+    const variantTextValues = [
+        getVariantLabel(variant),
+        variant?.variantLabel,
+        variant?.variantName
+    ].map(normalizeLookupText).filter(Boolean);
+    const itemTitleCandidates = getItemTitleCandidates(item);
+
+    return variantTextValues.some((value) => itemTitleCandidates.includes(value));
+}
+
+function buildMatchedItem(item = {}, resolvedCode, matchedVariant = null) {
+    return {
+        ...item,
+        productCode: resolvedCode,
+        variantLabel: normalizeVariantLabel(item) || getVariantLabel(matchedVariant),
+        quantity: Number(item.quantity || 0)
+    };
+}
+
 function normalizeInvoiceType(orderType) {
     return String(orderType || '').toLowerCase() === 'wholesale' ? 'wholesale' : 'retail';
 }
 
 function normalizeVariantLabel(item = {}) {
-    return item.variantLabel || item.variant || '';
+    return item.variantLabel || item.variant || item.variantName || '';
 }
 
 function formatAccountRole(role) {
@@ -72,41 +152,136 @@ async function allocateWebsiteOrderRef(db, admin, orderRef) {
     }
 }
 
-async function resolveMissingProductCode(db, item = {}, productCache) {
-    const directCode = normalizeCode(item.productCode);
-    if (directCode) return directCode;
+async function findProductByField(db, field, value, productCache) {
+    const normalizedValue = normalizeCode(value);
+    if (!normalizedValue) return null;
 
-    const productId = String(item.productId || '').trim();
-    if (!productId) return '';
-
-    let product = productCache.get(productId);
-    if (product === undefined) {
-        const productSnap = await db.collection('products').doc(productId).get();
-        product = productSnap.exists ? productSnap.data() : null;
-        productCache.set(productId, product);
+    const cacheKey = `field:${field}:${normalizedValue}`;
+    if (productCache.has(cacheKey)) {
+        return productCache.get(cacheKey);
     }
 
-    if (!product) return '';
+    const snapshot = await db.collection('products').where(field, '==', normalizedValue).limit(1).get();
+    const product = snapshot.empty
+        ? null
+        : { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+
+    productCache.set(cacheKey, product);
+    return product;
+}
+
+async function getAllProducts(db, productCache) {
+    const cacheKey = 'all-products';
+    if (productCache.has(cacheKey)) {
+        return productCache.get(cacheKey);
+    }
+
+    const snapshot = await db.collection('products').get();
+    const products = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+    productCache.set(cacheKey, products);
+    return products;
+}
+
+async function findProductMatch(db, item = {}, productCache) {
+    const lookupKeys = getItemLookupKeys(item);
+
+    for (const lookupKey of lookupKeys) {
+        const directCacheKey = `id:${lookupKey}`;
+        let product = productCache.get(directCacheKey);
+        if (product === undefined) {
+            const productSnap = await db.collection('products').doc(lookupKey).get();
+            product = productSnap.exists ? { id: productSnap.id, ...productSnap.data() } : null;
+            productCache.set(directCacheKey, product);
+        }
+
+        if (product) {
+            return { product, matchedVariant: null };
+        }
+    }
+
+    for (const lookupKey of lookupKeys) {
+        for (const field of ['code', 'barcode', 'productCode', 'sku', 'itemCode']) {
+            const product = await findProductByField(db, field, lookupKey, productCache);
+            if (product) {
+                return { product, matchedVariant: null };
+            }
+        }
+    }
+
+    const allProducts = await getAllProducts(db, productCache);
+    const itemTitleCandidates = getItemTitleCandidates(item);
+
+    for (const product of allProducts) {
+        const productCode = getProductPrimaryCode(product);
+        if (productCode && lookupKeys.includes(productCode)) {
+            return { product, matchedVariant: null };
+        }
+
+        const matchedVariant = Array.isArray(product?.variants)
+            ? product.variants.find((variant) => matchesVariantToItem(variant, item))
+            : null;
+
+        if (matchedVariant) {
+            return { product, matchedVariant };
+        }
+
+        const productTitleCandidates = getUniqueValues([
+            product?.title,
+            product?.name
+        ].map(normalizeLookupText));
+
+        if (productTitleCandidates.some((value) => itemTitleCandidates.includes(value))) {
+            return { product, matchedVariant: null };
+        }
+    }
+
+    return { product: null, matchedVariant: null };
+}
+
+async function resolveMissingProductCode(db, item = {}, productCache) {
+    const directCode = getItemCandidateCodes(item)[0] || '';
+    if (directCode) {
+        return { resolvedCode: directCode, matchedVariant: null };
+    }
+
+    const { product, matchedVariant } = await findProductMatch(db, item, productCache);
+    if (!product) {
+        return { resolvedCode: '', matchedVariant: null };
+    }
 
     const variantLabel = normalizeVariantLabel(item);
+    if (matchedVariant) {
+        const matchedVariantCode = getVariantPrimaryCode(matchedVariant);
+        if (matchedVariantCode) {
+            return { resolvedCode: matchedVariantCode, matchedVariant };
+        }
+    }
+
     if (variantLabel && Array.isArray(product.variants)) {
         const matchedVariant = product.variants.find((variant) => {
-            const candidateName = String(variant?.name || variant?.label || '').trim();
+            const candidateName = getVariantLabel(variant);
             return candidateName === String(variantLabel).trim();
         });
 
-        const variantCode = normalizeCode(matchedVariant?.barcode || matchedVariant?.code);
-        if (variantCode) return variantCode;
+        const variantCode = getVariantPrimaryCode(matchedVariant);
+        if (variantCode) {
+            return { resolvedCode: variantCode, matchedVariant };
+        }
     }
 
-    const productCode = normalizeCode(product.code);
-    if (productCode) return productCode;
+    const productCode = getProductPrimaryCode(product);
+    if (productCode) {
+        return { resolvedCode: productCode, matchedVariant: null };
+    }
 
     if (Array.isArray(product.variants) && product.variants.length > 0) {
-        return normalizeCode(product.variants[0]?.barcode || product.variants[0]?.code);
+        const firstVariantCode = getVariantPrimaryCode(product.variants[0]);
+        if (firstVariantCode) {
+            return { resolvedCode: firstVariantCode, matchedVariant: product.variants[0] };
+        }
     }
 
-    return '';
+    return { resolvedCode: '', matchedVariant: null };
 }
 
 async function enrichOrderItems(db, items = []) {
@@ -114,13 +289,8 @@ async function enrichOrderItems(db, items = []) {
     const enriched = [];
 
     for (const item of Array.isArray(items) ? items : []) {
-        const resolvedCode = await resolveMissingProductCode(db, item, productCache);
-        enriched.push({
-            ...item,
-            productCode: resolvedCode,
-            variantLabel: normalizeVariantLabel(item),
-            quantity: Number(item.quantity || 0)
-        });
+        const { resolvedCode, matchedVariant } = await resolveMissingProductCode(db, item, productCache);
+        enriched.push(buildMatchedItem(item, resolvedCode, matchedVariant));
     }
 
     return enriched;

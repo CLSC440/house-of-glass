@@ -4,8 +4,11 @@ import { addDoc, collection, doc, getDoc, onSnapshot, query, runTransaction, ser
 import { auth, db } from '@/lib/firebase';
 import { CART_STORAGE_KEY, WHOLESALE_CART_STORAGE_KEY } from '@/lib/cart-storage';
 import { isWholesaleRole, normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
+import { buildOrderStatusHistoryEntry } from '@/lib/utils/order-status';
 
 const noop = () => {};
+const DC_WATCH_RECONNECT_DELAY_MS = 5000;
+const DC_FALLBACK_SYNC_INTERVAL_MS = 60000;
 
 function parsePrice(value) {
     if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -270,6 +273,58 @@ function getProductTitle(product) {
     return product.title || product.name || 'Unnamed Product';
 }
 
+function getProductPrimaryCode(product = {}) {
+    return product.code || product.barcode || product.productCode || product.sku || product.itemCode || product.id || '';
+}
+
+function normalizeLookupText(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function getCartItemMatchCodes(item = {}) {
+    return getUniqueValues([
+        item.productId,
+        item.productCode,
+        item.cartId
+    ].map(normalizeInventoryCode));
+}
+
+function matchesCartItemToProduct(product = {}, item = {}) {
+    const itemCodes = getCartItemMatchCodes(item);
+    const productCodes = getProductMatchCodes(product);
+
+    if (itemCodes.length > 0) {
+        const normalizedProductId = normalizeInventoryCode(product.id);
+        if (normalizedProductId && itemCodes.includes(normalizedProductId)) {
+            return true;
+        }
+
+        if (productCodes.some((code) => itemCodes.includes(code))) {
+            return true;
+        }
+    }
+
+    const itemTitle = normalizeLookupText(item.title || item.name || item.cartId);
+    return Boolean(itemTitle) && itemTitle === normalizeLookupText(getProductTitle(product));
+}
+
+function findCatalogProductForCartItem(products = [], item = {}) {
+    for (const product of products) {
+        if (matchesCartItemToProduct(product, item)) {
+            return product;
+        }
+
+        if (Array.isArray(product?.variants)) {
+            const matchedVariant = product.variants.find((variant) => matchesCartItemToProduct(variant, item));
+            if (matchedVariant) {
+                return matchedVariant;
+            }
+        }
+    }
+
+    return null;
+}
+
 function getProductImage(product) {
     if (product.url) return product.url;
 
@@ -296,6 +351,35 @@ function getProductPrice(product) {
     );
 }
 
+function getProductDiscountAmount(product) {
+    return parsePrice(
+        product.discountAmount
+        || product.discount_amount
+        || product.discount
+        || product.discountValue
+    );
+}
+
+function getProductNetPrice(product) {
+    const explicitNetPrice = parsePrice(
+        product.netPrice
+        || product.net_price
+        || product.net
+    );
+
+    if (explicitNetPrice > 0) {
+        return explicitNetPrice;
+    }
+
+    return Math.max(0, getProductPrice(product) - getProductDiscountAmount(product));
+}
+
+function getProductUnitOrderPrice(product, userRole = '') {
+    return normalizeUserRole(userRole) === USER_ROLE_VALUES.CST_WHOLESALE
+        ? getProductNetPrice(product)
+        : getProductPrice(product);
+}
+
 function getProductWholesalePrice(product) {
     return parsePrice(
         product.wholesalePrice
@@ -311,15 +395,37 @@ function getProductWholesalePrice(product) {
     );
 }
 
-function getProductStockLimit(product) {
-    if (product.stockStatus === 'out_of_stock') return 0;
-
-    const limit = Number(product.remainingQuantity);
-    if (Number.isFinite(limit) && limit > 0) {
-        return limit;
+function getFirstAvailableStockCount(values = []) {
+    for (const value of values) {
+        const parsed = Number(value);
+        if (Number.isFinite(parsed) && parsed >= 0) {
+            return parsed;
+        }
     }
 
     return null;
+}
+
+function getProductStockLimit(product, orderType = 'retail') {
+    if (product.stockStatus === 'out_of_stock') return 0;
+
+    return orderType === 'wholesale'
+        ? getFirstAvailableStockCount([
+            product.wholesaleStock,
+            product.warehouseStock,
+            product.remainingQuantity,
+            product.totalStock,
+            product.total_stock,
+            product.quantity
+        ])
+        : getFirstAvailableStockCount([
+            product.retailStock,
+            product.showroomStock,
+            product.remainingQuantity,
+            product.totalStock,
+            product.total_stock,
+            product.quantity
+        ]);
 }
 
 function normalizeFilterValue(value) {
@@ -394,6 +500,7 @@ const GalleryContext = createContext({
     primaryFilterDisplayLabel: 'Category: All',
     selectedProduct: null,
     setSelectedProduct: noop,
+    dcLiveUpdateAt: 0,
     cartItems: [],
     cartCount: 0,
     cartSubtotal: 0,
@@ -414,6 +521,7 @@ const GalleryContext = createContext({
     addToWholesaleCart: noop,
     removeFromWholesaleCart: noop,
     updateWholesaleCartQuantity: noop,
+    getCartItemStockLimit: () => null,
     clearWholesaleCart: noop,
     checkoutWholesaleCart: async () => ({ ok: false }),
     isCheckingOut: false,
@@ -448,6 +556,36 @@ export function GalleryProvider({ children }) {
     const [toast, setToast] = useState(null);
     const [isCartHydrated, setIsCartHydrated] = useState(false);
     const [isWholesaleCartHydrated, setIsWholesaleCartHydrated] = useState(false);
+    const [dcLiveUpdateAt, setDcLiveUpdateAt] = useState(0);
+
+    const syncDcCatalog = async ({ markLiveUpdate = false } = {}) => {
+        try {
+            const [productsResponse, stockResponse] = await Promise.allSettled([
+                fetch('/api/dc/products', { cache: 'no-store' }),
+                fetch('/api/dc/stock', { cache: 'no-store' })
+            ]);
+
+            let didUpdate = false;
+
+            if (productsResponse.status === 'fulfilled' && productsResponse.value.ok) {
+                const payload = await productsResponse.value.json();
+                setDcProductsMap(buildDcLookupMap(getDcFeedItems(payload)));
+                didUpdate = true;
+            }
+
+            if (stockResponse.status === 'fulfilled' && stockResponse.value.ok) {
+                const payload = await stockResponse.value.json();
+                setDcStockMap(buildDcLookupMap(getDcFeedItems(payload)));
+                didUpdate = true;
+            }
+
+            if (markLiveUpdate && didUpdate) {
+                setDcLiveUpdateAt(Date.now());
+            }
+        } catch (error) {
+            console.error('Failed to sync live DC catalog:', error);
+        }
+    };
 
     useEffect(() => {
         // Fetch Categories
@@ -487,35 +625,103 @@ export function GalleryProvider({ children }) {
     }, []);
 
     useEffect(() => {
-        let isMounted = true;
+        let isDisposed = false;
+        let isSyncing = false;
+        let watchSource = null;
+        let reconnectTimeoutId = null;
+        let fallbackIntervalId = null;
 
-        const syncDcCatalog = async () => {
+        const runSync = async (reason = 'manual') => {
+            if (isDisposed || isSyncing) return;
+            isSyncing = true;
             try {
-                const [productsResponse, stockResponse] = await Promise.allSettled([
-                    fetch('/api/dc/products', { cache: 'no-store' }),
-                    fetch('/api/dc/stock', { cache: 'no-store' })
-                ]);
-
-                if (!isMounted) return;
-
-                if (productsResponse.status === 'fulfilled' && productsResponse.value.ok) {
-                    const payload = await productsResponse.value.json();
-                    setDcProductsMap(buildDcLookupMap(getDcFeedItems(payload)));
-                }
-
-                if (stockResponse.status === 'fulfilled' && stockResponse.value.ok) {
-                    const payload = await stockResponse.value.json();
-                    setDcStockMap(buildDcLookupMap(getDcFeedItems(payload)));
-                }
-            } catch (error) {
-                console.error('Failed to sync live DC catalog:', error);
+                await syncDcCatalog({ markLiveUpdate: reason === 'watch-event' });
+            } finally {
+                isSyncing = false;
             }
         };
 
-        syncDcCatalog();
+        const startFallbackPolling = () => {
+            if (fallbackIntervalId) return;
+            fallbackIntervalId = window.setInterval(runSync, DC_FALLBACK_SYNC_INTERVAL_MS);
+        };
+
+        const stopFallbackPolling = () => {
+            if (!fallbackIntervalId) return;
+            window.clearInterval(fallbackIntervalId);
+            fallbackIntervalId = null;
+        };
+
+        const scheduleReconnect = () => {
+            if (isDisposed || reconnectTimeoutId) return;
+            reconnectTimeoutId = window.setTimeout(() => {
+                reconnectTimeoutId = null;
+                connectWatch();
+            }, DC_WATCH_RECONNECT_DELAY_MS);
+        };
+
+        const connectWatch = () => {
+            if (isDisposed || typeof window === 'undefined' || typeof EventSource === 'undefined') {
+                startFallbackPolling();
+                return;
+            }
+
+            if (watchSource) {
+                watchSource.close();
+            }
+
+            watchSource = new EventSource('/api/dc/watch');
+
+            watchSource.addEventListener('open', () => {
+                stopFallbackPolling();
+            });
+
+            watchSource.addEventListener('catalog-change', () => {
+                runSync('watch-event');
+            });
+
+            watchSource.addEventListener('watch-error', () => {
+                startFallbackPolling();
+            });
+
+            watchSource.onerror = () => {
+                startFallbackPolling();
+
+                if (watchSource) {
+                    watchSource.close();
+                    watchSource = null;
+                }
+
+                scheduleReconnect();
+            };
+        };
+
+        const handleWindowFocus = () => {
+            runSync();
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                runSync();
+            }
+        };
+
+        runSync();
+        connectWatch();
+        window.addEventListener('focus', handleWindowFocus);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
 
         return () => {
-            isMounted = false;
+            isDisposed = true;
+            stopFallbackPolling();
+            if (reconnectTimeoutId) {
+                window.clearTimeout(reconnectTimeoutId);
+            }
+            if (watchSource) {
+                watchSource.close();
+            }
+            window.removeEventListener('focus', handleWindowFocus);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
     }, []);
 
@@ -698,6 +904,34 @@ export function GalleryProvider({ children }) {
 
     const resolvedSelectedProduct = findMatchingProduct(catalogProducts, selectedProduct) || selectedProduct;
 
+    useEffect(() => {
+        if (!isCartHydrated || catalogProducts.length === 0) return;
+
+        setCartItems((currentCart) => {
+            let didChange = false;
+
+            const nextCart = currentCart.map((item) => {
+                const linkedProduct = findCatalogProductForCartItem(catalogProducts, item);
+                if (!linkedProduct) {
+                    return item;
+                }
+
+                const nextPrice = getProductUnitOrderPrice(linkedProduct, userRole);
+                if (Math.abs((Number(item.price) || 0) - nextPrice) < 0.0001) {
+                    return item;
+                }
+
+                didChange = true;
+                return {
+                    ...item,
+                    price: nextPrice
+                };
+            });
+
+            return didChange ? nextCart : currentCart;
+        });
+    }, [catalogProducts, isCartHydrated, userRole]);
+
     const filteredProducts = catalogProducts.filter((product) => {
         const normalizedCategory = normalizeFilterValue(product.category);
         const productBrand = getProductBrandLabel(product);
@@ -862,7 +1096,8 @@ export function GalleryProvider({ children }) {
         if (!product) return;
 
         const normalizedQuantity = Math.max(1, Number(quantity) || 1);
-        const stockLimit = getProductStockLimit(product);
+        const stockLimit = getProductStockLimit(product, 'retail');
+        const unitOrderPrice = getProductUnitOrderPrice(product, userRole);
 
         if (stockLimit === 0) {
             showToast('هذا المنتج غير متوفر حالياً.', 'error');
@@ -885,7 +1120,11 @@ export function GalleryProvider({ children }) {
 
                 return currentCart.map((item) => {
                     if (item.cartId !== cartId) return item;
-                    return { ...item, quantity: nextQuantity };
+                    return {
+                        ...item,
+                        quantity: nextQuantity,
+                        price: unitOrderPrice
+                    };
                 });
             }
 
@@ -901,12 +1140,12 @@ export function GalleryProvider({ children }) {
                 {
                     cartId,
                     productId: product.id,
-                    productCode: product.code || product.id || '',
+                    productCode: getProductPrimaryCode(product),
                     name: getProductTitle(product),
                     title: getProductTitle(product),
                     category: product.category || '',
                     image: getProductImage(product),
-                    price: getProductPrice(product),
+                    price: unitOrderPrice,
                     quantity: nextQuantity,
                     addedAt: Date.now()
                 }
@@ -918,7 +1157,7 @@ export function GalleryProvider({ children }) {
         if (!product) return;
 
         const normalizedQuantity = Math.max(1, Number(quantity) || 1);
-        const stockLimit = getProductStockLimit(product);
+        const stockLimit = getProductStockLimit(product, 'wholesale');
 
         if (stockLimit === 0) {
             showToast('هذا المنتج غير متوفر حالياً.', 'error');
@@ -957,7 +1196,7 @@ export function GalleryProvider({ children }) {
                 {
                     cartId,
                     productId: product.id,
-                    productCode: product.code || product.id || '',
+                    productCode: getProductPrimaryCode(product),
                     name: getProductTitle(product),
                     title: getProductTitle(product),
                     category: product.category || '',
@@ -985,8 +1224,8 @@ export function GalleryProvider({ children }) {
             const targetItem = currentCart.find((item) => item.cartId === cartId);
             if (!targetItem) return currentCart;
 
-            const linkedProduct = catalogProducts.find((product) => (product.id || product.code || getProductTitle(product)) === cartId);
-            const stockLimit = linkedProduct ? getProductStockLimit(linkedProduct) : null;
+            const linkedProduct = findCatalogProductForCartItem(catalogProducts, targetItem);
+            const stockLimit = linkedProduct ? getProductStockLimit(linkedProduct, 'retail') : null;
             const nextQuantity = Math.max(0, Number(quantity) || 0);
 
             if (nextQuantity === 0) {
@@ -994,6 +1233,10 @@ export function GalleryProvider({ children }) {
             }
 
             const boundedQuantity = stockLimit === null ? nextQuantity : Math.min(nextQuantity, stockLimit);
+            if (stockLimit !== null && nextQuantity > stockLimit) {
+                showToast(`تم تحديد الكمية القصوى المتاحة: ${stockLimit}`, 'error');
+            }
+
             return currentCart.map((item) => {
                 if (item.cartId !== cartId) return item;
                 return { ...item, quantity: boundedQuantity };
@@ -1006,8 +1249,8 @@ export function GalleryProvider({ children }) {
             const targetItem = currentCart.find((item) => item.cartId === cartId);
             if (!targetItem) return currentCart;
 
-            const linkedProduct = catalogProducts.find((product) => (product.id || product.code || getProductTitle(product)) === cartId);
-            const stockLimit = linkedProduct ? getProductStockLimit(linkedProduct) : null;
+            const linkedProduct = findCatalogProductForCartItem(catalogProducts, targetItem);
+            const stockLimit = linkedProduct ? getProductStockLimit(linkedProduct, 'wholesale') : null;
             const nextQuantity = Math.max(0, Number(quantity) || 0);
 
             if (nextQuantity === 0) {
@@ -1015,11 +1258,20 @@ export function GalleryProvider({ children }) {
             }
 
             const boundedQuantity = stockLimit === null ? nextQuantity : Math.min(nextQuantity, stockLimit);
+            if (stockLimit !== null && nextQuantity > stockLimit) {
+                showToast(`تم تحديد الكمية القصوى المتاحة: ${stockLimit}`, 'error');
+            }
+
             return currentCart.map((item) => {
                 if (item.cartId !== cartId) return item;
                 return { ...item, quantity: boundedQuantity };
             });
         });
+    };
+
+    const getCartItemStockLimit = (item, orderType = 'retail') => {
+        const linkedProduct = findCatalogProductForCartItem(catalogProducts, item);
+        return linkedProduct ? getProductStockLimit(linkedProduct, orderType) : null;
     };
 
     const clearCart = () => setCartItems([]);
@@ -1087,8 +1339,31 @@ export function GalleryProvider({ children }) {
             orderDate: createdAt,
             source: 'Gallery NextJS',
             orderType,
-            status: 'pending'
+            status: 'pending',
+            statusUpdatedAt: createdAt,
+            statusHistory: [buildOrderStatusHistoryEntry('pending', { at: createdAt })]
         };
+    };
+
+    const notifyPrivilegedUsersAboutOrder = async (currentUser, orderId) => {
+        if (!currentUser || !orderId) {
+            return;
+        }
+
+        const idToken = await currentUser.getIdToken();
+        const response = await fetch('/api/notifications/order-created', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${idToken}`
+            },
+            body: JSON.stringify({ orderId })
+        });
+
+        if (!response.ok) {
+            const errorPayload = await response.json().catch(() => ({}));
+            throw new Error(errorPayload?.error || 'Failed to create admin notifications');
+        }
     };
 
     const checkoutCart = async () => {
@@ -1131,7 +1406,14 @@ export function GalleryProvider({ children }) {
 
             orderData.websiteOrderRef = await allocateWebsiteOrderRef();
 
-            await addDoc(collection(db, 'orders'), orderData);
+            const orderRef = await addDoc(collection(db, 'orders'), orderData);
+
+            try {
+                await notifyPrivilegedUsersAboutOrder(currentUser, orderRef.id);
+            } catch (notificationError) {
+                console.error('Admin order notification failed:', notificationError);
+            }
+
             clearCart();
             closeCart();
             showToast('تم إرسال طلبك بنجاح.');
@@ -1191,7 +1473,14 @@ export function GalleryProvider({ children }) {
 
             orderData.websiteOrderRef = await allocateWebsiteOrderRef();
 
-            await addDoc(collection(db, 'orders'), orderData);
+            const orderRef = await addDoc(collection(db, 'orders'), orderData);
+
+            try {
+                await notifyPrivilegedUsersAboutOrder(currentUser, orderRef.id);
+            } catch (notificationError) {
+                console.error('Admin wholesale order notification failed:', notificationError);
+            }
+
             clearWholesaleCart();
             closeWholesaleCart();
             showToast('تم إرسال طلب الجملة بنجاح.');
@@ -1207,6 +1496,8 @@ export function GalleryProvider({ children }) {
 
     return (
         <GalleryContext.Provider value={{
+            dcProductsMap,
+            dcStockMap,
             filteredProducts,
             allProducts: catalogProducts,
             categories,
@@ -1235,6 +1526,7 @@ export function GalleryProvider({ children }) {
             primaryFilterDisplayLabel,
             selectedProduct: resolvedSelectedProduct,
             setSelectedProduct,
+            dcLiveUpdateAt,
             cartItems,
             cartCount,
             cartSubtotal,
@@ -1255,6 +1547,7 @@ export function GalleryProvider({ children }) {
             addToWholesaleCart,
             removeFromWholesaleCart,
             updateWholesaleCartQuantity,
+            getCartItemStockLimit,
             clearWholesaleCart,
             checkoutWholesaleCart,
             isCheckingOut,

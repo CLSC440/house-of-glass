@@ -715,8 +715,9 @@ export default function FloatingDockDemo({
     });
 
     return (
-        <div className="space-y-3">
-            <div className="rounded-[2.15rem] border border-white/12 bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.08),transparent_38%),linear-gradient(180deg,#27314b_0%,#1a2235_100%)] p-3 shadow-[0_18px_40px_rgba(4,8,20,0.28)]">
+        <div className="space-y-2">
+            <div className="hidden lg:block h-[84px]" aria-hidden="true"></div>
+            <div className="lg:fixed lg:left-7 lg:right-7 lg:top-4 lg:z-40">
                 <div className="overflow-x-auto md:overflow-visible hide-scroll">
                     <FloatingDock
                         items={toolbarItems}

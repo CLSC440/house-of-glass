@@ -10,6 +10,12 @@ export default function ResetPassword() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
+    const resetMessages = {
+        sent: 'Password reset link sent. Check your email inbox. | تم إرسال رابط إعادة تعيين كلمة المرور. راجع بريدك الإلكتروني.',
+        userNotFound: 'No user found with this email address. | لا يوجد مستخدم بهذا البريد الإلكتروني.',
+        genericError: 'Failed to send reset email. Please try again. | تعذر إرسال رسالة إعادة التعيين. حاول مرة أخرى.'
+    };
+
     const handleReset = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -18,64 +24,104 @@ export default function ResetPassword() {
 
         try {
             await sendPasswordResetEmail(auth, email);
-            setMessage('Password reset link sent! Check your email inbox.');
+            setMessage(resetMessages.sent);
             setEmail('');
         } catch (err) {
             console.error(err);
             if (err.code === 'auth/user-not-found') {
-                setError('No user found with this email address.');
+                setError(resetMessages.userNotFound);
             } else {
-                setError('Failed to send reset email. Please try again.');
+                setError(resetMessages.genericError);
             }
         }
         setLoading(false);
     };
 
     return (
-        <div className="bg-white dark:bg-darkBg font-sans flex items-center justify-center min-h-screen px-4 transition-colors duration-300">
-            <div className="max-w-md w-full bg-white dark:bg-darkCard rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 p-6 md:p-8">
-                <div className="text-center mb-6 md:mb-8">
-                    <Link href="/" className="inline-block group mb-4">
-                        <div className="relative inline-flex items-center justify-center z-1">
-                            <img src="/logo.png" alt="House Of Glass" className="h-20 md:h-24 w-auto transform transition-transform group-hover:scale-105" />
+        <div className="bg-white dark:bg-darkBg font-sans flex min-h-screen items-center justify-center px-4 transition-colors duration-300">
+            {loading && (
+                <div className="fixed inset-0 z-[200] bg-white dark:bg-brandBlue flex flex-col items-center justify-center transition-opacity duration-300">
+                    <div className="relative flex flex-col items-center">
+                        <img src="/logo.png" className="h-32 md:h-48 w-auto animate-pulse" alt="Loading..." />
+                        <div className="mt-12 flex flex-col items-center">
+                            <div className="w-48 h-1 bg-gray-100 dark:bg-brandGold/10 rounded-full overflow-hidden relative">
+                                <div className="absolute h-full bg-brandGold w-1/3 rounded-full animate-[loading-bar_2s_infinite_ease-in-out]"></div>
+                            </div>
+                            <p className="mt-6 text-[10px] font-black uppercase text-brandGold tracking-[0.5em] animate-pulse">Verifying Email</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="w-full max-w-[30rem] rounded-2xl border border-gray-100 bg-white px-6 pb-6 pt-3 shadow-2xl dark:border-gray-800 dark:bg-darkCard md:px-8 md:pb-8 md:pt-4">
+                <div className="mb-5 text-center md:mb-6">
+                    <Link href="/" className="group mb-2 inline-block">
+                        <div className="inline-flex items-center justify-center rounded-lg">
+                            <img src="/logo.png" alt="Logo" className="mx-auto h-16 w-auto transition-transform group-hover:scale-105 md:h-20" />
                         </div>
                     </Link>
-                    <h1 className="text-2xl md:text-3xl font-black text-brandBlue dark:text-white mt-4 tracking-tight">Reset Password</h1>
-                    <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm">Enter your email to receive a reset link</p>
+                    <div className="space-y-0.5">
+                        <h1 className="text-xl font-bold italic text-brandBlue dark:text-brandGold md:text-2xl">Reset Password</h1>
+                        <p className="font-arabic text-sm font-bold text-brandBlue dark:text-brandGold md:text-base" dir="rtl">إعادة تعيين كلمة المرور</p>
+                    </div>
+                    <div className="mt-1 space-y-0.5 text-xs text-gray-500 dark:text-slate-400 md:text-sm">
+                        <p>Enter your email to receive a reset link</p>
+                        <p className="font-arabic" dir="rtl">أدخل بريدك الإلكتروني لاستلام رابط إعادة التعيين</p>
+                    </div>
                 </div>
 
                 {error && (
-                    <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm p-4 rounded-xl font-semibold mb-6 flex items-center gap-3">
-                        <i className="fa-solid fa-circle-exclamation"></i> {error}
+                    <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600 dark:border-red-500/30 dark:bg-red-900/20 dark:text-red-300">
+                        {error}
                     </div>
                 )}
                 {message && (
-                    <div className="bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-sm p-4 rounded-xl font-semibold mb-6 flex items-center gap-3">
-                        <i className="fa-solid fa-circle-check"></i> {message}
+                    <div className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-900/20 dark:text-emerald-300">
+                        {message}
                     </div>
                 )}
 
-                <form onSubmit={handleReset} className="space-y-5">
+                <form onSubmit={handleReset} className="space-y-6">
                     <div>
-                        <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">Email Address</label>
-                        <input 
-                            type="email" 
+                        <label className="flex items-center justify-between text-xs font-medium text-gray-700 dark:text-slate-300 md:text-sm">
+                            <span>Email Address</span>
+                            <span className="font-arabic" dir="rtl">البريد الإلكتروني</span>
+                        </label>
+                        <input
+                            type="email"
                             required
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-brandGold focus:border-transparent transition-all font-medium" 
-                            placeholder="Enter your email" 
+                            className="mt-1 block w-full rounded-xl border border-gray-200 bg-white p-2.5 text-brandBlue outline-none focus:ring-2 focus:ring-brandGold dark:border-gray-700 dark:bg-gray-800 dark:text-slate-200 md:p-3"
+                            placeholder="e.g. name@example.com"
                         />
                     </div>
-                    
-                    <button type="submit" disabled={loading} className={'w-full font-bold rounded-xl px-4 py-4 transition-all transform hover:-translate-y-0.5 shadow-lg shadow-brandGold/30 ' + (loading ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-brandGold hover:bg-brandBlue text-white')}>
-                        {loading ? 'Sending...' : 'Send Reset Link'}
+
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className={
+                            'w-full rounded-xl border p-3.5 text-base font-bold transition-all md:p-4 ' +
+                            (loading
+                                ? 'cursor-not-allowed border-gray-400 bg-gray-400 text-white'
+                                : 'border-brandGold/30 bg-brandBlue text-white shadow-lg hover:bg-opacity-90')
+                        }
+                    >
+                        {loading ? 'Sending... | جاري الإرسال...' : 'Verify Email | تأكيد البريد'}
                     </button>
                 </form>
 
-                <p className="mt-8 text-center text-sm font-semibold text-gray-600 dark:text-gray-400">
-                    Remember your password? <Link href="/login" className="text-brandGold hover:text-brandBlue dark:hover:text-white transition-colors">Sign in</Link>
-                </p>
+                <div className="mt-8 border-t border-gray-100 pt-6 text-center dark:border-gray-800">
+                    <Link href="/login" className="text-sm text-gray-500 transition-colors hover:text-brandBlue dark:text-slate-400 dark:hover:text-brandGold">
+                        ← Back to Login
+                    </Link>
+                    <p className="mt-2 font-arabic text-sm text-gray-500 dark:text-slate-400" dir="rtl">العودة إلى تسجيل الدخول</p>
+                </div>
+
+                <div className="mt-6 text-center">
+                    <p className="mb-1 text-[10px] uppercase tracking-[0.2em] text-gray-400 italic">Premium Home Glassware</p>
+                    <p className="font-arabic text-xl font-black text-[#163159] dark:text-brandGold" dir="rtl">ال عاشور عدس</p>
+                </div>
             </div>
         </div>
     );

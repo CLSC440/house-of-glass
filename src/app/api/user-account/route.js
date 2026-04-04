@@ -42,6 +42,10 @@ function buildDisplayName({ firstName = '', lastName = '', name = '', email = ''
     return joined || normalizeString(name, 120) || normalizeString(email, 120).split('@')[0] || 'User';
 }
 
+function getOrderDateValue(order = {}) {
+    return order.createdAt || order.orderDate || order.date || null;
+}
+
 function sanitizeProfile(rawProfile = {}, tokenData = {}, currentProfile = {}) {
     const firstName = normalizeString(rawProfile.firstName ?? currentProfile.firstName, 60);
     const lastName = normalizeString(rawProfile.lastName ?? currentProfile.lastName, 60);
@@ -322,6 +326,44 @@ export async function POST(request) {
 
             const savedSnap = await userRef.get();
             return NextResponse.json({ success: true, profile: savedSnap.data() });
+        }
+
+        if (action === 'getOwnOrders') {
+            const tokenData = await verifyUserFromRequest(request);
+            const userRef = db.collection('users').doc(tokenData.uid);
+            const userSnap = await userRef.get();
+            const profileData = userSnap.exists ? userSnap.data() : {};
+            const candidateEmails = Array.from(new Set([
+                normalizeEmail(tokenData.email),
+                normalizeEmail(profileData.email),
+                normalizeEmail(profileData.authEmail)
+            ].filter(Boolean)));
+
+            const ordersMap = new Map();
+            const appendOrders = (snapshot) => {
+                snapshot.forEach((docSnap) => {
+                    ordersMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() });
+                });
+            };
+
+            const uidSnapshot = await db.collection('orders').where('customer.uid', '==', tokenData.uid).get();
+            appendOrders(uidSnapshot);
+
+            for (const email of candidateEmails) {
+                const [customerEmailSnapshot, customerInfoEmailSnapshot] = await Promise.all([
+                    db.collection('orders').where('customer.email', '==', email).get(),
+                    db.collection('orders').where('customerInfo.email', '==', email).get()
+                ]);
+
+                appendOrders(customerEmailSnapshot);
+                appendOrders(customerInfoEmailSnapshot);
+            }
+
+            const orders = Array.from(ordersMap.values()).sort((leftOrder, rightOrder) => {
+                return new Date(getOrderDateValue(rightOrder) || 0) - new Date(getOrderDateValue(leftOrder) || 0);
+            });
+
+            return NextResponse.json({ success: true, orders });
         }
 
         if (action === 'deleteOwnAccount') {

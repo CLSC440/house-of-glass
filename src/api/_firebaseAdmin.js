@@ -2,6 +2,42 @@ const admin = require('firebase-admin');
 
 let adminInitError = null;
 
+function normalizeParsedServiceAccount(serviceAccount) {
+    if (serviceAccount && typeof serviceAccount === 'object' && serviceAccount.private_key) {
+        serviceAccount.private_key = String(serviceAccount.private_key).replace(/\\n/g, '\n');
+    }
+
+    return serviceAccount;
+}
+
+function escapeMultilinePrivateKey(rawValue) {
+    const normalizedValue = String(rawValue || '');
+    const privateKeyPattern = /("private_key"\s*:\s*")([\s\S]*?)("\s*[,}])/;
+
+    if (!privateKeyPattern.test(normalizedValue)) {
+        return normalizedValue;
+    }
+
+    return normalizedValue.replace(privateKeyPattern, (_match, prefix, privateKeyBody, suffix) => {
+        const escapedBody = privateKeyBody
+            .replace(/\\r/g, '\r')
+            .replace(/\r\n/g, '\\n')
+            .replace(/\n/g, '\\n');
+
+        return `${prefix}${escapedBody}${suffix}`;
+    });
+}
+
+function tryParseJson(rawValue) {
+    const parsed = JSON.parse(String(rawValue || '').trim());
+
+    if (typeof parsed === 'string') {
+        return normalizeParsedServiceAccount(JSON.parse(parsed));
+    }
+
+    return normalizeParsedServiceAccount(parsed);
+}
+
 function parseServiceAccount(rawValue) {
     if (!rawValue) {
         const error = new Error('FIREBASE_SERVICE_ACCOUNT is not configured');
@@ -12,31 +48,24 @@ function parseServiceAccount(rawValue) {
     const normalizedValue = String(rawValue).trim();
 
     try {
-        const parsed = JSON.parse(normalizedValue);
-        if (typeof parsed === 'string') {
-            const decoded = JSON.parse(parsed);
-            if (decoded.private_key) {
-                decoded.private_key = decoded.private_key.replace(/\\n/g, '\n');
-            }
-            return decoded;
-        }
-
-        if (parsed.private_key) {
-            parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
-        }
-        return parsed;
+        return tryParseJson(normalizedValue);
     } catch (jsonError) {
         try {
+            return tryParseJson(escapeMultilinePrivateKey(normalizedValue));
+        } catch (_multilineJsonError) {
+            try {
             const decoded = Buffer.from(normalizedValue, 'base64').toString('utf8');
-            const parsed = JSON.parse(decoded);
-            if (parsed.private_key) {
-                parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
+                return tryParseJson(decoded);
+            } catch (_base64Error) {
+                try {
+                    const decoded = Buffer.from(normalizedValue, 'base64').toString('utf8');
+                    return tryParseJson(escapeMultilinePrivateKey(decoded));
+                } catch (_sanitizedBase64Error) {
+                    const error = new Error(`Invalid FIREBASE_SERVICE_ACCOUNT value: ${jsonError.message}`);
+                    error.status = 500;
+                    throw error;
+                }
             }
-            return parsed;
-        } catch (_base64Error) {
-            const error = new Error(`Invalid FIREBASE_SERVICE_ACCOUNT value: ${jsonError.message}`);
-            error.status = 500;
-            throw error;
         }
     }
 }

@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import Hero from '@/components/gallery/Hero';
 import SearchFilter from '@/components/gallery/SearchFilter';
 import ProductGrid from '@/components/gallery/ProductGrid';
@@ -19,7 +20,9 @@ export default function GalleryPage() {
                 </div>
             </main>
             <CartModal />
-            <ProductModal />
+            <Suspense fallback={null}>
+                <ProductModal />
+            </Suspense>
             <ToastStack />
         </GalleryProvider>
     );

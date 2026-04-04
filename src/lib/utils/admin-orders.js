@@ -1,3 +1,5 @@
+import { normalizeOrderStatus } from '@/lib/utils/order-status';
+
 function parseAmount(value) {
     if (typeof value === 'number' && Number.isFinite(value)) {
         return value;
@@ -96,7 +98,7 @@ export function getOrderDcSyncState(order = {}) {
 
     if (status === 'sending') {
         return {
-            label: 'Sending',
+            label: 'DC Sending',
             tone: 'sending',
             message: order.dcSync?.message || 'Invoice is being sent to DC'
         };
@@ -104,20 +106,30 @@ export function getOrderDcSyncState(order = {}) {
 
     if (status === 'failed') {
         return {
-            label: 'Sync Failed',
+            label: 'DC Sync Failed',
             tone: 'failed',
             message: order.dcSync?.message || 'Invoice sync failed'
         };
     }
 
     return {
-        label: 'Not Synced',
+        label: 'DC Not Sent',
         tone: 'idle',
         message: 'Invoice has not been sent to DC yet'
     };
 }
 
 export function canSendOrderInvoice(order = {}) {
-    const status = String(order.dcSync?.status || '').toLowerCase();
-    return status !== 'success' && status !== 'sending';
+    const dcSyncStatus = String(order.dcSync?.status || '').toLowerCase();
+    const orderStatus = normalizeOrderStatus(order.status);
+
+    if (orderStatus === 'cancelled') {
+        return false;
+    }
+
+    if (orderStatus !== 'confirmed') {
+        return false;
+    }
+
+    return dcSyncStatus !== 'success' && dcSyncStatus !== 'sending';
 }
