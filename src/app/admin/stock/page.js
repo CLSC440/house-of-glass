@@ -13,6 +13,21 @@ export default function AdminStock() {
     const [lastSyncAt, setLastSyncAt] = useState(null);
     const [expandedIds, setExpandedIds] = useState(new Set());
 
+    const formatLastResponseTimestamp = (value) => {
+        if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
+            return '-';
+        }
+
+        return value.toLocaleString('en-GB', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+    };
+
     const normalizeCode = (val) => String(val || '').trim().toLowerCase();
 
     const getProductMatchCodes = (product = {}) => {
@@ -78,7 +93,21 @@ export default function AdminStock() {
     const fetchStock = async (force = false) => {
         setIsSyncing(true);
         try {
-            const res = await fetch('/api/dc/stock' + (force ? '?cache_bypass=true' : ''));
+            const requestUrl = new URL('/api/dc/stock', window.location.origin);
+            requestUrl.searchParams.set('admin_live', '1');
+            requestUrl.searchParams.set('ts', String(Date.now()));
+
+            if (force) {
+                requestUrl.searchParams.set('refresh', '1');
+            }
+
+            const res = await fetch(requestUrl.toString(), {
+                cache: 'no-store',
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, max-age=0',
+                    Pragma: 'no-cache'
+                }
+            });
             if (!res.ok) throw new Error('Fetch failed');
             const data = await res.json();
             
@@ -258,6 +287,10 @@ export default function AdminStock() {
                     <button onClick={() => fetchStock(true)} className="px-4 py-2 rounded-full bg-brandBlue text-white dark:bg-brandGold dark:text-brandBlue text-sm font-bold hover:opacity-90 transition-all flex items-center gap-2">
                         <i className={`fa-solid fa-rotate ${isSyncing ? "fa-spin" : ""}`}></i> Refresh Now
                     </button>
+                        <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">
+                            <span className="h-2 w-2 rounded-full bg-current"></span>
+                            Live No-Cache
+                        </span>
                     <Link href="/" target="_blank" className="px-4 py-2 rounded-full border border-brandGold text-brandGold text-sm font-bold hover:bg-brandGold hover:text-white transition-all flex items-center gap-2">
                         Open Website <i className="fa-solid fa-external-link text-xs"></i>
                     </Link>
@@ -318,8 +351,8 @@ export default function AdminStock() {
                             <span className="font-black text-brandBlue dark:text-brandGold">{filteredRows.length}</span>
                         </div>
                         <div>
-                            <span>Last Sync: </span>
-                            <span className="font-bold text-brandBlue dark:text-brandGold">{lastSyncAt ? lastSyncAt.toLocaleTimeString() : '-'}</span>
+                            <span>Last Response: </span>
+                            <span className="font-bold text-brandBlue dark:text-brandGold">{formatLastResponseTimestamp(lastSyncAt)}</span>
                         </div>
                     </div>
                 </div>
