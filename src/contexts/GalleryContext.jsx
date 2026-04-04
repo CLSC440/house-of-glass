@@ -534,6 +534,8 @@ const GalleryContext = createContext({
     selectedProduct: null,
     setSelectedProduct: noop,
     dcLiveUpdateAt: 0,
+    dcSyncedAt: 0,
+    refreshDcCatalog: async () => {},
     cartItems: [],
     cartCount: 0,
     cartSubtotal: 0,
@@ -592,12 +594,42 @@ export function GalleryProvider({ children }) {
     const [isCartHydrated, setIsCartHydrated] = useState(false);
     const [isWholesaleCartHydrated, setIsWholesaleCartHydrated] = useState(false);
     const [dcLiveUpdateAt, setDcLiveUpdateAt] = useState(0);
+    const [dcSyncedAt, setDcSyncedAt] = useState(0);
 
-    const syncDcCatalog = async ({ markLiveUpdate = false } = {}) => {
+    const buildDcRequestUrl = (path, options = {}) => {
+        const query = new URLSearchParams({
+            live: '1',
+            ts: String(Date.now())
+        });
+
+        if (options.markLiveUpdate) {
+            query.set('watch', '1');
+        }
+
+        if (options.forceRefresh) {
+            query.set('refresh', '1');
+        }
+
+        return `${path}?${query.toString()}`;
+    };
+
+    const syncDcCatalog = async ({ markLiveUpdate = false, forceRefresh = false } = {}) => {
         try {
             const [productsResponse, stockResponse] = await Promise.allSettled([
-                fetch('/api/dc/products', { cache: 'no-store' }),
-                fetch('/api/dc/stock', { cache: 'no-store' })
+                fetch(buildDcRequestUrl('/api/dc/products', { markLiveUpdate, forceRefresh }), {
+                    cache: 'no-store',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, max-age=0',
+                        Pragma: 'no-cache'
+                    }
+                }),
+                fetch(buildDcRequestUrl('/api/dc/stock', { markLiveUpdate, forceRefresh }), {
+                    cache: 'no-store',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, max-age=0',
+                        Pragma: 'no-cache'
+                    }
+                })
             ]);
 
             let didUpdate = false;
@@ -617,9 +649,17 @@ export function GalleryProvider({ children }) {
             if (markLiveUpdate && didUpdate) {
                 setDcLiveUpdateAt(Date.now());
             }
+
+            if (didUpdate) {
+                setDcSyncedAt(Date.now());
+            }
         } catch (error) {
             console.error('Failed to sync live DC catalog:', error);
         }
+    };
+
+    const refreshDcCatalog = async ({ forceRefresh = false, markLiveUpdate = false } = {}) => {
+        await syncDcCatalog({ forceRefresh, markLiveUpdate });
     };
 
     useEffect(() => {
@@ -1564,6 +1604,8 @@ export function GalleryProvider({ children }) {
             selectedProduct: resolvedSelectedProduct,
             setSelectedProduct,
             dcLiveUpdateAt,
+            dcSyncedAt,
+            refreshDcCatalog,
             cartItems,
             cartCount,
             cartSubtotal,

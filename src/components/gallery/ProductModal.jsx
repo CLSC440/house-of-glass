@@ -235,7 +235,7 @@ function ProductDetailCard({ iconClassName, iconWrapperClassName, label, value, 
 }
 
 export default function ProductModal() {
-    const { selectedProduct, setSelectedProduct, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, allProducts, getProductStockLimit, getProductStockStatus } = useGallery();
+    const { selectedProduct, setSelectedProduct, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, dcSyncedAt, refreshDcCatalog, allProducts, getProductStockLimit, getProductStockStatus } = useGallery();
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const lastSyncedShareCodeRef = useRef('');
@@ -283,6 +283,18 @@ export default function ProductModal() {
     }, [pathname, requestedShareCode, searchParams, selectedProduct, selectedProductShareCode]);
 
     useEffect(() => {
+        if (!selectedProduct) {
+            return;
+        }
+
+        if (Date.now() - Number(dcSyncedAt || 0) <= 15000) {
+            return;
+        }
+
+        refreshDcCatalog({ forceRefresh: true });
+    }, [dcSyncedAt, refreshDcCatalog, selectedProduct]);
+
+    useEffect(() => {
         if (!requestedShareCode && dismissedShareCodeRef.current) {
             dismissedShareCodeRef.current = '';
         }
@@ -325,13 +337,14 @@ export default function ProductModal() {
             isWholesaleCustomer={isWholesaleCustomer}
             userRole={userRole}
             dcLiveUpdateAt={dcLiveUpdateAt}
+            dcSyncedAt={dcSyncedAt}
             getProductStockLimit={getProductStockLimit}
             getProductStockStatus={getProductStockStatus}
         />
     );
 }
 
-function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, getProductStockLimit, getProductStockStatus }) {
+function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, dcSyncedAt, getProductStockLimit, getProductStockStatus }) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [quantity, setQuantity] = useState(1);
     const [wholesaleQuantity, setWholesaleQuantity] = useState(1);
@@ -351,7 +364,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
         }, LIVE_INDICATOR_DURATION_MS);
 
         return () => window.clearTimeout(timeoutId);
-    }, [userRole, dcLiveUpdateAt]);
+    }, [userRole, dcLiveUpdateAt, dcSyncedAt]);
 
     useEffect(() => {
         if (!lightboxState.isOpen) return undefined;
