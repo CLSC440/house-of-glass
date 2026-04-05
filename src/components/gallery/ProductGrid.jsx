@@ -78,7 +78,7 @@ function getNetPrice(product) {
 }
 
 export default function ProductGrid() {
-    const { filteredProducts, categories, brands, isLoading, setSelectedProduct, activeCategory, activeFilterChips, userRole, dcLiveUpdateAt, getProductStockLimit, getProductStockStatus } = useGallery();
+    const { filteredProducts, categories, brands, isLoading, setSelectedProduct, activeCategory, activeFilterChips, userRole, dcLiveUpdateAt, getProductStockLimit, getProductStockStatus, addToCart, addToWholesaleCart } = useGallery();
     const [flippedCards, setFlippedCards] = useState({});
     const [showLiveIndicator, setShowLiveIndicator] = useState(false);
     const [visibleCategoryRows, setVisibleCategoryRows] = useState(INITIAL_CATEGORY_ROWS);
@@ -244,6 +244,31 @@ export default function ProductGrid() {
             window.sessionStorage.setItem(CATEGORY_ROWS_STORAGE_KEY, String(visibleCategoryRows));
         }
         setEditingProduct(null);
+    };
+
+    const handleProductCardClick = (product, event) => {
+        const target = event?.target;
+        if (target instanceof HTMLElement && target.closest('button')) {
+            return;
+        }
+
+        openProductDetails(product, event);
+    };
+
+    const handleQuickAdd = (product, variants, event) => {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        const selectedEntry = variants.length === 1 ? variants[0] : product;
+
+        if (isStrictWholesaleUser) {
+            addToWholesaleCart(selectedEntry, 1);
+            return;
+        }
+
+        addToCart(selectedEntry, 1);
     };
 
     const productSections = useMemo(() => {
@@ -459,7 +484,7 @@ export default function ProductGrid() {
                 )}
                 <div className={`relative min-h-[28rem] sm:min-h-[30rem] md:min-h-[32rem] transition-transform duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                     <div 
-                        onClick={() => openProductDetails(product)}
+                        onClick={(event) => handleProductCardClick(product, event)}
                         className={`absolute inset-0 rounded-[2rem] bg-white dark:bg-darkCard p-4 flex flex-col justify-between shadow-sm hover:shadow-2xl hover:shadow-brandGold/10 transition-all duration-500 border border-gray-100 hover:border-brandGold/30 dark:border-gray-800/80 hover:-translate-y-2 cursor-pointer [backface-visibility:hidden]
                         ${stockStatus === 'out_of_stock' ? 'opacity-80 grayscale-[20%]' : ''}`}
                     >
@@ -595,8 +620,14 @@ export default function ProductGrid() {
                                     )}
                                 </div>
                                 
-                                <button className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gray-50 dark:bg-gray-800/50 hover:bg-brandGold hover:text-white text-gray-400 flex items-center justify-center transition-all duration-300 shadow-sm border border-gray-100 dark:border-gray-800 focus:scale-95 group/btn">
-                                    <i className="fa-solid fa-arrow-left -rotate-45 group-hover/btn:rotate-0 transition-transform duration-300"></i>
+                                <button
+                                    type="button"
+                                    onClick={(event) => handleQuickAdd(product, variants, event)}
+                                    title={variants.length > 1 ? 'Choose variant' : 'Quick add to cart'}
+                                    aria-label={variants.length > 1 ? 'Choose variant before adding to cart' : 'Quick add to cart'}
+                                    className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gray-50 dark:bg-gray-800/50 hover:bg-brandGold hover:text-white text-gray-400 flex items-center justify-center transition-all duration-300 shadow-sm border border-gray-100 dark:border-gray-800 focus:scale-95 group/btn"
+                                >
+                                    <i className="fa-solid fa-plus text-base md:text-lg group-hover/btn:scale-110 transition-transform duration-300"></i>
                                 </button>
                             </div>
                         </div>
