@@ -34,6 +34,10 @@ export default function InstallAppPrompt() {
     const [isInstalling, setIsInstalling] = useState(false);
     const mobileDevice = useMemo(() => isMobileDevice(), []);
     const iosSafari = useMemo(() => isIosSafari(), []);
+    const canUseShareMenu = useMemo(() => {
+        if (typeof window === 'undefined') return false;
+        return typeof navigator.share === 'function';
+    }, []);
 
     useEffect(() => {
         if (!('serviceWorker' in navigator)) {
@@ -105,6 +109,24 @@ export default function InstallAppPrompt() {
         }
     };
 
+    const handleOpenShareMenu = async () => {
+        if (!canUseShareMenu) {
+            return;
+        }
+
+        try {
+            await navigator.share({
+                title: 'House Of Glass',
+                text: 'Install House Of Glass on your iPhone.',
+                url: window.location.href
+            });
+        } catch (error) {
+            if (error?.name !== 'AbortError') {
+                console.error('Failed to open iOS share menu:', error);
+            }
+        }
+    };
+
     if (!mobileDevice || isInstalled || !isPromptVisible) {
         return null;
     }
@@ -140,7 +162,7 @@ export default function InstallAppPrompt() {
 
                         <p className="mt-2 text-[11px] leading-5 text-slate-300/95">
                             {iosSafari
-                                ? 'Use Safari share menu then tap Add to Home Screen. | افتح قائمة المشاركة في Safari ثم اختر Add to Home Screen.'
+                                ? 'Tap the button below to open the iPhone share menu, then choose Add to Home Screen. | اضغط الزر بالأسفل لفتح قائمة المشاركة في iPhone ثم اختر Add to Home Screen.'
                                 : deferredPrompt
                                     ? 'Install House Of Glass on your phone for faster access. | نزّل House Of Glass على موبايلك للوصول السريع.'
                                     : 'You can add this site to your home screen from the browser menu. | يمكنك إضافة الموقع إلى الشاشة الرئيسية من قائمة المتصفح.'}
@@ -149,7 +171,17 @@ export default function InstallAppPrompt() {
                 </div>
 
                 <div className="flex items-center gap-2 border-t border-white/10 px-3.5 py-3">
-                    {deferredPrompt ? (
+                    {iosSafari ? (
+                        <button
+                            type="button"
+                            onClick={handleOpenShareMenu}
+                            disabled={!canUseShareMenu}
+                            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-brandGold px-4 text-[12px] font-black text-brandBlue transition-all hover:bg-[#e0be52] disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                            <i className="fa-solid fa-arrow-up-from-bracket"></i>
+                            <span>{canUseShareMenu ? 'Open Share Menu' : 'Share Menu in Safari'}</span>
+                        </button>
+                    ) : deferredPrompt ? (
                         <button
                             type="button"
                             onClick={handleInstall}
