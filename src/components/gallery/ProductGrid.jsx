@@ -224,7 +224,10 @@ export default function ProductGrid() {
     };
 
     const openProductEditor = (product, event) => {
-        event.stopPropagation();
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
         savedScrollPositionRef.current = window.scrollY || window.pageYOffset || 0;
         if (typeof window !== 'undefined') {
             window.sessionStorage.setItem(EDIT_SCROLL_POSITION_STORAGE_KEY, String(savedScrollPositionRef.current));
@@ -494,9 +497,10 @@ export default function ProductGrid() {
                             <button
                                 type="button"
                                 onClick={(event) => openProductEditor(product, event)}
+                                onTouchEnd={(event) => openProductEditor(product, event)}
                                 title="Edit product"
                                 aria-label="Edit product"
-                                className="absolute right-4 top-16 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-brandGold/35 bg-white/90 text-brandBlue shadow-lg backdrop-blur-md transition-all hover:border-brandGold hover:bg-brandGold hover:text-white dark:bg-black/70 dark:text-white"
+                                className="absolute right-4 top-16 z-30 inline-flex h-10 w-10 touch-manipulation items-center justify-center rounded-full border border-brandGold/35 bg-white/90 text-brandBlue shadow-lg backdrop-blur-md transition-all hover:border-brandGold hover:bg-brandGold hover:text-white dark:bg-black/70 dark:text-white"
                             >
                                 <i className="fa-solid fa-pen-to-square text-[11px]"></i>
                             </button>
