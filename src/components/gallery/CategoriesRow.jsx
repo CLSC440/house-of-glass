@@ -204,10 +204,10 @@ export default function CategoriesRow() {
                                     ))}
                                 </div>
                             ) : null}
-                            <div className="absolute inset-0 transition-colors duration-500 bg-white/40 dark:bg-transparent backdrop-blur-[6px] dark:backdrop-blur-none"></div>
-                            <div className="absolute inset-0 bg-gradient-to-t from-white/95 via-white/50 to-white/10 dark:from-black/90 dark:to-black/20"></div>
-                            <div className="absolute inset-0 border border-white/40 dark:border-none rounded-2xl"></div>
-                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1),rgba(226,232,240,0.4))] dark:bg-[radial-gradient(circle_at_center,rgba(15,23,42,0.05),rgba(15,23,42,0.88))] transition-colors duration-500"></div>
+                            <div className="absolute inset-0 transition-colors duration-500 bg-white/10 dark:bg-transparent backdrop-blur-[2px] dark:backdrop-blur-none"></div>
+                            <div className="absolute inset-0 bg-gradient-to-t from-white/90 via-white/20 to-transparent dark:from-black/90 dark:to-black/20"></div>
+                            <div className="absolute inset-0 border border-black/5 dark:border-none rounded-2xl transition-colors duration-500"></div>
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_50%,rgba(0,0,0,0.04))] dark:bg-[radial-gradient(circle_at_center,rgba(15,23,42,0.05),rgba(15,23,42,0.88))] transition-colors duration-500"></div>
                             <div className={`absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.28),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.08),transparent_50%)] transition-opacity duration-500 ${isActive ? 'opacity-100' : 'opacity-70 group-hover/category:opacity-100'}`}></div>
                             <div className={`absolute -right-6 -top-8 h-24 w-24 rounded-full bg-brandGold/25 blur-2xl transition-all duration-500 ${isActive ? 'opacity-90' : 'opacity-0 group-hover/category:opacity-100 group-hover/category:scale-110'}`}></div>
                             <div className="absolute inset-0 flex flex-col justify-end p-4 md:p-5">
