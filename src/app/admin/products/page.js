@@ -763,7 +763,6 @@ export default function AdminProducts() {
                                                 <span>Images: <strong className="text-slate-200">{Array.isArray(product?.images) ? product.images.length : 0}</strong></span>
                                                 <span>Code: <strong className="font-mono text-brandGold">{normalizeLabel(product?.code || product?.barcode, 'N/A')}</strong></span>
                                                 <span>Views: <strong className="text-slate-200">{getViewsCount(product)}</strong></span>
-                                                <span>Media: <strong className="text-emerald-400">{`${imageKitMediaCount}/${totalMedia} IK`}</strong></span>
                                             </div>
 
                                             <div className="mt-2.5 border-t border-dashed border-white/10 pt-2.5">
