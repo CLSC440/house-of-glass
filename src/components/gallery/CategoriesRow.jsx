@@ -53,11 +53,42 @@ function pickCategoryPreviewImages(products, seed, count = 4) {
         .slice(0, count);
 }
 
+function pickMixedPreviewImages(productsByCategory, seed, count = 4) {
+    const categories = Object.keys(productsByCategory);
+    const shuffledCategories = [...categories].sort((left, right) => hashString(`${seed}-cat-${left}`) - hashString(`${seed}-cat-${right}`));
+    
+    const mixedImages = [];
+    
+    for (const catName of shuffledCategories) {
+        if (mixedImages.length >= count) break;
+        const catProducts = productsByCategory[catName] || [];
+        
+        const uniqueCatImages = Array.from(
+            new Set(catProducts.map((p) => getProductPreviewImage(p)).filter(Boolean))
+        );
+        
+        if (uniqueCatImages.length > 0) {
+            const sortedCatImages = [...uniqueCatImages].sort((left, right) => hashString(`${seed}-img-${left}`) - hashString(`${seed}-img-${right}`));
+            mixedImages.push(sortedCatImages[0]);
+        }
+    }
+    
+    return mixedImages;
+}
+
 export default function CategoriesRow() {
     const { categories, allProducts, isLoading, activeCategory, setActiveCategory, selectedCategories } = useGallery();
     const containerRef = useRef(null);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(false);
+    const [randomSeed, setRandomSeed] = useState(1);
+
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            setRandomSeed(Math.random());
+        }, 10);
+        return () => clearTimeout(timeoutId);
+    }, []);
 
     const categoryItems = useMemo(() => [{ id: 'all', name: 'All' }, ...categories], [categories]);
     const categoryPreviewImages = useMemo(() => {
@@ -71,14 +102,15 @@ export default function CategoriesRow() {
         }, {});
 
         return categoryItems.reduce((accumulator, categoryItem) => {
-            const sourceProducts = categoryItem.name === 'All'
-                ? allProducts
-                : (productsByCategory[categoryItem.name] || []);
-
-            accumulator[categoryItem.name] = pickCategoryPreviewImages(sourceProducts, categoryItem.name);
+            if (categoryItem.name === 'All') {
+                accumulator[categoryItem.name] = pickMixedPreviewImages(productsByCategory, randomSeed);
+            } else {
+                const sourceProducts = productsByCategory[categoryItem.name] || [];
+                accumulator[categoryItem.name] = pickCategoryPreviewImages(sourceProducts, categoryItem.name);
+            }
             return accumulator;
         }, {});
-    }, [allProducts, categoryItems]);
+    }, [allProducts, categoryItems, randomSeed]);
 
     useEffect(() => {
         const container = containerRef.current;
@@ -172,15 +204,15 @@ export default function CategoriesRow() {
                                     ))}
                                 </div>
                             ) : null}
-                            <div className="absolute inset-0 bg-gradient-to-t from-[#121926]/90 to-[#121926]/10 dark:from-black/90 dark:to-black/20"></div>
-                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(15,23,42,0.05),rgba(15,23,42,0.88))]"></div>
+                            <div className="absolute inset-0 bg-gradient-to-t from-[#121926]/70 to-[#121926]/5 dark:from-black/90 dark:to-black/20 backdrop-blur-[2px] dark:backdrop-blur-none"></div>
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(15,23,42,0.05),rgba(15,23,42,0.5))] dark:bg-[radial-gradient(circle_at_center,rgba(15,23,42,0.05),rgba(15,23,42,0.88))]"></div>
                             <div className={`absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.28),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.08),transparent_50%)] transition-opacity duration-500 ${isActive ? 'opacity-100' : 'opacity-70 group-hover/category:opacity-100'}`}></div>
                             <div className={`absolute -right-6 -top-8 h-24 w-24 rounded-full bg-brandGold/25 blur-2xl transition-all duration-500 ${isActive ? 'opacity-90' : 'opacity-0 group-hover/category:opacity-100 group-hover/category:scale-110'}`}></div>
                             <div className="absolute inset-0 flex flex-col justify-end p-4 md:p-5">
-                                <h3 className={`font-black text-lg md:text-xl transition-all duration-500 ${isActive ? 'text-brandGold' : 'text-white group-hover/category:-translate-y-1 group-hover/category:text-brandGold'}`}>
+                                <h3 className={`font-black text-lg md:text-xl transition-all duration-500 ${isActive ? 'text-brandGold drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] dark:drop-shadow-none' : 'text-slate-900 dark:text-white group-hover/category:-translate-y-1 group-hover/category:text-brandGold'}`}>
                                     {cat.name}
                                 </h3>
-                                <div className={`mt-2 h-1 rounded-full bg-brandGold transition-all duration-500 ${isActive ? 'w-8' : 'w-0 group-hover/category:w-10'}`}></div>
+                                <div className={`mt-2 h-1 rounded-full bg-brandGold transition-all duration-500 shadow-[0_1px_2px_rgba(0,0,0,0.1)] dark:shadow-none ${isActive ? 'w-8' : 'w-0 group-hover/category:w-10'}`}></div>
                             </div>
                         </button>
                     )
