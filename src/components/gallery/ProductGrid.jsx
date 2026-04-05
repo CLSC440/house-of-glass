@@ -285,7 +285,8 @@ export default function ProductGrid() {
         onIncrease,
         onDecrease,
         onRemove,
-        tone = 'retail'
+        tone = 'retail',
+        pinLayout = false
     }) => {
         const isAtStockLimit = stockLimit !== null && quantity >= stockLimit;
         const toneClasses = tone === 'wholesale'
@@ -309,11 +310,11 @@ export default function ProductGrid() {
         };
 
         return (
-            <div className="flex min-w-[3rem] flex-col items-stretch gap-1.5">
+            <div dir="ltr" className={`flex flex-col gap-1.5 ${pinLayout ? 'w-[9.75rem] items-start' : 'min-w-[3rem] items-stretch'}`}>
                 {quantity > 0 ? (
                     <div
                         dir="ltr"
-                        className={`flex h-10 items-center overflow-hidden rounded-full border-[3px] shadow-sm md:h-11 ${toneClasses.shell}`}
+                        className={`flex h-10 items-center overflow-hidden rounded-full border shadow-sm md:h-11 ${pinLayout ? 'w-full' : ''} ${toneClasses.shell}`}
                         onClick={(event) => {
                             event.preventDefault();
                             event.stopPropagation();
@@ -336,7 +337,7 @@ export default function ProductGrid() {
                                 type="button"
                                 onClick={(event) => handleAction(event, onRemove)}
                                 aria-label="Remove from cart"
-                                className="flex h-full w-12 items-center justify-center text-xl font-black text-brandBlue transition-colors hover:bg-red-50 hover:text-red-500 dark:text-white dark:hover:bg-red-500/10 dark:hover:text-red-300"
+                                className="flex h-full w-12 items-center justify-center text-xl font-black text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-red-400 dark:hover:bg-red-500/10 dark:hover:text-red-300"
                             >
                                 <i className="fa-solid fa-trash-can"></i>
                             </button>
@@ -357,20 +358,13 @@ export default function ProductGrid() {
                         onClick={(event) => handleAction(event, onAdd)}
                         title={label}
                         aria-label={label}
-                        className={`relative flex h-11 w-11 items-center justify-center text-sm font-black transition-all duration-300 hover:scale-[1.06] md:h-12 md:w-12 ${toneClasses.iconButton}`}
+                        className={`relative flex h-11 w-11 items-center justify-center text-sm font-black transition-all duration-300 hover:scale-[1.06] md:h-12 md:w-12 ${pinLayout ? 'self-start' : ''} ${toneClasses.iconButton}`}
                     >
                         {toneClasses.icon === 'box' ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                            </svg>
+                            <img src="/icons/add-to-cart-wholesale.svg" alt="Add wholesale" className="h-7 w-7 object-contain md:h-8 md:w-8" />
                         ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                            </svg>
+                            <img src="/icons/add-to-cart-retail.svg" alt="Add to cart" className="h-7 w-7 object-contain md:h-8 md:w-8" />
                         )}
-                        <span className="absolute left-1/2 top-[9%] -translate-x-1/2 -translate-y-1/2 text-[12px] font-black leading-none text-current drop-shadow-[0_0_6px_currentColor]">
-                            +
-                        </span>
                     </button>
                 ) : (
                     <button
@@ -788,7 +782,8 @@ export default function ProductGrid() {
                                             onIncrease: () => updateCartQuantity(quickAddCartId, retailQuickAddQuantity + 1),
                                             onDecrease: () => updateCartQuantity(quickAddCartId, retailQuickAddQuantity - 1),
                                             onRemove: () => removeFromCart(quickAddCartId),
-                                            tone: 'retail'
+                                            tone: 'retail',
+                                            pinLayout: true
                                         }) : null}
                                         {showWholesaleQuickAddControl ? renderQuickAddControl({
                                             label: 'Wholesale | كرتونة',
@@ -798,7 +793,8 @@ export default function ProductGrid() {
                                             onIncrease: () => updateWholesaleCartQuantity(quickAddCartId, wholesaleQuickAddQuantity + 1),
                                             onDecrease: () => updateWholesaleCartQuantity(quickAddCartId, wholesaleQuickAddQuantity - 1),
                                             onRemove: () => removeFromWholesaleCart(quickAddCartId),
-                                            tone: 'wholesale'
+                                            tone: 'wholesale',
+                                            pinLayout: true
                                         }) : null}
                                     </div>
                                 ) : (
