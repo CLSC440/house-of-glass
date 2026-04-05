@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 
 const DISMISS_KEY = 'hog-install-prompt-dismissed-at';
 const DISMISS_DURATION_MS = 1000 * 60 * 60 * 24 * 3;
-const BUTTON_FEEDBACK_DURATION_MS = 320;
 
 function isMobileDevice() {
     if (typeof window === 'undefined') return false;
@@ -33,14 +32,9 @@ export default function InstallAppPrompt() {
     const [isPromptVisible, setIsPromptVisible] = useState(false);
     const [isInstalled, setIsInstalled] = useState(false);
     const [isInstalling, setIsInstalling] = useState(false);
-    const [isActionPressed, setIsActionPressed] = useState(false);
-    const [showFallbackSteps, setShowFallbackSteps] = useState(false);
+    const [showInstructions, setShowInstructions] = useState(false);
     const mobileDevice = useMemo(() => isMobileDevice(), []);
     const iosSafari = useMemo(() => isIosSafari(), []);
-    const canUseShareMenu = useMemo(() => {
-        if (typeof window === 'undefined') return false;
-        return typeof navigator.share === 'function';
-    }, []);
 
     useEffect(() => {
         if (!('serviceWorker' in navigator)) {
@@ -97,24 +91,11 @@ export default function InstallAppPrompt() {
         setIsPromptVisible(false);
     };
 
-    const triggerActionFeedback = () => {
-        setIsActionPressed(true);
-
-        if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-            navigator.vibrate(18);
-        }
-
-        window.setTimeout(() => {
-            setIsActionPressed(false);
-        }, BUTTON_FEEDBACK_DURATION_MS);
-    };
-
     const handleInstall = async () => {
         if (!deferredPrompt) {
             return;
         }
 
-        setShowFallbackSteps(false);
         setIsInstalling(true);
         try {
             await deferredPrompt.prompt();
@@ -124,73 +105,6 @@ export default function InstallAppPrompt() {
             setIsInstalling(false);
         }
     };
-
-    const handleOpenShareMenu = async () => {
-        if (!canUseShareMenu) {
-            setShowFallbackSteps(true);
-            return;
-        }
-
-        setShowFallbackSteps(false);
-        try {
-            await navigator.share({
-                title: 'House Of Glass',
-                text: 'Install House Of Glass on your iPhone.',
-                url: window.location.href
-            });
-        } catch (error) {
-            if (error?.name !== 'AbortError') {
-                console.error('Failed to open iOS share menu:', error);
-            }
-        }
-    };
-
-    const handlePrimaryAction = async () => {
-        triggerActionFeedback();
-
-        if (iosSafari) {
-            await handleOpenShareMenu();
-            if (!canUseShareMenu) {
-                setShowFallbackSteps(true);
-            }
-            return;
-        }
-
-        if (deferredPrompt) {
-            await handleInstall();
-            return;
-        }
-
-        setShowFallbackSteps(true);
-    };
-
-    const fallbackStepsTitle = iosSafari
-        ? 'iPhone Steps | خطوات الايفون'
-        : 'Install Steps | خطوات التثبيت';
-
-    const fallbackSteps = iosSafari
-        ? [
-            '1. اضغط زر المشاركة في Safari.',
-            '2. اختر Add to Home Screen.',
-            '3. اضغط Add لتثبيت التطبيق.'
-        ]
-        : [
-            '1. افتح قائمة المتصفح.',
-            '2. اختر Install App أو Add to Home Screen.',
-            '3. أكد التثبيت من الرسالة التي ستظهر.'
-        ];
-
-    const primaryActionLabel = iosSafari
-        ? (canUseShareMenu ? 'Open Share Menu' : 'Show Install Steps')
-        : deferredPrompt
-            ? (isInstalling ? 'Installing...' : 'Install App')
-            : 'Show Install Steps';
-
-    const primaryActionIcon = iosSafari
-        ? 'fa-arrow-up-from-bracket'
-        : deferredPrompt
-            ? (isInstalling ? 'fa-spinner fa-spin' : 'fa-mobile-screen-button')
-            : 'fa-circle-info';
 
     if (!mobileDevice || isInstalled || !isPromptVisible) {
         return null;
@@ -227,7 +141,7 @@ export default function InstallAppPrompt() {
 
                         <p className="mt-2 text-[11px] leading-5 text-slate-300/95">
                             {iosSafari
-                                ? 'Tap the button below to open the iPhone share menu, then choose Add to Home Screen. | اضغط الزر بالأسفل لفتح قائمة المشاركة في iPhone ثم اختر Add to Home Screen.'
+                                ? 'Use Safari share menu then tap Add to Home Screen. | افتح قائمة المشاركة في Safari ثم اختر Add to Home Screen.'
                                 : deferredPrompt
                                     ? 'Install House Of Glass on your phone for faster access. | نزّل House Of Glass على موبايلك للوصول السريع.'
                                     : 'You can add this site to your home screen from the browser menu. | يمكنك إضافة الموقع إلى الشاشة الرئيسية من قائمة المتصفح.'}
@@ -235,16 +149,89 @@ export default function InstallAppPrompt() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 border-t border-white/10 px-3.5 py-3">
-                    <button
-                        type="button"
-                        onClick={handlePrimaryAction}
-                        disabled={isInstalling}
-                        className={`inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-full px-4 text-[12px] font-black transition-all ${showFallbackSteps ? 'border border-brandGold/35 bg-brandGold/12 text-brandGold' : 'bg-brandGold text-brandBlue hover:bg-[#e0be52]'} ${isActionPressed ? 'scale-[0.97] shadow-[0_0_0_4px_rgba(212,175,55,0.16)]' : 'scale-100'} disabled:cursor-not-allowed disabled:opacity-70`}
-                    >
-                        <i className={`fa-solid ${primaryActionIcon}`}></i>
-                        <span>{primaryActionLabel}</span>
-                    </button>
+                <div className="relative flex items-center gap-2 border-t border-white/10 px-3.5 py-3">
+                    {showInstructions && (
+                        <div className="absolute bottom-[calc(100%+8px)] left-0 right-0 rounded-[1.25rem] border border-brandGold/20 bg-[#0d1323] p-4 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] backdrop-blur-3xl animate-in slide-in-from-bottom-2 fade-in">
+                            <div className="mb-3 flex items-center justify-between">
+                                <h4 className="text-[13px] font-black tracking-wide text-brandGold">
+                                    {iosSafari ? 'Install App | للآيفون' : 'Install App | طريقة التنزيل'}
+                                </h4>
+                                <button
+                                    onClick={() => setShowInstructions(false)}
+                                    className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+                                >
+                                    <i className="fa-solid fa-xmark text-[10px]"></i>
+                                </button>
+                            </div>
+
+                            <div className="flex flex-col gap-2.5">
+                                {iosSafari ? (
+                                    <>
+                                        <div className="flex items-start gap-3 rounded-xl bg-white/5 p-2.5">
+                                            <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded bg-brandGold text-brandBlue">
+                                                <i className="fa-solid fa-arrow-up-from-bracket text-xs"></i>
+                                            </div>
+                                            <div className="text-[12px] font-medium leading-tight text-white">
+                                                1. Tap the <strong className="text-brandGold">Share</strong> button.<br />
+                                                <span className="mt-1 block text-[10px] text-slate-400">اضغط على زر المشاركة بالأسفل</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-3 rounded-xl bg-white/5 p-2.5">
+                                            <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded bg-brandGold text-brandBlue">
+                                                <i className="fa-solid fa-square-plus text-xs"></i>
+                                            </div>
+                                            <div className="text-[12px] font-medium leading-tight text-white">
+                                                2. Select <strong className="text-brandGold">Add to Home Screen</strong>.<br />
+                                                <span className="mt-1 block text-[10px] text-slate-400">اختر إضافة إلى الشاشة الرئيسية</span>
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="flex items-start gap-3 rounded-xl bg-white/5 p-2.5">
+                                            <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded bg-brandGold text-brandBlue">
+                                                <i className="fa-solid fa-ellipsis-vertical text-xs"></i>
+                                            </div>
+                                            <div className="text-[12px] font-medium leading-tight text-white">
+                                                1. Open the <strong className="text-brandGold">browser menu (⋮)</strong>.<br />
+                                                <span className="mt-1 block text-[10px] text-slate-400">افتح قائمة المتصفح</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-3 rounded-xl bg-white/5 p-2.5">
+                                            <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded bg-brandGold text-brandBlue">
+                                                <i className="fa-solid fa-mobile-screen-button text-xs"></i>
+                                            </div>
+                                            <div className="text-[12px] font-medium leading-tight text-white">
+                                                2. Select <strong className="text-brandGold">Install App</strong>.<br />
+                                                <span className="mt-1 block text-[10px] text-slate-400">اختر تثبيت التطبيق</span>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {deferredPrompt ? (
+                        <button
+                            type="button"
+                            onClick={handleInstall}
+                            disabled={isInstalling}
+                            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-brandGold px-4 text-[12px] font-black text-brandBlue transition-all hover:bg-[#e0be52] disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                            <i className={`fa-solid ${isInstalling ? 'fa-spinner fa-spin' : 'fa-mobile-screen-button'}`}></i>
+                            <span>{isInstalling ? 'Installing...' : 'Install App'}</span>
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => setShowInstructions(!showInstructions)}
+                            className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full border border-brandGold/30 bg-brandGold/10 px-3 text-[11px] font-black uppercase tracking-[0.1em] text-brandGold transition-colors hover:bg-brandGold/20"
+                        >
+                            <i className={iosSafari ? "fa-brands fa-apple text-sm" : "fa-solid fa-circle-info text-sm"}></i>
+                            {iosSafari ? 'How to Install' : 'Install Instructions'}
+                        </button>
+                    )}
 
                     <button
                         type="button"
@@ -254,19 +241,6 @@ export default function InstallAppPrompt() {
                         Later
                     </button>
                 </div>
-
-                {showFallbackSteps ? (
-                    <div className="border-t border-white/10 px-3.5 pb-3.5 pt-3">
-                        <div className="rounded-[1.1rem] border border-brandGold/20 bg-white/[0.04] px-3.5 py-3 text-slate-200">
-                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-brandGold">{fallbackStepsTitle}</p>
-                            <div className="mt-2 space-y-1.5 text-[11px] leading-5 text-slate-300/95">
-                                {fallbackSteps.map((step) => (
-                                    <p key={step}>{step}</p>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                ) : null}
             </div>
         </div>
     );
