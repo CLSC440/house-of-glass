@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 const DISMISS_KEY = 'hog-install-prompt-dismissed-at';
 const DISMISS_DURATION_MS = 1000 * 60 * 60 * 24 * 3;
+const BUTTON_FEEDBACK_DURATION_MS = 320;
 
 function isMobileDevice() {
     if (typeof window === 'undefined') return false;
@@ -32,6 +33,8 @@ export default function InstallAppPrompt() {
     const [isPromptVisible, setIsPromptVisible] = useState(false);
     const [isInstalled, setIsInstalled] = useState(false);
     const [isInstalling, setIsInstalling] = useState(false);
+    const [isActionPressed, setIsActionPressed] = useState(false);
+    const [showFallbackSteps, setShowFallbackSteps] = useState(false);
     const mobileDevice = useMemo(() => isMobileDevice(), []);
     const iosSafari = useMemo(() => isIosSafari(), []);
     const canUseShareMenu = useMemo(() => {
@@ -94,11 +97,24 @@ export default function InstallAppPrompt() {
         setIsPromptVisible(false);
     };
 
+    const triggerActionFeedback = () => {
+        setIsActionPressed(true);
+
+        if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+            navigator.vibrate(18);
+        }
+
+        window.setTimeout(() => {
+            setIsActionPressed(false);
+        }, BUTTON_FEEDBACK_DURATION_MS);
+    };
+
     const handleInstall = async () => {
         if (!deferredPrompt) {
             return;
         }
 
+        setShowFallbackSteps(false);
         setIsInstalling(true);
         try {
             await deferredPrompt.prompt();
@@ -111,9 +127,11 @@ export default function InstallAppPrompt() {
 
     const handleOpenShareMenu = async () => {
         if (!canUseShareMenu) {
+            setShowFallbackSteps(true);
             return;
         }
 
+        setShowFallbackSteps(false);
         try {
             await navigator.share({
                 title: 'House Of Glass',
@@ -126,6 +144,53 @@ export default function InstallAppPrompt() {
             }
         }
     };
+
+    const handlePrimaryAction = async () => {
+        triggerActionFeedback();
+
+        if (iosSafari) {
+            await handleOpenShareMenu();
+            if (!canUseShareMenu) {
+                setShowFallbackSteps(true);
+            }
+            return;
+        }
+
+        if (deferredPrompt) {
+            await handleInstall();
+            return;
+        }
+
+        setShowFallbackSteps(true);
+    };
+
+    const fallbackStepsTitle = iosSafari
+        ? 'iPhone Steps | خطوات الايفون'
+        : 'Install Steps | خطوات التثبيت';
+
+    const fallbackSteps = iosSafari
+        ? [
+            '1. اضغط زر المشاركة في Safari.',
+            '2. اختر Add to Home Screen.',
+            '3. اضغط Add لتثبيت التطبيق.'
+        ]
+        : [
+            '1. افتح قائمة المتصفح.',
+            '2. اختر Install App أو Add to Home Screen.',
+            '3. أكد التثبيت من الرسالة التي ستظهر.'
+        ];
+
+    const primaryActionLabel = iosSafari
+        ? (canUseShareMenu ? 'Open Share Menu' : 'Show Install Steps')
+        : deferredPrompt
+            ? (isInstalling ? 'Installing...' : 'Install App')
+            : 'Show Install Steps';
+
+    const primaryActionIcon = iosSafari
+        ? 'fa-arrow-up-from-bracket'
+        : deferredPrompt
+            ? (isInstalling ? 'fa-spinner fa-spin' : 'fa-mobile-screen-button')
+            : 'fa-circle-info';
 
     if (!mobileDevice || isInstalled || !isPromptVisible) {
         return null;
@@ -171,31 +236,15 @@ export default function InstallAppPrompt() {
                 </div>
 
                 <div className="flex items-center gap-2 border-t border-white/10 px-3.5 py-3">
-                    {iosSafari ? (
-                        <button
-                            type="button"
-                            onClick={handleOpenShareMenu}
-                            disabled={!canUseShareMenu}
-                            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-brandGold px-4 text-[12px] font-black text-brandBlue transition-all hover:bg-[#e0be52] disabled:cursor-not-allowed disabled:opacity-70"
-                        >
-                            <i className="fa-solid fa-arrow-up-from-bracket"></i>
-                            <span>{canUseShareMenu ? 'Open Share Menu' : 'Share Menu in Safari'}</span>
-                        </button>
-                    ) : deferredPrompt ? (
-                        <button
-                            type="button"
-                            onClick={handleInstall}
-                            disabled={isInstalling}
-                            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-brandGold px-4 text-[12px] font-black text-brandBlue transition-all hover:bg-[#e0be52] disabled:cursor-not-allowed disabled:opacity-70"
-                        >
-                            <i className={`fa-solid ${isInstalling ? 'fa-spinner fa-spin' : 'fa-mobile-screen-button'}`}></i>
-                            <span>{isInstalling ? 'Installing...' : 'Install App'}</span>
-                        </button>
-                    ) : (
-                        <div className="flex h-11 flex-1 items-center justify-center rounded-full border border-brandGold/20 bg-brandGold/10 px-3 text-center text-[10px] font-black uppercase tracking-[0.16em] text-brandGold">
-                            {iosSafari ? 'Safari: Share > Add to Home Screen' : 'Browser Menu > Install App'}
-                        </div>
-                    )}
+                    <button
+                        type="button"
+                        onClick={handlePrimaryAction}
+                        disabled={isInstalling}
+                        className={`inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-full px-4 text-[12px] font-black transition-all ${showFallbackSteps ? 'border border-brandGold/35 bg-brandGold/12 text-brandGold' : 'bg-brandGold text-brandBlue hover:bg-[#e0be52]'} ${isActionPressed ? 'scale-[0.97] shadow-[0_0_0_4px_rgba(212,175,55,0.16)]' : 'scale-100'} disabled:cursor-not-allowed disabled:opacity-70`}
+                    >
+                        <i className={`fa-solid ${primaryActionIcon}`}></i>
+                        <span>{primaryActionLabel}</span>
+                    </button>
 
                     <button
                         type="button"
@@ -205,6 +254,19 @@ export default function InstallAppPrompt() {
                         Later
                     </button>
                 </div>
+
+                {showFallbackSteps ? (
+                    <div className="border-t border-white/10 px-3.5 pb-3.5 pt-3">
+                        <div className="rounded-[1.1rem] border border-brandGold/20 bg-white/[0.04] px-3.5 py-3 text-slate-200">
+                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-brandGold">{fallbackStepsTitle}</p>
+                            <div className="mt-2 space-y-1.5 text-[11px] leading-5 text-slate-300/95">
+                                {fallbackSteps.map((step) => (
+                                    <p key={step}>{step}</p>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                ) : null}
             </div>
         </div>
     );
