@@ -944,7 +944,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                                 className="min-w-12 flex-1 border-x border-green-500/15 bg-transparent px-3 py-0 text-center text-sm font-black text-brandBlue outline-none md:hidden dark:text-white"
                                 aria-label="Unit quantity"
                             />
-                            <span className="hidden min-w-12 border-x border-green-500/15 px-3 text-center text-sm font-black text-brandBlue dark:text-white md:block">{quantity}</span>
+                            <span className="hidden min-w-12 items-center justify-center border-x border-green-500/15 bg-slate-950/5 px-3 text-center text-base font-black text-slate-900 dark:bg-slate-950/40 dark:text-emerald-50 md:flex">{quantity}</span>
                             <button type="button" onClick={increaseQuantity} className="flex h-12 w-10 items-center justify-center text-lg font-black text-green-600 transition-colors hover:bg-green-500/10 dark:text-green-300">
                                 +
                             </button>
@@ -1235,7 +1235,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                                             pattern="[0-9]*"
                                             value={quantity}
                                             onChange={handleQuantityInputChange}
-                                            className="min-w-12 flex-1 border-x border-green-500/15 bg-transparent px-3 py-0 text-center text-sm font-black text-brandBlue outline-none"
+                                            className="min-w-12 flex-1 border-x border-green-500/15 bg-slate-950/5 px-3 py-0 text-center text-base font-black text-slate-900 outline-none dark:bg-slate-950/35 dark:text-emerald-50"
                                             aria-label="Unit quantity"
                                         />
                                         <button type="button" onClick={increaseQuantity} className="flex h-12 w-10 items-center justify-center text-lg font-black text-green-600 transition-colors hover:bg-green-50 dark:hover:bg-green-500/10">
@@ -1554,7 +1554,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                                         className="min-w-12 flex-1 border-x border-green-500/15 bg-transparent px-3 py-0 text-center text-sm font-black text-brandBlue outline-none md:hidden dark:text-white"
                                         aria-label="Unit quantity"
                                     />
-                                    <span className="hidden min-w-12 border-x border-green-500/15 px-3 text-center text-sm font-black text-brandBlue dark:text-white md:block">{quantity}</span>
+                                    <span className="hidden min-w-12 items-center justify-center border-x border-green-500/15 bg-slate-950/5 px-3 text-center text-base font-black text-slate-900 dark:bg-slate-950/40 dark:text-emerald-50 md:flex">{quantity}</span>
                                     <button type="button" onClick={increaseQuantity} className="flex h-12 w-10 items-center justify-center text-lg font-black text-green-600 transition-colors hover:bg-green-50 dark:hover:bg-green-500/10">
                                         +
                                     </button>

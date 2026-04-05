@@ -309,8 +309,14 @@ export default function ProductGrid() {
             callback();
         };
 
+        const pinnedLayoutClasses = pinLayout
+            ? quantity > 0
+                ? 'w-[8.75rem] items-end md:w-[9.75rem] md:items-start'
+                : 'w-[3.25rem] items-end md:w-[9.75rem] md:items-start'
+            : 'min-w-[3rem] items-stretch';
+
         return (
-            <div dir="ltr" className={`flex flex-col gap-1.5 ${pinLayout ? 'w-[9.75rem] items-start' : 'min-w-[3rem] items-stretch'}`}>
+            <div dir="ltr" className={`flex flex-col gap-1.5 ${pinnedLayoutClasses}`}>
                 {quantity > 0 ? (
                     <div
                         dir="ltr"
@@ -358,7 +364,7 @@ export default function ProductGrid() {
                         onClick={(event) => handleAction(event, onAdd)}
                         title={label}
                         aria-label={label}
-                        className={`relative flex h-11 w-11 items-center justify-center text-sm font-black transition-all duration-300 hover:scale-[1.06] md:h-12 md:w-12 ${pinLayout ? 'self-start' : ''} ${toneClasses.iconButton}`}
+                        className={`relative flex h-11 w-11 items-center justify-center text-sm font-black transition-all duration-300 hover:scale-[1.06] md:h-12 md:w-12 ${pinLayout ? 'self-end md:self-start' : ''} ${toneClasses.iconButton}`}
                     >
                         {toneClasses.icon === 'box' ? (
                             <img src="/icons/add-to-cart-wholesale.svg" alt="Add wholesale" className="h-7 w-7 object-contain md:h-8 md:w-8" />
@@ -774,7 +780,7 @@ export default function ProductGrid() {
                                 </div>
                                 
                                 {shouldShowDualQuickAddControls ? (
-                                    <div className="flex flex-col items-stretch gap-2">
+                                    <div className="flex flex-col items-end gap-2 md:items-stretch">
                                         {showRetailQuickAddControl ? renderQuickAddControl({
                                             label: 'Retail | قطاعي',
                                             quantity: retailQuickAddQuantity,
