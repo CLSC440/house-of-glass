@@ -612,8 +612,9 @@ export default function ProductGrid() {
         const wholesaleQuickAddQuantity = Number(wholesaleQuickAddItem?.quantity || 0);
         const retailQuickAddStockLimit = getProductStockLimit(quickAddEntry, 'retail');
         const wholesaleQuickAddStockLimit = getProductStockLimit(quickAddEntry, 'wholesale');
-        const showRetailQuickAddControl = retailQuickAddQuantity > 0 || retailQuickAddStockLimit !== 0;
-        const showWholesaleQuickAddControl = wholesaleQuickAddQuantity > 0 || wholesaleQuickAddStockLimit !== 0;
+        const showRetailQuickAddControl = isAdminUser || retailQuickAddQuantity > 0 || retailQuickAddStockLimit !== 0;
+        const showWholesaleQuickAddControl = isAdminUser || wholesaleQuickAddQuantity > 0 || wholesaleQuickAddStockLimit !== 0;
+        const shouldShowDualQuickAddControls = isStrictWholesaleUser || isAdminUser;
         const hasVariants = variants.length > 0;
         const isFlipped = Boolean(flippedCards[productId]);
         const retailPrice = getRetailPrice(product);
@@ -772,7 +773,7 @@ export default function ProductGrid() {
                                     )}
                                 </div>
                                 
-                                {isStrictWholesaleUser ? (
+                                {shouldShowDualQuickAddControls ? (
                                     <div className="flex flex-col items-stretch gap-2">
                                         {showRetailQuickAddControl ? renderQuickAddControl({
                                             label: 'Retail | قطاعي',
