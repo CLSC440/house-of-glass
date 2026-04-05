@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { addDoc, collection, doc, getDoc, onSnapshot, query, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { CART_STORAGE_KEY, WHOLESALE_CART_STORAGE_KEY } from '@/lib/cart-storage';
@@ -465,6 +465,37 @@ function normalizeFilterValue(value) {
     return String(value || '').trim();
 }
 
+function resolveCategoryNameFromQueryValue(categoryValue, categories = []) {
+    const normalizedValue = normalizeFilterValue(categoryValue);
+    if (!normalizedValue || normalizedValue === 'All') {
+        return 'All';
+    }
+
+    if (!/^\d+$/.test(normalizedValue)) {
+        return normalizedValue;
+    }
+
+    const categoryIndex = Number(normalizedValue) - 1;
+    if (!Number.isInteger(categoryIndex) || categoryIndex < 0) {
+        return normalizedValue;
+    }
+
+    return normalizeFilterValue(categories[categoryIndex]?.name) || normalizedValue;
+}
+
+function getCategoryQueryValue(categoryName, categories = []) {
+    const normalizedCategoryName = normalizeFilterValue(categoryName);
+    if (!normalizedCategoryName || normalizedCategoryName === 'All') {
+        return 'All';
+    }
+
+    const categoryIndex = categories.findIndex(
+        (category) => normalizeFilterValue(category?.name) === normalizedCategoryName
+    );
+
+    return categoryIndex >= 0 ? String(categoryIndex + 1) : normalizedCategoryName;
+}
+
 function getProductSortOrder(product = {}) {
     const numericOrder = Number(product.order);
     return Number.isFinite(numericOrder) ? numericOrder : Number.MAX_SAFE_INTEGER;
@@ -595,6 +626,7 @@ export function GalleryProvider({ children }) {
     const [isWholesaleCartHydrated, setIsWholesaleCartHydrated] = useState(false);
     const [dcLiveUpdateAt, setDcLiveUpdateAt] = useState(0);
     const [dcSyncedAt, setDcSyncedAt] = useState(0);
+    const didRestoreUrlFiltersRef = useRef(false);
 
     const buildDcRequestUrl = (path, options = {}) => {
         const query = new URLSearchParams({
@@ -826,28 +858,6 @@ export function GalleryProvider({ children }) {
     useEffect(() => {
         if (typeof window === 'undefined') return;
 
-        const params = new URLSearchParams(window.location.search);
-        const categoryParam = params.get('category') || 'All';
-        const categoriesParam = params.getAll('categories').map(normalizeFilterValue).filter(Boolean);
-        const brandsParam = params.getAll('brands').map(normalizeFilterValue).filter(Boolean);
-        const originsParam = params.getAll('origins').map(normalizeFilterValue).filter(Boolean);
-        const searchParam = normalizeFilterValue(params.get('search'));
-        const stockParam = params.get('stock') === 'in-stock';
-
-        if (searchParam) setSearchQuery(searchParam);
-        if (stockParam) setHideOutOfStockProducts(true);
-
-        if (categoriesParam.length > 0) {
-            setSelectedCategories(categoriesParam);
-            setActiveCategory('All');
-        } else if (categoryParam && categoryParam !== 'All') {
-            setSelectedCategories([categoryParam]);
-            setActiveCategory(categoryParam);
-        }
-
-        if (brandsParam.length > 0) setSelectedBrands(brandsParam);
-        if (originsParam.length > 0) setSelectedOrigins(originsParam);
-
         try {
             const storedCart = window.localStorage.getItem(CART_STORAGE_KEY);
             if (!storedCart) {
@@ -865,6 +875,41 @@ export function GalleryProvider({ children }) {
             setIsCartHydrated(true);
         }
     }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || didRestoreUrlFiltersRef.current) return;
+
+        const params = new URLSearchParams(window.location.search);
+        const rawCategoryParam = params.get('category') || 'All';
+        const categoriesParam = params.getAll('categories').map(normalizeFilterValue).filter(Boolean);
+        const brandsParam = params.getAll('brands').map(normalizeFilterValue).filter(Boolean);
+        const originsParam = params.getAll('origins').map(normalizeFilterValue).filter(Boolean);
+        const searchParam = normalizeFilterValue(params.get('search'));
+        const stockParam = params.get('stock') === 'in-stock';
+        const needsCategoryLookup = /^\d+$/.test(normalizeFilterValue(rawCategoryParam));
+
+        if (needsCategoryLookup && categories.length === 0) {
+            return;
+        }
+
+        const categoryParam = resolveCategoryNameFromQueryValue(rawCategoryParam, categories);
+
+        if (searchParam) setSearchQuery(searchParam);
+        if (stockParam) setHideOutOfStockProducts(true);
+
+        if (categoriesParam.length > 0) {
+            setSelectedCategories(categoriesParam);
+            setActiveCategory('All');
+        } else if (categoryParam && categoryParam !== 'All') {
+            setSelectedCategories([categoryParam]);
+            setActiveCategory(categoryParam);
+        }
+
+        if (brandsParam.length > 0) setSelectedBrands(brandsParam);
+        if (originsParam.length > 0) setSelectedOrigins(originsParam);
+
+        didRestoreUrlFiltersRef.current = true;
+    }, [categories]);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -908,7 +953,7 @@ export function GalleryProvider({ children }) {
         }
 
         if (selectedCategories.length === 1 && selectedBrands.length === 0 && selectedOrigins.length === 0 && !hideOutOfStockProducts) {
-            url.searchParams.set('category', selectedCategories[0]);
+            url.searchParams.set('category', getCategoryQueryValue(selectedCategories[0], categories));
         } else {
             selectedCategories.forEach((value) => url.searchParams.append('categories', value));
             selectedBrands.forEach((value) => url.searchParams.append('brands', value));
@@ -919,7 +964,7 @@ export function GalleryProvider({ children }) {
         }
 
         window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
-    }, [searchQuery, selectedCategories, selectedBrands, selectedOrigins, hideOutOfStockProducts]);
+    }, [searchQuery, selectedCategories, selectedBrands, selectedOrigins, hideOutOfStockProducts, categories]);
 
     useEffect(() => {
         if (typeof window === 'undefined' || !isWholesaleCartHydrated) return;

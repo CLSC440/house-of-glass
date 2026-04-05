@@ -674,3 +674,15 @@ The next best sequence is:
 - Regression spot check: partial pass
 - Result: Product pricing and card presentation moved materially closer to the old admin dashboard without regressing the app build.
 - Remaining gap: final manual comparison for representative products and optional persisted edit-history support if exact operational parity is required.
+
+
+
+
+
+
+
+
+
+
+
+

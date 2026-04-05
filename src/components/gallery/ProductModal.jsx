@@ -246,6 +246,20 @@ export default function ProductModal() {
     useEffect(() => {
         if (selectedProduct) {
             document.body.style.overflow = 'hidden';
+            
+            // Record view count tracking asynchronously
+            if (selectedProduct.id) {
+                // Ensure we only record once per selected product per session
+                const viewKey = `viewed_${selectedProduct.id}`;
+                if (!sessionStorage.getItem(viewKey)) {
+                    sessionStorage.setItem(viewKey, '1');
+                    fetch('/api/product-view', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ productId: selectedProduct.id })
+                    }).catch((error) => console.error('Failed to register product view:', error));
+                }
+            }
         } else {
             document.body.style.overflow = '';
         }
