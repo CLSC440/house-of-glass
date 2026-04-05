@@ -77,8 +77,36 @@ function getNetPrice(product) {
     return Math.max(0, getRetailPrice(product) - getDiscountValue(product));
 }
 
+function getQuickAddEntry(product, variants = []) {
+    return variants.length === 1 ? variants[0] : product;
+}
+
+function getQuickAddCartId(entry) {
+    return entry?.id || entry?.code || entry?.title || entry?.name || 'Unnamed Product';
+}
+
 export default function ProductGrid() {
-    const { filteredProducts, categories, brands, isLoading, setSelectedProduct, activeCategory, activeFilterChips, userRole, dcLiveUpdateAt, getProductStockLimit, getProductStockStatus, addToCart, addToWholesaleCart } = useGallery();
+    const {
+        filteredProducts,
+        categories,
+        brands,
+        isLoading,
+        setSelectedProduct,
+        activeCategory,
+        activeFilterChips,
+        userRole,
+        dcLiveUpdateAt,
+        getProductStockLimit,
+        getProductStockStatus,
+        addToCart,
+        addToWholesaleCart,
+        cartItems,
+        wholesaleCartItems,
+        updateCartQuantity,
+        updateWholesaleCartQuantity,
+        removeFromCart,
+        removeFromWholesaleCart
+    } = useGallery();
     const [flippedCards, setFlippedCards] = useState({});
     const [showLiveIndicator, setShowLiveIndicator] = useState(false);
     const [visibleCategoryRows, setVisibleCategoryRows] = useState(INITIAL_CATEGORY_ROWS);
@@ -247,6 +275,116 @@ export default function ProductGrid() {
             window.sessionStorage.setItem(CATEGORY_ROWS_STORAGE_KEY, String(visibleCategoryRows));
         }
         setEditingProduct(null);
+    };
+
+    const renderQuickAddControl = ({
+        label,
+        quantity = 0,
+        stockLimit = null,
+        onAdd,
+        onIncrease,
+        onDecrease,
+        onRemove,
+        tone = 'retail'
+    }) => {
+        const isAtStockLimit = stockLimit !== null && quantity >= stockLimit;
+        const toneClasses = tone === 'wholesale'
+            ? {
+                shell: 'border-brandGold bg-white dark:bg-gray-900',
+                action: 'text-brandBlue dark:text-white hover:bg-brandGold/10',
+                iconButton: 'text-brandGold hover:text-brandGold/80',
+                icon: 'box'
+            }
+            : {
+                shell: 'border-emerald-500 bg-white dark:bg-gray-900',
+                action: 'text-brandBlue dark:text-white hover:bg-emerald-500/10',
+                iconButton: 'text-emerald-400 hover:text-emerald-300',
+                icon: 'cart'
+            };
+
+        const handleAction = (event, callback) => {
+            event.preventDefault();
+            event.stopPropagation();
+            callback();
+        };
+
+        return (
+            <div className="flex min-w-[3rem] flex-col items-stretch gap-1.5">
+                {quantity > 0 ? (
+                    <div
+                        dir="ltr"
+                        className={`flex h-10 items-center overflow-hidden rounded-full border-[3px] shadow-sm md:h-11 ${toneClasses.shell}`}
+                        onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                        }}
+                    >
+                        <button
+                            type="button"
+                            onClick={(event) => handleAction(event, onIncrease)}
+                            disabled={isAtStockLimit}
+                            aria-label="Increase quantity"
+                            className={`flex h-full w-12 items-center justify-center text-lg font-black transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${toneClasses.action}`}
+                        >
+                            <i className="fa-solid fa-plus"></i>
+                        </button>
+                        <span className="flex h-full min-w-12 items-center justify-center border-x border-slate-200 px-3 text-lg font-black text-brandBlue dark:border-white/10 dark:text-white">
+                            {quantity}
+                        </span>
+                        {quantity <= 1 ? (
+                            <button
+                                type="button"
+                                onClick={(event) => handleAction(event, onRemove)}
+                                aria-label="Remove from cart"
+                                className="flex h-full w-12 items-center justify-center text-xl font-black text-brandBlue transition-colors hover:bg-red-50 hover:text-red-500 dark:text-white dark:hover:bg-red-500/10 dark:hover:text-red-300"
+                            >
+                                <i className="fa-solid fa-trash-can"></i>
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={(event) => handleAction(event, onDecrease)}
+                                aria-label="Decrease quantity"
+                                className={`flex h-full w-12 items-center justify-center text-xl font-black transition-colors ${toneClasses.action}`}
+                            >
+                                <i className="fa-solid fa-minus"></i>
+                            </button>
+                        )}
+                    </div>
+                ) : label ? (
+                    <button
+                        type="button"
+                        onClick={(event) => handleAction(event, onAdd)}
+                        title={label}
+                        aria-label={label}
+                        className={`relative flex h-11 w-11 items-center justify-center text-sm font-black transition-all duration-300 hover:scale-[1.06] md:h-12 md:w-12 ${toneClasses.iconButton}`}
+                    >
+                        {toneClasses.icon === 'box' ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                            </svg>
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                        )}
+                        <span className="absolute left-1/2 top-[9%] -translate-x-1/2 -translate-y-1/2 text-[12px] font-black leading-none text-current drop-shadow-[0_0_6px_currentColor]">
+                            +
+                        </span>
+                    </button>
+                ) : (
+                    <button
+                        type="button"
+                        onClick={(event) => handleAction(event, onAdd)}
+                        title="Quick add to cart"
+                        aria-label="Quick add to cart"
+                        className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gray-50 dark:bg-gray-800/50 hover:bg-brandGold hover:text-white text-gray-400 flex items-center justify-center transition-all duration-300 shadow-sm border border-gray-100 dark:border-gray-800 focus:scale-95 group/btn self-end"
+                    >
+                        <i className="fa-solid fa-plus text-base md:text-lg group-hover/btn:scale-110 transition-transform duration-300"></i>
+                    </button>
+                )}
+            </div>
+        );
     };
 
     const handleProductCardClick = (product, event) => {
@@ -461,11 +599,27 @@ export default function ProductGrid() {
         const productId = product.id || product.code || product.name;
         const stockOrderType = isStrictWholesaleUser ? 'wholesale' : 'retail';
         const stockStatus = getProductStockStatus(product, stockOrderType);
+        const topBadgeStockStatus = isStrictWholesaleUser
+            ? getProductStockStatus(product, 'retail')
+            : stockStatus;
         const isHidden = product.isHidden || false;
         const remainingQuantity = getProductStockLimit(product, stockOrderType) || 0;
+        const topBadgeRemainingQuantity = isStrictWholesaleUser
+            ? (getProductStockLimit(product, 'retail') || 0)
+            : remainingQuantity;
         const imageUrl = getImageUrl(product);
         const metaParts = getMetaParts(product);
         const variants = getVariantEntries(product);
+        const quickAddEntry = getQuickAddEntry(product, variants);
+        const quickAddCartId = getQuickAddCartId(quickAddEntry);
+        const retailQuickAddItem = cartItems.find((item) => item.cartId === quickAddCartId) || null;
+        const wholesaleQuickAddItem = wholesaleCartItems.find((item) => item.cartId === quickAddCartId) || null;
+        const retailQuickAddQuantity = Number(retailQuickAddItem?.quantity || 0);
+        const wholesaleQuickAddQuantity = Number(wholesaleQuickAddItem?.quantity || 0);
+        const retailQuickAddStockLimit = getProductStockLimit(quickAddEntry, 'retail');
+        const wholesaleQuickAddStockLimit = getProductStockLimit(quickAddEntry, 'wholesale');
+        const showRetailQuickAddControl = retailQuickAddQuantity > 0 || retailQuickAddStockLimit !== 0;
+        const showWholesaleQuickAddControl = wholesaleQuickAddQuantity > 0 || wholesaleQuickAddStockLimit !== 0;
         const hasVariants = variants.length > 0;
         const isFlipped = Boolean(flippedCards[productId]);
         const retailPrice = getRetailPrice(product);
@@ -489,9 +643,9 @@ export default function ProductGrid() {
                     <div 
                         onClick={(event) => handleProductCardClick(product, event)}
                         className={`absolute inset-0 rounded-[2rem] bg-white dark:bg-darkCard p-4 flex flex-col justify-between shadow-sm hover:shadow-2xl hover:shadow-brandGold/10 transition-all duration-500 border border-gray-100 hover:border-brandGold/30 dark:border-gray-800/80 hover:-translate-y-2 cursor-pointer [backface-visibility:hidden]
-                        ${stockStatus === 'out_of_stock' ? 'opacity-80 grayscale-[20%]' : ''}`}
+                        ${topBadgeStockStatus === 'out_of_stock' ? 'opacity-80 grayscale-[20%]' : ''}`}
                     >
-                        {getStockBadge(stockStatus, isHidden, remainingQuantity)}
+                        {getStockBadge(topBadgeStockStatus, isHidden, topBadgeRemainingQuantity)}
 
                         {isAdminUser ? (
                             <button
@@ -624,15 +778,41 @@ export default function ProductGrid() {
                                     )}
                                 </div>
                                 
-                                <button
-                                    type="button"
-                                    onClick={(event) => handleQuickAdd(product, variants, event)}
-                                    title={variants.length > 1 ? 'Choose variant' : 'Quick add to cart'}
-                                    aria-label={variants.length > 1 ? 'Choose variant before adding to cart' : 'Quick add to cart'}
-                                    className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gray-50 dark:bg-gray-800/50 hover:bg-brandGold hover:text-white text-gray-400 flex items-center justify-center transition-all duration-300 shadow-sm border border-gray-100 dark:border-gray-800 focus:scale-95 group/btn"
-                                >
-                                    <i className="fa-solid fa-plus text-base md:text-lg group-hover/btn:scale-110 transition-transform duration-300"></i>
-                                </button>
+                                {isStrictWholesaleUser ? (
+                                    <div className="flex flex-col items-stretch gap-2">
+                                        {showRetailQuickAddControl ? renderQuickAddControl({
+                                            label: 'Retail | قطاعي',
+                                            quantity: retailQuickAddQuantity,
+                                            stockLimit: retailQuickAddStockLimit,
+                                            onAdd: () => addToCart(quickAddEntry, 1),
+                                            onIncrease: () => updateCartQuantity(quickAddCartId, retailQuickAddQuantity + 1),
+                                            onDecrease: () => updateCartQuantity(quickAddCartId, retailQuickAddQuantity - 1),
+                                            onRemove: () => removeFromCart(quickAddCartId),
+                                            tone: 'retail'
+                                        }) : null}
+                                        {showWholesaleQuickAddControl ? renderQuickAddControl({
+                                            label: 'Wholesale | كرتونة',
+                                            quantity: wholesaleQuickAddQuantity,
+                                            stockLimit: wholesaleQuickAddStockLimit,
+                                            onAdd: () => addToWholesaleCart(quickAddEntry, 1),
+                                            onIncrease: () => updateWholesaleCartQuantity(quickAddCartId, wholesaleQuickAddQuantity + 1),
+                                            onDecrease: () => updateWholesaleCartQuantity(quickAddCartId, wholesaleQuickAddQuantity - 1),
+                                            onRemove: () => removeFromWholesaleCart(quickAddCartId),
+                                            tone: 'wholesale'
+                                        }) : null}
+                                    </div>
+                                ) : (
+                                    showRetailQuickAddControl ? renderQuickAddControl({
+                                        label: 'Retail | قطاعي',
+                                        quantity: retailQuickAddQuantity,
+                                        stockLimit: retailQuickAddStockLimit,
+                                        onAdd: () => handleQuickAdd(product, variants),
+                                        onIncrease: () => updateCartQuantity(quickAddCartId, retailQuickAddQuantity + 1),
+                                        onDecrease: () => updateCartQuantity(quickAddCartId, retailQuickAddQuantity - 1),
+                                        onRemove: () => removeFromCart(quickAddCartId),
+                                        tone: 'retail'
+                                    }) : null
+                                )}
                             </div>
                         </div>
                     </div>
