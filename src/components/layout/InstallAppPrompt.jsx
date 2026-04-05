@@ -111,47 +111,46 @@ export default function InstallAppPrompt() {
     }
 
     return (
-        <div className="fixed inset-x-3 bottom-3 z-[210] lg:hidden">
-            <div className="mx-auto max-w-sm overflow-hidden rounded-[1.5rem] border border-brandGold/20 bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.18),transparent_38%),linear-gradient(180deg,rgba(18,26,45,0.98),rgba(10,16,31,0.98))] shadow-[0_18px_48px_rgba(4,8,20,0.42)] backdrop-blur-xl">
-                <div className="flex items-start gap-3 px-3.5 pb-2.5 pt-3.5">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-brandGold/95 text-brandBlue shadow-[0_10px_24px_rgba(212,175,55,0.22)]">
-                        <i className="fa-solid fa-download text-xs"></i>
+        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm lg:hidden animate-in fade-in duration-300">
+            <div className="relative w-full max-w-sm">
+                
+                {/* Back shadow lights / glow */}
+                <div className="absolute inset-0 h-full w-full transform scale-[0.85] rounded-full bg-gradient-to-r from-brandGold to-brandBlue opacity-50 blur-3xl"></div>
+                
+                <div className="relative flex w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0A101F] px-5 py-5 shadow-[0_18px_48px_rgba(4,8,20,0.5)]">
+                    
+                    {/* Close button top right */}
+                    <button
+                        type="button"
+                        onClick={handleDismiss}
+                        className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full bg-white/5 text-slate-400 transition-colors hover:bg-white/15 hover:text-white"
+                        aria-label="Dismiss install prompt"
+                    >
+                        <i className="fa-solid fa-xmark text-xs"></i>
+                    </button>
+
+                    {/* Icon */}
+                    <div className="mb-4 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-brandGold">
+                        <i className="fa-solid fa-download text-sm"></i>
                     </div>
 
-                    <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                                <span className="inline-flex rounded-full border border-brandGold/20 bg-brandGold/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-brandGold/90">
-                                    Quick Install
-                                </span>
-                                <p className="mt-2 text-[13px] font-black leading-tight text-brandGold">
-                                    Install App | تنزيل التطبيق
-                                </p>
-                            </div>
+                    {/* Title */}
+                    <h3 className="mb-2 flex items-center gap-2 text-lg font-bold text-white">
+                        Install App | تنزيل التطبيق
+                    </h3>
 
-                            <button
-                                type="button"
-                                onClick={handleDismiss}
-                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/8 text-slate-300 transition-colors hover:bg-white/15 hover:text-white"
-                                aria-label="Dismiss install prompt"
-                            >
-                                <i className="fa-solid fa-xmark text-xs"></i>
-                            </button>
-                        </div>
+                    {/* Description */}
+                    <p className="mb-6 text-[13px] leading-relaxed text-slate-400">
+                        {iosSafari
+                            ? 'Use Safari share menu then tap Add to Home Screen for faster access. | افتح قائمة المشاركة في Safari ثم اختر Add to Home Screen للوصول السريع.'
+                            : deferredPrompt
+                                ? 'Install House Of Glass on your phone for faster access. | نزّل House Of Glass على موبايلك للوصول السريع.'
+                                : 'You can add this site to your home screen from the browser menu. | يمكنك إضافة الموقع إلى الشاشة الرئيسية من قائمة المتصفح.'}
+                    </p>
 
-                        <p className="mt-2 text-[11px] leading-5 text-slate-300/95">
-                            {iosSafari
-                                ? 'Use Safari share menu then tap Add to Home Screen. | افتح قائمة المشاركة في Safari ثم اختر Add to Home Screen.'
-                                : deferredPrompt
-                                    ? 'Install House Of Glass on your phone for faster access. | نزّل House Of Glass على موبايلك للوصول السريع.'
-                                    : 'You can add this site to your home screen from the browser menu. | يمكنك إضافة الموقع إلى الشاشة الرئيسية من قائمة المتصفح.'}
-                        </p>
-                    </div>
-                </div>
-
-                <div className="relative flex items-center gap-2 border-t border-white/10 px-3.5 py-3">
+                    {/* Instructions Popover */}
                     {showInstructions && (
-                        <div className="absolute bottom-[calc(100%+8px)] left-0 right-0 rounded-[1.25rem] border border-brandGold/20 bg-[#0d1323] p-4 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] backdrop-blur-3xl animate-in slide-in-from-bottom-2 fade-in">
+                        <div className="absolute bottom-20 left-4 right-4 z-10 rounded-xl border border-brandGold/20 bg-[#0d1323] p-4 shadow-[0_-10px_40px_rgba(0,0,0,0.6)] backdrop-blur-3xl animate-in slide-in-from-bottom-2 fade-in">
                             <div className="mb-3 flex items-center justify-between">
                                 <h4 className="text-[13px] font-black tracking-wide text-brandGold">
                                     {iosSafari ? 'Install App | للآيفون' : 'Install App | طريقة التنزيل'}
@@ -167,7 +166,7 @@ export default function InstallAppPrompt() {
                             <div className="flex flex-col gap-2.5">
                                 {iosSafari ? (
                                     <>
-                                        <div className="flex items-start gap-3 rounded-xl bg-white/5 p-2.5">
+                                        <div className="flex items-start gap-3 rounded-lg bg-white/5 p-2.5">
                                             <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded bg-brandGold text-brandBlue">
                                                 <i className="fa-solid fa-arrow-up-from-bracket text-xs"></i>
                                             </div>
@@ -176,7 +175,7 @@ export default function InstallAppPrompt() {
                                                 <span className="mt-1 block text-[10px] text-slate-400">اضغط على زر المشاركة بالأسفل</span>
                                             </div>
                                         </div>
-                                        <div className="flex items-start gap-3 rounded-xl bg-white/5 p-2.5">
+                                        <div className="flex items-start gap-3 rounded-lg bg-white/5 p-2.5">
                                             <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded bg-brandGold text-brandBlue">
                                                 <i className="fa-solid fa-square-plus text-xs"></i>
                                             </div>
@@ -188,7 +187,7 @@ export default function InstallAppPrompt() {
                                     </>
                                 ) : (
                                     <>
-                                        <div className="flex items-start gap-3 rounded-xl bg-white/5 p-2.5">
+                                        <div className="flex items-start gap-3 rounded-lg bg-white/5 p-2.5">
                                             <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded bg-brandGold text-brandBlue">
                                                 <i className="fa-solid fa-ellipsis-vertical text-xs"></i>
                                             </div>
@@ -197,7 +196,7 @@ export default function InstallAppPrompt() {
                                                 <span className="mt-1 block text-[10px] text-slate-400">افتح قائمة المتصفح</span>
                                             </div>
                                         </div>
-                                        <div className="flex items-start gap-3 rounded-xl bg-white/5 p-2.5">
+                                        <div className="flex items-start gap-3 rounded-lg bg-white/5 p-2.5">
                                             <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded bg-brandGold text-brandBlue">
                                                 <i className="fa-solid fa-mobile-screen-button text-xs"></i>
                                             </div>
@@ -212,34 +211,36 @@ export default function InstallAppPrompt() {
                         </div>
                     )}
 
-                    {deferredPrompt ? (
+                    {/* Actions */}
+                    <div className="flex items-center gap-3">
+                        {deferredPrompt ? (
+                            <button
+                                type="button"
+                                onClick={handleInstall}
+                                disabled={isInstalling}
+                                className="inline-flex h-10 items-center justify-center rounded-lg border border-transparent bg-brandGold px-5 text-[13px] font-bold text-[#0A101F] transition-all hover:bg-[#e0be52] disabled:cursor-not-allowed disabled:opacity-70"
+                            >
+                                <i className={`mr-2 fa-solid ${isInstalling ? 'fa-spinner fa-spin' : 'fa-download'}`}></i>
+                                <span>{isInstalling ? 'Installing...' : 'Install Now'}</span>
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => setShowInstructions(!showInstructions)}
+                                className="flex h-10 items-center justify-center rounded-lg border border-brandGold/30 bg-transparent px-5 text-[13px] font-bold text-brandGold transition-colors hover:bg-brandGold/10"
+                            >
+                                <i className={`mr-2 ${iosSafari ? 'fa-brands fa-apple' : 'fa-solid fa-circle-info'}`}></i>
+                                <span>{iosSafari ? 'How to Install' : 'Instructions'}</span>
+                            </button>
+                        )}
                         <button
                             type="button"
-                            onClick={handleInstall}
-                            disabled={isInstalling}
-                            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-brandGold px-4 text-[12px] font-black text-brandBlue transition-all hover:bg-[#e0be52] disabled:cursor-not-allowed disabled:opacity-70"
+                            onClick={handleDismiss}
+                            className="inline-flex h-10 px-5 items-center justify-center rounded-lg border border-white/10 bg-transparent text-[13px] font-bold text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
                         >
-                            <i className={`fa-solid ${isInstalling ? 'fa-spinner fa-spin' : 'fa-mobile-screen-button'}`}></i>
-                            <span>{isInstalling ? 'Installing...' : 'Install App'}</span>
+                            Later
                         </button>
-                    ) : (
-                        <button
-                            type="button"
-                            onClick={() => setShowInstructions(!showInstructions)}
-                            className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full border border-brandGold/30 bg-brandGold/10 px-3 text-[11px] font-black uppercase tracking-[0.1em] text-brandGold transition-colors hover:bg-brandGold/20"
-                        >
-                            <i className={iosSafari ? "fa-brands fa-apple text-sm" : "fa-solid fa-circle-info text-sm"}></i>
-                            {iosSafari ? 'How to Install' : 'Install Instructions'}
-                        </button>
-                    )}
-
-                    <button
-                        type="button"
-                        onClick={handleDismiss}
-                        className="inline-flex h-11 items-center justify-center rounded-full border border-white/10 px-4 text-[10px] font-black uppercase tracking-[0.16em] text-slate-300 transition-colors hover:border-brandGold/30 hover:text-brandGold"
-                    >
-                        Later
-                    </button>
+                    </div>
                 </div>
             </div>
         </div>
