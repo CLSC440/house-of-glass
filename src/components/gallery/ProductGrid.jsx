@@ -618,8 +618,9 @@ export default function ProductGrid() {
         const wholesaleQuickAddQuantity = Number(wholesaleQuickAddItem?.quantity || 0);
         const retailQuickAddStockLimit = getProductStockLimit(quickAddEntry, 'retail');
         const wholesaleQuickAddStockLimit = getProductStockLimit(quickAddEntry, 'wholesale');
-        const showRetailQuickAddControl = isAdminUser || retailQuickAddQuantity > 0 || retailQuickAddStockLimit !== 0;
-        const showWholesaleQuickAddControl = isAdminUser || wholesaleQuickAddQuantity > 0 || wholesaleQuickAddStockLimit !== 0;
+        const wholesaleQuickAddPrice = getWholesalePrice(quickAddEntry);
+        const showRetailQuickAddControl = retailQuickAddQuantity > 0 || retailQuickAddStockLimit !== 0;
+        const showWholesaleQuickAddControl = wholesaleQuickAddQuantity > 0 || (wholesaleQuickAddPrice > 0 && wholesaleQuickAddStockLimit !== 0);
         const shouldShowDualQuickAddControls = isStrictWholesaleUser || isAdminUser;
         const hasVariants = variants.length > 0;
         const isFlipped = Boolean(flippedCards[productId]);
