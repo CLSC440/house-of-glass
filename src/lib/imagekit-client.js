@@ -49,7 +49,9 @@ export async function getImageKitAuthPayload(currentUser) {
     }
 
     const idToken = await currentUser.getIdToken();
-    const response = await fetch('/api/imagekit-auth', {
+    const authUrl = `/api/imagekit-auth?ts=${Date.now()}`;
+    const response = await fetch(authUrl, {
+        cache: 'no-store',
         headers: {
             Authorization: `Bearer ${idToken}`
         }

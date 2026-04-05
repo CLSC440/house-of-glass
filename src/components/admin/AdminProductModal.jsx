@@ -160,6 +160,49 @@ function createBlankVariant() {
     };
 }
 
+function getMediaUploadKey(item, index = 0) {
+    const normalizedItem = normalizeMediaEntry(item, index);
+    const existingUrl = normalizedItem.url.trim();
+    const pendingFileKey = item?.pendingFile
+        ? `${item.pendingFile.name}:${item.pendingFile.size}:${item.pendingFile.lastModified}`
+        : '';
+
+    if (normalizedItem.fileId) return `file:${normalizedItem.fileId}`;
+    if (normalizedItem.sourceMediaId) return `source:${normalizedItem.sourceMediaId}`;
+    if (pendingFileKey) return `pending:${pendingFileKey}`;
+    if (existingUrl) return `url:${existingUrl}`;
+    return `media:${index}`;
+}
+
+function mediaNeedsUpload(item, index = 0) {
+    const normalizedItem = normalizeMediaEntry(item, index);
+    return Boolean(item?.pendingFile) || normalizedItem.url.trim().startsWith('data:');
+}
+
+function countPendingMediaUploads(formData) {
+    const uploadKeys = new Set();
+
+    reorderPrimaryFirst(formData?.imageDetails || []).forEach((item, index) => {
+        if (mediaNeedsUpload(item, index)) {
+            uploadKeys.add(getMediaUploadKey(item, index));
+        }
+    });
+
+    (formData?.variants || []).forEach((variant, variantIndex) => {
+        const variantSource = (variant?.imageDetails && variant.imageDetails.length > 0)
+            ? variant.imageDetails
+            : (variant?.images && variant.images.length > 0 ? variant.images : (variant?.image ? [variant.image] : []));
+
+        variantSource.forEach((item, imageIndex) => {
+            if (mediaNeedsUpload(item, imageIndex)) {
+                uploadKeys.add(`${variantIndex}:${getMediaUploadKey(item, imageIndex)}`);
+            }
+        });
+    });
+
+    return uploadKeys.size;
+}
+
 function normalizeVariant(variant, index) {
     const normalizedMedia = normalizeMediaCollection(
         variant?.imageDetails,
@@ -262,6 +305,7 @@ export default function AdminProductModal({ isOpen, onClose, product, categories
     const { dcProductsMap, allProducts } = useGallery();
     const [formData, setFormData] = useState(() => buildInitialFormData(null));
     const [loading, setLoading] = useState(false);
+    const [saveProgress, setSaveProgress] = useState({ percent: 0, title: '', detail: '' });
     const [variantImagePicker, setVariantImagePicker] = useState({ variantIndex: null, imageIndex: null });
 
     useEffect(() => {
@@ -652,6 +696,11 @@ export default function AdminProductModal({ isOpen, onClose, product, categories
     const handleSubmit = async (event) => {
         event?.preventDefault?.();
         setLoading(true);
+        setSaveProgress({
+            percent: 4,
+            title: product ? 'Preparing product update' : 'Preparing new product',
+            detail: 'Checking media and product data before saving.'
+        });
         const uploadedFileIds = [];
 
         try {
@@ -662,22 +711,39 @@ export default function AdminProductModal({ isOpen, onClose, product, categories
 
             const uploadRoot = normalizeLabel(product?.id || formData.code || product?.code, 'draft');
             const uploadedMediaCache = new Map();
+            const totalPendingUploads = countPendingMediaUploads(formData);
+            let completedUploads = 0;
+
+            if (totalPendingUploads > 0) {
+                setSaveProgress({
+                    percent: 10,
+                    title: 'Uploading product images',
+                    detail: `Uploaded 0 of ${totalPendingUploads} images.`
+                });
+            } else {
+                setSaveProgress({
+                    percent: 24,
+                    title: 'Preparing product payload',
+                    detail: 'No new images to upload. Building the save payload.'
+                });
+            }
+
+            const markUploadCompleted = () => {
+                if (totalPendingUploads <= 0) return;
+
+                completedUploads += 1;
+                const percent = 10 + Math.round((completedUploads / totalPendingUploads) * 68);
+                setSaveProgress({
+                    percent: Math.min(percent, 78),
+                    title: 'Uploading product images',
+                    detail: `Uploaded ${completedUploads} of ${totalPendingUploads} images.`
+                });
+            };
 
             const uploadMediaItem = async (item, index, folder) => {
                 const normalizedItem = normalizeMediaEntry(item, index);
                 const existingUrl = normalizedItem.url.trim();
-                const pendingFileKey = item?.pendingFile
-                    ? `${item.pendingFile.name}:${item.pendingFile.size}:${item.pendingFile.lastModified}`
-                    : '';
-                const sharedMediaKey = normalizedItem.fileId
-                    ? `file:${normalizedItem.fileId}`
-                    : normalizedItem.sourceMediaId
-                        ? `source:${normalizedItem.sourceMediaId}`
-                        : pendingFileKey
-                            ? `pending:${pendingFileKey}`
-                            : existingUrl
-                                ? `url:${existingUrl}`
-                                : '';
+                const sharedMediaKey = getMediaUploadKey(item, index);
 
                 if (sharedMediaKey && uploadedMediaCache.has(sharedMediaKey)) {
                     return normalizeMediaEntry({
@@ -694,6 +760,7 @@ export default function AdminProductModal({ isOpen, onClose, product, categories
                         fileName: `${uploadRoot}_${folder.split('/').pop()}_${index + 1}.${inferUploadExtension(item.pendingFile)}`,
                         tags: ['product', 'admin-modal']
                     });
+                    markUploadCompleted();
                     if (uploadedMedia.fileId) uploadedFileIds.push(uploadedMedia.fileId);
                     if (sharedMediaKey) uploadedMediaCache.set(sharedMediaKey, uploadedMedia);
                     return normalizeMediaEntry({ ...normalizedItem, ...uploadedMedia, previewUrl: '', pendingFile: null }, index);
@@ -706,6 +773,7 @@ export default function AdminProductModal({ isOpen, onClose, product, categories
                         fileName: `${uploadRoot}_${folder.split('/').pop()}_${index + 1}.${inferUploadExtension(existingUrl)}`,
                         tags: ['product', 'admin-modal']
                     });
+                    markUploadCompleted();
                     if (uploadedMedia.fileId) uploadedFileIds.push(uploadedMedia.fileId);
                     if (sharedMediaKey) uploadedMediaCache.set(sharedMediaKey, uploadedMedia);
                     return normalizeMediaEntry({ ...normalizedItem, ...uploadedMedia, previewUrl: '', pendingFile: null }, index);
@@ -778,6 +846,12 @@ export default function AdminProductModal({ isOpen, onClose, product, categories
                 updatedAt: serverTimestamp()
             };
 
+            setSaveProgress({
+                percent: 84,
+                title: product ? 'Saving product update' : 'Creating product record',
+                detail: 'Writing product details to the database.'
+            });
+
             const nextProductState = {
                 ...(product || {}),
                 ...productData
@@ -795,12 +869,23 @@ export default function AdminProductModal({ isOpen, onClose, product, categories
 
             const removableFileIds = product ? getRemovedImageKitFileIds(product, nextProductState) : [];
             if (removableFileIds.length > 0) {
+                setSaveProgress({
+                    percent: 94,
+                    title: 'Finalizing media cleanup',
+                    detail: 'Removing replaced images from storage.'
+                });
                 try {
                     await deleteImageKitFiles(currentUser, removableFileIds);
                 } catch (cleanupError) {
                     console.error('Failed to delete removed ImageKit files:', cleanupError);
                 }
             }
+
+            setSaveProgress({
+                percent: 100,
+                title: product ? 'Product updated' : 'Product created',
+                detail: 'Everything was saved successfully.'
+            });
 
             onClose();
         } catch (error) {
@@ -815,6 +900,7 @@ export default function AdminProductModal({ isOpen, onClose, product, categories
             alert(error?.message || 'Failed to save product');
         } finally {
             setLoading(false);
+            setSaveProgress({ percent: 0, title: '', detail: '' });
         }
     };
 
@@ -1399,7 +1485,31 @@ export default function AdminProductModal({ isOpen, onClose, product, categories
                     </div>
                 </form>
 
-                <div className="flex flex-col gap-2 border-t border-white/10 bg-[#11192b]/90 px-4 py-3 md:flex-row md:items-center md:justify-between md:px-5">
+                <div className="flex flex-col gap-2 border-t border-white/10 bg-[#11192b]/90 px-4 py-3 md:px-5">
+                    {loading ? (
+                        <div className="rounded-2xl border border-brandGold/15 bg-brandGold/[0.06] p-3 shadow-[0_12px_30px_rgba(0,0,0,0.18)]">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brandGold/80">
+                                        {product ? 'Saving Update' : 'Creating Product'}
+                                    </p>
+                                    <p className="mt-1 text-sm font-black text-white">{saveProgress.title || 'Saving product...'}</p>
+                                    <p className="mt-1 text-xs text-slate-400">{saveProgress.detail || 'Please wait while we save the product.'}</p>
+                                </div>
+                                <div className="shrink-0 text-right">
+                                    <p className="text-lg font-black text-brandGold">{Math.max(0, saveProgress.percent)}%</p>
+                                </div>
+                            </div>
+                            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                                <div
+                                    className="h-full rounded-full bg-[linear-gradient(90deg,rgba(212,175,55,0.85),rgba(244,220,136,0.95))] transition-[width] duration-300 ease-out"
+                                    style={{ width: `${Math.max(6, saveProgress.percent)}%` }}
+                                ></div>
+                            </div>
+                        </div>
+                    ) : null}
+
+                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                     <p className="text-xs text-slate-400 max-w-[60%]">
                         Primary media is always saved first so current gallery and legacy consumers resolve the same cover image.
                     </p>
@@ -1428,8 +1538,9 @@ export default function AdminProductModal({ isOpen, onClose, product, categories
                             disabled={loading || deleteLoading}
                             className="rounded-[10px] bg-brandGold px-5 py-2 text-xs font-black text-[#0b1020] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {loading ? 'Saving...' : 'Save Product'}
+                            {loading ? `Saving ${Math.max(0, saveProgress.percent)}%...` : 'Save Product'}
                         </button>
+                    </div>
                     </div>
                 </div>
             </div>

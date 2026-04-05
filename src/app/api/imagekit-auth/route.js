@@ -5,6 +5,8 @@ import { NextResponse } from 'next/server';
 const require = createRequire(import.meta.url);
 const { getAdminInitError, verifyRequestUser } = require('../../../api/_firebaseAdmin.js');
 
+export const dynamic = 'force-dynamic';
+
 function isLocalDevelopmentRequest(request) {
     if (process.env.NODE_ENV === 'production') return false;
 
@@ -56,6 +58,12 @@ export async function GET(request) {
             signature,
             publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
             urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT
+        }, {
+            headers: {
+                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+                Pragma: 'no-cache',
+                Expires: '0'
+            }
         });
     } catch (error) {
         const initError = getAdminInitError();
@@ -63,6 +71,13 @@ export async function GET(request) {
         return NextResponse.json({
             error: error.message || 'Failed to create ImageKit auth payload',
             details: status >= 500 && initError ? initError.message : undefined
-        }, { status });
+        }, {
+            status,
+            headers: {
+                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+                Pragma: 'no-cache',
+                Expires: '0'
+            }
+        });
     }
 }

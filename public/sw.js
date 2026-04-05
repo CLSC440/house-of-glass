@@ -34,6 +34,11 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    if (requestUrl.pathname.startsWith('/api/imagekit-auth')) {
+        event.respondWith(fetch(event.request));
+        return;
+    }
+
     if (event.request.mode === 'navigate') {
         event.respondWith(
             fetch(event.request).catch(() => caches.match('/'))
