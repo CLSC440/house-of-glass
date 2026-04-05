@@ -523,6 +523,18 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
         setSubImageIndex(0);
     };
 
+    const hasMultipleVariants = hasVariants && selectedProduct.variants.length > 1;
+
+    const stepActiveVariant = (direction) => {
+        if (!hasMultipleVariants) return;
+
+        setActiveVariantIndex((currentIndex) => {
+            const variantCount = selectedProduct.variants.length;
+            return (currentIndex + direction + variantCount) % variantCount;
+        });
+        setSubImageIndex(0);
+    };
+
     const variantsAsTestimonials = hasVariants ? selectedProduct.variants.map((v, idx) => {
         const vImages = getVariantAllImages(v);
         const displayImage = idx === activeVariantIndex && vImages[subImageIndex] ? vImages[subImageIndex] : vImages[0];
@@ -963,6 +975,11 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                         <div className="relative flex h-[26rem] shrink-0 items-center justify-center overflow-hidden px-6 pb-24 pt-16 md:h-full md:min-h-[34rem] md:pb-6">
                             {activeVariantImages.length > 0 ? (
                                 <div className="pointer-events-none absolute left-6 top-6 z-20 flex items-center gap-2">
+                                    {hasMultipleVariants ? (
+                                        <span className="rounded-full border border-white/60 bg-white/75 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-700 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-slate-950/70 dark:text-white/75">
+                                            {activeVariantIndex + 1} / {selectedProduct.variants.length}
+                                        </span>
+                                    ) : null}
                                     <span className="rounded-full border border-white/60 bg-white/75 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-700 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-slate-950/70 dark:text-white/75">
                                         {safeSubImageIndex + 1} / {activeVariantImages.length}
                                     </span>
@@ -993,7 +1010,32 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                                 </div>
                             )}
 
-                            {activeVariantImages.length > 1 ? (
+                            {hasMultipleVariants ? (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            stepActiveVariant(-1);
+                                        }}
+                                        className="detail-nav-arrow right-6"
+                                        aria-label="Show previous variant"
+                                    >
+                                        <i className="fa-solid fa-chevron-right"></i>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            stepActiveVariant(1);
+                                        }}
+                                        className="absolute left-6 top-1/2 z-40 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/50 text-white shadow-xl transition-colors hover:bg-brandGold"
+                                        aria-label="Show next variant"
+                                    >
+                                        <i className="fa-solid fa-chevron-left"></i>
+                                    </button>
+                                </>
+                            ) : activeVariantImages.length > 1 ? (
                                 <>
                                     <button
                                         type="button"
@@ -1002,6 +1044,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                                             setSubImageIndex((prev) => (prev > 0 ? prev - 1 : activeVariantImages.length - 1));
                                         }}
                                         className="detail-nav-arrow right-6"
+                                        aria-label="Show previous variant image"
                                     >
                                         <i className="fa-solid fa-chevron-right"></i>
                                     </button>
@@ -1012,6 +1055,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                                             setSubImageIndex((prev) => (prev < activeVariantImages.length - 1 ? prev + 1 : 0));
                                         }}
                                         className="absolute left-6 top-1/2 z-40 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/50 text-white shadow-xl transition-colors hover:bg-brandGold"
+                                        aria-label="Show next variant image"
                                     >
                                         <i className="fa-solid fa-chevron-left"></i>
                                     </button>
@@ -1092,7 +1136,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                                         return (
                                             <button
                                                 key={idx}
-                                                onClick={() => setActiveVariantIndex(idx)}
+                                                onClick={() => handleActiveVariantChange(idx)}
                                                 className={`inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2 text-xs font-bold transition-all ${
                                                     activeVariantIndex === idx
                                                         ? 'scale-105 border-brandGold bg-brandGold text-brandBlue shadow-lg shadow-brandGold/25'

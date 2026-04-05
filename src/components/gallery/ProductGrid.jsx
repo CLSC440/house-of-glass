@@ -82,12 +82,14 @@ export default function ProductGrid() {
     const [flippedCards, setFlippedCards] = useState({});
     const [showLiveIndicator, setShowLiveIndicator] = useState(false);
     const [visibleCategoryRows, setVisibleCategoryRows] = useState(INITIAL_CATEGORY_ROWS);
+    const [productRowScrollState, setProductRowScrollState] = useState({});
     const [selectedShowMoreArabicLine] = useState(() => SHOW_MORE_ARABIC_LINES[
         Math.floor(Math.random() * SHOW_MORE_ARABIC_LINES.length)
     ]);
     const [editingProduct, setEditingProduct] = useState(null);
     const savedScrollPositionRef = useRef(0);
     const shouldRestoreScrollRef = useRef(false);
+    const productRowRefs = useRef({});
 
     useEffect(() => {
         if (userRole !== 'admin' || !dcLiveUpdateAt) {
@@ -270,10 +272,93 @@ export default function ProductGrid() {
     const visibleSections = shouldUseCategoryRows
         ? productSections.slice(0, visibleCategoryRows)
         : productSections;
+    const trackedProductRowNames = useMemo(
+        () => (shouldUseCategoryRows ? productSections.slice(0, visibleCategoryRows) : productSections)
+            .map((section) => section.categoryName),
+        [shouldUseCategoryRows, productSections, visibleCategoryRows]
+    );
     const hasMoreCategoryRows = shouldUseCategoryRows && productSections.length > visibleCategoryRows;
     const isAdminUser = isAdminRole(userRole);
     const isStrictWholesaleUser = normalizeUserRole(userRole) === USER_ROLE_VALUES.CST_WHOLESALE;
     const shouldShowWholesaleSummary = isStrictWholesaleUser || isAdminUser;
+
+    useEffect(() => {
+        if (!shouldUseCategoryRows || typeof window === 'undefined') {
+            return undefined;
+        }
+
+        const updateRowScrollState = (categoryName) => {
+            const container = productRowRefs.current[categoryName];
+            if (!container) {
+                return;
+            }
+
+            const nextCanScrollLeft = container.scrollLeft > 10;
+            const nextCanScrollRight = container.scrollLeft + container.clientWidth < container.scrollWidth - 10;
+
+            setProductRowScrollState((currentState) => {
+                const previousState = currentState[categoryName];
+                if (
+                    previousState
+                    && previousState.canScrollLeft === nextCanScrollLeft
+                    && previousState.canScrollRight === nextCanScrollRight
+                ) {
+                    return currentState;
+                }
+
+                return {
+                    ...currentState,
+                    [categoryName]: {
+                        canScrollLeft: nextCanScrollLeft,
+                        canScrollRight: nextCanScrollRight
+                    }
+                };
+            });
+        };
+
+        const handleResize = () => {
+            trackedProductRowNames.forEach((categoryName) => updateRowScrollState(categoryName));
+        };
+
+        const cleanupCallbacks = trackedProductRowNames.flatMap((categoryName) => {
+            const container = productRowRefs.current[categoryName];
+            if (!container) {
+                return [];
+            }
+
+            const handleScroll = () => updateRowScrollState(categoryName);
+            handleScroll();
+            container.addEventListener('scroll', handleScroll, { passive: true });
+
+            return [() => container.removeEventListener('scroll', handleScroll)];
+        });
+
+        handleResize();
+        window.addEventListener('resize', handleResize);
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            cleanupCallbacks.forEach((cleanup) => cleanup());
+        };
+    }, [shouldUseCategoryRows, trackedProductRowNames]);
+
+    const setProductRowRef = (categoryName, node) => {
+        if (node) {
+            productRowRefs.current[categoryName] = node;
+            return;
+        }
+
+        delete productRowRefs.current[categoryName];
+    };
+
+    const scrollProductRow = (categoryName, direction) => {
+        const container = productRowRefs.current[categoryName];
+        if (!container) {
+            return;
+        }
+
+        container.scrollBy({ left: direction * 340, behavior: 'smooth' });
+    };
 
     const getStockBadge = (stockStatus, isHidden, remainingQuantity) => {
         if (isHidden) return null;
@@ -587,22 +672,44 @@ export default function ProductGrid() {
         <div className="space-y-10 md:space-y-12">
             {visibleSections.map((section) => (
                 <section key={section.categoryName} className="space-y-4">
-                    <div className="flex items-center justify-between gap-4 border-b border-white/8 pb-2">
+                    <div className="flex items-center justify-between gap-4 border-b border-gray-200 dark:border-white/8 pb-2">
                         <div>
                             <p className="text-[10px] font-black uppercase tracking-[0.28em] text-brandGold/75">Category Row</p>
-                            <h2 className="mt-1 text-2xl font-black text-white dark:text-white">{section.categoryName}</h2>
+                            <h2 className="mt-1 text-2xl font-black text-brandBlue dark:text-white">{section.categoryName}</h2>
                         </div>
                         <span className="rounded-full border border-brandGold/20 bg-brandGold/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-brandGold">
                             {section.products.length} items
                         </span>
                     </div>
 
-                    <div className="flex gap-6 overflow-x-auto hide-scroll pb-4">
-                        {section.products.map((product) => (
-                            <div key={product.id || product.code || product.name} className="w-[240px] flex-none sm:w-[255px] md:w-[270px]">
-                                {renderProductCard(product)}
-                            </div>
-                        ))}
+                    <div className="category-row-wrapper" style={{ marginBottom: 0 }}>
+                        <button
+                            type="button"
+                            onClick={() => scrollProductRow(section.categoryName, -1)}
+                            className={`scroll-arrow scroll-arrow-left ${!productRowScrollState[section.categoryName]?.canScrollLeft ? 'is-hidden' : ''}`}
+                            aria-label={`Scroll ${section.categoryName} products left`}
+                        >
+                            <i className="fa-solid fa-chevron-left"></i>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => scrollProductRow(section.categoryName, 1)}
+                            className={`scroll-arrow scroll-arrow-right ${!productRowScrollState[section.categoryName]?.canScrollRight ? 'is-hidden' : ''}`}
+                            aria-label={`Scroll ${section.categoryName} products right`}
+                        >
+                            <i className="fa-solid fa-chevron-right"></i>
+                        </button>
+
+                        <div
+                            ref={(node) => setProductRowRef(section.categoryName, node)}
+                            className="category-row-container pb-4"
+                        >
+                            {section.products.map((product) => (
+                                <div key={product.id || product.code || product.name} className="w-[240px] flex-none sm:w-[255px] md:w-[270px]">
+                                    {renderProductCard(product)}
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </section>
             ))}

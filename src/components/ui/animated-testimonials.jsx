@@ -2,7 +2,9 @@
 import { IconArrowLeft, IconArrowRight } from "@tabler/icons-react";
 import { motion, AnimatePresence } from "motion/react";
 
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
+
+const SWIPE_THRESHOLD_PX = 48;
 
 export const AnimatedTestimonials = ({
   testimonials,
@@ -19,6 +21,8 @@ export const AnimatedTestimonials = ({
   showCount = false
 }) => {
   const [uncontrolledActive, setUncontrolledActive] = useState(0);
+  const touchStartRef = useRef({ x: 0, y: 0 });
+  const didSwipeRef = useRef(false);
   const hasTestimonials = testimonials.length > 0;
   const isControlled = Number.isInteger(activeIndex);
   const active = isControlled ? activeIndex : uncontrolledActive;
@@ -108,9 +112,46 @@ export const AnimatedTestimonials = ({
   );
 
   const handleImageClick = () => {
+    if (didSwipeRef.current) {
+      didSwipeRef.current = false;
+      return;
+    }
+
     if (typeof onActiveImageClick === "function") {
       onActiveImageClick(active);
     }
+  };
+
+  const handleTouchStart = (event) => {
+    const touchPoint = event.touches?.[0];
+    if (!touchPoint) return;
+
+    touchStartRef.current = {
+      x: touchPoint.clientX,
+      y: touchPoint.clientY,
+    };
+    didSwipeRef.current = false;
+  };
+
+  const handleTouchEnd = (event) => {
+    const touchPoint = event.changedTouches?.[0];
+    if (!touchPoint) return;
+
+    const deltaX = touchPoint.clientX - touchStartRef.current.x;
+    const deltaY = touchPoint.clientY - touchStartRef.current.y;
+
+    if (Math.abs(deltaX) < SWIPE_THRESHOLD_PX || Math.abs(deltaX) <= Math.abs(deltaY)) {
+      return;
+    }
+
+    didSwipeRef.current = true;
+
+    if (deltaX < 0) {
+      handleNext();
+      return;
+    }
+
+    handlePrev();
   };
 
   const activeTestimonial = testimonials[active];
@@ -162,6 +203,8 @@ export const AnimatedTestimonials = ({
                   <button
                     type="button"
                     onClick={handleImageClick}
+                    onTouchStart={handleTouchStart}
+                    onTouchEnd={handleTouchEnd}
                     className="h-full w-full overflow-hidden rounded-[1.6rem] border border-white/50 bg-white/80 p-2 shadow-[0_18px_50px_rgba(148,163,184,0.16)] backdrop-blur-sm focus:outline-none active:scale-[0.99] dark:border-white/10 dark:bg-white/[0.04]"
                     aria-label={`Open ${testimonial.name} image fullscreen`}>
                     <img

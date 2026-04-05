@@ -81,6 +81,11 @@ function isTerminalOrderStatus(status) {
     return normalizedStatus === 'completed' || normalizedStatus === 'received' || normalizedStatus === 'cancelled';
 }
 
+function getAutomaticThemePreference() {
+    const hour = new Date().getHours();
+    return hour < 6 || hour >= 18;
+}
+
 export default function UserProfile() {
     const router = useRouter();
     const [user, setUser] = useState(null);
@@ -103,6 +108,8 @@ export default function UserProfile() {
     const [removeProfilePhoto, setRemoveProfilePhoto] = useState(false);
     const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
     const [isSavingProfile, setIsSavingProfile] = useState(false);
+    const [isAutoThemeEnabled, setIsAutoThemeEnabled] = useState(true);
+    const [isDarkTheme, setIsDarkTheme] = useState(false);
 
     const [orders, setOrders] = useState([]);
     const [ordersLoading, setOrdersLoading] = useState(true);
@@ -166,6 +173,61 @@ export default function UserProfile() {
             }
         };
     }, [selectedPhotoPreview]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const autoEnabled = localStorage.getItem('autoThemeEnabled') !== 'false';
+        const manualTheme = localStorage.getItem('darkMode');
+        const nextDarkTheme = autoEnabled
+            ? document.documentElement.classList.contains('dark')
+            : manualTheme === 'true';
+
+        setIsAutoThemeEnabled(autoEnabled);
+        setIsDarkTheme(nextDarkTheme);
+    }, []);
+
+    const applyThemePreference = ({ autoEnabled, darkEnabled }) => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const resolvedDarkTheme = autoEnabled ? getAutomaticThemePreference() : darkEnabled;
+        document.documentElement.classList.toggle('dark', resolvedDarkTheme);
+
+        if (autoEnabled) {
+            localStorage.setItem('autoThemeEnabled', 'true');
+            localStorage.removeItem('darkMode');
+            localStorage.removeItem('themeOverrideTime');
+        } else {
+            localStorage.setItem('autoThemeEnabled', 'false');
+            localStorage.setItem('darkMode', resolvedDarkTheme ? 'true' : 'false');
+            localStorage.setItem('themeOverrideTime', String(Date.now()));
+        }
+
+        setIsAutoThemeEnabled(autoEnabled);
+        setIsDarkTheme(resolvedDarkTheme);
+    };
+
+    const handleAutoThemeToggle = () => {
+        applyThemePreference({
+            autoEnabled: !isAutoThemeEnabled,
+            darkEnabled: isDarkTheme
+        });
+    };
+
+    const handleManualThemeChange = (nextDarkTheme) => {
+        if (isAutoThemeEnabled) {
+            return;
+        }
+
+        applyThemePreference({
+            autoEnabled: false,
+            darkEnabled: nextDarkTheme
+        });
+    };
 
     const displayedProfilePhoto = removeProfilePhoto
         ? ''
@@ -486,6 +548,80 @@ export default function UserProfile() {
                                     </div>
                                 </div>
                             )}
+                        </div>
+
+                        <div className="bg-white dark:bg-darkCard rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <h2 className="text-lg font-black text-brandBlue dark:text-white flex items-center gap-2">
+                                        <i className="fa-regular fa-moon text-brandGold"></i> Theme Settings
+                                    </h2>
+                                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                        Auto mode stays as the default and follows day/night time. You can disable it and pick a manual theme anytime.
+                                    </p>
+                                </div>
+                                <span className={`inline-flex rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${isAutoThemeEnabled ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300' : 'bg-brandGold/10 text-brandGold'}`}>
+                                    {isAutoThemeEnabled ? 'Auto Active' : 'Manual Active'}
+                                </span>
+                            </div>
+
+                            <div className="mt-5 rounded-[1.5rem] border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-gray-800/30">
+                                <div className="flex items-center justify-between gap-4">
+                                    <div>
+                                        <p className="text-sm font-black text-brandBlue dark:text-white">Automatic Light / Night Mode</p>
+                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                            Uses the current time to switch automatically between light and dark mode.
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={handleAutoThemeToggle}
+                                        className={`relative inline-flex h-11 w-[4.4rem] shrink-0 items-center rounded-full border transition-colors ${isAutoThemeEnabled ? 'border-emerald-400/30 bg-emerald-500/20' : 'border-gray-300 bg-gray-200 dark:border-gray-700 dark:bg-gray-800'}`}
+                                        aria-pressed={isAutoThemeEnabled}
+                                        aria-label="Toggle automatic theme mode"
+                                    >
+                                        <span
+                                            className={`inline-flex h-8 w-8 transform items-center justify-center rounded-full bg-white text-xs font-black shadow-sm transition-transform dark:bg-darkCard ${isAutoThemeEnabled ? 'translate-x-[2rem] text-emerald-600 dark:text-emerald-300' : 'translate-x-[0.3rem] text-gray-500 dark:text-gray-300'}`}
+                                        >
+                                            {isAutoThemeEnabled ? 'ON' : 'OFF'}
+                                        </span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="mt-4 grid grid-cols-2 gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => handleManualThemeChange(false)}
+                                    disabled={isAutoThemeEnabled}
+                                    className={`rounded-[1.4rem] border px-4 py-4 text-left transition-all disabled:cursor-not-allowed disabled:opacity-55 ${!isAutoThemeEnabled && !isDarkTheme ? 'border-brandGold/40 bg-brandGold/10 shadow-[0_10px_24px_rgba(212,175,55,0.16)]' : 'border-gray-200 bg-white hover:border-brandGold/25 dark:border-gray-700 dark:bg-gray-900/30'}`}
+                                >
+                                    <span className="flex items-center gap-2 text-sm font-black text-brandBlue dark:text-white">
+                                        <i className="fa-regular fa-sun text-brandGold"></i>
+                                        Light Mode
+                                    </span>
+                                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Bright interface for daytime use.</p>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => handleManualThemeChange(true)}
+                                    disabled={isAutoThemeEnabled}
+                                    className={`rounded-[1.4rem] border px-4 py-4 text-left transition-all disabled:cursor-not-allowed disabled:opacity-55 ${!isAutoThemeEnabled && isDarkTheme ? 'border-brandGold/40 bg-brandGold/10 shadow-[0_10px_24px_rgba(212,175,55,0.16)]' : 'border-gray-200 bg-white hover:border-brandGold/25 dark:border-gray-700 dark:bg-gray-900/30'}`}
+                                >
+                                    <span className="flex items-center gap-2 text-sm font-black text-brandBlue dark:text-white">
+                                        <i className="fa-regular fa-moon text-brandGold"></i>
+                                        Dark Mode
+                                    </span>
+                                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Low-glare interface for night use.</p>
+                                </button>
+                            </div>
+
+                            <div className="mt-4 rounded-2xl border border-dashed border-gray-200 px-4 py-3 text-xs font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                                {isAutoThemeEnabled
+                                    ? 'Auto mode is active. Disable it first if you want to control the theme manually.'
+                                    : `Manual mode is active. Current theme: ${isDarkTheme ? 'Dark' : 'Light'}.`}
+                            </div>
                         </div>
                     </div>
 

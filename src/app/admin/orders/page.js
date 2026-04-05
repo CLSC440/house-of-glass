@@ -39,21 +39,7 @@ const STATUS_STYLES = {
 };
 
 function getCustomerEmail(order) {
-    const email = [
-        order.customer?.email,
-        order.customer?.authEmail,
-        order.customer?.authEmailLowercase,
-        order.customerInfo?.email,
-        order.customerInfo?.authEmail,
-        order.customerInfo?.authEmailLowercase,
-        order.customerEmail,
-        order.email,
-        order.authEmail
-    ]
-        .map((value) => String(value || '').trim())
-        .find(Boolean);
-
-    return email || 'Not provided';
+    return order.customer?.email || order.customerInfo?.email || 'Not provided';
 }
 
 function getCustomerGovernorate(order) {
@@ -230,7 +216,7 @@ function buildEditableItem(item, orderType, catalogEntries, index) {
 function buildEditForm(order, catalogEntries) {
     return {
         customerName: getOrderCustomerName(order),
-        customerEmail: getCustomerEmail(order) === 'Not provided' ? '' : getCustomerEmail(order),
+        customerEmail: getCustomerEmail(order),
         customerPhone: getOrderCustomerPhone(order) || '',
         orderType: order.orderType || 'retail',
         status: normalizeOrderStatus(order.status),
@@ -700,7 +686,7 @@ export default function AdminOrders() {
                                                 <td className="p-4">
                                                     <div className="text-sm font-semibold text-white md:text-base">{getOrderCustomerName(order)}</div>
                                                     <div className="text-[11px] text-slate-500 md:text-xs">{getOrderCustomerPhone(order)}</div>
-                                                    <div className="text-[11px] text-slate-500 md:text-xs">{getCustomerGovernorate(order)}</div>
+                                                    <div className="text-[11px] text-slate-500 md:text-xs">{getCustomerEmail(order)}</div>
                                                 </td>
                                                 <td className="p-4">
                                                     <div className="text-sm font-medium text-white">
