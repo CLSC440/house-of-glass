@@ -81,6 +81,30 @@ function clampQuantityValue(nextValue, limit = null) {
     return Math.min(safeValue, Math.max(1, limit));
 }
 
+function resolveModalProductTitle(product = {}, fallbackTitle = '') {
+    return String(product?.title || product?.name || product?.label || fallbackTitle || 'Selected product').trim();
+}
+
+function resolveModalProductImage(product = {}, fallbackImage = '') {
+    if (fallbackImage) {
+        return fallbackImage;
+    }
+
+    const imageCandidates = [
+        product?.image,
+        product?.primaryUrl,
+        product?.url,
+        product?.images?.[0]?.url,
+        product?.images?.[0]?.primaryUrl,
+        product?.images?.[0],
+        product?.media?.[0]?.url,
+        product?.media?.[0]?.primaryUrl,
+        product?.media?.[0]
+    ];
+
+    return imageCandidates.find((entry) => typeof entry === 'string' && entry.trim()) || '/logo.png';
+}
+
 function buildProductModalUrl(pathname, currentSearch, nextShareCode, currentHash = '') {
     const params = new URLSearchParams(String(currentSearch || '').replace(/^\?/, ''));
 
@@ -234,8 +258,109 @@ function ProductDetailCard({ iconClassName, iconWrapperClassName, label, value, 
     );
 }
 
+function ProductOrderDecisionSheet({ summary, onDismiss, onContinueShopping, onCompleteOrder }) {
+    if (!summary) {
+        return null;
+    }
+
+    return (
+        <div className="fixed inset-0 z-[180]" dir="rtl">
+            <button
+                type="button"
+                aria-label="Close order review"
+                className="absolute inset-0 bg-black/55 backdrop-blur-[3px] animate-[order-sheet-backdrop_180ms_ease-out]"
+                onClick={onDismiss}
+            ></button>
+
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6">
+                <div className="pointer-events-auto order-sheet-scroll max-h-[68vh] w-full max-w-lg overflow-y-auto rounded-[2rem] border border-brandGold/20 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.34)] animate-[order-sheet-rise_260ms_cubic-bezier(0.22,1,0.36,1)] dark:bg-[#11192c] sm:max-h-[74vh] sm:max-w-xl" onClick={(event) => event.stopPropagation()}>
+                    <div className="sticky top-0 z-10 flex justify-center border-b border-slate-200/80 bg-slate-50/94 px-5 pb-3 pt-3 backdrop-blur dark:border-white/10 dark:bg-[#11192c]/94">
+                        <div className="flex flex-col items-center gap-2">
+                            <span className="h-1.5 w-20 rounded-full bg-slate-300 dark:bg-white/15"></span>
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full border border-brandGold/15 bg-brandGold/8 text-brandGold">
+                                <i className="fa-solid fa-chevron-up text-[11px]"></i>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-50/90 px-5 py-5 dark:border-white/10 dark:bg-white/[0.04]">
+                    <div>
+                        <p className="text-[11px] font-black uppercase tracking-[0.24em] text-brandGold">Order Review</p>
+                        <h3 className="mt-2 text-2xl font-black text-brandBlue dark:text-white">
+                            {summary.wasExisting ? 'Quantity Updated' : 'Pack Added'}
+                        </h3>
+                        <p className="mt-2 text-sm text-slate-500 dark:text-slate-300" dir="rtl">
+                            {summary.wasExisting ? 'تم تحديث الكمية داخل طلبك الحالي.' : 'تمت إضافة العبوة إلى طلبك بنجاح.'}
+                        </p>
+                    </div>
+                    <button type="button" onClick={onDismiss} className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition-colors hover:text-red-500 dark:border-white/10 dark:bg-white/10 dark:text-white">
+                        <i className="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                    <div className="space-y-4 px-5 py-5">
+                    <div className="flex items-center gap-3 rounded-[1.5rem] border border-slate-200/80 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-white/[0.04]">
+                        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[1rem] border border-slate-200 bg-white p-2 dark:border-white/10 dark:bg-[#0d1426] sm:h-20 sm:w-20 sm:rounded-[1.2rem]">
+                            <img src={summary.image} alt={summary.title} className="h-full w-full object-contain" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brandGold">Selected Pack</p>
+                            <p className="mt-2 text-sm font-black leading-snug text-brandBlue dark:text-white sm:text-base">{summary.title}</p>
+                            <p className="mt-2 text-xs font-medium text-slate-500 dark:text-slate-300" dir="rtl">
+                                إجمالي الكمية لهذا المنتج داخل العربة: {summary.nextQuantity}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                        <div className="rounded-[1.25rem] border border-slate-200/80 bg-slate-50/70 px-3 py-4 text-center dark:border-white/10 dark:bg-white/[0.04]">
+                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Added</p>
+                            <p className="mt-2 text-lg font-black text-emerald-600 dark:text-emerald-300">{summary.addedQuantity}</p>
+                        </div>
+                        <div className="rounded-[1.25rem] border border-slate-200/80 bg-slate-50/70 px-3 py-4 text-center dark:border-white/10 dark:bg-white/[0.04]">
+                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Pack Price</p>
+                            <p className="mt-2 text-sm font-black text-brandBlue dark:text-white">{formatPriceLabel(summary.unitPrice)}</p>
+                        </div>
+                        <div className="rounded-[1.25rem] border border-slate-200/80 bg-slate-50/70 px-3 py-4 text-center dark:border-white/10 dark:bg-white/[0.04]">
+                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Cart Items</p>
+                            <p className="mt-2 text-lg font-black text-brandGold">{summary.nextCartCount}</p>
+                        </div>
+                    </div>
+
+                    <div className="rounded-[1.5rem] border border-brandGold/20 bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.14),transparent_46%),linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.96))] px-4 py-4 dark:bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.18),transparent_42%),linear-gradient(180deg,rgba(17,25,44,0.98),rgba(9,13,24,0.98))]">
+                        <div className="flex items-center justify-between gap-4">
+                            <div>
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Added Total</p>
+                                <p className="mt-2 text-xl font-black text-emerald-600 dark:text-emerald-300">{formatPriceLabel(summary.addedSubtotal)}</p>
+                            </div>
+                            <div className="text-left">
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Cart Total</p>
+                                <p className="mt-2 text-xl font-black text-brandBlue dark:text-white">{formatPriceLabel(summary.nextCartSubtotal)}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p className="text-sm font-medium leading-relaxed text-slate-500 dark:text-slate-300" dir="rtl">
+                        تقدر تكمل التسوق دلوقتي أو تفتح العربة علشان تراجع الطلب وتتممه.
+                    </p>
+
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <button type="button" onClick={onContinueShopping} className="rounded-[1.2rem] border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 transition-colors hover:border-brandGold hover:text-brandGold dark:border-white/10 dark:bg-white/[0.04] dark:text-white">
+                            Continue Shopping | كمل تسوق
+                            </button>
+                            <button type="button" onClick={onCompleteOrder} className="rounded-[1.2rem] border border-brandGold bg-brandGold px-4 py-3 text-sm font-black text-brandBlue transition-colors hover:bg-[#e0bc46]">
+                            Complete Order | اتمام الطلب
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function ProductModal() {
-    const { selectedProduct, setSelectedProduct, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, dcSyncedAt, refreshDcCatalog, allProducts, getProductStockLimit, getProductStockStatus } = useGallery();
+    const { selectedProduct, setSelectedProduct, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, dcSyncedAt, refreshDcCatalog, allProducts, getProductStockLimit, getProductStockStatus, cartItems, cartCount, cartSubtotal, openCart } = useGallery();
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const lastSyncedShareCodeRef = useRef('');
@@ -354,17 +479,22 @@ export default function ProductModal() {
             dcSyncedAt={dcSyncedAt}
             getProductStockLimit={getProductStockLimit}
             getProductStockStatus={getProductStockStatus}
+            cartItems={cartItems}
+            cartCount={cartCount}
+            cartSubtotal={cartSubtotal}
+            openCart={openCart}
         />
     );
 }
 
-function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, dcSyncedAt, getProductStockLimit, getProductStockStatus }) {
+function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, dcSyncedAt, getProductStockLimit, getProductStockStatus, cartItems, cartCount, cartSubtotal, openCart }) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [quantity, setQuantity] = useState(1);
     const [wholesaleQuantity, setWholesaleQuantity] = useState(1);
     const { siteSettings } = useSiteSettings();
     const [showLiveIndicator, setShowLiveIndicator] = useState(false);
     const [lightboxState, setLightboxState] = useState({ isOpen: false, images: [], index: 0, title: '' });
+    const [retailOrderSheet, setRetailOrderSheet] = useState(null);
 
     useEffect(() => {
         if (userRole !== 'admin' || !dcLiveUpdateAt) {
@@ -504,8 +634,75 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
         setQuantity(clampQuantityValue(rawValue === '' ? 1 : rawValue, retailStockLimit));
     };
 
+    const dismissRetailOrderSheet = () => {
+        setRetailOrderSheet(null);
+    };
+
+    const handleContinueShopping = () => {
+        setRetailOrderSheet(null);
+        closeModal();
+    };
+
+    const handleCompleteRetailOrder = () => {
+        setRetailOrderSheet(null);
+        closeModal();
+
+        if (typeof window !== 'undefined') {
+            window.requestAnimationFrame(() => {
+                openCart();
+            });
+            return;
+        }
+
+        openCart();
+    };
+
+    const handleRetailAddWithConfirmation = (product, requestedQuantity, options = {}) => {
+        if (!product) {
+            return;
+        }
+
+        const resolvedTitle = resolveModalProductTitle(product, options.title);
+        const cartId = String(product.id || product.code || resolvedTitle).trim();
+        const existingItem = cartItems.find((item) => item.cartId === cartId) || null;
+        const existingQuantity = Number(existingItem?.quantity || 0);
+        const existingItemPrice = parsePrice(existingItem?.price);
+        const stockLimitValue = getProductStockLimit(product, 'retail');
+        const normalizedQuantity = Math.max(1, Number(requestedQuantity) || 1);
+        const requestedTotalQuantity = existingQuantity + normalizedQuantity;
+        const nextQuantity = stockLimitValue === null ? requestedTotalQuantity : Math.min(requestedTotalQuantity, stockLimitValue);
+        const actualAddedQuantity = Math.max(0, nextQuantity - existingQuantity);
+        const safeUnitPrice = parsePrice(options.unitPrice ?? existingItemPrice);
+        const nextCartCount = cartCount + actualAddedQuantity;
+        const nextCartSubtotal = existingItem
+            ? Math.max(0, cartSubtotal - (existingItemPrice * existingQuantity)) + (safeUnitPrice * nextQuantity)
+            : cartSubtotal + (safeUnitPrice * nextQuantity);
+
+        addToCart(product, normalizedQuantity);
+
+        if (actualAddedQuantity <= 0) {
+            return;
+        }
+
+        setRetailOrderSheet({
+            title: resolvedTitle,
+            image: resolveModalProductImage(product, options.image),
+            addedQuantity: actualAddedQuantity,
+            nextQuantity,
+            unitPrice: safeUnitPrice,
+            addedSubtotal: safeUnitPrice * actualAddedQuantity,
+            nextCartCount,
+            nextCartSubtotal,
+            wasExisting: existingQuantity > 0
+        });
+    };
+
     const handleAddToCart = () => {
-        addToCart(selectedProduct, quantity);
+        handleRetailAddWithConfirmation(selectedProduct, quantity, {
+            unitPrice: primaryDisplayPrice,
+            image: currentMedia?.url || currentMedia,
+            title: selectedProduct.title || selectedProduct.name
+        });
     };
 
     const handleAddToWholesaleCart = () => {
@@ -951,7 +1148,11 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                         </div>
                         <button
                             type="button"
-                            onClick={() => addToCart(variant, quantity)}
+                            onClick={() => handleRetailAddWithConfirmation(variant, quantity, {
+                                unitPrice: vPrice,
+                                image: getVariantAllImages(variant)[0],
+                                title: variant.name || variant.label || selectedProduct.title || selectedProduct.name
+                            })}
                             disabled={variantRetailOutOfStock}
                             className="flex-1 rounded-xl border-2 border-emerald-700 bg-emerald-700 px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-white transition-all hover:border-emerald-800 hover:bg-emerald-800 shadow-xl disabled:border-emerald-700/20 disabled:bg-emerald-700/20 disabled:text-emerald-50/80"
                         >
@@ -1244,7 +1445,11 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                                     </div>
                                     <button
                                         type="button"
-                                        onClick={() => addToCart(activeVariant, quantity)}
+                                        onClick={() => handleRetailAddWithConfirmation(activeVariant, quantity, {
+                                            unitPrice: primaryDisplayPrice,
+                                            image: currentVariantImage,
+                                            title: activeVariantDisplayName
+                                        })}
                                         disabled={retailOutOfStock}
                                         className="w-full rounded-xl border-2 border-emerald-700 bg-emerald-700 px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-white transition-all hover:border-emerald-800 hover:bg-emerald-800 disabled:cursor-not-allowed disabled:border-emerald-700/20 disabled:bg-emerald-700/20 disabled:text-emerald-50/80"
                                     >
@@ -1325,6 +1530,13 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                         </div>
                     </div>
                 </div>
+
+                <ProductOrderDecisionSheet
+                    summary={retailOrderSheet}
+                    onDismiss={dismissRetailOrderSheet}
+                    onContinueShopping={handleContinueShopping}
+                    onCompleteOrder={handleCompleteRetailOrder}
+                />
             </div>
         );
     }
@@ -1589,6 +1801,13 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                 </div>
 
             </div>
+
+            <ProductOrderDecisionSheet
+                summary={retailOrderSheet}
+                onDismiss={dismissRetailOrderSheet}
+                onContinueShopping={handleContinueShopping}
+                onCompleteOrder={handleCompleteRetailOrder}
+            />
 
             {lightboxState.isOpen ? (
                 <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/95 p-4" dir="ltr">

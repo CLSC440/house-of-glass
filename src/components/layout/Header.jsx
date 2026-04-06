@@ -8,6 +8,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { useGallery } from '@/contexts/GalleryContext';
 import { getUserRoleLabel, isAdminRole, normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
 import NotificationsCenter from '@/components/layout/NotificationsCenter';
+import BrandLoadingScreen from '@/components/layout/BrandLoadingScreen';
 
 export default function Header() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -15,6 +16,7 @@ export default function Header() {
     const [isAdmin, setIsAdmin] = useState(false);
     const [isAdminRedirecting, setIsAdminRedirecting] = useState(false);
     const [accountPanelOpen, setAccountPanelOpen] = useState(false);
+    const [isProfileRouteLoading, setIsProfileRouteLoading] = useState(false);
     const [userProfile, setUserProfile] = useState(null);
     const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
     const [expandedSections, setExpandedSections] = useState({
@@ -108,6 +110,7 @@ export default function Header() {
 
     useEffect(() => {
         setAccountPanelOpen(false);
+        setIsProfileRouteLoading(false);
     }, [pathname]);
 
     useEffect(() => {
@@ -173,6 +176,12 @@ export default function Header() {
         }
 
         router.push('/admin');
+    };
+
+    const handleProfilePanelNavigation = () => {
+        setIsProfileRouteLoading(true);
+        closeAccountPanel();
+        closeSidebar();
     };
 
     const getDisplayRole = () => {
@@ -316,24 +325,12 @@ export default function Header() {
 
                             <div className="space-y-3 bg-gradient-to-b from-white/[0.04] via-white/[0.02] to-black/10 p-5">
                                 <AccountPanelLink
-                                    href="/profile#order-history"
-                                    title="Retail History"
-                                    subtitle="Your recent retail orders"
-                                    onClick={closeAccountPanel}
-                                />
-                                {(isWholesaleCustomer || normalizeUserRole(userProfile?.role) !== USER_ROLE_VALUES.CST_RETAIL) && (
-                                    <AccountPanelLink
-                                        href="/profile#order-history"
-                                        title="Wholesale History"
-                                        subtitle="Previous wholesale orders"
-                                        onClick={closeAccountPanel}
-                                    />
-                                )}
-                                <AccountPanelLink
                                     href="/profile#profile-settings"
-                                    title="Settings"
-                                    subtitle="Profile, phone and password"
-                                    onClick={closeAccountPanel}
+                                    title="Settings & Orders History"
+                                    subtitle="إعدادات والطلبات السابقة"
+                                    subtitleClassName="mt-1 block text-sm font-semibold leading-relaxed tracking-normal text-slate-300"
+                                    subtitleDir="rtl"
+                                    onClick={handleProfilePanelNavigation}
                                 />
                                 <button
                                     type="button"
@@ -360,6 +357,13 @@ export default function Header() {
                         <p className="mt-2 text-center text-xs text-slate-300">Preparing dashboard and redirecting...</p>
                     </div>
                 </div>
+            )}
+
+            {isProfileRouteLoading && (
+                <BrandLoadingScreen
+                    title="Loading your account"
+                    message="جاري تجهيز الإعدادات والطلبات السابقة"
+                />
             )}
 
             <div className={`fixed inset-0 bg-black/50 z-[60] transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} onClick={closeSidebar}></div>
@@ -520,16 +524,16 @@ export default function Header() {
     );
 }
 
-function AccountPanelLink({ href, title, subtitle, onClick }) {
+function AccountPanelLink({ href, title, subtitle, onClick, subtitleClassName, subtitleDir }) {
     return (
         <Link
             href={href}
             onClick={onClick}
-            className="flex w-full items-center justify-between rounded-[1.6rem] border border-white/10 bg-white/[0.05] px-5 py-4 text-left transition-all hover:border-brandGold/30 hover:bg-white/[0.08]"
+            className="flex w-full items-center justify-between rounded-[1.6rem] border border-white/10 bg-white/[0.05] px-5 py-4 text-left transition-all duration-200 hover:border-brandGold/30 hover:bg-white/[0.08] active:scale-[0.985] active:border-brandGold/45 active:bg-white/[0.12]"
         >
             <span>
                 <span className="block text-sm font-black text-white">{title}</span>
-                <span className="block text-[10px] uppercase tracking-[0.24em] text-slate-400">{subtitle}</span>
+                <span dir={subtitleDir} className={subtitleClassName || 'block text-[10px] uppercase tracking-[0.24em] text-slate-400'}>{subtitle}</span>
             </span>
             <span className="text-brandGold">→</span>
         </Link>

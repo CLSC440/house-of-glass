@@ -11,6 +11,7 @@ import { parseTimestamp } from '@/lib/utils/format';
 import { mergeOrderItemsIntoStorage } from '@/lib/cart-storage';
 import { getOrderAmount, getOrderDateValue, getOrderExternalRef } from '@/lib/utils/admin-orders';
 import { getOrderStatusHistory, getOrderStatusMeta, getOrderTrackingSteps, normalizeOrderStatus } from '@/lib/utils/order-status';
+import BrandLoadingScreen from '@/components/layout/BrandLoadingScreen';
 
 function buildAvatarLabel(userData, user) {
     return String(userData?.name || user?.displayName || user?.email || 'U').trim().charAt(0).toUpperCase() || 'U';
@@ -404,13 +405,7 @@ export default function UserProfile() {
     };
 
     if (loading) {
-        return (
-            <div className="min-h-screen bg-gray-50 dark:bg-darkBg flex items-center justify-center">
-                <div className="animate-pulse flex flex-col items-center">
-                    <div className="w-12 h-12 border-4 border-brandGold border-t-transparent rounded-full animate-spin"></div>
-                </div>
-            </div>
-        );
+        return <BrandLoadingScreen title="Loading your account" message="جاري تحميل الصفحة والبيانات الخاصة بحسابك" fixed={false} />;
     }
 
     return (

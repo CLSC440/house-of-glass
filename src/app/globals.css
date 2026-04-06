@@ -288,6 +288,37 @@
         .legacy-taxonomy-drag {
             cursor: grabbing !important;
         }
+
+        .order-sheet-scroll {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .order-sheet-scroll::-webkit-scrollbar {
+            display: none;
+            width: 0;
+            height: 0;
+        }
+
+        @keyframes order-sheet-rise {
+            0% {
+                opacity: 0;
+                transform: translateY(115%) scale(0.985);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes order-sheet-backdrop {
+            0% {
+                opacity: 0;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+
         /* Dark toggle: fully circular by default, expands to pill on hover or click */
         #darkToggle {
             width: 3rem; /* default resting width */
