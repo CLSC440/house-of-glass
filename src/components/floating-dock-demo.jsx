@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { FloatingDock } from '@/components/ui/floating-dock';
 import { auth, db } from '@/lib/firebase';
+import { CATEGORY_GROUPS_COLLECTION, sortCategoryGroupDocs } from '@/lib/category-groups';
 import { DEFAULT_SITE_SETTINGS, normalizeSiteSettings, useSiteSettings } from '@/lib/use-site-settings';
 import { normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
 import { signOut } from 'firebase/auth';
@@ -124,7 +125,9 @@ export default function FloatingDockDemo({
     const [settingsFeedback, setSettingsFeedback] = useState(null);
     const [brandsData, setBrandsData] = useState([]);
     const [categoriesData, setCategoriesData] = useState([]);
+    const [categoryGroupsData, setCategoryGroupsData] = useState([]);
     const [managerInput, setManagerInput] = useState('');
+    const [groupManagerInput, setGroupManagerInput] = useState('');
     const [managerFeedback, setManagerFeedback] = useState(null);
     const [reorderSections, setReorderSections] = useState([]);
     const [reorderFeedback, setReorderFeedback] = useState(null);
@@ -169,14 +172,20 @@ export default function FloatingDockDemo({
             setCategoriesData(sortTaxonomyDocs(snapshot));
         });
 
+        const unsubscribeCategoryGroups = onSnapshot(collection(db, CATEGORY_GROUPS_COLLECTION), (snapshot) => {
+            setCategoryGroupsData(sortCategoryGroupDocs(snapshot));
+        });
+
         return () => {
             unsubscribeBrands();
             unsubscribeCategories();
+            unsubscribeCategoryGroups();
         };
     }, []);
 
     useEffect(() => {
         setManagerInput('');
+        setGroupManagerInput('');
         setManagerFeedback(null);
         setReorderFeedback(null);
     }, [openPanel]);
@@ -372,6 +381,11 @@ export default function FloatingDockDemo({
         return managerItems.some((item) => item.id !== excludedId && normalizeLabel(item.name, '').toLowerCase() === normalizedValue);
     };
 
+    const hasDuplicateGroupName = (value, excludedId = null) => {
+        const normalizedValue = normalizeLabel(value, '').toLowerCase();
+        return categoryGroupsData.some((item) => item.id !== excludedId && normalizeLabel(item.name, '').toLowerCase() === normalizedValue);
+    };
+
     const handleManagerAdd = async () => {
         if (!managerConfig) return;
 
@@ -423,6 +437,16 @@ export default function FloatingDockDemo({
             const updates = productsSnapshot.docs.map((productDoc) => updateDoc(doc(db, 'products', productDoc.id), { [managerConfig.productField]: nextName }));
             await Promise.all(updates);
 
+            if (openPanel === 'categories') {
+                const affectedGroups = categoryGroupsData.filter((groupEntry) => groupEntry.categoryNames.includes(entry.name));
+
+                if (affectedGroups.length > 0) {
+                    await Promise.all(affectedGroups.map((groupEntry) => updateDoc(doc(db, CATEGORY_GROUPS_COLLECTION, groupEntry.id), {
+                        categoryNames: groupEntry.categoryNames.map((categoryName) => categoryName === entry.name ? nextName : categoryName)
+                    })));
+                }
+            }
+
             pushManagerFeedback('success', managerConfig.renamedMessage);
         } catch (error) {
             pushManagerFeedback('error', error?.message || `Failed to rename ${managerConfig.title.toLowerCase()}.`);
@@ -436,10 +460,117 @@ export default function FloatingDockDemo({
         if (!isConfirmed) return;
 
         try {
+            if (openPanel === 'categories') {
+                const affectedGroups = categoryGroupsData.filter((groupEntry) => groupEntry.categoryNames.includes(entry.name));
+
+                if (affectedGroups.length > 0) {
+                    await Promise.all(affectedGroups.map((groupEntry) => updateDoc(doc(db, CATEGORY_GROUPS_COLLECTION, groupEntry.id), {
+                        categoryNames: groupEntry.categoryNames.filter((categoryName) => categoryName !== entry.name)
+                    })));
+                }
+            }
+
             await deleteDoc(doc(db, managerConfig.collectionName, entry.id));
             pushManagerFeedback('success', managerConfig.deletedMessage);
         } catch (error) {
             pushManagerFeedback('error', error?.message || `Failed to delete ${managerConfig.title.toLowerCase()}.`);
+        }
+    };
+
+    const handleGroupAdd = async () => {
+        const nextName = normalizeLabel(groupManagerInput, '');
+        if (!nextName) return;
+
+        if (hasDuplicateGroupName(nextName)) {
+            pushManagerFeedback('error', 'Group name already exists!');
+            return;
+        }
+
+        try {
+            const nextOrder = categoryGroupsData.length > 0
+                ? Math.max(...categoryGroupsData.map((item) => Number(item.order) || 0)) + 1
+                : 0;
+
+            await addDoc(collection(db, CATEGORY_GROUPS_COLLECTION), {
+                name: nextName,
+                order: nextOrder,
+                categoryNames: []
+            });
+
+            setGroupManagerInput('');
+            pushManagerFeedback('success', 'Category group added successfully!');
+        } catch (error) {
+            pushManagerFeedback('error', error?.message || 'Failed to add category group.');
+        }
+    };
+
+    const handleGroupRename = async (groupEntry) => {
+        const nextNameRaw = window.prompt('Enter new group name:', groupEntry.name);
+        const nextName = normalizeLabel(nextNameRaw, '');
+
+        if (!nextName || nextName === groupEntry.name) return;
+
+        if (hasDuplicateGroupName(nextName, groupEntry.id)) {
+            pushManagerFeedback('error', 'Group name already exists!');
+            return;
+        }
+
+        try {
+            await updateDoc(doc(db, CATEGORY_GROUPS_COLLECTION, groupEntry.id), { name: nextName });
+            pushManagerFeedback('success', 'Category group updated successfully!');
+        } catch (error) {
+            pushManagerFeedback('error', error?.message || 'Failed to rename category group.');
+        }
+    };
+
+    const handleGroupDelete = async (groupEntry) => {
+        const isConfirmed = window.confirm(`Delete group "${groupEntry.name}"?`);
+        if (!isConfirmed) return;
+
+        try {
+            await deleteDoc(doc(db, CATEGORY_GROUPS_COLLECTION, groupEntry.id));
+            pushManagerFeedback('success', 'Category group deleted successfully!');
+        } catch (error) {
+            pushManagerFeedback('error', error?.message || 'Failed to delete category group.');
+        }
+    };
+
+    const handleToggleCategoryInGroup = async (groupEntry, categoryName) => {
+        const normalizedCategoryName = normalizeLabel(categoryName, '');
+        if (!normalizedCategoryName) return;
+
+        const isAssignedToGroup = groupEntry.categoryNames.includes(normalizedCategoryName);
+        const nextUpdates = categoryGroupsData
+            .filter((entry) => entry.id === groupEntry.id || entry.categoryNames.includes(normalizedCategoryName))
+            .map((entry) => {
+                if (entry.id === groupEntry.id) {
+                    return {
+                        id: entry.id,
+                        categoryNames: isAssignedToGroup
+                            ? entry.categoryNames.filter((entryName) => entryName !== normalizedCategoryName)
+                            : [...entry.categoryNames.filter((entryName) => entryName !== normalizedCategoryName), normalizedCategoryName]
+                    };
+                }
+
+                return {
+                    id: entry.id,
+                    categoryNames: entry.categoryNames.filter((entryName) => entryName !== normalizedCategoryName)
+                };
+            });
+
+        try {
+            await Promise.all(nextUpdates.map((entry) => updateDoc(doc(db, CATEGORY_GROUPS_COLLECTION, entry.id), {
+                categoryNames: entry.categoryNames
+            })));
+
+            pushManagerFeedback(
+                'success',
+                isAssignedToGroup
+                    ? `Removed ${normalizedCategoryName} from ${groupEntry.name}.`
+                    : `Assigned ${normalizedCategoryName} to ${groupEntry.name}.`
+            );
+        } catch (error) {
+            pushManagerFeedback('error', error?.message || 'Failed to update category group.');
         }
     };
 
@@ -868,7 +999,189 @@ export default function FloatingDockDemo({
                 </div>
             ) : null}
 
-            {isManagerPanel && managerConfig ? (
+            {openPanel === 'categories' && managerConfig ? (
+                <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#09101d]/78 px-4 py-6 backdrop-blur-sm" onClick={() => setOpenPanel(null)}>
+                    <div className="legacy-taxonomy-modal max-h-[88vh] w-full max-w-[1180px] overflow-hidden rounded-[2rem] border border-white/8 bg-[linear-gradient(180deg,#1b2436_0%,#131b2c_100%)] shadow-[0_24px_70px_rgba(0,0,0,0.45)]" onClick={(event) => event.stopPropagation()}>
+                        <div className="flex items-center justify-between border-b border-white/8 px-8 py-7">
+                            <div>
+                                <h3 className="text-[2rem] font-black italic text-brandGold">Categories</h3>
+                                <p className="mt-1 text-sm text-slate-400">Manage the raw categories and group them for the storefront sidebar from the same panel.</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setOpenPanel(null)}
+                                className="inline-flex h-11 w-11 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
+                                aria-label="Close categories manager"
+                            >
+                                <i className="fa-solid fa-xmark text-[1.8rem]"></i>
+                            </button>
+                        </div>
+
+                        <div className="grid gap-0 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+                            <div className="space-y-5 border-b border-white/8 px-8 py-7 lg:border-b-0 lg:border-r lg:border-white/8">
+                                <div>
+                                    <p className="text-[11px] font-black uppercase tracking-[0.22em] text-brandGold/75">Category List</p>
+                                    <p className="mt-1 text-sm text-slate-300">Add, rename, delete, and drag to reorder product categories.</p>
+                                </div>
+
+                                <div className="flex items-center gap-4">
+                                    <input
+                                        type="text"
+                                        value={managerInput}
+                                        onChange={(event) => setManagerInput(event.target.value)}
+                                        onKeyDown={(event) => {
+                                            if (event.key === 'Enter') {
+                                                event.preventDefault();
+                                                handleManagerAdd();
+                                            }
+                                        }}
+                                        placeholder={managerConfig.addPlaceholder}
+                                        className="h-16 flex-1 rounded-[1.15rem] border border-white/14 bg-white/[0.06] px-6 text-[1.05rem] font-semibold text-white outline-none transition-colors placeholder:text-slate-400 focus:border-brandGold/45"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleManagerAdd}
+                                        className="inline-flex h-16 min-w-[96px] items-center justify-center rounded-[1.1rem] px-6 text-[1.2rem] font-black text-white transition-colors hover:bg-white/5"
+                                    >
+                                        Add
+                                    </button>
+                                </div>
+
+                                {managerFeedback ? (
+                                    <div className={`rounded-[1.1rem] border px-4 py-3 text-sm font-bold ${managerFeedback.type === 'success' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-rose-500/30 bg-rose-500/10 text-rose-300'}`}>
+                                        {managerFeedback.message}
+                                    </div>
+                                ) : null}
+
+                                <div ref={managerListRef} className="legacy-taxonomy-scroll max-h-[48vh] overflow-y-auto pr-2">
+                                    {managerItems.map((entry) => (
+                                        <div key={entry.id} data-id={entry.id} className="legacy-taxonomy-row mb-4 flex items-center justify-between rounded-[1.35rem] border border-white/8 bg-[#273044] px-6 py-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-colors hover:border-brandGold/25">
+                                            <div className="flex min-w-0 items-center gap-5">
+                                                <button type="button" className="drag-handle inline-flex cursor-grab items-center justify-center text-slate-400 transition-colors hover:text-brandGold active:cursor-grabbing" aria-label={`Reorder ${entry.name}`}>
+                                                    <i className="fa-solid fa-grip-lines text-[1.7rem]"></i>
+                                                </button>
+                                                <span className="truncate text-[1.05rem] font-black text-brandGold">{entry.name}</span>
+                                            </div>
+
+                                            <div className="ml-4 flex shrink-0 items-center gap-4">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleManagerRename(entry)}
+                                                    className="inline-flex h-9 w-9 items-center justify-center rounded-full text-blue-400 transition-colors hover:bg-blue-500/10 hover:text-blue-300"
+                                                    aria-label={`Edit ${entry.name}`}
+                                                >
+                                                    <i className="fa-solid fa-pen text-sm"></i>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleManagerDelete(entry)}
+                                                    className="inline-flex h-9 w-9 items-center justify-center rounded-full text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
+                                                    aria-label={`Delete ${entry.name}`}
+                                                >
+                                                    <i className="fa-solid fa-xmark text-base"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {managerItems.length === 0 ? (
+                                        <div className="rounded-[1.35rem] border border-dashed border-white/10 bg-white/[0.03] px-6 py-10 text-center text-sm font-bold text-slate-400">
+                                            No categories found yet.
+                                        </div>
+                                    ) : null}
+                                </div>
+                            </div>
+
+                            <div className="space-y-5 px-8 py-7">
+                                <div>
+                                    <p className="text-[11px] font-black uppercase tracking-[0.22em] text-brandGold/75">Sidebar Groups</p>
+                                    <p className="mt-1 text-sm text-slate-300">Create nested sidebar groups. Selecting a category here moves it into one group only.</p>
+                                </div>
+
+                                <div className="flex items-center gap-4">
+                                    <input
+                                        type="text"
+                                        value={groupManagerInput}
+                                        onChange={(event) => setGroupManagerInput(event.target.value)}
+                                        onKeyDown={(event) => {
+                                            if (event.key === 'Enter') {
+                                                event.preventDefault();
+                                                handleGroupAdd();
+                                            }
+                                        }}
+                                        placeholder="New category group..."
+                                        className="h-16 flex-1 rounded-[1.15rem] border border-white/14 bg-white/[0.06] px-6 text-[1.05rem] font-semibold text-white outline-none transition-colors placeholder:text-slate-400 focus:border-brandGold/45"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleGroupAdd}
+                                        className="inline-flex h-16 min-w-[96px] items-center justify-center rounded-[1.1rem] px-6 text-[1.2rem] font-black text-white transition-colors hover:bg-white/5"
+                                    >
+                                        Add
+                                    </button>
+                                </div>
+
+                                <div className="legacy-taxonomy-scroll max-h-[48vh] space-y-4 overflow-y-auto pr-2">
+                                    {categoryGroupsData.map((groupEntry) => (
+                                        <div key={groupEntry.id} className="rounded-[1.35rem] border border-white/8 bg-[#273044] px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-colors hover:border-brandGold/25">
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div>
+                                                    <p className="text-[1.02rem] font-black text-brandGold">{groupEntry.name}</p>
+                                                    <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">{groupEntry.categoryNames.length} categories assigned</p>
+                                                </div>
+                                                <div className="flex shrink-0 items-center gap-3">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleGroupRename(groupEntry)}
+                                                        className="inline-flex h-9 w-9 items-center justify-center rounded-full text-blue-400 transition-colors hover:bg-blue-500/10 hover:text-blue-300"
+                                                        aria-label={`Rename ${groupEntry.name}`}
+                                                    >
+                                                        <i className="fa-solid fa-pen text-sm"></i>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleGroupDelete(groupEntry)}
+                                                        className="inline-flex h-9 w-9 items-center justify-center rounded-full text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
+                                                        aria-label={`Delete ${groupEntry.name}`}
+                                                    >
+                                                        <i className="fa-solid fa-xmark text-base"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div className="mt-4 flex flex-wrap gap-2.5">
+                                                {categoriesData.map((categoryEntry) => {
+                                                    const isAssignedHere = groupEntry.categoryNames.includes(categoryEntry.name);
+                                                    const assignedElsewhere = categoryGroupsData.some((entry) => entry.id !== groupEntry.id && entry.categoryNames.includes(categoryEntry.name));
+
+                                                    return (
+                                                        <button
+                                                            key={`${groupEntry.id}-${categoryEntry.id}`}
+                                                            type="button"
+                                                            onClick={() => handleToggleCategoryInGroup(groupEntry, categoryEntry.name)}
+                                                            className={`rounded-full border px-3 py-2 text-[11px] font-black uppercase tracking-[0.14em] transition-all ${isAssignedHere ? 'border-brandGold/35 bg-brandGold/12 text-brandGold' : assignedElsewhere ? 'border-blue-400/20 bg-blue-500/8 text-blue-200 hover:border-brandGold/35 hover:text-brandGold' : 'border-white/10 bg-white/[0.04] text-slate-300 hover:border-brandGold/25 hover:text-brandGold'}`}
+                                                        >
+                                                            {categoryEntry.name}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {categoryGroupsData.length === 0 ? (
+                                        <div className="rounded-[1.35rem] border border-dashed border-white/10 bg-white/[0.03] px-6 py-10 text-center text-sm font-bold text-slate-400">
+                                            No category groups created yet.
+                                        </div>
+                                    ) : null}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
+            {openPanel !== 'categories' && isManagerPanel && managerConfig ? (
                 <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#09101d]/78 px-4 py-6 backdrop-blur-sm" onClick={() => setOpenPanel(null)}>
                     <div className="legacy-taxonomy-modal max-h-[88vh] w-full max-w-[720px] overflow-hidden rounded-[2rem] border border-white/8 bg-[linear-gradient(180deg,#1b2436_0%,#131b2c_100%)] shadow-[0_24px_70px_rgba(0,0,0,0.45)]" onClick={(event) => event.stopPropagation()}>
                         <div className="flex items-center justify-between border-b border-white/8 px-8 py-7">

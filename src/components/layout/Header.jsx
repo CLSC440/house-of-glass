@@ -23,6 +23,7 @@ export default function Header() {
         origins: false,
         stock: false
     });
+    const [expandedCategoryGroups, setExpandedCategoryGroups] = useState({});
     const pathname = usePathname();
     const router = useRouter();
     const {
@@ -39,11 +40,13 @@ export default function Header() {
         isWholesaleCustomer,
         wholesaleCartCount,
         openWholesaleCart,
-        categoryFacetEntries,
+        categoryFacetGroups,
         brandFacetEntries,
         originFacetEntries,
+        ungroupedCategoryFacetEntries,
         hideOutOfStockProducts,
         toggleCategoryFilter,
+        toggleCategoryGroupFilter,
         toggleBrandFilter,
         toggleOriginFilter,
         toggleStockFilter,
@@ -133,6 +136,12 @@ export default function Header() {
         setExpandedSections((currentSections) => ({
             ...currentSections,
             [sectionName]: !currentSections[sectionName]
+        }));
+    };
+    const toggleCategoryGroup = (groupId) => {
+        setExpandedCategoryGroups((currentState) => ({
+            ...currentState,
+            [groupId]: !currentState[groupId]
         }));
     };
     const handleSignOut = async () => {
@@ -387,12 +396,32 @@ export default function Header() {
                         isExpanded={expandedSections.categories}
                         onToggle={() => toggleSection('categories')}
                     >
-                        <FilterEntryButton
-                            label="All Categories | الكل"
-                            selected={activeCategory === 'All' && activeFilterChips.length === 0}
-                            onClick={() => handleCategorySelect('All')}
-                        />
-                        {categoryFacetEntries.map((entry) => (
+                        {categoryFacetGroups.map((groupEntry) => (
+                            <FilterEntryGroup
+                                key={groupEntry.id}
+                                label={groupEntry.label}
+                                count={groupEntry.count}
+                                selected={groupEntry.selected}
+                                explicitSelected={groupEntry.selected}
+                                partiallySelected={!groupEntry.selected && groupEntry.hasSelectedEntry}
+                                allSelected={groupEntry.allSelected}
+                                expanded={expandedCategoryGroups[groupEntry.id] ?? (groupEntry.selected || groupEntry.hasSelectedEntry)}
+                                onSelect={() => toggleCategoryGroupFilter(groupEntry.id)}
+                                onToggle={() => toggleCategoryGroup(groupEntry.id)}
+                            >
+                                {groupEntry.entries.map((entry) => (
+                                    <FilterEntryButton
+                                        key={entry.label}
+                                        label={entry.label}
+                                        count={entry.count}
+                                        selected={entry.selected}
+                                        onClick={() => toggleCategoryFilter(entry.label)}
+                                        compact
+                                    />
+                                ))}
+                            </FilterEntryGroup>
+                        ))}
+                        {ungroupedCategoryFacetEntries.map((entry) => (
                             <FilterEntryButton
                                 key={entry.label}
                                 label={entry.label}
@@ -531,12 +560,12 @@ function SidebarFilterSection({ title, eyebrow, iconPath, isExpanded, onToggle, 
     );
 }
 
-function FilterEntryButton({ label, count, selected, onClick }) {
+function FilterEntryButton({ label, count, selected, onClick, compact = false }) {
     return (
         <button
             type="button"
             onClick={onClick}
-            className={`flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3.5 text-left text-sm font-bold transition-all ${selected ? 'border border-brandGold/30 bg-brandGold/10 text-brandGold shadow-sm' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}`}
+            className={`flex w-full items-center justify-between gap-3 rounded-2xl text-left text-sm font-bold transition-all ${compact ? 'px-3 py-3' : 'px-4 py-3.5'} ${selected ? 'border border-brandGold/30 bg-brandGold/10 text-brandGold shadow-sm' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}`}
         >
             <span className="flex min-w-0 items-center gap-3">
                 {selected ? (
@@ -550,6 +579,53 @@ function FilterEntryButton({ label, count, selected, onClick }) {
                 <span className={`shrink-0 text-[11px] font-black ${selected ? 'text-brandGold' : 'text-gray-400 dark:text-gray-500'}`}>({count})</span>
             ) : null}
         </button>
+    );
+}
+
+function FilterEntryGroup({ label, count, selected, explicitSelected, partiallySelected, allSelected, expanded, onSelect, onToggle, children }) {
+    return (
+        <div className="rounded-2xl border border-gray-200/70 bg-gray-50/60 p-1 dark:border-gray-700/80 dark:bg-gray-900/40">
+            <button
+                type="button"
+                onClick={onSelect}
+                className={`flex w-full items-center justify-between gap-3 rounded-[1rem] px-3 py-3 text-left transition-all ${selected ? 'bg-brandGold/10 text-brandGold' : partiallySelected ? 'text-brandGold hover:bg-white/80 dark:text-brandGold dark:hover:bg-gray-800/70' : 'text-brandBlue hover:bg-white/80 dark:text-white dark:hover:bg-gray-800/70'}`}
+            >
+                <span className="flex min-w-0 items-center gap-3">
+                    <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${selected ? 'border-brandGold bg-brandGold text-brandBlue' : partiallySelected ? 'border-brandGold text-brandGold' : 'border-gray-300 text-gray-400 dark:border-gray-600 dark:text-gray-500'}`}>
+                        <i className={`fa-solid text-[9px] ${explicitSelected || allSelected ? 'fa-check' : partiallySelected ? 'fa-minus' : 'fa-plus'}`}></i>
+                    </span>
+                    <span className="truncate text-sm font-black">{label}</span>
+                </span>
+                <span className="flex shrink-0 items-center gap-2">
+                    {typeof count === 'number' ? (
+                        <span className={`text-[11px] font-black ${selected || partiallySelected ? 'text-brandGold' : 'text-gray-400 dark:text-gray-500'}`}>({count})</span>
+                    ) : null}
+                    <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            onToggle();
+                        }}
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                onToggle();
+                            }
+                        }}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/5"
+                        aria-label={expanded ? `Collapse ${label}` : `Expand ${label}`}
+                    >
+                        <svg className={`h-4 w-4 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </span>
+                </span>
+            </button>
+            {expanded ? <div className="space-y-1.5 px-2 pb-2">{children}</div> : null}
+        </div>
     );
 }
 

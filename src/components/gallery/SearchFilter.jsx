@@ -13,10 +13,13 @@ export default function SearchFilter() {
         setActiveCategory,
         categories,
         activeFilterChips,
+        hideOutOfStockProducts,
+        toggleStockFilter,
         removeFilterChip,
         clearAllFilters,
         primaryFilterDisplayLabel,
-        selectedCategories
+        selectedCategories,
+        showToast
     } = useGallery();
 
     const toggleCatDropdown = () => setIsDropdownOpen(!isDropdownOpen);
@@ -24,6 +27,38 @@ export default function SearchFilter() {
     const handleCategorySelect = (catName) => {
         setActiveCategory(catName);
         setIsDropdownOpen(false);
+    };
+
+    const handleShareFilters = async () => {
+        if (typeof window === 'undefined') return;
+
+        const shareUrl = window.location.href;
+
+        try {
+            if (navigator.share) {
+                await navigator.share({
+                    title: 'House Of Glass Filters',
+                    text: 'Check this filtered catalog view.',
+                    url: shareUrl
+                });
+                return;
+            }
+
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(shareUrl);
+                showToast('Filter link copied successfully.');
+                return;
+            }
+
+            window.prompt('Copy this filter link:', shareUrl);
+        } catch (error) {
+            if (error?.name === 'AbortError') {
+                return;
+            }
+
+            console.error('Failed to share filters:', error);
+            showToast('Unable to share this filter right now.', 'error');
+        }
     };
 
     useEffect(() => {
@@ -83,7 +118,7 @@ export default function SearchFilter() {
                 </div>
             </div>
 
-            {(activeFilterChips.length > 0 || searchQuery.trim()) && (
+            {activeFilterChips.length > 0 && (
                 <div className="relative z-10 mt-4 rounded-2xl border border-brandGold/10 bg-white/80 p-4 shadow-[0_20px_40px_rgba(0,0,0,0.04)] backdrop-blur-2xl dark:bg-darkCard/80">
                     <div className="flex flex-wrap items-center gap-2">
                         {activeFilterChips.map((chip) => (
@@ -98,13 +133,37 @@ export default function SearchFilter() {
                             </button>
                         ))}
 
-                        <button
-                            type="button"
-                            onClick={clearAllFilters}
-                            className="ml-auto rounded-full border border-red-200 bg-red-50 px-3 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-red-500 transition-colors hover:bg-red-500 hover:text-white dark:border-red-500/20 dark:bg-red-500/10"
-                        >
-                            Clear All
-                        </button>
+                        <div className="ml-auto flex items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={toggleStockFilter}
+                                aria-pressed={hideOutOfStockProducts}
+                                className={`inline-flex items-center gap-3 rounded-full border px-3 py-2 transition-colors ${hideOutOfStockProducts ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-brandGold/15 bg-brandGold/5 text-slate-300 hover:border-brandGold/30 hover:text-brandGold'}`}
+                            >
+                                <span className="text-[11px] font-black uppercase tracking-[0.16em]">In Stock Only</span>
+                                <span className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${hideOutOfStockProducts ? 'bg-emerald-500/70' : 'bg-slate-600/70'}`}>
+                                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${hideOutOfStockProducts ? 'translate-x-5' : 'translate-x-1'}`}></span>
+                                </span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={clearAllFilters}
+                                className="rounded-full border border-red-200 bg-red-50 px-3 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-red-500 transition-colors hover:bg-red-500 hover:text-white dark:border-red-500/20 dark:bg-red-500/10"
+                            >
+                                Clear All
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={handleShareFilters}
+                                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-brandGold/15 bg-brandGold/5 text-brandGold transition-colors hover:border-brandGold/35 hover:bg-brandGold hover:text-brandBlue"
+                                aria-label="Share current filters"
+                                title="Share current filters"
+                            >
+                                <i className="fa-solid fa-share-nodes text-sm"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

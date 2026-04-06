@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { addDoc, collection, doc, getDoc, onSnapshot, query, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { CART_STORAGE_KEY, WHOLESALE_CART_STORAGE_KEY } from '@/lib/cart-storage';
+import { buildGroupedCategoryFacetEntries, CATEGORY_GROUPS_COLLECTION, sortCategoryGroupDocs } from '@/lib/category-groups';
 import { isWholesaleRole, normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
 import { buildOrderStatusHistoryEntry } from '@/lib/utils/order-status';
 
@@ -483,6 +484,21 @@ function resolveCategoryNameFromQueryValue(categoryValue, categories = []) {
     return normalizeFilterValue(categories[categoryIndex]?.name) || normalizedValue;
 }
 
+function parseQueryListValues(values = []) {
+    return values
+        .flatMap((value) => String(value || '').split(','))
+        .map(normalizeFilterValue)
+        .filter(Boolean);
+}
+
+function resolveCategoryNamesFromQueryValues(values = [], categories = []) {
+    return Array.from(new Set(
+        parseQueryListValues(values)
+            .map((value) => resolveCategoryNameFromQueryValue(value, categories))
+            .filter((value) => value && value !== 'All')
+    ));
+}
+
 function getCategoryQueryValue(categoryName, categories = []) {
     const normalizedCategoryName = normalizeFilterValue(categoryName);
     if (!normalizedCategoryName || normalizedCategoryName === 'All') {
@@ -494,6 +510,58 @@ function getCategoryQueryValue(categoryName, categories = []) {
     );
 
     return categoryIndex >= 0 ? String(categoryIndex + 1) : normalizedCategoryName;
+}
+
+function getCategoryQueryValues(categoryNames = [], categories = []) {
+    return Array.from(new Set(
+        categoryNames
+            .map((categoryName) => getCategoryQueryValue(categoryName, categories))
+            .filter(Boolean)
+    ));
+}
+
+function resolveCategoryGroupIdFromQueryValue(groupValue, categoryGroups = []) {
+    const normalizedValue = normalizeFilterValue(groupValue);
+    if (!normalizedValue) {
+        return '';
+    }
+
+    if (!/^\d+$/.test(normalizedValue)) {
+        return normalizedValue;
+    }
+
+    const groupIndex = Number(normalizedValue) - 1;
+    if (!Number.isInteger(groupIndex) || groupIndex < 0) {
+        return normalizedValue;
+    }
+
+    return normalizeFilterValue(categoryGroups[groupIndex]?.id) || normalizedValue;
+}
+
+function resolveCategoryGroupIdsFromQueryValues(values = [], categoryGroups = []) {
+    return Array.from(new Set(
+        parseQueryListValues(values)
+            .map((value) => resolveCategoryGroupIdFromQueryValue(value, categoryGroups))
+            .filter(Boolean)
+    ));
+}
+
+function getCategoryGroupQueryValue(groupId, categoryGroups = []) {
+    const normalizedGroupId = normalizeFilterValue(groupId);
+    if (!normalizedGroupId) {
+        return '';
+    }
+
+    const groupIndex = categoryGroups.findIndex((groupEntry) => normalizeFilterValue(groupEntry?.id) === normalizedGroupId);
+    return groupIndex >= 0 ? String(groupIndex + 1) : normalizedGroupId;
+}
+
+function getCategoryGroupQueryValues(groupIds = [], categoryGroups = []) {
+    return Array.from(new Set(
+        groupIds
+            .map((groupId) => getCategoryGroupQueryValue(groupId, categoryGroups))
+            .filter(Boolean)
+    ));
 }
 
 function getProductSortOrder(product = {}) {
@@ -540,6 +608,7 @@ const GalleryContext = createContext({
     filteredProducts: [],
     allProducts: [],
     categories: [],
+    categoryGroups: [],
     isLoading: true,
     userRole: '',
     isWholesaleCustomer: false,
@@ -548,16 +617,20 @@ const GalleryContext = createContext({
     activeCategory: 'All',
     setActiveCategory: noop,
     selectedCategories: [],
+    selectedCategoryGroupIds: [],
     selectedBrands: [],
     selectedOrigins: [],
     hideOutOfStockProducts: false,
     toggleCategoryFilter: noop,
+    toggleCategoryGroupFilter: noop,
     toggleBrandFilter: noop,
     toggleOriginFilter: noop,
     toggleStockFilter: noop,
     clearAllFilters: noop,
     removeFilterChip: noop,
     categoryFacetEntries: [],
+    categoryFacetGroups: [],
+    ungroupedCategoryFacetEntries: [],
     brandFacetEntries: [],
     originFacetEntries: [],
     activeFilterChips: [],
@@ -604,6 +677,7 @@ export function GalleryProvider({ children }) {
     const [dcProductsMap, setDcProductsMap] = useState({});
     const [dcStockMap, setDcStockMap] = useState({});
     const [categories, setCategories] = useState([]);
+    const [categoryGroups, setCategoryGroups] = useState([]);
     const [brands, setBrands] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [userRole, setUserRole] = useState('');
@@ -611,6 +685,7 @@ export function GalleryProvider({ children }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [activeCategory, setActiveCategory] = useState('All');
     const [selectedCategories, setSelectedCategories] = useState([]);
+    const [selectedCategoryGroupIds, setSelectedCategoryGroupIds] = useState([]);
     const [selectedBrands, setSelectedBrands] = useState([]);
     const [selectedOrigins, setSelectedOrigins] = useState([]);
     const [hideOutOfStockProducts, setHideOutOfStockProducts] = useState(false);
@@ -704,6 +779,10 @@ export function GalleryProvider({ children }) {
             setCategories(fetchedCats);
         });
 
+        const unsubscribeCategoryGroups = onSnapshot(collection(db, CATEGORY_GROUPS_COLLECTION), (snapshot) => {
+            setCategoryGroups(sortCategoryGroupDocs(snapshot));
+        });
+
         // Fetch Brands
         const unsubscribeBrands = onSnapshot(collection(db, 'categories'), (snapshot) => {
             const fetchedBrands = snapshot.docs.map((doc, idx) => {
@@ -726,6 +805,7 @@ export function GalleryProvider({ children }) {
 
         return () => {
             unsubscribeCategories();
+            unsubscribeCategoryGroups();
             unsubscribeBrands();
             unsubscribeProducts();
         };
@@ -881,14 +961,16 @@ export function GalleryProvider({ children }) {
 
         const params = new URLSearchParams(window.location.search);
         const rawCategoryParam = params.get('category') || 'All';
-        const categoriesParam = params.getAll('categories').map(normalizeFilterValue).filter(Boolean);
+        const categoriesParam = resolveCategoryNamesFromQueryValues(params.getAll('categories'), categories);
+        const categoryGroupsParam = resolveCategoryGroupIdsFromQueryValues(params.getAll('categoryGroups'), categoryGroups);
         const brandsParam = params.getAll('brands').map(normalizeFilterValue).filter(Boolean);
         const originsParam = params.getAll('origins').map(normalizeFilterValue).filter(Boolean);
         const searchParam = normalizeFilterValue(params.get('search'));
         const stockParam = params.get('stock') === 'in-stock';
         const needsCategoryLookup = /^\d+$/.test(normalizeFilterValue(rawCategoryParam));
+        const needsCategoryGroupsLookup = params.getAll('categoryGroups').some((value) => /^\d+$/.test(normalizeFilterValue(value)) || String(value || '').includes(','));
 
-        if (needsCategoryLookup && categories.length === 0) {
+        if ((needsCategoryLookup && categories.length === 0) || (needsCategoryGroupsLookup && categoryGroups.length === 0)) {
             return;
         }
 
@@ -905,11 +987,15 @@ export function GalleryProvider({ children }) {
             setActiveCategory(categoryParam);
         }
 
+        if (categoryGroupsParam.length > 0) {
+            setSelectedCategoryGroupIds(Array.from(new Set(categoryGroupsParam)));
+        }
+
         if (brandsParam.length > 0) setSelectedBrands(brandsParam);
         if (originsParam.length > 0) setSelectedOrigins(originsParam);
 
         didRestoreUrlFiltersRef.current = true;
-    }, [categories]);
+    }, [categories, categoryGroups]);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -943,6 +1029,7 @@ export function GalleryProvider({ children }) {
         const url = new URL(window.location.href);
         url.searchParams.delete('category');
         url.searchParams.delete('categories');
+        url.searchParams.delete('categoryGroups');
         url.searchParams.delete('brands');
         url.searchParams.delete('origins');
         url.searchParams.delete('search');
@@ -952,10 +1039,20 @@ export function GalleryProvider({ children }) {
             url.searchParams.set('search', searchQuery.trim());
         }
 
-        if (selectedCategories.length === 1 && selectedBrands.length === 0 && selectedOrigins.length === 0 && !hideOutOfStockProducts) {
+        if (selectedCategoryGroupIds.length === 0 && selectedCategories.length === 1 && selectedBrands.length === 0 && selectedOrigins.length === 0 && !hideOutOfStockProducts) {
             url.searchParams.set('category', getCategoryQueryValue(selectedCategories[0], categories));
         } else {
-            selectedCategories.forEach((value) => url.searchParams.append('categories', value));
+            const categoryQueryValues = getCategoryQueryValues(selectedCategories, categories);
+            const categoryGroupQueryValues = getCategoryGroupQueryValues(selectedCategoryGroupIds, categoryGroups);
+
+            if (categoryQueryValues.length > 0) {
+                url.searchParams.set('categories', categoryQueryValues.join(','));
+            }
+
+            if (categoryGroupQueryValues.length > 0) {
+                url.searchParams.set('categoryGroups', categoryGroupQueryValues.join(','));
+            }
+
             selectedBrands.forEach((value) => url.searchParams.append('brands', value));
             selectedOrigins.forEach((value) => url.searchParams.append('origins', value));
             if (hideOutOfStockProducts) {
@@ -964,7 +1061,7 @@ export function GalleryProvider({ children }) {
         }
 
         window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
-    }, [searchQuery, selectedCategories, selectedBrands, selectedOrigins, hideOutOfStockProducts, categories]);
+    }, [searchQuery, selectedCategories, selectedCategoryGroupIds, selectedBrands, selectedOrigins, hideOutOfStockProducts, categories, categoryGroups]);
 
     useEffect(() => {
         if (typeof window === 'undefined' || !isWholesaleCartHydrated) return;
@@ -1061,7 +1158,18 @@ export function GalleryProvider({ children }) {
         const stockStatus = getProductStockStatus(product, stockOrderType);
         const hasStock = stockLimit === null ? stockStatus !== 'out_of_stock' : stockLimit > 0;
 
-        if (selectedCategories.length > 0 && !selectedCategories.includes(normalizedCategory)) return false;
+        const selectedGroupCategoryNames = Array.from(new Set(
+            selectedCategoryGroupIds.flatMap((groupId) => {
+                const matchedGroup = categoryGroups.find((groupEntry) => groupEntry.id === groupId);
+                return matchedGroup?.categoryNames || [];
+            })
+        ));
+        const combinedSelectedCategories = Array.from(new Set([
+            ...selectedCategories,
+            ...selectedGroupCategoryNames
+        ]));
+
+        if (combinedSelectedCategories.length > 0 && !combinedSelectedCategories.includes(normalizedCategory)) return false;
         if (selectedBrands.length > 0 && !selectedBrands.includes(productBrand)) return false;
         if (selectedOrigins.length > 0 && !selectedOrigins.includes(productOrigin)) return false;
         if (hideOutOfStockProducts && !hasStock) return false;
@@ -1079,6 +1187,11 @@ export function GalleryProvider({ children }) {
             selected: selectedCategories.includes(name)
         }))
         .filter((entry) => entry.count > 0 || entry.selected);
+
+    const {
+        groupedEntries: categoryFacetGroups,
+        ungroupedEntries: ungroupedCategoryFacetEntries
+    } = buildGroupedCategoryFacetEntries(categoryFacetEntries, categoryGroups, selectedCategoryGroupIds);
 
     const brandFacetEntries = Array.from(new Map(
         catalogProducts.map((product) => [getProductBrandLabel(product), getProductBrandLabel(product)])
@@ -1102,6 +1215,10 @@ export function GalleryProvider({ children }) {
 
     const activeFilterChips = [
         ...(searchQuery.trim() ? [{ type: 'search', value: searchQuery.trim(), label: `Search: ${searchQuery.trim()}` }] : []),
+        ...selectedCategoryGroupIds.map((groupId) => {
+            const selectedGroup = categoryGroups.find((groupEntry) => groupEntry.id === groupId);
+            return selectedGroup ? { type: 'category-group', value: selectedGroup.id, label: selectedGroup.name } : null;
+        }).filter(Boolean),
         ...selectedCategories.map((value) => ({ type: 'category', value, label: value })),
         ...selectedBrands.map((value) => ({ type: 'brand', value, label: `Brand: ${value}` })),
         ...selectedOrigins.map((value) => ({ type: 'origin', value, label: `Origin: ${value}` })),
@@ -1110,9 +1227,11 @@ export function GalleryProvider({ children }) {
 
     const primaryFilterDisplayLabel = activeFilterChips.length === 0
         ? 'Category: All'
-        : (selectedCategories.length === 1 && selectedBrands.length === 0 && selectedOrigins.length === 0 && !searchQuery.trim() && !hideOutOfStockProducts
+        : (selectedCategoryGroupIds.length === 1 && selectedCategories.length === 0 && selectedBrands.length === 0 && selectedOrigins.length === 0 && !searchQuery.trim() && !hideOutOfStockProducts
+            ? `Group: ${(categoryGroups.find((groupEntry) => groupEntry.id === selectedCategoryGroupIds[0])?.name) || 'Selected'}`
+            : (selectedCategories.length === 1 && selectedBrands.length === 0 && selectedOrigins.length === 0 && !searchQuery.trim() && !hideOutOfStockProducts
             ? `Category: ${selectedCategories[0]}`
-            : `Filters: ${activeFilterChips.length}`);
+            : `Filters: ${activeFilterChips.length}`));
 
     const showToast = (message, type = 'success') => {
         setToast({ id: Date.now(), message, type });
@@ -1131,9 +1250,16 @@ export function GalleryProvider({ children }) {
         if (categoryName === 'All') {
             setActiveCategory('All');
             setSelectedCategories([]);
+            setSelectedCategoryGroupIds([]);
             return;
         }
 
+        const normalizedCategoryName = normalizeFilterValue(categoryName);
+        const parentGroupIds = categoryGroups
+            .filter((groupEntry) => groupEntry.categoryNames.includes(normalizedCategoryName))
+            .map((groupEntry) => groupEntry.id);
+
+        setSelectedCategoryGroupIds((currentValues) => currentValues.filter((groupId) => !parentGroupIds.includes(groupId)));
         setActiveCategory(categoryName);
         setSelectedCategories([categoryName]);
     };
@@ -1143,10 +1269,16 @@ export function GalleryProvider({ children }) {
         if (!normalizedValue || normalizedValue === 'All') {
             setActiveCategory('All');
             setSelectedCategories([]);
+            setSelectedCategoryGroupIds([]);
             return;
         }
 
+        const parentGroupIds = categoryGroups
+            .filter((groupEntry) => groupEntry.categoryNames.includes(normalizedValue))
+            .map((groupEntry) => groupEntry.id);
+
         setActiveCategory('All');
+        setSelectedCategoryGroupIds((currentValues) => currentValues.filter((groupId) => !parentGroupIds.includes(groupId)));
         setSelectedCategories((currentValues) => {
             if (currentValues.includes(normalizedValue)) {
                 return currentValues.filter((value) => value !== normalizedValue);
@@ -1154,6 +1286,46 @@ export function GalleryProvider({ children }) {
             return [...currentValues, normalizedValue];
         });
     };
+
+    const toggleCategoryGroupFilter = (groupId = '') => {
+        const normalizedGroupId = normalizeFilterValue(groupId);
+        if (!normalizedGroupId) return;
+
+        const selectedGroup = categoryGroups.find((groupEntry) => groupEntry.id === normalizedGroupId);
+        const selectedGroupCategoryNames = selectedGroup?.categoryNames || [];
+        const isSelectingGroup = !selectedCategoryGroupIds.includes(normalizedGroupId);
+
+        setActiveCategory('All');
+        if (isSelectingGroup && selectedGroupCategoryNames.length > 0) {
+            setSelectedCategories((currentValues) => currentValues.filter((value) => !selectedGroupCategoryNames.includes(value)));
+        }
+        setSelectedCategoryGroupIds((currentValues) => {
+            if (currentValues.includes(normalizedGroupId)) {
+                return currentValues.filter((value) => value !== normalizedGroupId);
+            }
+            return [...currentValues, normalizedGroupId];
+        });
+    };
+
+    useEffect(() => {
+        if (selectedCategoryGroupIds.length === 0 || selectedCategories.length === 0) {
+            return;
+        }
+
+        const groupedCategoryNames = new Set(
+            selectedCategoryGroupIds.flatMap((groupId) => {
+                const groupEntry = categoryGroups.find((entry) => entry.id === groupId);
+                return groupEntry?.categoryNames || [];
+            })
+        );
+
+        const hasOverlappingSelections = selectedCategories.some((categoryName) => groupedCategoryNames.has(categoryName));
+        if (!hasOverlappingSelections) {
+            return;
+        }
+
+        setSelectedCategories((currentValues) => currentValues.filter((categoryName) => !groupedCategoryNames.has(categoryName)));
+    }, [categoryGroups, selectedCategories, selectedCategoryGroupIds]);
 
     const toggleBrandFilter = (brandName) => {
         const normalizedValue = normalizeFilterValue(brandName);
@@ -1187,6 +1359,7 @@ export function GalleryProvider({ children }) {
         setSearchQuery('');
         setActiveCategory('All');
         setSelectedCategories([]);
+        setSelectedCategoryGroupIds([]);
         setSelectedBrands([]);
         setSelectedOrigins([]);
         setHideOutOfStockProducts(false);
@@ -1199,6 +1372,10 @@ export function GalleryProvider({ children }) {
         }
         if (type === 'category') {
             setSelectedCategories((currentValues) => currentValues.filter((entry) => entry !== value));
+            return;
+        }
+        if (type === 'category-group') {
+            setSelectedCategoryGroupIds((currentValues) => currentValues.filter((entry) => entry !== value));
             return;
         }
         if (type === 'brand') {
@@ -1623,6 +1800,7 @@ export function GalleryProvider({ children }) {
             filteredProducts,
             allProducts: catalogProducts,
             categories,
+            categoryGroups,
             brands,
             isLoading,
             userRole,
@@ -1632,16 +1810,20 @@ export function GalleryProvider({ children }) {
             activeCategory,
             setActiveCategory: setActiveCategoryFilter,
             selectedCategories,
+            selectedCategoryGroupIds,
             selectedBrands,
             selectedOrigins,
             hideOutOfStockProducts,
             toggleCategoryFilter,
+            toggleCategoryGroupFilter,
             toggleBrandFilter,
             toggleOriginFilter,
             toggleStockFilter,
             clearAllFilters,
             removeFilterChip,
             categoryFacetEntries,
+            categoryFacetGroups,
+            ungroupedCategoryFacetEntries,
             brandFacetEntries,
             originFacetEntries,
             activeFilterChips,
