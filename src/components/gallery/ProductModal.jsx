@@ -259,6 +259,128 @@ function ProductDetailCard({ iconClassName, iconWrapperClassName, label, value, 
 }
 
 function ProductOrderDecisionSheet({ summary, onDismiss, onContinueShopping, onCompleteOrder }) {
+    const sheetRef = useRef(null);
+    const backdropRef = useRef(null);
+    const activePointerIdRef = useRef(null);
+    const dragStartYRef = useRef(0);
+    const dragOffsetRef = useRef(0);
+    const dismissTimeoutRef = useRef(null);
+
+    const detachDragListeners = () => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        window.removeEventListener('pointermove', handlePointerMove);
+        window.removeEventListener('pointerup', handlePointerEnd);
+        window.removeEventListener('pointercancel', handlePointerEnd);
+    };
+
+    const applyDragOffset = (offset, options = {}) => {
+        const { animate = false } = options;
+        const sheetElement = sheetRef.current;
+        const backdropElement = backdropRef.current;
+
+        if (!sheetElement || !backdropElement) {
+            return;
+        }
+
+        const positiveOffset = Math.max(0, offset);
+        const backdropOpacity = Math.max(0, 0.55 - (positiveOffset / 320) * 0.35);
+
+        sheetElement.style.transition = animate ? 'transform 220ms cubic-bezier(0.22, 1, 0.36, 1)' : 'none';
+        sheetElement.style.transform = `translateY(${offset}px)`;
+        backdropElement.style.transition = animate ? 'opacity 220ms ease' : 'none';
+        backdropElement.style.opacity = String(backdropOpacity);
+        dragOffsetRef.current = offset;
+    };
+
+    const closeWithSwipe = () => {
+        const sheetElement = sheetRef.current;
+        if (!sheetElement) {
+            onDismiss();
+            return;
+        }
+
+        const closeOffset = sheetElement.offsetHeight + 48;
+        applyDragOffset(closeOffset, { animate: true });
+
+        if (dismissTimeoutRef.current) {
+            window.clearTimeout(dismissTimeoutRef.current);
+        }
+
+        dismissTimeoutRef.current = window.setTimeout(() => {
+            dismissTimeoutRef.current = null;
+            onDismiss();
+        }, 220);
+    };
+
+    function handlePointerMove(event) {
+        if (activePointerIdRef.current !== event.pointerId) {
+            return;
+        }
+
+        event.preventDefault();
+
+        const deltaY = event.clientY - dragStartYRef.current;
+        const adjustedOffset = deltaY < 0 ? Math.max(-36, deltaY * 0.28) : deltaY;
+        applyDragOffset(adjustedOffset);
+    }
+
+    function handlePointerEnd(event) {
+        if (activePointerIdRef.current !== event.pointerId) {
+            return;
+        }
+
+        const sheetElement = sheetRef.current;
+        const closeThreshold = Math.min(220, Math.max(120, (sheetElement?.offsetHeight || 0) * 0.28));
+        const currentOffset = dragOffsetRef.current;
+
+        activePointerIdRef.current = null;
+        detachDragListeners();
+
+        if (currentOffset > closeThreshold) {
+            closeWithSwipe();
+            return;
+        }
+
+        applyDragOffset(0, { animate: true });
+    }
+
+    const handlePointerStart = (event) => {
+        if (typeof window === 'undefined' || !window.matchMedia('(max-width: 639px)').matches) {
+            return;
+        }
+
+        if (event.pointerType === 'mouse' && event.button !== 0) {
+            return;
+        }
+
+        if (dismissTimeoutRef.current) {
+            window.clearTimeout(dismissTimeoutRef.current);
+            dismissTimeoutRef.current = null;
+        }
+
+        activePointerIdRef.current = event.pointerId;
+        dragStartYRef.current = event.clientY - dragOffsetRef.current;
+        detachDragListeners();
+        window.addEventListener('pointermove', handlePointerMove, { passive: false });
+        window.addEventListener('pointerup', handlePointerEnd);
+        window.addEventListener('pointercancel', handlePointerEnd);
+    };
+
+    useEffect(() => {
+        applyDragOffset(0);
+
+        return () => {
+            detachDragListeners();
+            if (dismissTimeoutRef.current) {
+                window.clearTimeout(dismissTimeoutRef.current);
+                dismissTimeoutRef.current = null;
+            }
+        };
+    }, []);
+
     if (!summary) {
         return null;
     }
@@ -268,13 +390,14 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onContinueShopping, onC
             <button
                 type="button"
                 aria-label="Close order review"
+                ref={backdropRef}
                 className="absolute inset-0 bg-black/55 backdrop-blur-[3px] animate-[order-sheet-backdrop_180ms_ease-out]"
                 onClick={onDismiss}
             ></button>
 
             <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6">
-                <div className="pointer-events-auto order-sheet-scroll max-h-[68vh] w-full max-w-lg overflow-y-auto rounded-[2rem] border border-brandGold/20 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.34)] animate-[order-sheet-rise_260ms_cubic-bezier(0.22,1,0.36,1)] dark:bg-[#11192c] sm:max-h-[74vh] sm:max-w-xl" onClick={(event) => event.stopPropagation()}>
-                    <div className="sticky top-0 z-10 flex justify-center border-b border-slate-200/80 bg-slate-50/94 px-5 pb-3 pt-3 backdrop-blur dark:border-white/10 dark:bg-[#11192c]/94">
+                <div ref={sheetRef} className="pointer-events-auto order-sheet-scroll max-h-[68vh] w-full max-w-lg overflow-y-auto rounded-[2rem] border border-brandGold/20 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.34)] animate-[order-sheet-rise_260ms_cubic-bezier(0.22,1,0.36,1)] dark:bg-[#11192c] sm:max-h-[74vh] sm:max-w-xl" onClick={(event) => event.stopPropagation()}>
+                    <div className="order-sheet-drag-handle sticky top-0 z-10 flex justify-center border-b border-slate-200/80 bg-slate-50/94 px-5 pb-3 pt-3 backdrop-blur dark:border-white/10 dark:bg-[#11192c]/94" onPointerDown={handlePointerStart}>
                         <div className="flex flex-col items-center gap-2">
                             <span className="h-1.5 w-20 rounded-full bg-slate-300 dark:bg-white/15"></span>
                             <span className="flex h-7 w-7 items-center justify-center rounded-full border border-brandGold/15 bg-brandGold/8 text-brandGold">
