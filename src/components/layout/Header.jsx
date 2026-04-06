@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { auth, db } from '@/lib/firebase';
@@ -560,6 +560,62 @@ function SidebarFilterSection({ title, eyebrow, iconPath, isExpanded, onToggle, 
     );
 }
 
+function CinematicFilterLabel({ label }) {
+    const normalizedLabel = String(label || '');
+    const containerRef = useRef(null);
+    const measureRef = useRef(null);
+    const [shouldAnimate, setShouldAnimate] = useState(false);
+
+    useEffect(() => {
+        const updateOverflowState = () => {
+            if (!containerRef.current || !measureRef.current) {
+                setShouldAnimate(false);
+                return;
+            }
+
+            setShouldAnimate(measureRef.current.scrollWidth > containerRef.current.clientWidth + 8);
+        };
+
+        updateOverflowState();
+
+        if (typeof ResizeObserver === 'undefined') {
+            window.addEventListener('resize', updateOverflowState);
+            return () => window.removeEventListener('resize', updateOverflowState);
+        }
+
+        const resizeObserver = new ResizeObserver(() => {
+            updateOverflowState();
+        });
+
+        resizeObserver.observe(containerRef.current);
+        resizeObserver.observe(measureRef.current);
+
+        return () => {
+            resizeObserver.disconnect();
+        };
+    }, [normalizedLabel]);
+
+    return (
+        <span
+            ref={containerRef}
+            className={`sidebar-cinematic-label ${shouldAnimate ? 'is-animated' : ''}`}
+            style={{ '--sidebar-cinematic-duration': `${Math.max(10, normalizedLabel.length * 0.32)}s` }}
+            title={normalizedLabel}
+        >
+            <span ref={measureRef} className="sidebar-cinematic-label__measure">{normalizedLabel}</span>
+            <span className="sidebar-cinematic-label__viewport">
+                <span className="sidebar-cinematic-label__copy">{normalizedLabel}</span>
+                {shouldAnimate ? (
+                    <>
+                        <span className="sidebar-cinematic-label__separator" aria-hidden="true">•</span>
+                        <span className="sidebar-cinematic-label__copy" aria-hidden="true">{normalizedLabel}</span>
+                    </>
+                ) : null}
+            </span>
+        </span>
+    );
+}
+
 function FilterEntryButton({ label, count, selected, onClick, compact = false }) {
     return (
         <button
@@ -573,7 +629,7 @@ function FilterEntryButton({ label, count, selected, onClick, compact = false })
                 ) : (
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-gray-300 dark:border-gray-600"></span>
                 )}
-                <span className="truncate">{label}</span>
+                <CinematicFilterLabel label={label} />
             </span>
             {typeof count === 'number' ? (
                 <span className={`shrink-0 text-[11px] font-black ${selected ? 'text-brandGold' : 'text-gray-400 dark:text-gray-500'}`}>({count})</span>
@@ -594,7 +650,9 @@ function FilterEntryGroup({ label, count, selected, explicitSelected, partiallyS
                     <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${selected ? 'border-brandGold bg-brandGold text-brandBlue' : partiallySelected ? 'border-brandGold text-brandGold' : 'border-gray-300 text-gray-400 dark:border-gray-600 dark:text-gray-500'}`}>
                         <i className={`fa-solid text-[9px] ${explicitSelected || allSelected ? 'fa-check' : partiallySelected ? 'fa-minus' : 'fa-plus'}`}></i>
                     </span>
-                    <span className="truncate text-sm font-black">{label}</span>
+                    <span className="min-w-0 text-sm font-black">
+                        <CinematicFilterLabel label={label} />
+                    </span>
                 </span>
                 <span className="flex shrink-0 items-center gap-2">
                     {typeof count === 'number' ? (
