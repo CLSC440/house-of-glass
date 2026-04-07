@@ -154,6 +154,14 @@ function buildRetailCartSummary(cartItems = [], cartCount = 0, cartSubtotal = 0,
     };
 }
 
+function isCompactMobileViewport() {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+        return false;
+    }
+
+    return window.matchMedia('(max-width: 639px)').matches;
+}
+
 function buildProductModalUrl(pathname, currentSearch, nextShareCode, currentHash = '') {
     const params = new URLSearchParams(String(currentSearch || '').replace(/^\?/, ''));
 
@@ -432,7 +440,7 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
     }
 
     const handlePointerStart = (event) => {
-        if (typeof window === 'undefined' || !window.matchMedia('(max-width: 639px)').matches) {
+        if (!isCompactMobileViewport()) {
             return;
         }
 
@@ -860,6 +868,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [quantity, setQuantity] = useState(1);
     const [wholesaleQuantity, setWholesaleQuantity] = useState(1);
+    const [showMobileVariantPicker, setShowMobileVariantPicker] = useState(false);
     const { siteSettings } = useSiteSettings();
     const [showLiveIndicator, setShowLiveIndicator] = useState(false);
     const [lightboxState, setLightboxState] = useState({ isOpen: false, images: [], index: 0, title: '' });
@@ -1026,6 +1035,13 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
         addToCart(product, normalizedQuantity);
 
         if (actualAddedQuantity <= 0) {
+            return;
+        }
+
+        const shouldSkipExpandedSummary = isCompactMobileViewport() || cartCount > 0;
+
+        if (shouldSkipExpandedSummary) {
+            setRetailOrderSheet(null);
             return;
         }
 
@@ -1197,6 +1213,10 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
         }
     }, [retailStockLimit, wholesaleStockLimit]);
 
+    useEffect(() => {
+        setShowMobileVariantPicker(false);
+    }, [selectedProduct?.id, selectedProduct?.code, selectedProduct?.name]);
+
     const closeLightbox = () => {
         setLightboxState((currentValue) => ({ ...currentValue, isOpen: false }));
     };
@@ -1319,6 +1339,134 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                 {stockLimitValue !== null ? (
                     <p className="mt-2 text-[10px] font-bold text-gray-400">الحد الأقصى المتاح حالياً: {stockLimitValue}</p>
                 ) : null}
+            </div>
+        );
+    };
+
+    const handleMobileVariantAddToCart = () => {
+        if (!activeVariant) {
+            return;
+        }
+
+        handleRetailAddWithConfirmation(activeVariant, quantity, {
+            unitPrice: primaryDisplayPrice,
+            image: currentVariantImage,
+            title: activeVariantDisplayName
+        });
+        setShowMobileVariantPicker(false);
+    };
+
+    const renderMobileVariantPicker = () => {
+        if (!hasVariants) {
+            return null;
+        }
+
+        return (
+            <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[140] px-3 pb-[max(0.85rem,env(safe-area-inset-bottom))] md:hidden">
+                <div className="pointer-events-auto mx-auto w-full max-w-3xl">
+                    {showMobileVariantPicker ? (
+                        <div className="overflow-hidden rounded-[2rem] border border-slate-200/80 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.3)] dark:border-white/10 dark:bg-[#0f172a]">
+                            <div className="flex items-start gap-3 border-b border-slate-200/80 px-4 py-4 dark:border-white/10" dir="ltr">
+                                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[1rem] border border-slate-200 bg-slate-50 p-2 dark:border-white/10 dark:bg-[#0d1426]">
+                                    <img src={currentVariantImage || '/logo.png'} alt={activeVariantDisplayName} className="h-full w-full object-contain" />
+                                </div>
+                                <div className="min-w-0 flex-1 text-left">
+                                    <p className="truncate text-[1.05rem] font-black text-slate-900 dark:text-white">{selectedProduct.title || selectedProduct.name}</p>
+                                    <p className="mt-1 truncate text-xs font-semibold text-slate-500 dark:text-slate-300">{activeVariantDisplayName}</p>
+                                    <p className="mt-2 text-[1.55rem] font-black leading-none text-brandBlue dark:text-white">{formatPriceLabel(primaryDisplayPrice)}</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowMobileVariantPicker(false)}
+                                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition-colors hover:text-red-500 dark:border-white/10 dark:bg-white/10 dark:text-white"
+                                    aria-label="Close variant picker"
+                                >
+                                    <i className="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+
+                            <div className="hide-scroll max-h-[58vh] overflow-y-auto px-4 pb-4 pt-4">
+                                <div className="space-y-5">
+                                    <div>
+                                        <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-white/45">Choose option | اختر الشكل / اللون</p>
+                                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                                            {selectedProduct.variants.map((variantEntry, idx) => {
+                                                const variantStatus = resolveStockStatus(variantEntry, displayOrderType);
+                                                const variantLimit = resolveStockLimit(variantEntry, displayOrderType);
+                                                const isAvailable = !(variantStatus === 'out_of_stock' || variantLimit === 0);
+                                                const variantImage = getVariantAllImages(variantEntry)[0] || currentVariantImage || '/logo.png';
+
+                                                return (
+                                                    <button
+                                                        key={idx}
+                                                        type="button"
+                                                        onClick={() => handleActiveVariantChange(idx)}
+                                                        className={`overflow-hidden rounded-[1.35rem] border-2 text-left transition-all ${activeVariantIndex === idx ? 'border-brandGold bg-brandGold/8 shadow-[0_18px_36px_rgba(212,175,55,0.2)]' : 'border-slate-200 bg-white hover:border-brandGold/45 dark:border-white/10 dark:bg-white/[0.04]'} ${isAvailable ? '' : 'opacity-60'}`}
+                                                        dir="ltr"
+                                                    >
+                                                        <div className="aspect-square w-full overflow-hidden bg-slate-50 dark:bg-[#0d1426]">
+                                                            <img src={variantImage} alt={variantEntry.name || variantEntry.label || `Variant ${idx + 1}`} className="h-full w-full object-cover" />
+                                                        </div>
+                                                        <div className="px-3 py-3">
+                                                            <p className="truncate text-sm font-black text-slate-900 dark:text-white">{variantEntry.name || variantEntry.label || `موديل ${idx + 1}`}</p>
+                                                            <div className="mt-2 flex items-center gap-2 text-[11px] font-bold">
+                                                                <span className={`h-2.5 w-2.5 rounded-full ${isAvailable ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
+                                                                <span className={isAvailable ? 'text-emerald-600 dark:text-emerald-300' : 'text-rose-500 dark:text-rose-300'}>{isAvailable ? 'Available' : 'Out'}</span>
+                                                            </div>
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-[1.45rem] border border-green-500/20 bg-green-500/5 p-4 dark:bg-green-500/10">
+                                        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-green-600 dark:text-green-300">Quantity | الكمية</p>
+                                        <div className="mt-3 flex items-center overflow-hidden rounded-xl border-2 border-green-500/20 bg-white dark:bg-neutral-900" dir="ltr">
+                                            <button type="button" onClick={decreaseQuantity} className="flex h-12 w-11 items-center justify-center text-lg font-black text-green-600 transition-colors hover:bg-green-500/10 dark:text-green-300">
+                                                -
+                                            </button>
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
+                                                value={quantity}
+                                                onChange={handleQuantityInputChange}
+                                                className="min-w-12 flex-1 border-x border-green-500/15 bg-transparent px-3 py-0 text-center text-base font-black text-brandBlue outline-none dark:text-white"
+                                                aria-label="Unit quantity"
+                                            />
+                                            <button type="button" onClick={increaseQuantity} className="flex h-12 w-11 items-center justify-center text-lg font-black text-green-600 transition-colors hover:bg-green-500/10 dark:text-green-300">
+                                                +
+                                            </button>
+                                        </div>
+                                        {showStockLimitMessage ? (
+                                            <p className="mt-2 text-[11px] font-bold text-amber-600 dark:text-amber-300">وصلت للكمية المتاحة حالياً: {retailStockLimit}</p>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="border-t border-slate-200/80 p-4 dark:border-white/10">
+                                <button
+                                    type="button"
+                                    onClick={handleMobileVariantAddToCart}
+                                    disabled={retailOutOfStock}
+                                    className="w-full rounded-full bg-[linear-gradient(135deg,#f59e0b,#f97316)] px-5 py-4 text-sm font-black uppercase tracking-[0.12em] text-white shadow-[0_20px_45px_rgba(249,115,22,0.28)] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {retailOutOfStock ? 'غير متوفر حالياً' : 'ADD PACK | اضف عبوة'}
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => setShowMobileVariantPicker(true)}
+                            className="w-full rounded-full bg-[linear-gradient(135deg,#f59e0b,#f97316)] px-5 py-4 text-sm font-black tracking-[0.04em] text-white shadow-[0_22px_55px_rgba(249,115,22,0.3)] transition-transform hover:-translate-y-0.5"
+                        >
+                            Select an option | اختر الشكل / اللون
+                        </button>
+                    )}
+                </div>
             </div>
         );
     };
@@ -1821,7 +1969,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                         <i className="fa-solid fa-xmark"></i>
                     </button>
 
-                    <div className="hide-scroll flex w-full flex-col pb-6 sm:h-full sm:overflow-y-auto sm:pb-8">
+                    <div className="hide-scroll flex w-full flex-col pb-28 sm:h-full sm:overflow-y-auto sm:pb-32">
                         <div className="px-4 pt-5 md:px-8 md:pt-8">
                             <div className="rounded-[1.8rem] border border-slate-200/70 bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.12),transparent_40%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(241,245,249,0.92))] px-5 py-5 text-center shadow-[0_20px_55px_rgba(148,163,184,0.1)] dark:border-white/10 dark:bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.16),transparent_36%),linear-gradient(180deg,rgba(15,23,42,0.98),rgba(2,6,23,0.96))] md:px-8 md:py-6">
                                 {metadata.length > 0 ? (
@@ -1874,6 +2022,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                             />
                         </div>
                     </div>
+                    {renderMobileVariantPicker()}
                 </div>
 
             </div>
