@@ -3,7 +3,6 @@ import Hero from '@/components/gallery/Hero';
 import SearchFilter from '@/components/gallery/SearchFilter';
 import ProductGrid from '@/components/gallery/ProductGrid';
 import CategoriesRow from '@/components/gallery/CategoriesRow';
-import CartModal from '@/components/gallery/CartModal';
 import ProductModal from '@/components/gallery/ProductModal';
 import ToastStack from '@/components/gallery/ToastStack';
 import Header from '@/components/layout/Header';
@@ -25,7 +24,6 @@ export default function GalleryPage() {
                     </div>
                 </main>
                 <Footer />
-                <CartModal />
                 <Suspense fallback={null}>
                     <ProductModal />
                 </Suspense>

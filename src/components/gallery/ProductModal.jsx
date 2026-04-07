@@ -1,7 +1,7 @@
 'use client';
 import { useGallery } from '@/contexts/GalleryContext';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { AnimatedTestimonials } from '@/components/ui/animated-testimonials';
 import { buildWhatsAppUrl, useSiteSettings } from '@/lib/use-site-settings';
 import { isAdminRole, normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
@@ -699,8 +699,9 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
 }
 
 export default function ProductModal() {
-    const { selectedProduct, setSelectedProduct, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, dcSyncedAt, refreshDcCatalog, allProducts, getProductStockLimit, getProductStockStatus, cartItems, cartCount, cartSubtotal, openCart, updateCartQuantity } = useGallery();
+    const { selectedProduct, setSelectedProduct, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, dcSyncedAt, refreshDcCatalog, allProducts, getProductStockLimit, getProductStockStatus, cartItems, cartCount, cartSubtotal, updateCartQuantity } = useGallery();
     const pathname = usePathname();
+    const router = useRouter();
     const searchParams = useSearchParams();
     const lastSyncedShareCodeRef = useRef('');
     const dismissedShareCodeRef = useRef('');
@@ -825,14 +826,7 @@ export default function ProductModal() {
             closeModal();
         }
 
-        if (typeof window !== 'undefined') {
-            window.requestAnimationFrame(() => {
-                openCart();
-            });
-            return;
-        }
-
-        openCart();
+        router.push('/checkout');
     };
 
     if (!selectedProduct && !activeRetailSummary) return null;
@@ -855,7 +849,6 @@ export default function ProductModal() {
                     cartItems={cartItems}
                     cartCount={cartCount}
                     cartSubtotal={cartSubtotal}
-                    openCart={openCart}
                     updateCartQuantity={updateCartQuantity}
                     setRetailOrderSheet={setRetailOrderSheet}
                 />
@@ -873,7 +866,7 @@ export default function ProductModal() {
     );
 }
 
-function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, dcSyncedAt, getProductStockLimit, getProductStockStatus, cartItems, cartCount, cartSubtotal, openCart, updateCartQuantity, setRetailOrderSheet }) {
+function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, dcSyncedAt, getProductStockLimit, getProductStockStatus, cartItems, cartCount, cartSubtotal, updateCartQuantity, setRetailOrderSheet }) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [quantity, setQuantity] = useState(1);
     const [wholesaleQuantity, setWholesaleQuantity] = useState(1);
@@ -881,6 +874,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
     const { siteSettings } = useSiteSettings();
     const [showLiveIndicator, setShowLiveIndicator] = useState(false);
     const [lightboxState, setLightboxState] = useState({ isOpen: false, images: [], index: 0, title: '' });
+    const router = useRouter();
 
     useEffect(() => {
         if (userRole !== 'admin' || !dcLiveUpdateAt) {
@@ -1423,15 +1417,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
 
     const handleMobileVariantGoToCart = () => {
         closeModal();
-
-        if (typeof window !== 'undefined') {
-            window.requestAnimationFrame(() => {
-                openCart();
-            });
-            return;
-        }
-
-        openCart();
+        router.push('/checkout');
     };
 
     const renderMobileVariantCheckoutBar = () => {
