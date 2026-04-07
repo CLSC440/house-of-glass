@@ -699,7 +699,7 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
 }
 
 export default function ProductModal() {
-    const { selectedProduct, setSelectedProduct, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, dcSyncedAt, refreshDcCatalog, allProducts, getProductStockLimit, getProductStockStatus, cartItems, cartCount, cartSubtotal, openCart } = useGallery();
+    const { selectedProduct, setSelectedProduct, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, dcSyncedAt, refreshDcCatalog, allProducts, getProductStockLimit, getProductStockStatus, cartItems, cartCount, cartSubtotal, openCart, updateCartQuantity } = useGallery();
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const lastSyncedShareCodeRef = useRef('');
@@ -710,6 +710,12 @@ export default function ProductModal() {
     const activeRetailSummary = useMemo(
         () => buildRetailCartSummary(cartItems, cartCount, cartSubtotal, retailOrderSheet),
         [cartCount, cartItems, cartSubtotal, retailOrderSheet]
+    );
+    const shouldUseEmbeddedVariantCartBar = Boolean(
+        selectedProduct
+        && Array.isArray(selectedProduct?.variants)
+        && selectedProduct.variants.length > 0
+        && isCompactMobileViewport()
     );
 
     useEffect(() => {
@@ -850,21 +856,24 @@ export default function ProductModal() {
                     cartCount={cartCount}
                     cartSubtotal={cartSubtotal}
                     openCart={openCart}
+                    updateCartQuantity={updateCartQuantity}
                     setRetailOrderSheet={setRetailOrderSheet}
                 />
             ) : null}
 
-            <ProductOrderDecisionSheet
-                summary={activeRetailSummary}
-                onDismiss={dismissRetailOrderSheet}
-                onCompleteOrder={handleCompleteRetailOrder}
-                startMinimized={!retailOrderSheet}
-            />
+            {!shouldUseEmbeddedVariantCartBar ? (
+                <ProductOrderDecisionSheet
+                    summary={activeRetailSummary}
+                    onDismiss={dismissRetailOrderSheet}
+                    onCompleteOrder={handleCompleteRetailOrder}
+                    startMinimized={!retailOrderSheet}
+                />
+            ) : null}
         </>
     );
 }
 
-function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, dcSyncedAt, getProductStockLimit, getProductStockStatus, cartItems, cartCount, cartSubtotal, openCart, setRetailOrderSheet }) {
+function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, dcSyncedAt, getProductStockLimit, getProductStockStatus, cartItems, cartCount, cartSubtotal, openCart, updateCartQuantity, setRetailOrderSheet }) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [quantity, setQuantity] = useState(1);
     const [wholesaleQuantity, setWholesaleQuantity] = useState(1);
@@ -1013,7 +1022,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
 
     const handleRetailAddWithConfirmation = (product, requestedQuantity, options = {}) => {
         if (!product) {
-            return;
+            return null;
         }
 
         const resolvedTitle = resolveModalProductTitle(product, options.title);
@@ -1035,14 +1044,26 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
         addToCart(product, normalizedQuantity);
 
         if (actualAddedQuantity <= 0) {
-            return;
+            return {
+                cartId,
+                actualAddedQuantity,
+                nextQuantity: existingQuantity,
+                nextCartCount: cartCount,
+                nextCartSubtotal: cartSubtotal
+            };
         }
 
         const shouldSkipExpandedSummary = isCompactMobileViewport() || cartCount > 0;
 
         if (shouldSkipExpandedSummary) {
             setRetailOrderSheet(null);
-            return;
+            return {
+                cartId,
+                actualAddedQuantity,
+                nextQuantity,
+                nextCartCount,
+                nextCartSubtotal
+            };
         }
 
         setRetailOrderSheet({
@@ -1056,6 +1077,14 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
             nextCartSubtotal,
             wasExisting: existingQuantity > 0
         });
+
+        return {
+            cartId,
+            actualAddedQuantity,
+            nextQuantity,
+            nextCartCount,
+            nextCartSubtotal
+        };
     };
 
     const handleAddToCart = () => {
@@ -1129,6 +1158,18 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
     const activeVariantImages = hasVariants ? getVariantAllImages(activeVariant) : [];
     const safeSubImageIndex = activeVariantImages.length > 0 ? Math.min(subImageIndex, activeVariantImages.length - 1) : 0;
     const activeVariantDisplayName = activeVariant?.name || activeVariant?.label || `موديل ${activeVariantIndex + 1}`;
+    const activeVariantCartId = hasVariants
+        ? String(activeVariant?.id || activeVariant?.code || resolveModalProductTitle(activeVariant, activeVariantDisplayName)).trim()
+        : '';
+    const variantCartIds = hasVariants
+        ? selectedProduct.variants.map((variantEntry, idx) => String(variantEntry?.id || variantEntry?.code || resolveModalProductTitle(variantEntry, variantEntry?.name || variantEntry?.label || `موديل ${idx + 1}`)).trim())
+        : [];
+    const mobileVariantCheckoutItem = hasVariants
+        ? cartItems.find((item) => item.cartId === activeVariantCartId) || null
+        : null;
+    const hasAnyVariantInCart = hasVariants
+        ? cartItems.some((item) => variantCartIds.includes(String(item?.cartId || '').trim()))
+        : false;
     const activeVariantCode = String(activeVariant?.code || activeVariant?.barcode || '').trim();
     const activeVariantDescription = activeVariant?.desc || activeVariant?.description || fallbackDesc;
     const currentVariantImage = activeVariantImages[safeSubImageIndex] || '';
@@ -1216,6 +1257,19 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
     useEffect(() => {
         setShowMobileVariantPicker(false);
     }, [selectedProduct?.id, selectedProduct?.code, selectedProduct?.name]);
+
+    useEffect(() => {
+        if (!hasVariants) {
+            return;
+        }
+
+        if (mobileVariantCheckoutItem) {
+            setQuantity(Math.max(1, Number(mobileVariantCheckoutItem.quantity || 1)));
+            return;
+        }
+
+        setQuantity(1);
+    }, [activeVariantIndex, hasVariants, mobileVariantCheckoutItem]);
 
     const closeLightbox = () => {
         setLightboxState((currentValue) => ({ ...currentValue, isOpen: false }));
@@ -1353,7 +1407,73 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
             image: currentVariantImage,
             title: activeVariantDisplayName
         });
+
         setShowMobileVariantPicker(false);
+    };
+
+    const handleMobileVariantCheckoutQuantityChange = (delta) => {
+        if (!mobileVariantCheckoutItem) {
+            return;
+        }
+
+        const nextQuantity = Math.max(0, Number(mobileVariantCheckoutItem.quantity || 1) + delta);
+        updateCartQuantity(mobileVariantCheckoutItem.cartId, nextQuantity);
+        setQuantity(nextQuantity > 0 ? nextQuantity : 1);
+    };
+
+    const handleMobileVariantGoToCart = () => {
+        closeModal();
+
+        if (typeof window !== 'undefined') {
+            window.requestAnimationFrame(() => {
+                openCart();
+            });
+            return;
+        }
+
+        openCart();
+    };
+
+    const renderMobileVariantCheckoutBar = () => {
+        if (!mobileVariantCheckoutItem || showMobileVariantPicker) {
+            return null;
+        }
+
+        return (
+            <div className="pointer-events-auto animate-[order-sheet-rise_260ms_cubic-bezier(0.22,1,0.36,1)] rounded-[1.8rem] border border-brandGold/20 bg-[#11192c] px-3 py-3 shadow-[0_26px_70px_rgba(15,23,42,0.42)]">
+                <div className="flex items-center gap-3" dir="ltr">
+                    <div className="flex shrink-0 items-center overflow-hidden rounded-full border border-slate-300 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]">
+                        <button
+                            type="button"
+                            onClick={() => handleMobileVariantCheckoutQuantityChange(-1)}
+                            className="flex h-14 w-14 items-center justify-center text-[1.9rem] font-black leading-none text-slate-900 transition-colors hover:bg-slate-100"
+                            aria-label="Decrease quantity"
+                        >
+                            -
+                        </button>
+                        <span className="flex h-14 min-w-14 items-center justify-center border-x border-slate-200 px-4 text-[1.6rem] font-black leading-none text-slate-900">
+                            {mobileVariantCheckoutItem.quantity}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => handleMobileVariantCheckoutQuantityChange(1)}
+                            className="flex h-14 w-14 items-center justify-center text-[1.9rem] font-black leading-none text-slate-900 transition-colors hover:bg-slate-100"
+                            aria-label="Increase quantity"
+                        >
+                            +
+                        </button>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={handleMobileVariantGoToCart}
+                        className="flex-1 rounded-full bg-[linear-gradient(135deg,#f59e0b,#f97316)] px-5 py-4 text-center text-[1.05rem] font-black text-white shadow-[0_20px_45px_rgba(249,115,22,0.28)] transition-transform hover:-translate-y-0.5"
+                    >
+                        Go to cart
+                    </button>
+                </div>
+            </div>
+        );
     };
 
     const renderMobileVariantPicker = () => {
@@ -1363,9 +1483,8 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
 
         return (
             <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[140] px-3 pb-[max(0.85rem,env(safe-area-inset-bottom))] md:hidden">
-                <div className="pointer-events-auto mx-auto w-full max-w-3xl">
-                    {showMobileVariantPicker ? (
-                        <div className="overflow-hidden rounded-[2rem] border border-slate-200/80 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.3)] dark:border-white/10 dark:bg-[#0f172a]">
+                <div className="mx-auto w-full max-w-3xl space-y-3">
+                    <div className={`overflow-hidden rounded-[2rem] border border-slate-200/80 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.3)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] dark:border-white/10 dark:bg-[#0f172a] ${showMobileVariantPicker ? 'pointer-events-auto translate-y-0 opacity-100 animate-[order-sheet-rise_260ms_cubic-bezier(0.22,1,0.36,1)]' : 'pointer-events-none translate-y-[115%] opacity-0'}`}>
                             <div className="flex items-start gap-3 border-b border-slate-200/80 px-4 py-4 dark:border-white/10" dir="ltr">
                                 <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[1rem] border border-slate-200 bg-slate-50 p-2 dark:border-white/10 dark:bg-[#0d1426]">
                                     <img src={currentVariantImage || '/logo.png'} alt={activeVariantDisplayName} className="h-full w-full object-contain" />
@@ -1456,16 +1575,19 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                                     {retailOutOfStock ? 'غير متوفر حالياً' : 'ADD PACK | اضف عبوة'}
                                 </button>
                             </div>
-                        </div>
-                    ) : (
+                    </div>
+
+                    {!showMobileVariantPicker && !mobileVariantCheckoutItem ? (
                         <button
                             type="button"
                             onClick={() => setShowMobileVariantPicker(true)}
-                            className="w-full rounded-full bg-[linear-gradient(135deg,#f59e0b,#f97316)] px-5 py-4 text-sm font-black tracking-[0.04em] text-white shadow-[0_22px_55px_rgba(249,115,22,0.3)] transition-transform hover:-translate-y-0.5"
+                            className="pointer-events-auto w-full rounded-full bg-[linear-gradient(135deg,#f59e0b,#f97316)] px-5 py-4 text-sm font-black tracking-[0.04em] text-white shadow-[0_22px_55px_rgba(249,115,22,0.3)] transition-transform hover:-translate-y-0.5"
                         >
-                            Select an option | اختر الشكل / اللون
+                            {hasAnyVariantInCart ? 'Add to cart | اضف للعربة' : 'Select an option | اختر الشكل / اللون'}
                         </button>
-                    )}
+                    ) : null}
+
+                    {renderMobileVariantCheckoutBar()}
                 </div>
             </div>
         );
