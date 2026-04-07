@@ -32,6 +32,7 @@ function getProductMatchCodes(product = {}) {
     return getUniqueValues([
         product.code,
         product.barcode,
+        product.matchedBarcode,
         product.productCode,
         product.sku,
         product.itemCode
@@ -171,6 +172,7 @@ function mergeProductWithDcData(product, dcProduct, dcStock) {
 
     const mergedProduct = {
         ...product,
+        ...(liveEntry?.barcode ? { matchedBarcode: liveEntry.barcode } : {}),
         ...(manufacturer && !product.brand ? { brand: manufacturer } : {}),
         ...(manufacturer && !product.manufacturer ? { manufacturer } : {}),
         ...(retailPrice > 0 ? {
@@ -281,7 +283,7 @@ function getProductTitle(product) {
 }
 
 function getProductPrimaryCode(product = {}) {
-    return product.code || product.barcode || product.productCode || product.sku || product.itemCode || product.id || '';
+    return product.code || product.barcode || product.matchedBarcode || product.productCode || product.sku || product.itemCode || product.id || '';
 }
 
 function normalizeLookupText(value) {
@@ -292,6 +294,7 @@ function getCartItemMatchCodes(item = {}) {
     return getUniqueValues([
         item.productId,
         item.productCode,
+        item.barcode,
         item.cartId
     ].map(normalizeInventoryCode));
 }
@@ -309,6 +312,8 @@ function matchesCartItemToProduct(product = {}, item = {}) {
         if (productCodes.some((code) => itemCodes.includes(code))) {
             return true;
         }
+
+        return false;
     }
 
     const itemTitle = normalizeLookupText(item.title || item.name || item.cartId);
@@ -1440,6 +1445,7 @@ export function GalleryProvider({ children }) {
                     cartId,
                     productId: product.id,
                     productCode: getProductPrimaryCode(product),
+                    barcode: product.barcode || product.matchedBarcode || '',
                     name: getProductTitle(product),
                     title: getProductTitle(product),
                     category: product.category || '',
@@ -1496,6 +1502,7 @@ export function GalleryProvider({ children }) {
                     cartId,
                     productId: product.id,
                     productCode: getProductPrimaryCode(product),
+                    barcode: product.barcode || product.matchedBarcode || '',
                     name: getProductTitle(product),
                     title: getProductTitle(product),
                     category: product.category || '',
