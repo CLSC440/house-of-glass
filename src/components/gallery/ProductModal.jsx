@@ -1,6 +1,6 @@
 'use client';
 import { useGallery } from '@/contexts/GalleryContext';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { AnimatedTestimonials } from '@/components/ui/animated-testimonials';
 import { buildWhatsAppUrl, useSiteSettings } from '@/lib/use-site-settings';
@@ -103,6 +103,55 @@ function resolveModalProductImage(product = {}, fallbackImage = '') {
     ];
 
     return imageCandidates.find((entry) => typeof entry === 'string' && entry.trim()) || '/logo.png';
+}
+
+function buildRetailCartSummary(cartItems = [], cartCount = 0, cartSubtotal = 0, orderSummary = null) {
+    if (orderSummary) {
+        return {
+            ...orderSummary,
+            cartItems: Array.isArray(orderSummary.cartItems) ? orderSummary.cartItems : [],
+            shippingAmount: parsePrice(orderSummary.shippingAmount),
+            totalAmount: parsePrice(orderSummary.totalAmount || orderSummary.nextCartSubtotal),
+            isCartFallback: false
+        };
+    }
+
+    if (cartCount <= 0) {
+        return null;
+    }
+
+    const latestItem = cartItems[cartItems.length - 1] || null;
+    const latestQuantity = Number(latestItem?.quantity || 0);
+    const latestUnitPrice = parsePrice(latestItem?.price);
+    const latestSubtotal = latestUnitPrice > 0 && latestQuantity > 0 ? latestUnitPrice * latestQuantity : cartSubtotal;
+    const cartLines = cartItems.map((item) => {
+        const quantity = Number(item?.quantity || 0);
+        const unitPrice = parsePrice(item?.price);
+
+        return {
+            id: String(item?.cartId || item?.id || item?.code || item?.title || item?.name || Math.random()),
+            title: String(item?.title || item?.name || 'Cart item').trim() || 'Cart item',
+            quantity,
+            unitPrice,
+            lineTotal: quantity > 0 ? unitPrice * quantity : unitPrice
+        };
+    });
+
+    return {
+        title: String(latestItem?.title || latestItem?.name || 'Cart summary').trim() || 'Cart summary',
+        image: resolveModalProductImage(latestItem, '/logo.png'),
+        addedQuantity: latestQuantity || cartCount,
+        nextQuantity: latestQuantity || cartCount,
+        unitPrice: latestUnitPrice,
+        addedSubtotal: latestSubtotal,
+        nextCartCount: cartCount,
+        nextCartSubtotal: cartSubtotal,
+        wasExisting: true,
+        cartItems: cartLines,
+        shippingAmount: 0,
+        totalAmount: cartSubtotal,
+        isCartFallback: true
+    };
 }
 
 function buildProductModalUrl(pathname, currentSearch, nextShareCode, currentHash = '') {
@@ -258,13 +307,14 @@ function ProductDetailCard({ iconClassName, iconWrapperClassName, label, value, 
     );
 }
 
-function ProductOrderDecisionSheet({ summary, onDismiss, onContinueShopping, onCompleteOrder }) {
+function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startMinimized = false }) {
     const sheetRef = useRef(null);
     const backdropRef = useRef(null);
     const activePointerIdRef = useRef(null);
     const dragStartYRef = useRef(0);
     const dragOffsetRef = useRef(0);
     const dismissTimeoutRef = useRef(null);
+    const [isMinimized, setIsMinimized] = useState(false);
 
     const detachDragListeners = () => {
         if (typeof window === 'undefined') {
@@ -292,27 +342,61 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onContinueShopping, onC
         sheetElement.style.transform = `translateY(${offset}px)`;
         backdropElement.style.transition = animate ? 'opacity 220ms ease' : 'none';
         backdropElement.style.opacity = String(backdropOpacity);
+        backdropElement.style.pointerEvents = 'auto';
         dragOffsetRef.current = offset;
     };
 
-    const closeWithSwipe = () => {
-        const sheetElement = sheetRef.current;
-        if (!sheetElement) {
-            onDismiss();
+    const minimizeSheet = () => {
+        if (dismissTimeoutRef.current) {
+            window.clearTimeout(dismissTimeoutRef.current);
+            dismissTimeoutRef.current = null;
+        }
+
+        setIsMinimized(true);
+        dragOffsetRef.current = 0;
+    };
+
+    const expandSheet = () => {
+        if (dismissTimeoutRef.current) {
+            window.clearTimeout(dismissTimeoutRef.current);
+            dismissTimeoutRef.current = null;
+        }
+
+        setIsMinimized(false);
+        applyDragOffset(0, { animate: true });
+    };
+
+    const stopEvent = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+    };
+
+    const handleMinimizeClick = (event) => {
+        stopEvent(event);
+
+        if (typeof window !== 'undefined') {
+            window.setTimeout(() => {
+                minimizeSheet();
+            }, 0);
             return;
         }
 
-        const closeOffset = sheetElement.offsetHeight + 48;
-        applyDragOffset(closeOffset, { animate: true });
+        minimizeSheet();
+    };
 
-        if (dismissTimeoutRef.current) {
-            window.clearTimeout(dismissTimeoutRef.current);
-        }
+    const handleExpandClick = (event) => {
+        stopEvent(event);
+        expandSheet();
+    };
 
-        dismissTimeoutRef.current = window.setTimeout(() => {
-            dismissTimeoutRef.current = null;
-            onDismiss();
-        }, 220);
+    const handleDismissClick = (event) => {
+        stopEvent(event);
+        onDismiss();
+    };
+
+    const handleCompleteOrderClick = (event) => {
+        stopEvent(event);
+        onCompleteOrder();
     };
 
     function handlePointerMove(event) {
@@ -333,18 +417,18 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onContinueShopping, onC
         }
 
         const sheetElement = sheetRef.current;
-        const closeThreshold = Math.min(220, Math.max(120, (sheetElement?.offsetHeight || 0) * 0.28));
+        const settleThreshold = Math.min(220, Math.max(120, (sheetElement?.offsetHeight || 0) * 0.28));
         const currentOffset = dragOffsetRef.current;
 
         activePointerIdRef.current = null;
         detachDragListeners();
 
-        if (currentOffset > closeThreshold) {
-            closeWithSwipe();
+        if (currentOffset > settleThreshold) {
+            minimizeSheet();
             return;
         }
 
-        applyDragOffset(0, { animate: true });
+        expandSheet();
     }
 
     const handlePointerStart = (event) => {
@@ -370,8 +454,18 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onContinueShopping, onC
     };
 
     useEffect(() => {
-        applyDragOffset(0);
+        setIsMinimized(startMinimized);
 
+        if (!startMinimized) {
+            if (typeof window !== 'undefined') {
+                window.requestAnimationFrame(() => applyDragOffset(0));
+            } else {
+                applyDragOffset(0);
+            }
+        }
+    }, [startMinimized, summary]);
+
+    useEffect(() => {
         return () => {
             detachDragListeners();
             if (dismissTimeoutRef.current) {
@@ -385,93 +479,207 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onContinueShopping, onC
         return null;
     }
 
-    return (
-        <div className="fixed inset-0 z-[180]" dir="rtl">
-            <button
-                type="button"
-                aria-label="Close order review"
-                ref={backdropRef}
-                className="absolute inset-0 bg-black/55 backdrop-blur-[3px] animate-[order-sheet-backdrop_180ms_ease-out]"
-                onClick={onDismiss}
-            ></button>
+    const minimizedCartIconMaskStyle = {
+        WebkitMaskImage: 'url(/icons/add-to-cart-retail-collapsed.svg)',
+        maskImage: 'url(/icons/add-to-cart-retail-collapsed.svg)',
+        WebkitMaskRepeat: 'no-repeat',
+        maskRepeat: 'no-repeat',
+        WebkitMaskPosition: 'center',
+        maskPosition: 'center',
+        WebkitMaskSize: 'contain',
+        maskSize: 'contain'
+    };
 
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6">
-                <div ref={sheetRef} className="pointer-events-auto order-sheet-scroll max-h-[68vh] w-full max-w-lg overflow-y-auto rounded-[2rem] border border-brandGold/20 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.34)] animate-[order-sheet-rise_260ms_cubic-bezier(0.22,1,0.36,1)] dark:bg-[#11192c] sm:max-h-[74vh] sm:max-w-xl" onClick={(event) => event.stopPropagation()}>
-                    <div className="order-sheet-drag-handle sticky top-0 z-10 flex justify-center border-b border-slate-200/80 bg-slate-50/94 px-5 pb-3 pt-3 backdrop-blur dark:border-white/10 dark:bg-[#11192c]/94" onPointerDown={handlePointerStart}>
-                        <div className="flex flex-col items-center gap-2">
-                            <span className="h-1.5 w-20 rounded-full bg-slate-300 dark:bg-white/15"></span>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full border border-brandGold/15 bg-brandGold/8 text-brandGold">
-                                <i className="fa-solid fa-chevron-up text-[11px]"></i>
+    if (isMinimized) {
+        return (
+            <div className="fixed inset-x-0 bottom-0 z-[180] px-3 pb-[max(0.15rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6" dir="rtl" onClick={(event) => event.stopPropagation()}>
+                <button
+                    type="button"
+                    aria-label="Open order review summary"
+                    onClick={handleExpandClick}
+                    className="mx-auto block w-full max-w-lg rounded-[1.35rem] border border-brandGold/25 bg-[#11192c] text-white shadow-[0_24px_70px_rgba(15,23,42,0.38)] transition-transform duration-200 hover:-translate-y-0.5 sm:max-w-xl sm:rounded-[1.6rem]"
+                >
+                    <div className="flex items-center gap-2.5 px-2.5 py-2.5 text-left sm:gap-4 sm:px-4 sm:py-4" dir="ltr">
+                        <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-[0.95rem] border border-white/10 bg-[#0d1426] text-brandGold shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-16 sm:w-16 sm:rounded-[1.15rem]">
+                            <span className="h-7 w-7 bg-brandGold sm:h-10 sm:w-10" style={minimizedCartIconMaskStyle}></span>
+                            <span className="absolute right-0.5 top-0.5 z-10 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-[#0d1426] bg-[#ff3b30] px-1 text-[10px] font-black leading-none tabular-nums text-white shadow-[0_10px_18px_rgba(255,59,48,0.35)] sm:right-1.5 sm:top-1.5 sm:h-7 sm:min-w-7 sm:px-1.5 sm:text-[12px]">
+                                {summary.nextCartCount}
+                            </span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="mt-0.5 text-[11px] font-semibold text-white/60 sm:text-sm">Total Cart</p>
+                            <p className="mt-1 whitespace-nowrap text-[1.45rem] font-black leading-none tracking-tight text-white sm:text-2xl">{formatPriceLabel(summary.totalAmount || summary.nextCartSubtotal)}</p>
+                        </div>
+                        <div className="shrink-0 self-end">
+                            <span className="inline-flex items-center justify-center rounded-full border border-brandGold/20 bg-brandGold px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.08em] text-brandBlue shadow-[0_14px_30px_rgba(212,175,55,0.22)] sm:px-4 sm:py-2 sm:text-[11px] sm:tracking-[0.14em]">
+                                View Cart
                             </span>
                         </div>
                     </div>
+                </button>
+            </div>
+        );
+    }
 
-                    <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-50/90 px-5 py-5 dark:border-white/10 dark:bg-white/[0.04]">
-                    <div>
-                        <p className="text-[11px] font-black uppercase tracking-[0.24em] text-brandGold">Order Review</p>
-                        <h3 className="mt-2 text-2xl font-black text-brandBlue dark:text-white">
-                            {summary.wasExisting ? 'Quantity Updated' : 'Pack Added'}
-                        </h3>
+    return (
+        <div className="fixed inset-0 z-[180]" dir="rtl" onClick={(event) => event.stopPropagation()}>
+            <button
+                type="button"
+                aria-label="Minimize order review"
+                ref={backdropRef}
+                className="absolute inset-0 bg-black/55 backdrop-blur-[3px] animate-[order-sheet-backdrop_180ms_ease-out]"
+                onClick={handleMinimizeClick}
+            ></button>
+
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6">
+                <div ref={sheetRef} className="pointer-events-auto order-sheet-scroll w-full max-w-lg overflow-y-auto rounded-[2rem] border border-brandGold/20 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.34)] animate-[order-sheet-rise_260ms_cubic-bezier(0.22,1,0.36,1)] dark:bg-[#11192c] max-h-[68vh] sm:max-h-[74vh] sm:max-w-xl" onClick={(event) => {
+                    event.stopPropagation();
+                }}>
+                    <div className="order-sheet-drag-handle sticky top-0 z-10 flex justify-center border-b border-slate-200/80 bg-slate-50/94 px-5 pb-3 pt-3 backdrop-blur dark:border-white/10 dark:bg-[#11192c]/94" onPointerDown={handlePointerStart}>
+                        <div className="flex flex-col items-center gap-2">
+                            <span className="h-1.5 w-20 rounded-full bg-slate-300 dark:bg-white/15"></span>
+                            <button
+                                type="button"
+                                aria-label="Minimize cart summary"
+                                onClick={handleMinimizeClick}
+                                className="flex h-7 w-7 items-center justify-center rounded-full border border-brandGold/15 bg-brandGold/8 text-brandGold transition-colors hover:bg-brandGold/15"
+                            >
+                                <i className="fa-solid fa-chevron-down text-[11px]"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="border-b border-slate-200 bg-slate-50/90 px-5 py-5 dark:border-white/10 dark:bg-white/[0.04]">
+                    <div className="text-right">
+                        <p className="text-[11px] font-black uppercase tracking-[0.24em] text-brandGold">{summary.isCartFallback ? 'Cart Summary' : 'Order Review'}</p>
+                        {!summary.isCartFallback ? (
+                            <h3 className="mt-2 text-2xl font-black text-brandBlue dark:text-white">
+                                {summary.wasExisting ? 'Quantity Updated' : 'Pack Added'}
+                            </h3>
+                        ) : null}
                         <p className="mt-2 text-sm text-slate-500 dark:text-slate-300" dir="rtl">
-                            {summary.wasExisting ? 'تم تحديث الكمية داخل طلبك الحالي.' : 'تمت إضافة العبوة إلى طلبك بنجاح.'}
+                            {summary.isCartFallback
+                                ? 'ملخص واضح لكل الموجود داخل العربة حالياً، وكل منتج ظاهر بسعره المنفصل.'
+                                : summary.wasExisting
+                                    ? 'تم تحديث الكمية داخل طلبك الحالي.'
+                                    : 'تمت إضافة العبوة إلى طلبك بنجاح.'}
                         </p>
                     </div>
-                    <button type="button" onClick={onDismiss} className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition-colors hover:text-red-500 dark:border-white/10 dark:bg-white/10 dark:text-white">
-                        <i className="fa-solid fa-xmark"></i>
-                    </button>
+                    {!summary.isCartFallback ? (
+                        <button type="button" onClick={handleDismissClick} className="mt-4 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition-colors hover:text-red-500 dark:border-white/10 dark:bg-white/10 dark:text-white">
+                            <i className="fa-solid fa-xmark"></i>
+                        </button>
+                    ) : null}
                 </div>
 
-                    <div className="space-y-4 px-5 py-5">
-                    <div className="flex items-center gap-3 rounded-[1.5rem] border border-slate-200/80 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-white/[0.04]">
-                        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[1rem] border border-slate-200 bg-white p-2 dark:border-white/10 dark:bg-[#0d1426] sm:h-20 sm:w-20 sm:rounded-[1.2rem]">
-                            <img src={summary.image} alt={summary.title} className="h-full w-full object-contain" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brandGold">Selected Pack</p>
-                            <p className="mt-2 text-sm font-black leading-snug text-brandBlue dark:text-white sm:text-base">{summary.title}</p>
-                            <p className="mt-2 text-xs font-medium text-slate-500 dark:text-slate-300" dir="rtl">
-                                إجمالي الكمية لهذا المنتج داخل العربة: {summary.nextQuantity}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-3">
-                        <div className="rounded-[1.25rem] border border-slate-200/80 bg-slate-50/70 px-3 py-4 text-center dark:border-white/10 dark:bg-white/[0.04]">
-                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Added</p>
-                            <p className="mt-2 text-lg font-black text-emerald-600 dark:text-emerald-300">{summary.addedQuantity}</p>
-                        </div>
-                        <div className="rounded-[1.25rem] border border-slate-200/80 bg-slate-50/70 px-3 py-4 text-center dark:border-white/10 dark:bg-white/[0.04]">
-                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Pack Price</p>
-                            <p className="mt-2 text-sm font-black text-brandBlue dark:text-white">{formatPriceLabel(summary.unitPrice)}</p>
-                        </div>
-                        <div className="rounded-[1.25rem] border border-slate-200/80 bg-slate-50/70 px-3 py-4 text-center dark:border-white/10 dark:bg-white/[0.04]">
-                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Cart Items</p>
-                            <p className="mt-2 text-lg font-black text-brandGold">{summary.nextCartCount}</p>
-                        </div>
-                    </div>
-
-                    <div className="rounded-[1.5rem] border border-brandGold/20 bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.14),transparent_46%),linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.96))] px-4 py-4 dark:bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.18),transparent_42%),linear-gradient(180deg,rgba(17,25,44,0.98),rgba(9,13,24,0.98))]">
-                        <div className="flex items-center justify-between gap-4">
-                            <div>
-                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Added Total</p>
-                                <p className="mt-2 text-xl font-black text-emerald-600 dark:text-emerald-300">{formatPriceLabel(summary.addedSubtotal)}</p>
+                    <div className="space-y-5 px-5 py-5">
+                    {summary.isCartFallback ? (
+                        <div className="rounded-[1.6rem] border border-slate-200 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-[#141d32]">
+                            <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-3 dark:border-white/10">
+                                <div>
+                                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Order Summary</p>
+                                    <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-300" dir="rtl">ملخص سريع لقيمة الطلب الحالية قبل الإجمالي النهائي.</p>
+                                </div>
+                                <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-emerald-400/15 bg-emerald-500/12 px-3.5 py-2 text-emerald-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                                    <span className="text-base font-black leading-none">{summary.nextCartCount}</span>
+                                    <span className="whitespace-nowrap text-[11px] font-black uppercase tracking-[0.12em] leading-none">items</span>
+                                </span>
                             </div>
-                            <div className="text-left">
-                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Cart Total</p>
-                                <p className="mt-2 text-xl font-black text-brandBlue dark:text-white">{formatPriceLabel(summary.nextCartSubtotal)}</p>
+                            <div className="space-y-3 pt-4" dir="ltr">
+                                <div className="flex items-center justify-between gap-4 text-sm">
+                                    <span className="text-slate-500 dark:text-slate-300">Subtotal</span>
+                                    <span className="font-semibold text-slate-900 dark:text-white">{formatPriceLabel(summary.nextCartSubtotal)}</span>
+                                </div>
+                                <div className="flex items-center justify-between gap-4 text-sm">
+                                    <span className="text-slate-500 dark:text-slate-300">Shipping</span>
+                                    <span className="font-semibold text-slate-900 dark:text-white">{formatPriceLabel(summary.shippingAmount)}</span>
+                                </div>
+                                <div className="flex items-center justify-between gap-4 border-t border-slate-200 pt-3 text-sm dark:border-white/10">
+                                    <span className="font-black text-slate-900 dark:text-white">Total</span>
+                                    <span className="text-lg font-black text-brandBlue dark:text-white">{formatPriceLabel(summary.totalAmount)}</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    ) : (
+                        <div className="flex items-center gap-3 rounded-[1.6rem] border border-slate-200 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-[#141d32]">
+                            <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[1.1rem] border border-slate-200 bg-slate-50 p-2 dark:border-white/10 dark:bg-[#0d1426] sm:h-20 sm:w-20 sm:rounded-[1.2rem]">
+                                <img src={summary.image} alt={summary.title} className="h-full w-full object-contain" />
+                            </div>
+                            <div className="min-w-0 flex-1 text-left" dir="ltr">
+                                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Order Summary</p>
+                                <p className="mt-1 text-sm font-black leading-snug text-brandBlue dark:text-white sm:text-base">{summary.title}</p>
+                                <p className="mt-2 text-xs font-medium text-slate-500 dark:text-slate-300" dir="rtl">
+                                    إجمالي الكمية لهذا المنتج داخل العربة: {summary.nextQuantity}
+                                </p>
+                            </div>
+                        </div>
+                    )}
 
-                    <p className="text-sm font-medium leading-relaxed text-slate-500 dark:text-slate-300" dir="rtl">
-                        تقدر تكمل التسوق دلوقتي أو تفتح العربة علشان تراجع الطلب وتتممه.
-                    </p>
+                    <div className="overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white shadow-[0_14px_32px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-[#141d32]">
+                        <div className="border-b border-slate-200 px-4 py-4 dark:border-white/10">
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-sm font-black text-slate-900 dark:text-white">{summary.isCartFallback ? 'Cart details' : 'Order details'}</p>
+                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-300" dir="rtl">{summary.isCartFallback ? 'الأسعار التالية هي إجمالي كل منتج داخل العربة.' : 'راجع الإضافة الجديدة قبل ما تفتح العربة أو تكمل التسوق.'}</p>
+                                </div>
+                                <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-emerald-400/15 bg-emerald-500/12 px-3.5 py-2 text-emerald-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                                    <span className="text-base font-black leading-none">{summary.isCartFallback ? summary.nextCartCount : `+${summary.addedQuantity}`}</span>
+                                    <span className="whitespace-nowrap text-[11px] font-black uppercase tracking-[0.12em] leading-none">{summary.isCartFallback ? 'items' : 'pack'}</span>
+                                </span>
+                            </div>
+                        </div>
+
+                        {summary.isCartFallback ? (
+                            <div className="divide-y divide-slate-200 dark:divide-white/10">
+                                {summary.cartItems.map((item) => (
+                                    <div key={item.id} className="flex items-center justify-between gap-4 px-4 py-3 text-sm" dir="ltr">
+                                        <div className="min-w-0 flex-1">
+                                            <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{item.title}</p>
+                                            <p className="mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-300">x{item.quantity}</p>
+                                        </div>
+                                        <span className="shrink-0 text-[12px] font-semibold text-slate-500 dark:text-slate-300">{formatPriceLabel(item.lineTotal)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="divide-y divide-slate-200 dark:divide-white/10">
+                                <div className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
+                                    <span className="text-slate-500 dark:text-slate-300">Pack price</span>
+                                    <span className="font-black text-slate-900 dark:text-white">{formatPriceLabel(summary.unitPrice)}</span>
+                                </div>
+                                <div className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
+                                    <span className="text-slate-500 dark:text-slate-300">Added quantity</span>
+                                    <span className="font-black text-slate-900 dark:text-white">{summary.addedQuantity}</span>
+                                </div>
+                                <div className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
+                                    <span className="text-slate-500 dark:text-slate-300">Added total</span>
+                                    <span className="font-black text-emerald-600 dark:text-emerald-300">{formatPriceLabel(summary.addedSubtotal)}</span>
+                                </div>
+                                <div className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
+                                    <span className="text-slate-500 dark:text-slate-300">Cart items</span>
+                                    <span className="font-black text-slate-900 dark:text-white">{summary.nextCartCount}</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {!summary.isCartFallback ? (
+                            <div className="flex items-end justify-between gap-4 bg-slate-50 px-4 py-4 dark:bg-white/[0.04]">
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Cart total</p>
+                                    <p className="mt-1 text-2xl font-black text-brandBlue dark:text-white">{formatPriceLabel(summary.nextCartSubtotal)}</p>
+                                </div>
+                                <p className="max-w-[12rem] text-right text-xs leading-5 text-slate-500 dark:text-slate-300" dir="rtl">
+                                    تقدر تكمل التسوق أو تفتح العربة علشان تراجع الطلب وتتممه.
+                                </p>
+                            </div>
+                        ) : null}
+                    </div>
 
                         <div className="grid gap-3 sm:grid-cols-2">
-                            <button type="button" onClick={onContinueShopping} className="rounded-[1.2rem] border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 transition-colors hover:border-brandGold hover:text-brandGold dark:border-white/10 dark:bg-white/[0.04] dark:text-white">
+                            <button type="button" onClick={handleMinimizeClick} className="rounded-[1.2rem] border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 transition-colors hover:border-brandGold hover:text-brandGold dark:border-white/10 dark:bg-[#141d32] dark:text-white">
                             Continue Shopping | كمل تسوق
                             </button>
-                            <button type="button" onClick={onCompleteOrder} className="rounded-[1.2rem] border border-brandGold bg-brandGold px-4 py-3 text-sm font-black text-brandBlue transition-colors hover:bg-[#e0bc46]">
+                            <button type="button" onClick={handleCompleteOrderClick} className="rounded-[1.2rem] border border-brandGold bg-brandGold px-4 py-3 text-sm font-black text-brandBlue transition-colors hover:bg-[#e0bc46]">
                             Complete Order | اتمام الطلب
                             </button>
                         </div>
@@ -488,8 +696,13 @@ export default function ProductModal() {
     const searchParams = useSearchParams();
     const lastSyncedShareCodeRef = useRef('');
     const dismissedShareCodeRef = useRef('');
+    const [retailOrderSheet, setRetailOrderSheet] = useState(null);
     const requestedShareCode = String(searchParams?.get('code') || '').trim();
     const selectedProductShareCode = getProductShareCode(selectedProduct);
+    const activeRetailSummary = useMemo(
+        () => buildRetailCartSummary(cartItems, cartCount, cartSubtotal, retailOrderSheet),
+        [cartCount, cartItems, cartSubtotal, retailOrderSheet]
+    );
 
     useEffect(() => {
         if (selectedProduct) {
@@ -580,8 +793,6 @@ export default function ProductModal() {
         replaceProductModalUrl(pathname, searchParams?.toString(), '');
     }, [pathname, requestedShareCode, searchParams, selectedProduct]);
 
-    if (!selectedProduct) return null;
-
     const closeModal = () => {
         dismissedShareCodeRef.current = requestedShareCode || selectedProductShareCode || lastSyncedShareCodeRef.current;
         lastSyncedShareCodeRef.current = '';
@@ -589,35 +800,69 @@ export default function ProductModal() {
         setSelectedProduct(null);
     };
 
+    const dismissRetailOrderSheet = () => {
+        setRetailOrderSheet(null);
+    };
+
+    const handleCompleteRetailOrder = () => {
+        setRetailOrderSheet(null);
+
+        if (selectedProduct) {
+            closeModal();
+        }
+
+        if (typeof window !== 'undefined') {
+            window.requestAnimationFrame(() => {
+                openCart();
+            });
+            return;
+        }
+
+        openCart();
+    };
+
+    if (!selectedProduct && !activeRetailSummary) return null;
+
     return (
-        <ProductModalContent
-            key={selectedProduct.id || selectedProduct.code || selectedProduct.name}
-            selectedProduct={selectedProduct}
-            closeModal={closeModal}
-            addToCart={addToCart}
-            addToWholesaleCart={addToWholesaleCart}
-            isWholesaleCustomer={isWholesaleCustomer}
-            userRole={userRole}
-            dcLiveUpdateAt={dcLiveUpdateAt}
-            dcSyncedAt={dcSyncedAt}
-            getProductStockLimit={getProductStockLimit}
-            getProductStockStatus={getProductStockStatus}
-            cartItems={cartItems}
-            cartCount={cartCount}
-            cartSubtotal={cartSubtotal}
-            openCart={openCart}
-        />
+        <>
+            {selectedProduct ? (
+                <ProductModalContent
+                    key={selectedProduct.id || selectedProduct.code || selectedProduct.name}
+                    selectedProduct={selectedProduct}
+                    closeModal={closeModal}
+                    addToCart={addToCart}
+                    addToWholesaleCart={addToWholesaleCart}
+                    isWholesaleCustomer={isWholesaleCustomer}
+                    userRole={userRole}
+                    dcLiveUpdateAt={dcLiveUpdateAt}
+                    dcSyncedAt={dcSyncedAt}
+                    getProductStockLimit={getProductStockLimit}
+                    getProductStockStatus={getProductStockStatus}
+                    cartItems={cartItems}
+                    cartCount={cartCount}
+                    cartSubtotal={cartSubtotal}
+                    openCart={openCart}
+                    setRetailOrderSheet={setRetailOrderSheet}
+                />
+            ) : null}
+
+            <ProductOrderDecisionSheet
+                summary={activeRetailSummary}
+                onDismiss={dismissRetailOrderSheet}
+                onCompleteOrder={handleCompleteRetailOrder}
+                startMinimized={!retailOrderSheet}
+            />
+        </>
     );
 }
 
-function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, dcSyncedAt, getProductStockLimit, getProductStockStatus, cartItems, cartCount, cartSubtotal, openCart }) {
+function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, dcSyncedAt, getProductStockLimit, getProductStockStatus, cartItems, cartCount, cartSubtotal, openCart, setRetailOrderSheet }) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [quantity, setQuantity] = useState(1);
     const [wholesaleQuantity, setWholesaleQuantity] = useState(1);
     const { siteSettings } = useSiteSettings();
     const [showLiveIndicator, setShowLiveIndicator] = useState(false);
     const [lightboxState, setLightboxState] = useState({ isOpen: false, images: [], index: 0, title: '' });
-    const [retailOrderSheet, setRetailOrderSheet] = useState(null);
 
     useEffect(() => {
         if (userRole !== 'admin' || !dcLiveUpdateAt) {
@@ -755,29 +1000,6 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
     const handleQuantityInputChange = (event) => {
         const rawValue = String(event.target.value || '').replace(/\D/g, '');
         setQuantity(clampQuantityValue(rawValue === '' ? 1 : rawValue, retailStockLimit));
-    };
-
-    const dismissRetailOrderSheet = () => {
-        setRetailOrderSheet(null);
-    };
-
-    const handleContinueShopping = () => {
-        setRetailOrderSheet(null);
-        closeModal();
-    };
-
-    const handleCompleteRetailOrder = () => {
-        setRetailOrderSheet(null);
-        closeModal();
-
-        if (typeof window !== 'undefined') {
-            window.requestAnimationFrame(() => {
-                openCart();
-            });
-            return;
-        }
-
-        openCart();
     };
 
     const handleRetailAddWithConfirmation = (product, requestedQuantity, options = {}) => {
@@ -1654,12 +1876,6 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                     </div>
                 </div>
 
-                <ProductOrderDecisionSheet
-                    summary={retailOrderSheet}
-                    onDismiss={dismissRetailOrderSheet}
-                    onContinueShopping={handleContinueShopping}
-                    onCompleteOrder={handleCompleteRetailOrder}
-                />
             </div>
         );
     }
@@ -1924,14 +2140,6 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                 </div>
 
             </div>
-
-            <ProductOrderDecisionSheet
-                summary={retailOrderSheet}
-                onDismiss={dismissRetailOrderSheet}
-                onContinueShopping={handleContinueShopping}
-                onCompleteOrder={handleCompleteRetailOrder}
-            />
-
             {lightboxState.isOpen ? (
                 <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/95 p-4" dir="ltr">
                     <button

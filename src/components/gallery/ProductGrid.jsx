@@ -7,6 +7,7 @@ import { isAdminRole, normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-rol
 const ARABIC_TEXT_PATTERN = /[\u0600-\u06FF]/;
 const LATIN_TEXT_PATTERN = /[A-Za-z]/;
 const LIVE_INDICATOR_DURATION_MS = 8000;
+const QUICK_ADD_COLLAPSE_DELAY_MS = 3000;
 const INITIAL_CATEGORY_ROWS = 3;
 const CATEGORY_ROWS_STORAGE_KEY = 'gallery-visible-category-rows';
 const EDIT_SCROLL_POSITION_STORAGE_KEY = 'gallery-edit-scroll-position';
@@ -18,6 +19,10 @@ const SHOW_MORE_ARABIC_LINES = [
     'اكتشف الباقي',
     'لسه في اكتر'
 ];
+const quickAddAutoCollapseState = {
+    deadlines: {},
+    pendingOpen: {}
+};
 
 function splitBilingualLabel(value) {
     const normalizedValue = String(value || '').trim();
@@ -111,6 +116,8 @@ export default function ProductGrid() {
     const [showLiveIndicator, setShowLiveIndicator] = useState(false);
     const [visibleCategoryRows, setVisibleCategoryRows] = useState(INITIAL_CATEGORY_ROWS);
     const [productRowScrollState, setProductRowScrollState] = useState({});
+    const [expandedQuickAddControls, setExpandedQuickAddControls] = useState({});
+    const [quickAddAutoCollapseVersion, setQuickAddAutoCollapseVersion] = useState(0);
     const [selectedShowMoreArabicLine] = useState(() => SHOW_MORE_ARABIC_LINES[
         Math.floor(Math.random() * SHOW_MORE_ARABIC_LINES.length)
     ]);
@@ -118,6 +125,7 @@ export default function ProductGrid() {
     const savedScrollPositionRef = useRef(0);
     const shouldRestoreScrollRef = useRef(false);
     const productRowRefs = useRef({});
+    const previousQuickAddQuantitiesRef = useRef({});
 
     useEffect(() => {
         if (userRole !== 'admin' || !dcLiveUpdateAt) {
@@ -204,6 +212,74 @@ export default function ProductGrid() {
         };
     }, [editingProduct, filteredProducts]);
 
+    useEffect(() => {
+        const entries = Object.entries(quickAddAutoCollapseState.deadlines);
+        if (entries.length === 0) {
+            return undefined;
+        }
+
+        const now = Date.now();
+        const expiredKeys = entries
+            .filter(([, deadline]) => deadline <= now)
+            .map(([controlKey]) => controlKey);
+
+        if (expiredKeys.length > 0) {
+            expiredKeys.forEach((controlKey) => {
+                delete quickAddAutoCollapseState.deadlines[controlKey];
+            });
+            setQuickAddAutoCollapseVersion((currentValue) => currentValue + 1);
+            return undefined;
+        }
+
+        const nextDeadline = Math.min(...entries.map(([, deadline]) => deadline));
+        const timeoutId = window.setTimeout(() => {
+            setQuickAddAutoCollapseVersion((currentValue) => currentValue + 1);
+        }, Math.max(0, nextDeadline - now));
+
+        return () => window.clearTimeout(timeoutId);
+    }, [quickAddAutoCollapseVersion]);
+
+    useEffect(() => {
+        const nextQuantities = {};
+
+        cartItems.forEach((item) => {
+            nextQuantities[`${item.cartId}-retail`] = Number(item.quantity || 0);
+        });
+
+        wholesaleCartItems.forEach((item) => {
+            nextQuantities[`${item.cartId}-wholesale`] = Number(item.quantity || 0);
+        });
+
+        const previousQuantities = previousQuickAddQuantitiesRef.current;
+
+        Object.entries(nextQuantities).forEach(([controlKey, quantity]) => {
+            const previousQuantity = Number(previousQuantities[controlKey] || 0);
+            const isPendingOpen = Boolean(quickAddAutoCollapseState.pendingOpen[controlKey]);
+
+            if (isPendingOpen && previousQuantity <= 0 && quantity > 0) {
+                delete quickAddAutoCollapseState.pendingOpen[controlKey];
+                setQuickAddExpanded(controlKey, false);
+                scheduleQuickAddCollapse(controlKey);
+            }
+
+            if (quantity <= 0) {
+                clearQuickAddCollapseTimeout(controlKey);
+                setQuickAddExpanded(controlKey, false);
+                delete quickAddAutoCollapseState.pendingOpen[controlKey];
+            }
+        });
+
+        Object.keys(previousQuantities).forEach((controlKey) => {
+            if (!nextQuantities[controlKey]) {
+                clearQuickAddCollapseTimeout(controlKey);
+                setQuickAddExpanded(controlKey, false);
+                delete quickAddAutoCollapseState.pendingOpen[controlKey];
+            }
+        });
+
+        previousQuickAddQuantitiesRef.current = nextQuantities;
+    }, [cartItems, wholesaleCartItems]);
+
     const getImageUrl = (product) => {
         const firstImage = Array.isArray(product.images) ? product.images[0] : null;
         if (!firstImage) return '';
@@ -277,7 +353,106 @@ export default function ProductGrid() {
         setEditingProduct(null);
     };
 
+    const setQuickAddExpanded = (controlKey, nextExpanded) => {
+        if (!controlKey) {
+            return;
+        }
+
+        setExpandedQuickAddControls((currentState) => {
+            if (nextExpanded) {
+                return {
+                    ...currentState,
+                    [controlKey]: true
+                };
+            }
+
+            if (!currentState[controlKey]) {
+                return currentState;
+            }
+
+            const nextState = { ...currentState };
+            delete nextState[controlKey];
+            return nextState;
+        });
+    };
+
+    const clearQuickAddCollapseTimeout = (controlKey) => {
+        if (!controlKey) {
+            return;
+        }
+
+        if (!quickAddAutoCollapseState.deadlines[controlKey]) {
+            return;
+        }
+
+        delete quickAddAutoCollapseState.deadlines[controlKey];
+        setQuickAddAutoCollapseVersion((currentValue) => currentValue + 1);
+    };
+
+    const scheduleQuickAddCollapse = (controlKey) => {
+        if (!controlKey) {
+            return;
+        }
+
+        quickAddAutoCollapseState.deadlines[controlKey] = Date.now() + QUICK_ADD_COLLAPSE_DELAY_MS;
+        setQuickAddAutoCollapseVersion((currentValue) => currentValue + 1);
+    };
+
+    const handleQuickAddControlAction = ({ controlKey, callback, currentQuantity = 0, collapseImmediately = false }) => {
+        callback();
+
+        if (!controlKey) {
+            return;
+        }
+
+        if (collapseImmediately) {
+            clearQuickAddCollapseTimeout(controlKey);
+            setQuickAddExpanded(controlKey, false);
+            return;
+        }
+
+        if (currentQuantity <= 0) {
+            quickAddAutoCollapseState.pendingOpen[controlKey] = true;
+            return;
+        }
+
+        delete quickAddAutoCollapseState.pendingOpen[controlKey];
+        setQuickAddExpanded(controlKey, false);
+        scheduleQuickAddCollapse(controlKey);
+    };
+
+    const openQuickAddEditor = (controlKey) => {
+        clearQuickAddCollapseTimeout(controlKey);
+        setQuickAddExpanded(controlKey, true);
+    };
+
+    const supportsHoverPointer = () => {
+        if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+            return false;
+        }
+
+        return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    };
+
+    const handleQuickAddHoverEnter = (controlKey, quantity) => {
+        if (!controlKey || quantity <= 0 || !supportsHoverPointer()) {
+            return;
+        }
+
+        openQuickAddEditor(controlKey);
+    };
+
+    const handleQuickAddHoverLeave = (controlKey, quantity) => {
+        if (!controlKey || quantity <= 0 || !supportsHoverPointer()) {
+            return;
+        }
+
+        setQuickAddExpanded(controlKey, false);
+        scheduleQuickAddCollapse(controlKey);
+    };
+
     const renderQuickAddControl = ({
+        controlKey,
         label,
         quantity = 0,
         stockLimit = null,
@@ -294,14 +469,26 @@ export default function ProductGrid() {
                 shell: 'border-brandGold bg-white dark:bg-gray-900',
                 action: 'text-brandBlue dark:text-white hover:bg-brandGold/10',
                 iconButton: 'text-brandGold hover:text-brandGold/80',
-                icon: 'box'
+                collapsedButton: 'border-brandGold/35 bg-white text-brandBlue shadow-[0_10px_25px_rgba(15,23,42,0.12)] dark:bg-gray-900 dark:text-white',
+                badge: 'bg-brandGold text-brandBlue',
+                badgeFrame: 'border-white/90 dark:border-gray-900',
+                icon: 'box',
+                collapsedIcon: 'fa-boxes-stacked',
+                collapsedIconAsset: ''
             }
             : {
                 shell: 'border-emerald-500 bg-white dark:bg-gray-900',
                 action: 'text-brandBlue dark:text-white hover:bg-emerald-500/10',
                 iconButton: 'text-emerald-400 hover:text-emerald-300',
-                icon: 'cart'
+                collapsedButton: 'border-brandBlue/15 bg-brandBlue text-white shadow-[0_12px_28px_rgba(37,99,235,0.28)]',
+                badge: 'bg-white text-brandBlue',
+                badgeFrame: 'border-brandBlue/80 dark:border-[#11192c]',
+                icon: 'cart',
+                collapsedIcon: 'fa-cart-shopping',
+                collapsedIconAsset: '/icons/add-to-cart-retail-collapsed.svg'
             };
+        const isAutoExpanded = quantity > 0 && Number(quickAddAutoCollapseState.deadlines[controlKey] || 0) > Date.now();
+        const isExpanded = quantity > 0 && (Boolean(expandedQuickAddControls[controlKey]) || isAutoExpanded);
 
         const handleAction = (event, callback) => {
             event.preventDefault();
@@ -310,14 +497,14 @@ export default function ProductGrid() {
         };
 
         const pinnedLayoutClasses = pinLayout
-            ? quantity > 0
+            ? isExpanded
                 ? 'w-[8.75rem] items-end md:w-[9.75rem] md:items-start'
                 : 'w-[3.25rem] items-end md:w-[9.75rem] md:items-start'
             : 'min-w-[3rem] items-stretch';
 
         return (
             <div dir="ltr" className={`flex flex-col gap-1.5 ${pinnedLayoutClasses}`}>
-                {quantity > 0 ? (
+                {quantity > 0 && isExpanded ? (
                     <div
                         dir="ltr"
                         className={`flex h-10 items-center overflow-hidden rounded-full border shadow-sm md:h-11 ${pinLayout ? 'w-full' : ''} ${toneClasses.shell}`}
@@ -325,6 +512,8 @@ export default function ProductGrid() {
                             event.preventDefault();
                             event.stopPropagation();
                         }}
+                        onMouseEnter={() => handleQuickAddHoverEnter(controlKey, quantity)}
+                        onMouseLeave={() => handleQuickAddHoverLeave(controlKey, quantity)}
                     >
                         <button
                             type="button"
@@ -358,6 +547,24 @@ export default function ProductGrid() {
                             </button>
                         )}
                     </div>
+                ) : quantity > 0 ? (
+                    <button
+                        type="button"
+                        onClick={(event) => handleAction(event, () => openQuickAddEditor(controlKey))}
+                        title={label ? `${label} quantity: ${quantity}` : `Quantity: ${quantity}`}
+                        aria-label={label ? `${label} quantity: ${quantity}` : `Quantity: ${quantity}`}
+                        className={`relative flex h-11 w-11 items-center justify-center rounded-[1.1rem] border transition-all duration-300 hover:scale-[1.06] md:h-12 md:w-12 ${pinLayout ? 'self-end md:self-start' : ''} ${toneClasses.collapsedButton}`}
+                        onMouseEnter={() => handleQuickAddHoverEnter(controlKey, quantity)}
+                    >
+                        {toneClasses.collapsedIconAsset ? (
+                            <img src={toneClasses.collapsedIconAsset} alt="Cart quantity" className="h-7 w-7 object-contain md:h-8 md:w-8" />
+                        ) : (
+                            <i className={`fa-solid ${toneClasses.collapsedIcon} text-lg md:text-xl`}></i>
+                        )}
+                        <span className={`absolute right-0 top-0 flex h-6 w-6 -translate-y-[18%] translate-x-[10%] items-center justify-center rounded-full border-2 text-[10px] font-black leading-none shadow-[0_8px_18px_rgba(15,23,42,0.18)] md:h-7 md:w-7 md:text-[11px] ${toneClasses.badge} ${toneClasses.badgeFrame}`}>
+                            {quantity}
+                        </span>
+                    </button>
                 ) : label ? (
                     <button
                         type="button"
@@ -614,6 +821,8 @@ export default function ProductGrid() {
         const quickAddCartId = getQuickAddCartId(quickAddEntry);
         const retailQuickAddItem = cartItems.find((item) => item.cartId === quickAddCartId) || null;
         const wholesaleQuickAddItem = wholesaleCartItems.find((item) => item.cartId === quickAddCartId) || null;
+        const retailControlKey = `${quickAddCartId}-retail`;
+        const wholesaleControlKey = `${quickAddCartId}-wholesale`;
         const retailQuickAddQuantity = Number(retailQuickAddItem?.quantity || 0);
         const wholesaleQuickAddQuantity = Number(wholesaleQuickAddItem?.quantity || 0);
         const retailQuickAddStockLimit = getProductStockLimit(quickAddEntry, 'retail');
@@ -783,37 +992,40 @@ export default function ProductGrid() {
                                 {shouldShowDualQuickAddControls ? (
                                     <div className="flex flex-col items-end gap-2 md:items-stretch">
                                         {showRetailQuickAddControl ? renderQuickAddControl({
+                                            controlKey: retailControlKey,
                                             label: 'Retail | قطاعي',
                                             quantity: retailQuickAddQuantity,
                                             stockLimit: retailQuickAddStockLimit,
-                                            onAdd: () => addToCart(quickAddEntry, 1),
-                                            onIncrease: () => updateCartQuantity(quickAddCartId, retailQuickAddQuantity + 1),
-                                            onDecrease: () => updateCartQuantity(quickAddCartId, retailQuickAddQuantity - 1),
-                                            onRemove: () => removeFromCart(quickAddCartId),
+                                            onAdd: () => handleQuickAddControlAction({ controlKey: retailControlKey, callback: () => addToCart(quickAddEntry, 1), currentQuantity: retailQuickAddQuantity }),
+                                            onIncrease: () => handleQuickAddControlAction({ controlKey: retailControlKey, callback: () => updateCartQuantity(quickAddCartId, retailQuickAddQuantity + 1), currentQuantity: retailQuickAddQuantity }),
+                                            onDecrease: () => handleQuickAddControlAction({ controlKey: retailControlKey, callback: () => updateCartQuantity(quickAddCartId, retailQuickAddQuantity - 1), currentQuantity: retailQuickAddQuantity }),
+                                            onRemove: () => handleQuickAddControlAction({ controlKey: retailControlKey, callback: () => removeFromCart(quickAddCartId), collapseImmediately: true }),
                                             tone: 'retail',
                                             pinLayout: true
                                         }) : null}
                                         {showWholesaleQuickAddControl ? renderQuickAddControl({
+                                            controlKey: wholesaleControlKey,
                                             label: 'Wholesale | كرتونة',
                                             quantity: wholesaleQuickAddQuantity,
                                             stockLimit: wholesaleQuickAddStockLimit,
-                                            onAdd: () => addToWholesaleCart(quickAddEntry, 1),
-                                            onIncrease: () => updateWholesaleCartQuantity(quickAddCartId, wholesaleQuickAddQuantity + 1),
-                                            onDecrease: () => updateWholesaleCartQuantity(quickAddCartId, wholesaleQuickAddQuantity - 1),
-                                            onRemove: () => removeFromWholesaleCart(quickAddCartId),
+                                            onAdd: () => handleQuickAddControlAction({ controlKey: wholesaleControlKey, callback: () => addToWholesaleCart(quickAddEntry, 1), currentQuantity: wholesaleQuickAddQuantity }),
+                                            onIncrease: () => handleQuickAddControlAction({ controlKey: wholesaleControlKey, callback: () => updateWholesaleCartQuantity(quickAddCartId, wholesaleQuickAddQuantity + 1), currentQuantity: wholesaleQuickAddQuantity }),
+                                            onDecrease: () => handleQuickAddControlAction({ controlKey: wholesaleControlKey, callback: () => updateWholesaleCartQuantity(quickAddCartId, wholesaleQuickAddQuantity - 1), currentQuantity: wholesaleQuickAddQuantity }),
+                                            onRemove: () => handleQuickAddControlAction({ controlKey: wholesaleControlKey, callback: () => removeFromWholesaleCart(quickAddCartId), collapseImmediately: true }),
                                             tone: 'wholesale',
                                             pinLayout: true
                                         }) : null}
                                     </div>
                                 ) : (
                                     showRetailQuickAddControl ? renderQuickAddControl({
+                                        controlKey: retailControlKey,
                                         label: 'Retail | قطاعي',
                                         quantity: retailQuickAddQuantity,
                                         stockLimit: retailQuickAddStockLimit,
-                                        onAdd: () => handleQuickAdd(product, variants),
-                                        onIncrease: () => updateCartQuantity(quickAddCartId, retailQuickAddQuantity + 1),
-                                        onDecrease: () => updateCartQuantity(quickAddCartId, retailQuickAddQuantity - 1),
-                                        onRemove: () => removeFromCart(quickAddCartId),
+                                        onAdd: () => handleQuickAddControlAction({ controlKey: retailControlKey, callback: () => handleQuickAdd(product, variants), currentQuantity: retailQuickAddQuantity }),
+                                        onIncrease: () => handleQuickAddControlAction({ controlKey: retailControlKey, callback: () => updateCartQuantity(quickAddCartId, retailQuickAddQuantity + 1), currentQuantity: retailQuickAddQuantity }),
+                                        onDecrease: () => handleQuickAddControlAction({ controlKey: retailControlKey, callback: () => updateCartQuantity(quickAddCartId, retailQuickAddQuantity - 1), currentQuantity: retailQuickAddQuantity }),
+                                        onRemove: () => handleQuickAddControlAction({ controlKey: retailControlKey, callback: () => removeFromCart(quickAddCartId), collapseImmediately: true }),
                                         tone: 'retail'
                                     }) : null
                                 )}
