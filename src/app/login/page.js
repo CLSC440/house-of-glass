@@ -23,6 +23,17 @@ function LoginForm() {
     const [error, setError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
+    const resolvePostAuthRoute = () => {
+        const redirectParam = searchParams.get('redirect');
+        const checkoutType = String(searchParams.get('type') || '').trim().toLowerCase();
+
+        if (redirectParam === 'checkout') {
+            return checkoutType === 'wholesale' ? '/checkout?type=wholesale' : '/checkout';
+        }
+
+        return '/';
+    };
+
     const formatGoogleAuthError = (err) => {
         const errorCode = String(err?.code || '').trim().toLowerCase();
         const errorMessage = String(err?.message || '').trim();
@@ -203,7 +214,6 @@ function LoginForm() {
     const checkRoleAndRedirect = async (uid) => {
         try {
             const userDoc = await getDoc(doc(db, 'users', uid));
-            const redirectParam = searchParams.get('redirect');
             
             if (userDoc.exists()) {
                 const userData = userDoc.data();
@@ -219,7 +229,7 @@ function LoginForm() {
             
             markNotificationPromptPending();
             sessionStorage.removeItem('isAdmin');
-            router.push(redirectParam === 'checkout' ? '/?action=checkout' : '/');
+            router.push(resolvePostAuthRoute());
         } catch (err) {
             console.error('Error fetching user role:', err);
             router.push('/');

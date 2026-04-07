@@ -1,7 +1,6 @@
 'use client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { auth } from '@/lib/firebase';
 import { useGallery } from '@/contexts/GalleryContext';
 
 export default function CartModal() {
@@ -14,9 +13,6 @@ export default function CartModal() {
         closeCart,
         removeFromCart,
         updateCartQuantity,
-        checkoutCart,
-        isCheckingOut,
-        showToast,
         wholesaleCartItems,
         wholesaleCartCount,
         wholesaleCartSubtotal,
@@ -25,26 +21,17 @@ export default function CartModal() {
         removeFromWholesaleCart,
         updateWholesaleCartQuantity,
         getCartItemStockLimit,
-        checkoutWholesaleCart,
-        isCheckingOutWholesale
+        isWholesaleCustomer
     } = useGallery();
 
-    const handleCheckout = async () => {
-        const result = await checkoutCart();
-        if (result.requiresAuth) {
-            showToast('سجل الدخول أولاً لإتمام الطلب.', 'error');
-            closeCart();
-            router.push('/login');
-        }
+    const handleCheckout = () => {
+        closeCart();
+        router.push('/checkout');
     };
 
-    const handleWholesaleCheckout = async () => {
-        const result = await checkoutWholesaleCart();
-        if (result.requiresAuth) {
-            showToast('سجل الدخول أولاً لإتمام طلب الجملة.', 'error');
-            closeWholesaleCart();
-            router.push('/login');
-        }
+    const handleWholesaleCheckout = () => {
+        closeWholesaleCart();
+        router.push('/checkout?type=wholesale');
     };
 
     return (
@@ -59,28 +46,28 @@ export default function CartModal() {
                 removeFromCart={removeFromCart}
                 updateCartQuantity={updateCartQuantity}
                 onCheckout={handleCheckout}
-                isCheckingOut={isCheckingOut}
-                checkoutLabel="Checkout Order | اتمام الطلب"
+                checkoutLabel="Review Order | مراجعة الطلب"
                 priceLabel="السعر"
                 accent="retail"
                 getCartItemStockLimit={getCartItemStockLimit}
             />
-            <CartDialog
-                isOpen={isWholesaleCartOpen}
-                title="Wholesale Order | طلب جملة"
-                itemCount={wholesaleCartCount}
-                items={wholesaleCartItems}
-                subtotal={wholesaleCartSubtotal}
-                closeCart={closeWholesaleCart}
-                removeFromCart={removeFromWholesaleCart}
-                updateCartQuantity={updateWholesaleCartQuantity}
-                onCheckout={handleWholesaleCheckout}
-                isCheckingOut={isCheckingOutWholesale}
-                checkoutLabel="Checkout Wholesale | اتمام طلب الجملة"
-                priceLabel="Wholesale"
-                accent="wholesale"
-                getCartItemStockLimit={getCartItemStockLimit}
-            />
+            {isWholesaleCustomer ? (
+                <CartDialog
+                    isOpen={isWholesaleCartOpen}
+                    title="Wholesale Order | طلب جملة"
+                    itemCount={wholesaleCartCount}
+                    items={wholesaleCartItems}
+                    subtotal={wholesaleCartSubtotal}
+                    closeCart={closeWholesaleCart}
+                    removeFromCart={removeFromWholesaleCart}
+                    updateCartQuantity={updateWholesaleCartQuantity}
+                    onCheckout={handleWholesaleCheckout}
+                    checkoutLabel="Review Wholesale | مراجعة طلب الجملة"
+                    priceLabel="Wholesale"
+                    accent="wholesale"
+                    getCartItemStockLimit={getCartItemStockLimit}
+                />
+            ) : null}
         </>
     );
 }
@@ -95,7 +82,6 @@ function CartDialog({
     removeFromCart,
     updateCartQuantity,
     onCheckout,
-    isCheckingOut,
     checkoutLabel,
     priceLabel,
     accent,
@@ -213,13 +199,13 @@ function CartDialog({
                             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400">الإجمالي</p>
                             <p className={`text-2xl font-black ${accentClasses.total}`}>{subtotal.toLocaleString()} ج.م</p>
                         </div>
-                        <Link href={auth.currentUser ? '/profile' : '/login'} onClick={closeCart} className={`rounded-xl border bg-white px-4 py-3 text-xs font-black uppercase tracking-[0.18em] transition-colors dark:bg-gray-900 ${accentClasses.history}`}>
-                            {auth.currentUser ? 'Order History' : 'Login First'}
+                        <Link href="/profile" onClick={closeCart} className={`rounded-xl border bg-white px-4 py-3 text-xs font-black uppercase tracking-[0.18em] transition-colors dark:bg-gray-900 ${accentClasses.history}`}>
+                            Order History
                         </Link>
                     </div>
 
-                    <button type="button" onClick={onCheckout} disabled={items.length === 0 || isCheckingOut} className={`flex w-full items-center justify-center gap-3 rounded-2xl border px-5 py-4 text-sm font-black uppercase tracking-[0.18em] shadow-lg transition-all hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50 ${accentClasses.button}`}>
-                        <span>{isCheckingOut ? 'Processing...' : checkoutLabel}</span>
+                    <button type="button" onClick={onCheckout} disabled={items.length === 0} className={`flex w-full items-center justify-center gap-3 rounded-2xl border px-5 py-4 text-sm font-black uppercase tracking-[0.18em] shadow-lg transition-all hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50 ${accentClasses.button}`}>
+                        <span>{checkoutLabel}</span>
                         <i className="fa-solid fa-arrow-left"></i>
                     </button>
                 </div>

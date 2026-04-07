@@ -31,6 +31,17 @@ function SignupForm() {
     const [error, setError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
+    const resolvePostAuthRoute = () => {
+        const redirectParam = searchParams.get('redirect');
+        const checkoutType = String(searchParams.get('type') || '').trim().toLowerCase();
+
+        if (redirectParam === 'checkout') {
+            return checkoutType === 'wholesale' ? '/checkout?type=wholesale' : '/checkout';
+        }
+
+        return '/';
+    };
+
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
@@ -147,8 +158,6 @@ function SignupForm() {
     };
 
     const handleRedirect = (userData = null) => {
-        const redirectParam = searchParams.get('redirect');
-        
         if (userData && isAdminRole(normalizeUserRole(userData.role))) {
             markNotificationPromptPending();
             sessionStorage.setItem('isAdmin', 'true');
@@ -157,7 +166,7 @@ function SignupForm() {
         } else {
             markNotificationPromptPending();
             sessionStorage.removeItem('isAdmin');
-            router.push(redirectParam === 'checkout' ? '/?action=checkout' : '/');
+            router.push(resolvePostAuthRoute());
         }
     };
 
