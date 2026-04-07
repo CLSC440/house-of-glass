@@ -171,31 +171,52 @@ async function claimDirectoryEntries(db, transaction, uid, nextProfile, currentP
         { type: 'email', nextValue: nextProfile.authEmailLowercase, prevValue: normalizeEmail(currentProfile.authEmailLowercase || currentProfile.authEmail || currentProfile.emailLowercase || currentProfile.email) }
     ];
 
+    const refsToDelete = [];
+    const refsToSet = [];
+
     for (const entry of entries) {
         if (entry.prevValue && entry.prevValue !== entry.nextValue) {
-            const deleteRef = db.collection('user_directory').doc(makeDirectoryId(entry.type, entry.prevValue));
-            const deleteSnap = await transaction.get(deleteRef);
-            if (deleteSnap.exists && deleteSnap.data().uid === uid) {
-                transaction.delete(deleteRef);
-            }
+            refsToDelete.push({
+                entry,
+                ref: db.collection('user_directory').doc(makeDirectoryId(entry.type, entry.prevValue))
+            });
         }
 
         if (entry.nextValue) {
-            const setRef = db.collection('user_directory').doc(makeDirectoryId(entry.type, entry.nextValue));
-            const setSnap = await transaction.get(setRef);
-            if (setSnap.exists && setSnap.data().uid !== uid) {
-                if (entry.type === 'username') throw createError(409, 'Username is already taken. Please choose another one.');
-                if (entry.type === 'phone') throw createError(409, 'Phone number is already registered to another account.');
-                if (entry.type === 'email') throw createError(409, 'Email is already connected to another account.');
-            }
-
-            transaction.set(setRef, {
-                uid,
-                type: entry.type,
-                value: entry.nextValue,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+            refsToSet.push({
+                entry,
+                ref: db.collection('user_directory').doc(makeDirectoryId(entry.type, entry.nextValue))
+            });
         }
+    }
+
+    for (const item of refsToDelete) {
+        item.snap = await transaction.get(item.ref);
+    }
+
+    for (const item of refsToSet) {
+        item.snap = await transaction.get(item.ref);
+    }
+
+    for (const item of refsToDelete) {
+        if (item.snap.exists && item.snap.data().uid === uid) {
+            transaction.delete(item.ref);
+        }
+    }
+
+    for (const item of refsToSet) {
+        if (item.snap.exists && item.snap.data().uid !== uid) {
+            if (item.entry.type === 'username') throw createError(409, 'Username is already taken. Please choose another one.');
+            if (item.entry.type === 'phone') throw createError(409, 'Phone number is already registered to another account.');
+            if (item.entry.type === 'email') throw createError(409, 'Email is already connected to another account.');
+        }
+
+        transaction.set(item.ref, {
+            uid,
+            type: item.entry.type,
+            value: item.entry.nextValue,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
     }
 }
 
