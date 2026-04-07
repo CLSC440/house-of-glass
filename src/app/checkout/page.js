@@ -9,13 +9,18 @@ export const metadata = {
     title: 'Checkout | House Of Glass'
 };
 
-export default function CheckoutPage() {
+export default async function CheckoutPage({ searchParams }) {
+    const resolvedSearchParams = await searchParams;
+    const checkoutType = Array.isArray(resolvedSearchParams?.type)
+        ? resolvedSearchParams.type[0]
+        : resolvedSearchParams?.type;
+
     return (
         <GalleryProvider>
             <div className="flex min-h-screen flex-col bg-gray-50 dark:bg-darkBg transition-colors">
                 <Header />
                 <main className="flex-1 pb-16">
-                    <CheckoutPageContent />
+                    <CheckoutPageContent checkoutType={checkoutType} />
                 </main>
                 <Footer />
                 <ToastStack />

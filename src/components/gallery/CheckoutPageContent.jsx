@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
@@ -34,11 +34,10 @@ function buildCustomerSnapshot(currentUser, profileData, fallbackRole) {
     };
 }
 
-export default function CheckoutPageContent() {
+export default function CheckoutPageContent({ checkoutType }) {
     const router = useRouter();
-    const searchParams = useSearchParams();
-    const checkoutType = normalizeCheckoutType(searchParams?.get('type'));
-    const isWholesale = checkoutType === 'wholesale';
+    const normalizedCheckoutType = normalizeCheckoutType(checkoutType);
+    const isWholesale = normalizedCheckoutType === 'wholesale';
     const {
         cartItems,
         cartCount,
