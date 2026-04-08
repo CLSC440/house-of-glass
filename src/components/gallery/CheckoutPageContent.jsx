@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -19,6 +19,52 @@ function formatCurrency(value) {
 function parseAmount(value) {
     const numericValue = Number(value);
     return Number.isFinite(numericValue) ? Math.max(0, numericValue) : 0;
+}
+
+function normalizePromoCode(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function normalizePromoDiscountType(value) {
+    return String(value || '').trim().toLowerCase() === 'fixed' ? 'fixed' : 'percentage';
+}
+
+function getConfiguredPromoSettings(derivedSettings) {
+    const code = String(derivedSettings?.promoCode || '').trim();
+    const discountType = normalizePromoDiscountType(derivedSettings?.promoDiscountType);
+    const rawValue = parseAmount(derivedSettings?.promoDiscountValue);
+    const discountValue = discountType === 'percentage'
+        ? Math.min(rawValue, 100)
+        : rawValue;
+
+    return {
+        code,
+        normalizedCode: normalizePromoCode(code),
+        discountType,
+        discountValue
+    };
+}
+
+function calculatePromoDiscountAmount(subtotal, promoSettings, isApplied) {
+    const safeSubtotal = parseAmount(subtotal);
+
+    if (!isApplied || !promoSettings.normalizedCode || promoSettings.discountValue <= 0 || safeSubtotal <= 0) {
+        return 0;
+    }
+
+    if (promoSettings.discountType === 'percentage') {
+        return Math.min(safeSubtotal, (safeSubtotal * promoSettings.discountValue) / 100);
+    }
+
+    return Math.min(safeSubtotal, promoSettings.discountValue);
+}
+
+function formatPromoDiscountLabel(promoSettings) {
+    if (promoSettings.discountType === 'percentage') {
+        return `${promoSettings.discountValue}%`;
+    }
+
+    return formatCurrency(promoSettings.discountValue);
 }
 
 function buildCustomerSnapshot(currentUser, profileData, fallbackRole) {
@@ -67,6 +113,9 @@ export default function CheckoutPageContent({ checkoutType }) {
     const { derivedSettings } = useSiteSettings();
     const [customerInfo, setCustomerInfo] = useState(null);
     const [isCustomerLoading, setIsCustomerLoading] = useState(true);
+    const [promoCodeInput, setPromoCodeInput] = useState('');
+    const [appliedPromoCode, setAppliedPromoCode] = useState('');
+    const [promoFeedback, setPromoFeedback] = useState(null);
 
     const items = isWholesale ? wholesaleCartItems : cartItems;
     const itemCount = isWholesale ? wholesaleCartCount : cartCount;
@@ -76,7 +125,11 @@ export default function CheckoutPageContent({ checkoutType }) {
     const submitCheckout = isWholesale ? checkoutWholesaleCart : checkoutCart;
     const isSubmitting = isWholesale ? isCheckingOutWholesale : isCheckingOut;
     const shippingAmount = parseAmount(derivedSettings?.shippingPrice);
-    const finalTotal = subtotal + shippingAmount;
+    const productCount = items.length;
+    const promoSettings = useMemo(() => getConfiguredPromoSettings(derivedSettings), [derivedSettings]);
+    const isPromoApplied = promoSettings.normalizedCode && normalizePromoCode(appliedPromoCode) === promoSettings.normalizedCode;
+    const discountAmount = calculatePromoDiscountAmount(subtotal, promoSettings, isPromoApplied);
+    const finalTotal = Math.max(0, subtotal - discountAmount + shippingAmount);
     const loginTarget = `/login?redirect=checkout${isWholesale ? '&type=wholesale' : ''}`;
     const signupTarget = `/signup?redirect=checkout${isWholesale ? '&type=wholesale' : ''}`;
 
@@ -123,6 +176,54 @@ export default function CheckoutPageContent({ checkoutType }) {
         };
     }, [userRole]);
 
+    useEffect(() => {
+        if (!promoSettings.normalizedCode) {
+            setAppliedPromoCode('');
+            setPromoFeedback(null);
+            return;
+        }
+
+        if (appliedPromoCode && normalizePromoCode(appliedPromoCode) !== promoSettings.normalizedCode) {
+            setAppliedPromoCode('');
+            setPromoFeedback(null);
+        }
+    }, [appliedPromoCode, promoSettings.normalizedCode]);
+
+    const handleApplyPromoCode = () => {
+        if (!promoSettings.normalizedCode) {
+            setAppliedPromoCode('');
+            setPromoFeedback({ type: 'error', message: 'لا يوجد Promo Code مفعّل حالياً.' });
+            return;
+        }
+
+        const normalizedInput = normalizePromoCode(promoCodeInput);
+
+        if (!normalizedInput) {
+            setAppliedPromoCode('');
+            setPromoFeedback({ type: 'error', message: 'اكتب الـ Promo Code أولاً.' });
+            return;
+        }
+
+        if (normalizedInput !== promoSettings.normalizedCode) {
+            setAppliedPromoCode('');
+            setPromoFeedback({ type: 'error', message: 'الـ Promo Code غير صحيح.' });
+            return;
+        }
+
+        setAppliedPromoCode(promoSettings.code);
+        setPromoCodeInput(promoSettings.code);
+        setPromoFeedback({
+            type: 'success',
+            message: `تم تطبيق خصم ${formatPromoDiscountLabel(promoSettings)} على الطلب.`
+        });
+    };
+
+    const handleClearPromoCode = () => {
+        setAppliedPromoCode('');
+        setPromoCodeInput('');
+        setPromoFeedback(null);
+    };
+
     const handleConfirmOrder = async () => {
         if (!auth.currentUser) {
             showToast('سجل الدخول أولاً لتأكيد الطلب.', 'error');
@@ -133,7 +234,11 @@ export default function CheckoutPageContent({ checkoutType }) {
         const result = await submitCheckout({
             subtotalAmount: subtotal,
             shippingAmount,
-            totalPrice: finalTotal
+            discountAmount,
+            totalPrice: finalTotal,
+            promoCode: isPromoApplied ? promoSettings.code : '',
+            promoDiscountType: isPromoApplied ? promoSettings.discountType : '',
+            promoDiscountValue: isPromoApplied ? promoSettings.discountValue : 0
         });
 
         if (result.requiresAuth) {
@@ -365,12 +470,18 @@ export default function CheckoutPageContent({ checkoutType }) {
 
                         <div className="space-y-4 pt-5 text-sm font-bold text-slate-600 dark:text-slate-300">
                             <div className="flex items-center justify-between gap-4">
-                                <span>عدد القطع</span>
-                                <span className="text-brandBlue dark:text-white">{itemCount}</span>
+                                <span>عدد الأصناف</span>
+                                <span className="text-brandBlue dark:text-white">{productCount}</span>
                             </div>
                             <div className="flex items-center justify-between gap-4">
-                                <span>نوع الطلب</span>
-                                <span className="text-brandBlue dark:text-white">{isWholesale ? 'جملة' : 'تجزئة'}</span>
+                                <span>Subtotal الطلب</span>
+                                <span className="text-brandBlue dark:text-white">{formatCurrency(subtotal)}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-4">
+                                <span>الخصم</span>
+                                <span className={discountAmount > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-brandBlue dark:text-white'}>
+                                    {discountAmount > 0 ? `- ${formatCurrency(discountAmount)}` : formatCurrency(0)}
+                                </span>
                             </div>
                             <div className="flex items-center justify-between gap-4">
                                 <span>الشحن</span>
@@ -380,6 +491,61 @@ export default function CheckoutPageContent({ checkoutType }) {
                                 <span className="font-black text-brandBlue dark:text-white">الإجمالي النهائي</span>
                                 <span className="text-2xl font-black text-green-600 dark:text-brandGold">{formatCurrency(finalTotal)}</span>
                             </div>
+                        </div>
+
+                        <div className="mt-5 rounded-[1.4rem] border border-brandGold/15 bg-brandGold/[0.04] p-4">
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-brandGold">Promo Code</p>
+                                    <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                                        {promoSettings.normalizedCode ? 'اكتب البرومو كود واضغط تطبيق عشان الخصم ينزل على الطلب.' : 'لا يوجد Promo Code مفعّل حالياً من لوحة الإدارة.'}
+                                    </p>
+                                </div>
+                                {isPromoApplied ? (
+                                    <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-emerald-500">
+                                        Applied
+                                    </span>
+                                ) : null}
+                            </div>
+
+                            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                                <input
+                                    type="text"
+                                    value={promoCodeInput}
+                                    onChange={(event) => {
+                                        setPromoCodeInput(event.target.value);
+                                        setAppliedPromoCode('');
+                                        setPromoFeedback(null);
+                                    }}
+                                    placeholder="اكتب الـ Promo Code"
+                                    disabled={!promoSettings.normalizedCode}
+                                    className="min-w-0 flex-1 rounded-2xl border border-brandGold/20 bg-white px-4 py-3 text-sm font-black uppercase text-brandBlue outline-none transition-colors placeholder:text-slate-400 focus:border-brandGold dark:bg-gray-900 dark:text-white"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleApplyPromoCode}
+                                    disabled={!promoSettings.normalizedCode}
+                                    className="inline-flex items-center justify-center rounded-2xl border border-brandBlue bg-brandBlue px-5 py-3 text-sm font-black text-white transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    تطبيق الكود
+                                </button>
+                            </div>
+
+                            {promoFeedback ? (
+                                <p className={`mt-3 text-sm font-bold ${promoFeedback.type === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
+                                    {promoFeedback.message}
+                                </p>
+                            ) : null}
+
+                            {isPromoApplied ? (
+                                <button
+                                    type="button"
+                                    onClick={handleClearPromoCode}
+                                    className="mt-3 text-sm font-black text-brandBlue transition-colors hover:text-brandGold dark:text-brandGold"
+                                >
+                                    إزالة البرومو كود
+                                </button>
+                            ) : null}
                         </div>
 
                         <button

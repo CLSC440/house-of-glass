@@ -4,6 +4,8 @@ import { addDoc, collection, doc, getDoc, onSnapshot, query, runTransaction, ser
 import { auth, db } from '@/lib/firebase';
 import { CART_STORAGE_KEY, WHOLESALE_CART_STORAGE_KEY } from '@/lib/cart-storage';
 import { buildGroupedCategoryFacetEntries, CATEGORY_GROUPS_COLLECTION, sortCategoryGroupDocs } from '@/lib/category-groups';
+import { useSiteSettings } from '@/lib/use-site-settings';
+import { getGlobalRetailDisplayPrice, parsePercentage } from '@/lib/site-pricing';
 import { isWholesaleRole, normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
 import { buildOrderStatusHistoryEntry } from '@/lib/utils/order-status';
 
@@ -386,10 +388,10 @@ function getProductNetPrice(product) {
     return Math.max(0, getProductPrice(product) - getProductDiscountAmount(product));
 }
 
-function getProductUnitOrderPrice(product, userRole = '') {
+function getProductUnitOrderPrice(product, userRole = '', retailPriceIncreasePercentage = 0) {
     return normalizeUserRole(userRole) === USER_ROLE_VALUES.CST_WHOLESALE
         ? getProductNetPrice(product)
-        : getProductPrice(product);
+        : getGlobalRetailDisplayPrice(getProductPrice(product), retailPriceIncreasePercentage, userRole);
 }
 
 function getProductWholesalePrice(product) {
@@ -678,6 +680,7 @@ const GalleryContext = createContext({
 });
 
 export function GalleryProvider({ children }) {
+    const { derivedSettings } = useSiteSettings();
     const [products, setProducts] = useState([]);
     const [dcProductsMap, setDcProductsMap] = useState({});
     const [dcStockMap, setDcStockMap] = useState({});
@@ -707,6 +710,7 @@ export function GalleryProvider({ children }) {
     const [dcLiveUpdateAt, setDcLiveUpdateAt] = useState(0);
     const [dcSyncedAt, setDcSyncedAt] = useState(0);
     const didRestoreUrlFiltersRef = useRef(false);
+    const retailPriceIncreasePercentage = parsePercentage(derivedSettings?.priceIncrease);
 
     const buildDcRequestUrl = (path, options = {}) => {
         const query = new URLSearchParams({
@@ -1138,7 +1142,7 @@ export function GalleryProvider({ children }) {
                     return item;
                 }
 
-                const nextPrice = getProductUnitOrderPrice(linkedProduct, userRole);
+                const nextPrice = getProductUnitOrderPrice(linkedProduct, userRole, retailPriceIncreasePercentage);
                 if (Math.abs((Number(item.price) || 0) - nextPrice) < 0.0001) {
                     return item;
                 }
@@ -1152,7 +1156,7 @@ export function GalleryProvider({ children }) {
 
             return didChange ? nextCart : currentCart;
         });
-    }, [catalogProducts, isCartHydrated, userRole]);
+    }, [catalogProducts, isCartHydrated, retailPriceIncreasePercentage, userRole]);
 
     const filteredProducts = catalogProducts.filter((product) => {
         const normalizedCategory = normalizeFilterValue(product.category);
@@ -1401,7 +1405,7 @@ export function GalleryProvider({ children }) {
 
         const normalizedQuantity = Math.max(1, Number(quantity) || 1);
         const stockLimit = getProductStockLimit(product, 'retail');
-        const unitOrderPrice = getProductUnitOrderPrice(product, userRole);
+        const unitOrderPrice = getProductUnitOrderPrice(product, userRole, retailPriceIncreasePercentage);
 
         if (stockLimit === 0) {
             showToast('هذا المنتج غير متوفر حالياً.', 'error');
@@ -1613,7 +1617,7 @@ export function GalleryProvider({ children }) {
         }
     };
 
-    const buildOrderPayload = ({ currentUser, profileData, items, subtotalAmount, shippingAmount, totalPrice, itemCount, orderType }) => {
+    const buildOrderPayload = ({ currentUser, profileData, items, subtotalAmount, shippingAmount, discountAmount, totalPrice, itemCount, orderType, promoCode, promoDiscountType, promoDiscountValue }) => {
         const customerName = profileData.name
             || [profileData.firstName, profileData.lastName].filter(Boolean).join(' ')
             || currentUser.displayName
@@ -1622,6 +1626,10 @@ export function GalleryProvider({ children }) {
         const customerEmail = profileData.email || profileData.authEmail || currentUser.email || '';
         const customerPhone = profileData.phone || '';
         const createdAt = new Date().toISOString();
+        const normalizedDiscountAmount = Number(discountAmount) || 0;
+        const normalizedPromoCode = String(promoCode || '').trim();
+        const normalizedPromoDiscountType = String(promoDiscountType || '').trim().toLowerCase();
+        const normalizedPromoDiscountValue = Number(promoDiscountValue) || 0;
 
         return {
             customer: {
@@ -1641,8 +1649,12 @@ export function GalleryProvider({ children }) {
             items,
             subtotalAmount,
             shippingAmount,
+            discountAmount: normalizedDiscountAmount,
             totalPrice,
             itemCount,
+            promoCode: normalizedPromoCode,
+            promoDiscountType: normalizedPromoDiscountType,
+            promoDiscountValue: normalizedPromoDiscountValue,
             createdAt,
             orderDate: createdAt,
             source: 'Gallery NextJS',
@@ -1672,6 +1684,11 @@ export function GalleryProvider({ children }) {
             const errorPayload = await response.json().catch(() => ({}));
             throw new Error(errorPayload?.error || 'Failed to create admin notifications');
         }
+    };
+
+    const resolveNumericOption = (value, fallbackValue) => {
+        const numericValue = Number(value);
+        return Number.isFinite(numericValue) ? numericValue : fallbackValue;
     };
 
     const checkoutCart = async (options = {}) => {
@@ -1707,11 +1724,15 @@ export function GalleryProvider({ children }) {
                     image: item.image || '/logo.png',
                     category: item.category || ''
                 })),
-                subtotalAmount: Number(options.subtotalAmount) || cartSubtotal,
-                shippingAmount: Number(options.shippingAmount) || 0,
-                totalPrice: Number(options.totalPrice) || cartSubtotal,
+                subtotalAmount: resolveNumericOption(options.subtotalAmount, cartSubtotal),
+                shippingAmount: resolveNumericOption(options.shippingAmount, 0),
+                discountAmount: resolveNumericOption(options.discountAmount, 0),
+                totalPrice: resolveNumericOption(options.totalPrice, cartSubtotal),
                 itemCount: cartCount,
-                orderType: 'retail'
+                orderType: 'retail',
+                promoCode: options.promoCode,
+                promoDiscountType: options.promoDiscountType,
+                promoDiscountValue: options.promoDiscountValue
             });
 
             orderData.websiteOrderRef = await allocateWebsiteOrderRef();
@@ -1776,11 +1797,15 @@ export function GalleryProvider({ children }) {
                     image: item.image || '/logo.png',
                     category: item.category || ''
                 })),
-                subtotalAmount: Number(options.subtotalAmount) || wholesaleCartSubtotal,
-                shippingAmount: Number(options.shippingAmount) || 0,
-                totalPrice: Number(options.totalPrice) || wholesaleCartSubtotal,
+                subtotalAmount: resolveNumericOption(options.subtotalAmount, wholesaleCartSubtotal),
+                shippingAmount: resolveNumericOption(options.shippingAmount, 0),
+                discountAmount: resolveNumericOption(options.discountAmount, 0),
+                totalPrice: resolveNumericOption(options.totalPrice, wholesaleCartSubtotal),
                 itemCount: wholesaleCartCount,
-                orderType: 'wholesale'
+                orderType: 'wholesale',
+                promoCode: options.promoCode,
+                promoDiscountType: options.promoDiscountType,
+                promoDiscountValue: options.promoDiscountValue
             });
 
             orderData.websiteOrderRef = await allocateWebsiteOrderRef();

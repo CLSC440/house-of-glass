@@ -8,6 +8,9 @@ export const DEFAULT_SITE_SETTINGS = Object.freeze({
     whatsapp: '201026600350',
     priceIncrease: '0',
     shipping: '0',
+    promoCode: '',
+    promoDiscountType: 'percentage',
+    promoDiscountValue: '0',
     phone: '',
     facebook: 'https://www.facebook.com',
     whatsappChannel: '',
@@ -21,6 +24,10 @@ function normalizeText(value, fallback = '') {
 
 export function sanitizePhoneNumber(value) {
     return String(value ?? '').replace(/[^\d]/g, '');
+}
+
+function normalizePromoDiscountType(value) {
+    return String(value ?? '').trim().toLowerCase() === 'fixed' ? 'fixed' : 'percentage';
 }
 
 export function getPrimaryPhoneNumber(value) {
@@ -50,6 +57,9 @@ export function normalizeSiteSettings(settings = {}) {
         whatsapp: sanitizePhoneNumber(settings.whatsapp || DEFAULT_SITE_SETTINGS.whatsapp) || DEFAULT_SITE_SETTINGS.whatsapp,
         priceIncrease: normalizeText(settings.priceIncrease, DEFAULT_SITE_SETTINGS.priceIncrease),
         shipping: normalizeText(settings.shipping, DEFAULT_SITE_SETTINGS.shipping),
+        promoCode: normalizeText(settings.promoCode, DEFAULT_SITE_SETTINGS.promoCode),
+        promoDiscountType: normalizePromoDiscountType(settings.promoDiscountType || DEFAULT_SITE_SETTINGS.promoDiscountType),
+        promoDiscountValue: normalizeText(settings.promoDiscountValue, DEFAULT_SITE_SETTINGS.promoDiscountValue),
         phone: normalizeText(settings.phone, DEFAULT_SITE_SETTINGS.phone),
         facebook: normalizeText(settings.facebook, DEFAULT_SITE_SETTINGS.facebook),
         whatsappChannel: normalizeText(settings.whatsappChannel, DEFAULT_SITE_SETTINGS.whatsappChannel),
@@ -102,7 +112,10 @@ export function useSiteSettings() {
             whatsappChannelUrl: siteSettings.whatsappChannel,
             mapsUrl: siteSettings.maps || DEFAULT_SITE_SETTINGS.maps,
             priceIncrease: siteSettings.priceIncrease,
-            shippingPrice: siteSettings.shipping
+            shippingPrice: siteSettings.shipping,
+            promoCode: siteSettings.promoCode,
+            promoDiscountType: normalizePromoDiscountType(siteSettings.promoDiscountType),
+            promoDiscountValue: siteSettings.promoDiscountValue
         };
     }, [siteSettings]);
 

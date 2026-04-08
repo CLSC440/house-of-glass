@@ -919,6 +919,42 @@ export default function FloatingDockDemo({
                                     />
                                 </label>
 
+                                <label className="space-y-2">
+                                    <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Promo Code</span>
+                                    <input
+                                        type="text"
+                                        value={settingsForm.promoCode}
+                                        onChange={(event) => updateSettingsField('promoCode', event.target.value)}
+                                        placeholder="SAVE10"
+                                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold uppercase text-white outline-none transition-colors placeholder:text-slate-500 focus:border-brandGold/50"
+                                    />
+                                </label>
+
+                                <label className="space-y-2">
+                                    <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Promo Discount Type</span>
+                                    <select
+                                        value={settingsForm.promoDiscountType}
+                                        onChange={(event) => updateSettingsField('promoDiscountType', event.target.value)}
+                                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white outline-none transition-colors focus:border-brandGold/50"
+                                    >
+                                        <option value="percentage" className="bg-slate-900 text-white">Percentage %</option>
+                                        <option value="fixed" className="bg-slate-900 text-white">Fixed EGP</option>
+                                    </select>
+                                </label>
+
+                                <label className="space-y-2">
+                                    <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Promo Discount Value</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={settingsForm.promoDiscountValue}
+                                        onChange={(event) => updateSettingsField('promoDiscountValue', event.target.value)}
+                                        placeholder="0"
+                                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white outline-none transition-colors placeholder:text-slate-500 focus:border-brandGold/50"
+                                    />
+                                </label>
+
                                 <label className="space-y-2 md:col-span-2">
                                     <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Calling Phone Number(s)</span>
                                     <input

@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useGallery } from '@/contexts/GalleryContext';
 import AdminProductModal from '@/components/admin/AdminProductModal';
+import { useSiteSettings } from '@/lib/use-site-settings';
+import { getGlobalRetailDisplayPrice, parsePercentage } from '@/lib/site-pricing';
 import { isAdminRole, normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
 
 const ARABIC_TEXT_PATTERN = /[\u0600-\u06FF]/;
@@ -91,6 +93,7 @@ function getQuickAddCartId(entry) {
 }
 
 export default function ProductGrid() {
+    const { derivedSettings } = useSiteSettings();
     const {
         filteredProducts,
         categories,
@@ -122,6 +125,7 @@ export default function ProductGrid() {
         Math.floor(Math.random() * SHOW_MORE_ARABIC_LINES.length)
     ]);
     const [editingProduct, setEditingProduct] = useState(null);
+    const retailPriceIncreasePercentage = parsePercentage(derivedSettings?.priceIncrease);
     const savedScrollPositionRef = useRef(0);
     const shouldRestoreScrollRef = useRef(false);
     const productRowRefs = useRef({});
@@ -834,10 +838,11 @@ export default function ProductGrid() {
         const hasVariants = variants.length > 0;
         const isFlipped = Boolean(flippedCards[productId]);
         const retailPrice = getRetailPrice(product);
+        const adjustedRetailPrice = getGlobalRetailDisplayPrice(retailPrice, retailPriceIncreasePercentage, userRole);
         const wholesalePrice = getWholesalePrice(product);
         const discountValue = getDiscountValue(product);
         const netPrice = getNetPrice(product);
-        const primaryDisplayPrice = isStrictWholesaleUser ? netPrice : retailPrice;
+        const primaryDisplayPrice = isStrictWholesaleUser ? netPrice : adjustedRetailPrice;
 
         return (
             <div 

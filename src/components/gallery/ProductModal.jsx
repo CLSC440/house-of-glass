@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { AnimatedTestimonials } from '@/components/ui/animated-testimonials';
 import { buildWhatsAppUrl, useSiteSettings } from '@/lib/use-site-settings';
+import { getGlobalRetailDisplayPrice, parsePercentage } from '@/lib/site-pricing';
 import { isAdminRole, normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
 
 const LIVE_INDICATOR_DURATION_MS = 8000;
@@ -105,13 +106,11 @@ function resolveModalProductImage(product = {}, fallbackImage = '') {
     return imageCandidates.find((entry) => typeof entry === 'string' && entry.trim()) || '/logo.png';
 }
 
-function buildRetailCartSummary(cartItems = [], cartCount = 0, cartSubtotal = 0, orderSummary = null, shippingAmount = 0) {
+function buildRetailCartSummary(cartItems = [], cartCount = 0, cartSubtotal = 0, orderSummary = null) {
     if (orderSummary) {
         return {
             ...orderSummary,
             cartItems: Array.isArray(orderSummary.cartItems) ? orderSummary.cartItems : [],
-            shippingAmount: parsePrice(orderSummary.shippingAmount ?? shippingAmount),
-            totalAmount: parsePrice(orderSummary.totalAmount || (orderSummary.nextCartSubtotal + parsePrice(orderSummary.shippingAmount ?? shippingAmount))),
             isCartFallback: false
         };
     }
@@ -148,8 +147,6 @@ function buildRetailCartSummary(cartItems = [], cartCount = 0, cartSubtotal = 0,
         nextCartSubtotal: cartSubtotal,
         wasExisting: true,
         cartItems: cartLines,
-        shippingAmount: parsePrice(shippingAmount),
-        totalAmount: cartSubtotal + parsePrice(shippingAmount),
         isCartFallback: true
     };
 }
@@ -515,8 +512,8 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
                             </span>
                         </div>
                         <div className="min-w-0 flex-1">
-                            <p className="mt-0.5 text-[11px] font-semibold text-white/60 sm:text-sm">Total Cart</p>
-                            <p className="mt-1 whitespace-nowrap text-[1.45rem] font-black leading-none tracking-tight text-white sm:text-2xl">{formatPriceLabel(summary.totalAmount || summary.nextCartSubtotal)}</p>
+                            <p className="mt-0.5 text-[11px] font-semibold text-white/60 sm:text-sm">Cart Subtotal</p>
+                            <p className="mt-1 whitespace-nowrap text-[1.45rem] font-black leading-none tracking-tight text-white sm:text-2xl">{formatPriceLabel(summary.nextCartSubtotal)}</p>
                         </div>
                         <div className="shrink-0 self-end">
                             <span className="inline-flex items-center justify-center rounded-full border border-brandGold/20 bg-brandGold px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.08em] text-brandBlue shadow-[0_14px_30px_rgba(212,175,55,0.22)] sm:px-4 sm:py-2 sm:text-[11px] sm:tracking-[0.14em]">
@@ -586,7 +583,7 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
                             <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-3 dark:border-white/10">
                                 <div>
                                     <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Order Summary</p>
-                                    <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-300" dir="rtl">ملخص سريع لقيمة الطلب الحالية قبل الإجمالي النهائي.</p>
+                                    <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-300" dir="rtl">ملخص سريع لقيمة الطلب الحالية قبل الشحن والخصومات النهائية.</p>
                                 </div>
                                 <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-emerald-400/15 bg-emerald-500/12 px-3.5 py-2 text-emerald-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                                     <span className="text-base font-black leading-none">{summary.nextCartCount}</span>
@@ -598,13 +595,9 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
                                     <span className="text-slate-500 dark:text-slate-300">Subtotal</span>
                                     <span className="font-semibold text-slate-900 dark:text-white">{formatPriceLabel(summary.nextCartSubtotal)}</span>
                                 </div>
-                                <div className="flex items-center justify-between gap-4 text-sm">
-                                    <span className="text-slate-500 dark:text-slate-300">Shipping</span>
-                                    <span className="font-semibold text-slate-900 dark:text-white">{formatPriceLabel(summary.shippingAmount)}</span>
-                                </div>
                                 <div className="flex items-center justify-between gap-4 border-t border-slate-200 pt-3 text-sm dark:border-white/10">
-                                    <span className="font-black text-slate-900 dark:text-white">Total</span>
-                                    <span className="text-lg font-black text-brandBlue dark:text-white">{formatPriceLabel(summary.totalAmount)}</span>
+                                    <span className="font-black text-slate-900 dark:text-white">Current Cart</span>
+                                    <span className="text-lg font-black text-brandBlue dark:text-white">{formatPriceLabel(summary.nextCartSubtotal)}</span>
                                 </div>
                             </div>
                         </div>
@@ -683,13 +676,15 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
                         ) : null}
                     </div>
 
-                        <div className="grid gap-3 sm:grid-cols-2">
-                            <button type="button" onClick={handleMinimizeClick} className="rounded-[1.2rem] border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 transition-colors hover:border-brandGold hover:text-brandGold dark:border-white/10 dark:bg-[#141d32] dark:text-white">
-                            Continue Shopping | كمل تسوق
-                            </button>
-                            <button type="button" onClick={handleCompleteOrderClick} className="rounded-[1.2rem] border border-brandGold bg-brandGold px-4 py-3 text-sm font-black text-brandBlue transition-colors hover:bg-[#e0bc46]">
-                            Complete Order | اتمام الطلب
-                            </button>
+                        <div className="sticky bottom-0 z-10 -mx-5 mt-2 border-t border-slate-200 bg-slate-50/95 px-5 py-4 backdrop-blur dark:border-white/10 dark:bg-[#11192c]/95">
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <button type="button" onClick={handleMinimizeClick} className="rounded-[1.2rem] border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 transition-colors hover:border-brandGold hover:text-brandGold dark:border-white/10 dark:bg-[#141d32] dark:text-white">
+                                Continue Shopping | كمل تسوق
+                                </button>
+                                <button type="button" onClick={handleCompleteOrderClick} className="rounded-[1.2rem] border border-brandGold bg-brandGold px-4 py-3 text-sm font-black text-brandBlue transition-colors hover:bg-[#e0bc46]">
+                                Complete Order | اتمام الطلب
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -707,12 +702,12 @@ export default function ProductModal() {
     const lastSyncedShareCodeRef = useRef('');
     const dismissedShareCodeRef = useRef('');
     const [retailOrderSheet, setRetailOrderSheet] = useState(null);
-    const shippingAmount = parsePrice(derivedSettings?.shippingPrice);
+    const retailPriceIncreasePercentage = parsePercentage(derivedSettings?.priceIncrease);
     const requestedShareCode = String(searchParams?.get('code') || '').trim();
     const selectedProductShareCode = getProductShareCode(selectedProduct);
     const activeRetailSummary = useMemo(
-        () => buildRetailCartSummary(cartItems, cartCount, cartSubtotal, retailOrderSheet, shippingAmount),
-        [cartCount, cartItems, cartSubtotal, retailOrderSheet, shippingAmount]
+        () => buildRetailCartSummary(cartItems, cartCount, cartSubtotal, retailOrderSheet),
+        [cartCount, cartItems, cartSubtotal, retailOrderSheet]
     );
     const shouldUseEmbeddedVariantCartBar = Boolean(
         selectedProduct
@@ -1139,7 +1134,9 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
         const variantDiscountValue = parsePrice(v?.discountAmount || v?.discount_amount || v?.discount || v?.discountValue || selectedProduct?.discountAmount || selectedProduct?.discount_amount || selectedProduct?.discount || selectedProduct?.discountValue);
         const variantExplicitNet = parsePrice(v?.netPrice || v?.net_price || v?.net);
         const variantNetPrice = variantExplicitNet > 0 ? variantExplicitNet : Math.max(0, variantRetailPrice - variantDiscountValue);
-        const variantDisplayPrice = isStrictWholesaleUser ? variantNetPrice : variantRetailPrice;
+        const variantDisplayPrice = isStrictWholesaleUser
+            ? variantNetPrice
+            : getGlobalRetailDisplayPrice(variantRetailPrice, retailPriceIncreasePercentage, userRole);
         
         return {
             src: displayImage,
@@ -1203,7 +1200,8 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
         || activePricingSource?.net
     );
     const netPriceValue = explicitNetPrice > 0 ? explicitNetPrice : Math.max(0, retailPriceValue - discountValue);
-    const primaryDisplayPrice = isStrictWholesaleUser ? netPriceValue : retailPriceValue;
+    const adjustedRetailPriceValue = getGlobalRetailDisplayPrice(retailPriceValue, retailPriceIncreasePercentage, userRole);
+    const primaryDisplayPrice = isStrictWholesaleUser ? netPriceValue : adjustedRetailPriceValue;
     const canShowWholesaleOrder = isWholesaleCustomer && wholesalePriceValue > 0;
 
     const resolveStockLimit = (entry, orderType = 'retail') => getProductStockLimit(entry || {}, orderType);
