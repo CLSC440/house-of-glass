@@ -470,25 +470,40 @@ export default function CheckoutPageContent({ checkoutType }) {
 
                         <div className="space-y-4 pt-5 text-sm font-bold text-slate-600 dark:text-slate-300">
                             <div className="flex items-center justify-between gap-4">
-                                <span>عدد الأصناف</span>
+                                <span className="flex flex-col items-end gap-1 text-right">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.24em] text-brandGold">Items</span>
+                                    <span>عدد الأصناف</span>
+                                </span>
                                 <span className="text-brandBlue dark:text-white">{productCount}</span>
                             </div>
                             <div className="flex items-center justify-between gap-4">
-                                <span>Subtotal الطلب</span>
+                                <span className="flex flex-col items-end gap-1 text-right">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.24em] text-brandGold">Subtotal</span>
+                                    <span>الطلب</span>
+                                </span>
                                 <span className="text-brandBlue dark:text-white">{formatCurrency(subtotal)}</span>
                             </div>
                             <div className="flex items-center justify-between gap-4">
-                                <span>الخصم</span>
+                                <span className="flex flex-col items-end gap-1 text-right">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.24em] text-brandGold">Discount</span>
+                                    <span>الخصم</span>
+                                </span>
                                 <span className={discountAmount > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-brandBlue dark:text-white'}>
                                     {discountAmount > 0 ? `- ${formatCurrency(discountAmount)}` : formatCurrency(0)}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between gap-4">
-                                <span>الشحن</span>
+                                <span className="flex flex-col items-end gap-1 text-right">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.24em] text-brandGold">Shipping</span>
+                                    <span>الشحن</span>
+                                </span>
                                 <span className="text-brandBlue dark:text-white">{formatCurrency(shippingAmount)}</span>
                             </div>
                             <div className="flex items-center justify-between gap-4 border-t border-dashed border-brandGold/15 pt-4 text-base">
-                                <span className="font-black text-brandBlue dark:text-white">الإجمالي النهائي</span>
+                                <span className="flex flex-col items-end gap-1 text-right font-black text-brandBlue dark:text-white">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.24em] text-brandGold">Total</span>
+                                    <span>الإجمالي النهائي</span>
+                                </span>
                                 <span className="text-2xl font-black text-green-600 dark:text-brandGold">{formatCurrency(finalTotal)}</span>
                             </div>
                         </div>
