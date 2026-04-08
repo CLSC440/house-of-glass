@@ -906,6 +906,19 @@ export default function FloatingDockDemo({
                                     />
                                 </label>
 
+                                <label className="space-y-2">
+                                    <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Shipping Price (EGP)</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={settingsForm.shipping}
+                                        onChange={(event) => updateSettingsField('shipping', event.target.value)}
+                                        placeholder="0"
+                                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white outline-none transition-colors placeholder:text-slate-500 focus:border-brandGold/50"
+                                    />
+                                </label>
+
                                 <label className="space-y-2 md:col-span-2">
                                     <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Calling Phone Number(s)</span>
                                     <input

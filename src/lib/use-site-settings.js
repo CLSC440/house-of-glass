@@ -7,6 +7,7 @@ import { db } from '@/lib/firebase';
 export const DEFAULT_SITE_SETTINGS = Object.freeze({
     whatsapp: '201026600350',
     priceIncrease: '0',
+    shipping: '0',
     phone: '',
     facebook: 'https://www.facebook.com',
     whatsappChannel: '',
@@ -48,6 +49,7 @@ export function normalizeSiteSettings(settings = {}) {
     return {
         whatsapp: sanitizePhoneNumber(settings.whatsapp || DEFAULT_SITE_SETTINGS.whatsapp) || DEFAULT_SITE_SETTINGS.whatsapp,
         priceIncrease: normalizeText(settings.priceIncrease, DEFAULT_SITE_SETTINGS.priceIncrease),
+        shipping: normalizeText(settings.shipping, DEFAULT_SITE_SETTINGS.shipping),
         phone: normalizeText(settings.phone, DEFAULT_SITE_SETTINGS.phone),
         facebook: normalizeText(settings.facebook, DEFAULT_SITE_SETTINGS.facebook),
         whatsappChannel: normalizeText(settings.whatsappChannel, DEFAULT_SITE_SETTINGS.whatsappChannel),
@@ -99,7 +101,8 @@ export function useSiteSettings() {
             facebookUrl: siteSettings.facebook || DEFAULT_SITE_SETTINGS.facebook,
             whatsappChannelUrl: siteSettings.whatsappChannel,
             mapsUrl: siteSettings.maps || DEFAULT_SITE_SETTINGS.maps,
-            priceIncrease: siteSettings.priceIncrease
+            priceIncrease: siteSettings.priceIncrease,
+            shippingPrice: siteSettings.shipping
         };
     }, [siteSettings]);
 

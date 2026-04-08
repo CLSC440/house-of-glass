@@ -1613,7 +1613,7 @@ export function GalleryProvider({ children }) {
         }
     };
 
-    const buildOrderPayload = ({ currentUser, profileData, items, subtotal = 0, shippingAmount = 0, totalPrice, itemCount, orderType }) => {
+    const buildOrderPayload = ({ currentUser, profileData, items, subtotalAmount, shippingAmount, totalPrice, itemCount, orderType }) => {
         const customerName = profileData.name
             || [profileData.firstName, profileData.lastName].filter(Boolean).join(' ')
             || currentUser.displayName
@@ -1622,9 +1622,6 @@ export function GalleryProvider({ children }) {
         const customerEmail = profileData.email || profileData.authEmail || currentUser.email || '';
         const customerPhone = profileData.phone || '';
         const createdAt = new Date().toISOString();
-        const resolvedSubtotal = Number(subtotal) || 0;
-        const resolvedShippingAmount = Math.max(0, Number(shippingAmount) || 0);
-        const resolvedTotalPrice = Number(totalPrice) || (resolvedSubtotal + resolvedShippingAmount);
 
         return {
             customer: {
@@ -1642,10 +1639,9 @@ export function GalleryProvider({ children }) {
                 role: normalizeUserRole(profileData.role || USER_ROLE_VALUES.CST_RETAIL)
             },
             items,
-            subtotal: resolvedSubtotal,
-            shippingAmount: resolvedShippingAmount,
-            totalPrice: resolvedTotalPrice,
-            totalAmount: resolvedTotalPrice,
+            subtotalAmount,
+            shippingAmount,
+            totalPrice,
             itemCount,
             createdAt,
             orderDate: createdAt,
@@ -1692,7 +1688,6 @@ export function GalleryProvider({ children }) {
         setIsCheckingOut(true);
 
         try {
-            const shippingAmount = Math.max(0, Number(options?.shippingAmount) || 0);
             let profileData = {};
             const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
             if (userDoc.exists()) {
@@ -1712,9 +1707,9 @@ export function GalleryProvider({ children }) {
                     image: item.image || '/logo.png',
                     category: item.category || ''
                 })),
-                subtotal: cartSubtotal,
-                shippingAmount,
-                totalPrice: cartSubtotal + shippingAmount,
+                subtotalAmount: Number(options.subtotalAmount) || cartSubtotal,
+                shippingAmount: Number(options.shippingAmount) || 0,
+                totalPrice: Number(options.totalPrice) || cartSubtotal,
                 itemCount: cartCount,
                 orderType: 'retail'
             });
@@ -1761,7 +1756,6 @@ export function GalleryProvider({ children }) {
         setIsCheckingOutWholesale(true);
 
         try {
-            const shippingAmount = Math.max(0, Number(options?.shippingAmount) || 0);
             let profileData = {};
             const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
             if (userDoc.exists()) {
@@ -1782,9 +1776,9 @@ export function GalleryProvider({ children }) {
                     image: item.image || '/logo.png',
                     category: item.category || ''
                 })),
-                subtotal: wholesaleCartSubtotal,
-                shippingAmount,
-                totalPrice: wholesaleCartSubtotal + shippingAmount,
+                subtotalAmount: Number(options.subtotalAmount) || wholesaleCartSubtotal,
+                shippingAmount: Number(options.shippingAmount) || 0,
+                totalPrice: Number(options.totalPrice) || wholesaleCartSubtotal,
                 itemCount: wholesaleCartCount,
                 orderType: 'wholesale'
             });

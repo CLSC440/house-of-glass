@@ -6,6 +6,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useGallery } from '@/contexts/GalleryContext';
+import { useSiteSettings } from '@/lib/use-site-settings';
 
 function normalizeCheckoutType(value) {
     return String(value || '').trim().toLowerCase() === 'wholesale' ? 'wholesale' : 'retail';
@@ -15,28 +16,9 @@ function formatCurrency(value) {
     return `${(Number(value) || 0).toLocaleString()} ج.م`;
 }
 
-function normalizeAmountInput(value) {
-    const easternArabicDigits = {
-        '٠': '0',
-        '١': '1',
-        '٢': '2',
-        '٣': '3',
-        '٤': '4',
-        '٥': '5',
-        '٦': '6',
-        '٧': '7',
-        '٨': '8',
-        '٩': '9'
-    };
-    const normalizedDigits = String(value || '').replace(/[٠-٩]/g, (digit) => easternArabicDigits[digit] || '');
-    const compactValue = normalizedDigits.replace(/,/g, '.').replace(/[^0-9.]/g, '');
-    const [integerPart = '', ...decimalParts] = compactValue.split('.');
-
-    if (decimalParts.length === 0) {
-        return integerPart;
-    }
-
-    return `${integerPart}.${decimalParts.join('')}`;
+function parseAmount(value) {
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? Math.max(0, numericValue) : 0;
 }
 
 function buildCustomerSnapshot(currentUser, profileData, fallbackRole) {
@@ -82,19 +64,19 @@ export default function CheckoutPageContent({ checkoutType }) {
         userRole,
         showToast
     } = useGallery();
+    const { derivedSettings } = useSiteSettings();
     const [customerInfo, setCustomerInfo] = useState(null);
     const [isCustomerLoading, setIsCustomerLoading] = useState(true);
-    const [shippingInput, setShippingInput] = useState('0');
 
     const items = isWholesale ? wholesaleCartItems : cartItems;
     const itemCount = isWholesale ? wholesaleCartCount : cartCount;
     const subtotal = isWholesale ? wholesaleCartSubtotal : cartSubtotal;
-    const shippingAmount = Math.max(0, Number.parseFloat(normalizeAmountInput(shippingInput)) || 0);
-    const totalAmount = subtotal + shippingAmount;
     const updateQuantity = isWholesale ? updateWholesaleCartQuantity : updateCartQuantity;
     const removeItem = isWholesale ? removeFromWholesaleCart : removeFromCart;
     const submitCheckout = isWholesale ? checkoutWholesaleCart : checkoutCart;
     const isSubmitting = isWholesale ? isCheckingOutWholesale : isCheckingOut;
+    const shippingAmount = parseAmount(derivedSettings?.shippingPrice);
+    const finalTotal = subtotal + shippingAmount;
     const loginTarget = `/login?redirect=checkout${isWholesale ? '&type=wholesale' : ''}`;
     const signupTarget = `/signup?redirect=checkout${isWholesale ? '&type=wholesale' : ''}`;
 
@@ -148,7 +130,11 @@ export default function CheckoutPageContent({ checkoutType }) {
             return;
         }
 
-        const result = await submitCheckout({ shippingAmount });
+        const result = await submitCheckout({
+            subtotalAmount: subtotal,
+            shippingAmount,
+            totalPrice: finalTotal
+        });
 
         if (result.requiresAuth) {
             router.push(loginTarget);
@@ -239,7 +225,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                             </div>
                             <div className={`rounded-[1.4rem] border px-5 py-4 ${isWholesale ? 'border-brandGold/20 bg-white/8 text-white' : 'border-brandBlue/10 bg-white/80 text-brandBlue'}`}>
                                 <p className="text-[10px] font-black uppercase tracking-[0.24em] opacity-60">Total</p>
-                                <p className="mt-2 text-2xl font-black">{formatCurrency(totalAmount)}</p>
+                                <p className="mt-2 text-2xl font-black">{formatCurrency(subtotal)}</p>
                             </div>
                         </div>
                     </div>
@@ -379,10 +365,6 @@ export default function CheckoutPageContent({ checkoutType }) {
 
                         <div className="space-y-4 pt-5 text-sm font-bold text-slate-600 dark:text-slate-300">
                             <div className="flex items-center justify-between gap-4">
-                                <span>الإجمالي قبل الشحن</span>
-                                <span className="text-brandBlue dark:text-white">{formatCurrency(subtotal)}</span>
-                            </div>
-                            <div className="flex items-center justify-between gap-4">
                                 <span>عدد القطع</span>
                                 <span className="text-brandBlue dark:text-white">{itemCount}</span>
                             </div>
@@ -390,27 +372,13 @@ export default function CheckoutPageContent({ checkoutType }) {
                                 <span>نوع الطلب</span>
                                 <span className="text-brandBlue dark:text-white">{isWholesale ? 'جملة' : 'تجزئة'}</span>
                             </div>
-                            <div className="space-y-2 rounded-2xl border border-brandGold/12 bg-gray-50 px-4 py-4 dark:bg-gray-900/50">
-                                <div className="flex items-center justify-between gap-4">
-                                    <span>الشحن</span>
-                                    <span className="text-[11px] font-black uppercase tracking-[0.18em] text-brandGold">Shipping</span>
-                                </div>
-                                <div className="flex items-center gap-3" dir="ltr">
-                                    <input
-                                        type="text"
-                                        inputMode="decimal"
-                                        value={shippingInput}
-                                        onChange={(event) => setShippingInput(normalizeAmountInput(event.target.value))}
-                                        className="h-12 flex-1 rounded-2xl border border-brandGold/20 bg-white px-4 text-right text-sm font-black text-brandBlue outline-none transition-colors focus:border-brandGold dark:bg-gray-950 dark:text-white"
-                                        placeholder="0"
-                                        aria-label="Shipping amount"
-                                    />
-                                    <span className="rounded-xl border border-brandGold/15 px-3 py-3 text-xs font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">EGP</span>
-                                </div>
+                            <div className="flex items-center justify-between gap-4">
+                                <span>الشحن</span>
+                                <span className="text-brandBlue dark:text-white">{formatCurrency(shippingAmount)}</span>
                             </div>
                             <div className="flex items-center justify-between gap-4 border-t border-dashed border-brandGold/15 pt-4 text-base">
                                 <span className="font-black text-brandBlue dark:text-white">الإجمالي النهائي</span>
-                                <span className="text-2xl font-black text-green-600 dark:text-brandGold">{formatCurrency(totalAmount)}</span>
+                                <span className="text-2xl font-black text-green-600 dark:text-brandGold">{formatCurrency(finalTotal)}</span>
                             </div>
                         </div>
 

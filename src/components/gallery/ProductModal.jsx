@@ -105,13 +105,13 @@ function resolveModalProductImage(product = {}, fallbackImage = '') {
     return imageCandidates.find((entry) => typeof entry === 'string' && entry.trim()) || '/logo.png';
 }
 
-function buildRetailCartSummary(cartItems = [], cartCount = 0, cartSubtotal = 0, orderSummary = null) {
+function buildRetailCartSummary(cartItems = [], cartCount = 0, cartSubtotal = 0, orderSummary = null, shippingAmount = 0) {
     if (orderSummary) {
         return {
             ...orderSummary,
             cartItems: Array.isArray(orderSummary.cartItems) ? orderSummary.cartItems : [],
-            shippingAmount: parsePrice(orderSummary.shippingAmount),
-            totalAmount: parsePrice(orderSummary.totalAmount || orderSummary.nextCartSubtotal),
+            shippingAmount: parsePrice(orderSummary.shippingAmount ?? shippingAmount),
+            totalAmount: parsePrice(orderSummary.totalAmount || (orderSummary.nextCartSubtotal + parsePrice(orderSummary.shippingAmount ?? shippingAmount))),
             isCartFallback: false
         };
     }
@@ -148,8 +148,8 @@ function buildRetailCartSummary(cartItems = [], cartCount = 0, cartSubtotal = 0,
         nextCartSubtotal: cartSubtotal,
         wasExisting: true,
         cartItems: cartLines,
-        shippingAmount: 0,
-        totalAmount: cartSubtotal,
+        shippingAmount: parsePrice(shippingAmount),
+        totalAmount: cartSubtotal + parsePrice(shippingAmount),
         isCartFallback: true
     };
 }
@@ -700,17 +700,19 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
 
 export default function ProductModal() {
     const { selectedProduct, setSelectedProduct, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, dcSyncedAt, refreshDcCatalog, allProducts, getProductStockLimit, getProductStockStatus, cartItems, cartCount, cartSubtotal, updateCartQuantity } = useGallery();
+    const { derivedSettings } = useSiteSettings();
     const pathname = usePathname();
     const router = useRouter();
     const searchParams = useSearchParams();
     const lastSyncedShareCodeRef = useRef('');
     const dismissedShareCodeRef = useRef('');
     const [retailOrderSheet, setRetailOrderSheet] = useState(null);
+    const shippingAmount = parsePrice(derivedSettings?.shippingPrice);
     const requestedShareCode = String(searchParams?.get('code') || '').trim();
     const selectedProductShareCode = getProductShareCode(selectedProduct);
     const activeRetailSummary = useMemo(
-        () => buildRetailCartSummary(cartItems, cartCount, cartSubtotal, retailOrderSheet),
-        [cartCount, cartItems, cartSubtotal, retailOrderSheet]
+        () => buildRetailCartSummary(cartItems, cartCount, cartSubtotal, retailOrderSheet, shippingAmount),
+        [cartCount, cartItems, cartSubtotal, retailOrderSheet, shippingAmount]
     );
     const shouldUseEmbeddedVariantCartBar = Boolean(
         selectedProduct
