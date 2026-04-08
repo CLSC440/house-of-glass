@@ -1613,7 +1613,7 @@ export function GalleryProvider({ children }) {
         }
     };
 
-    const buildOrderPayload = ({ currentUser, profileData, items, totalPrice, itemCount, orderType }) => {
+    const buildOrderPayload = ({ currentUser, profileData, items, subtotal = 0, shippingAmount = 0, totalPrice, itemCount, orderType }) => {
         const customerName = profileData.name
             || [profileData.firstName, profileData.lastName].filter(Boolean).join(' ')
             || currentUser.displayName
@@ -1622,6 +1622,9 @@ export function GalleryProvider({ children }) {
         const customerEmail = profileData.email || profileData.authEmail || currentUser.email || '';
         const customerPhone = profileData.phone || '';
         const createdAt = new Date().toISOString();
+        const resolvedSubtotal = Number(subtotal) || 0;
+        const resolvedShippingAmount = Math.max(0, Number(shippingAmount) || 0);
+        const resolvedTotalPrice = Number(totalPrice) || (resolvedSubtotal + resolvedShippingAmount);
 
         return {
             customer: {
@@ -1639,7 +1642,10 @@ export function GalleryProvider({ children }) {
                 role: normalizeUserRole(profileData.role || USER_ROLE_VALUES.CST_RETAIL)
             },
             items,
-            totalPrice,
+            subtotal: resolvedSubtotal,
+            shippingAmount: resolvedShippingAmount,
+            totalPrice: resolvedTotalPrice,
+            totalAmount: resolvedTotalPrice,
             itemCount,
             createdAt,
             orderDate: createdAt,
@@ -1672,7 +1678,7 @@ export function GalleryProvider({ children }) {
         }
     };
 
-    const checkoutCart = async () => {
+    const checkoutCart = async (options = {}) => {
         if (cartItems.length === 0) {
             showToast('العربة فارغة حالياً.', 'error');
             return { ok: false, error: 'empty-cart' };
@@ -1686,6 +1692,7 @@ export function GalleryProvider({ children }) {
         setIsCheckingOut(true);
 
         try {
+            const shippingAmount = Math.max(0, Number(options?.shippingAmount) || 0);
             let profileData = {};
             const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
             if (userDoc.exists()) {
@@ -1705,7 +1712,9 @@ export function GalleryProvider({ children }) {
                     image: item.image || '/logo.png',
                     category: item.category || ''
                 })),
-                totalPrice: cartSubtotal,
+                subtotal: cartSubtotal,
+                shippingAmount,
+                totalPrice: cartSubtotal + shippingAmount,
                 itemCount: cartCount,
                 orderType: 'retail'
             });
@@ -1733,7 +1742,7 @@ export function GalleryProvider({ children }) {
         }
     };
 
-    const checkoutWholesaleCart = async () => {
+    const checkoutWholesaleCart = async (options = {}) => {
         if (wholesaleCartItems.length === 0) {
             showToast('طلب الجملة فارغ حالياً.', 'error');
             return { ok: false, error: 'empty-cart' };
@@ -1752,6 +1761,7 @@ export function GalleryProvider({ children }) {
         setIsCheckingOutWholesale(true);
 
         try {
+            const shippingAmount = Math.max(0, Number(options?.shippingAmount) || 0);
             let profileData = {};
             const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
             if (userDoc.exists()) {
@@ -1772,7 +1782,9 @@ export function GalleryProvider({ children }) {
                     image: item.image || '/logo.png',
                     category: item.category || ''
                 })),
-                totalPrice: wholesaleCartSubtotal,
+                subtotal: wholesaleCartSubtotal,
+                shippingAmount,
+                totalPrice: wholesaleCartSubtotal + shippingAmount,
                 itemCount: wholesaleCartCount,
                 orderType: 'wholesale'
             });
