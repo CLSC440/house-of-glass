@@ -472,21 +472,21 @@ export default function CheckoutPageContent({ checkoutType }) {
                             <div className="flex items-center justify-between gap-4">
                                 <span className="flex flex-col items-end gap-1 text-right">
                                     <span className="block w-full text-right text-[9px] font-black uppercase leading-none tracking-[0.32em] text-brandGold">Items</span>
-                                    <span className="block w-full text-right text-base font-extrabold leading-tight text-slate-100 dark:text-white">عدد الأصناف</span>
+                                    <span className="block w-full text-right text-base font-extrabold leading-tight text-brandBlue dark:text-white">عدد الأصناف</span>
                                 </span>
                                 <span className="text-brandBlue dark:text-white">{productCount}</span>
                             </div>
                             <div className="flex items-center justify-between gap-4">
                                 <span className="flex flex-col items-end gap-1 text-right">
                                     <span className="block w-full text-right text-[9px] font-black uppercase leading-none tracking-[0.32em] text-brandGold">Subtotal</span>
-                                    <span className="block w-full text-right text-base font-extrabold leading-tight text-slate-100 dark:text-white">الطلب</span>
+                                    <span className="block w-full text-right text-base font-extrabold leading-tight text-brandBlue dark:text-white">الطلب</span>
                                 </span>
                                 <span className="text-brandBlue dark:text-white">{formatCurrency(subtotal)}</span>
                             </div>
                             <div className="flex items-center justify-between gap-4">
                                 <span className="flex flex-col items-end gap-1 text-right">
                                     <span className="block w-full text-right text-[9px] font-black uppercase leading-none tracking-[0.32em] text-brandGold">Discount</span>
-                                    <span className="block w-full text-right text-base font-extrabold leading-tight text-slate-100 dark:text-white">الخصم</span>
+                                    <span className="block w-full text-right text-base font-extrabold leading-tight text-brandBlue dark:text-white">الخصم</span>
                                 </span>
                                 <span className={discountAmount > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-brandBlue dark:text-white'}>
                                     {discountAmount > 0 ? `- ${formatCurrency(discountAmount)}` : formatCurrency(0)}
@@ -495,14 +495,14 @@ export default function CheckoutPageContent({ checkoutType }) {
                             <div className="flex items-center justify-between gap-4">
                                 <span className="flex flex-col items-end gap-1 text-right">
                                     <span className="block w-full text-right text-[9px] font-black uppercase leading-none tracking-[0.32em] text-brandGold">Shipping</span>
-                                    <span className="block w-full text-right text-base font-extrabold leading-tight text-slate-100 dark:text-white">الشحن</span>
+                                    <span className="block w-full text-right text-base font-extrabold leading-tight text-brandBlue dark:text-white">الشحن</span>
                                 </span>
                                 <span className="text-brandBlue dark:text-white">{formatCurrency(shippingAmount)}</span>
                             </div>
                             <div className="flex items-center justify-between gap-4 border-t border-dashed border-brandGold/15 pt-4 text-base">
                                 <span className="flex flex-col items-end gap-1 text-right font-black text-brandBlue dark:text-white">
                                     <span className="block w-full text-right text-[9px] font-black uppercase leading-none tracking-[0.32em] text-brandGold">Total</span>
-                                    <span className="block w-full text-right text-[1.05rem] font-extrabold leading-tight text-slate-100 dark:text-white">الإجمالي النهائي</span>
+                                    <span className="block w-full text-right text-[1.05rem] font-extrabold leading-tight text-brandBlue dark:text-white">الإجمالي النهائي</span>
                                 </span>
                                 <span className="text-2xl font-black text-green-600 dark:text-brandGold">{formatCurrency(finalTotal)}</span>
                             </div>
@@ -512,7 +512,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                             <div className="flex items-center justify-between gap-3">
                                 <div className="flex-1 text-right">
                                     <p className="block w-full text-right text-[9px] font-black uppercase leading-none tracking-[0.32em] text-brandGold">Promo Code</p>
-                                    <p className="mt-1 block w-full text-right text-base font-extrabold leading-tight text-slate-100 dark:text-white">كود الخصم</p>
+                                    <p className="mt-1 block w-full text-right text-base font-extrabold leading-tight text-brandBlue dark:text-white">كود الخصم</p>
                                     <p className="mt-2 block w-full text-right text-[0.95rem] font-bold leading-7 text-slate-500 dark:text-slate-300">
                                         {promoSettings.normalizedCode ? 'اكتب البرومو كود واضغط تطبيق عشان الخصم ينزل على الطلب.' : 'لا يوجد Promo Code مفعّل حالياً من لوحة الإدارة.'}
                                     </p>
