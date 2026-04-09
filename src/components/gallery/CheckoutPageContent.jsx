@@ -304,31 +304,31 @@ export default function CheckoutPageContent({ checkoutType }) {
     return (
         <section className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-8 md:px-8 md:py-12" dir="rtl">
             <div className="overflow-hidden rounded-[2rem] border border-brandGold/20 bg-white shadow-[0_25px_80px_rgba(18,25,38,0.08)] dark:bg-darkCard">
-                <div className={`relative overflow-hidden px-6 py-8 md:px-10 md:py-10 ${isWholesale ? 'bg-[radial-gradient(circle_at_top_left,_rgba(212,175,55,0.25),_transparent_38%),linear-gradient(135deg,#121926_0%,#1e2740_45%,#0b1222_100%)]' : 'bg-[radial-gradient(circle_at_top_left,_rgba(212,175,55,0.18),_transparent_35%),linear-gradient(135deg,#f7f3e8_0%,#ffffff_42%,#eef3fb_100%)]'}`}>
-                    <div className="absolute inset-y-0 left-0 hidden w-56 bg-[linear-gradient(135deg,rgba(212,175,55,0.14),transparent)] md:block"></div>
+                <div className={`relative overflow-hidden px-6 py-8 md:px-10 md:py-10 ${isWholesale ? 'bg-[radial-gradient(circle_at_top_left,_rgba(212,175,55,0.25),_transparent_38%),linear-gradient(135deg,#121926_0%,#1e2740_45%,#0b1222_100%)]' : 'bg-[radial-gradient(circle_at_top_left,_rgba(212,175,55,0.18),_transparent_35%),linear-gradient(135deg,#f7f3e8_0%,#ffffff_42%,#eef3fb_100%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(212,175,55,0.22),_transparent_38%),linear-gradient(135deg,#121926_0%,#1c2438_48%,#0b1222_100%)]'}`}>
+                    <div className="absolute inset-y-0 left-0 hidden w-56 bg-[linear-gradient(135deg,rgba(212,175,55,0.14),transparent)] md:block dark:bg-[linear-gradient(135deg,rgba(212,175,55,0.12),transparent)]"></div>
                     <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
                         <div>
-                            <p className={`text-[11px] font-black uppercase tracking-[0.35em] ${isWholesale ? 'text-brandGold' : 'text-brandBlue/60'}`}>
+                            <p className={`text-[11px] font-black uppercase tracking-[0.35em] ${isWholesale ? 'text-brandGold' : 'text-brandBlue/60 dark:text-brandGold'}`}>
                                 {isWholesale ? 'Wholesale Checkout' : 'Retail Checkout'}
                             </p>
-                            <h1 className={`mt-3 text-3xl font-black md:text-4xl ${isWholesale ? 'text-white' : 'text-brandBlue'}`}>
+                            <h1 className={`mt-3 text-3xl font-black md:text-4xl ${isWholesale ? 'text-white' : 'text-brandBlue dark:text-white'}`}>
                                 {isWholesale ? 'راجع طلب الجملة قبل التأكيد' : 'راجع تفاصيل الطلب قبل التأكيد'}
                             </h1>
-                            <p className={`mt-3 max-w-2xl text-sm leading-7 md:text-base ${isWholesale ? 'text-slate-200' : 'text-slate-600'}`}>
+                            <p className={`mt-3 max-w-2xl text-sm leading-7 md:text-base ${isWholesale ? 'text-slate-200' : 'text-slate-600 dark:text-slate-300'}`}>
                                 هنا تقدر تشوف كل المنتجات، تعدل الكميات، وتراجع بيانات الحساب قبل إرسال الطلب النهائي.
                             </p>
                         </div>
 
                         <div className="grid gap-3 sm:grid-cols-3">
-                            <div className={`rounded-[1.4rem] border px-5 py-4 ${isWholesale ? 'border-brandGold/20 bg-white/8 text-white' : 'border-brandBlue/10 bg-white/80 text-brandBlue'}`}>
+                            <div className={`rounded-[1.4rem] border px-5 py-4 ${isWholesale ? 'border-brandGold/20 bg-white/8 text-white' : 'border-brandBlue/10 bg-white/80 text-brandBlue dark:border-brandGold/20 dark:bg-white/[0.05] dark:text-white'}`}>
                                 <p className="text-[10px] font-black uppercase tracking-[0.24em] opacity-60">Items</p>
                                 <p className="mt-2 text-2xl font-black">{itemCount}</p>
                             </div>
-                            <div className={`rounded-[1.4rem] border px-5 py-4 ${isWholesale ? 'border-brandGold/20 bg-white/8 text-white' : 'border-brandBlue/10 bg-white/80 text-brandBlue'}`}>
+                            <div className={`rounded-[1.4rem] border px-5 py-4 ${isWholesale ? 'border-brandGold/20 bg-white/8 text-white' : 'border-brandBlue/10 bg-white/80 text-brandBlue dark:border-brandGold/20 dark:bg-white/[0.05] dark:text-white'}`}>
                                 <p className="text-[10px] font-black uppercase tracking-[0.24em] opacity-60">Order Type</p>
                                 <p className="mt-2 text-lg font-black">{isWholesale ? 'Wholesale' : 'Retail'}</p>
                             </div>
-                            <div className={`rounded-[1.4rem] border px-5 py-4 ${isWholesale ? 'border-brandGold/20 bg-white/8 text-white' : 'border-brandBlue/10 bg-white/80 text-brandBlue'}`}>
+                            <div className={`rounded-[1.4rem] border px-5 py-4 ${isWholesale ? 'border-brandGold/20 bg-white/8 text-white' : 'border-brandBlue/10 bg-white/80 text-brandBlue dark:border-brandGold/20 dark:bg-white/[0.05] dark:text-white'}`}>
                                 <p className="text-[10px] font-black uppercase tracking-[0.24em] opacity-60">Total</p>
                                 <p className="mt-2 text-2xl font-black">{formatCurrency(subtotal)}</p>
                             </div>
@@ -472,21 +472,21 @@ export default function CheckoutPageContent({ checkoutType }) {
                             <div className="flex items-center justify-between gap-4">
                                 <span className="flex flex-col items-end gap-1 text-right">
                                     <span className="block w-full text-right text-[9px] font-black uppercase leading-none tracking-[0.32em] text-brandGold">Items</span>
-                                    <span className="text-base font-extrabold leading-tight text-slate-100 dark:text-white">عدد الأصناف</span>
+                                    <span className="block w-full text-right text-base font-extrabold leading-tight text-slate-100 dark:text-white">عدد الأصناف</span>
                                 </span>
                                 <span className="text-brandBlue dark:text-white">{productCount}</span>
                             </div>
                             <div className="flex items-center justify-between gap-4">
                                 <span className="flex flex-col items-end gap-1 text-right">
                                     <span className="block w-full text-right text-[9px] font-black uppercase leading-none tracking-[0.32em] text-brandGold">Subtotal</span>
-                                    <span className="text-base font-extrabold leading-tight text-slate-100 dark:text-white">الطلب</span>
+                                    <span className="block w-full text-right text-base font-extrabold leading-tight text-slate-100 dark:text-white">الطلب</span>
                                 </span>
                                 <span className="text-brandBlue dark:text-white">{formatCurrency(subtotal)}</span>
                             </div>
                             <div className="flex items-center justify-between gap-4">
                                 <span className="flex flex-col items-end gap-1 text-right">
                                     <span className="block w-full text-right text-[9px] font-black uppercase leading-none tracking-[0.32em] text-brandGold">Discount</span>
-                                    <span className="text-base font-extrabold leading-tight text-slate-100 dark:text-white">الخصم</span>
+                                    <span className="block w-full text-right text-base font-extrabold leading-tight text-slate-100 dark:text-white">الخصم</span>
                                 </span>
                                 <span className={discountAmount > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-brandBlue dark:text-white'}>
                                     {discountAmount > 0 ? `- ${formatCurrency(discountAmount)}` : formatCurrency(0)}
@@ -495,14 +495,14 @@ export default function CheckoutPageContent({ checkoutType }) {
                             <div className="flex items-center justify-between gap-4">
                                 <span className="flex flex-col items-end gap-1 text-right">
                                     <span className="block w-full text-right text-[9px] font-black uppercase leading-none tracking-[0.32em] text-brandGold">Shipping</span>
-                                    <span className="text-base font-extrabold leading-tight text-slate-100 dark:text-white">الشحن</span>
+                                    <span className="block w-full text-right text-base font-extrabold leading-tight text-slate-100 dark:text-white">الشحن</span>
                                 </span>
                                 <span className="text-brandBlue dark:text-white">{formatCurrency(shippingAmount)}</span>
                             </div>
                             <div className="flex items-center justify-between gap-4 border-t border-dashed border-brandGold/15 pt-4 text-base">
                                 <span className="flex flex-col items-end gap-1 text-right font-black text-brandBlue dark:text-white">
                                     <span className="block w-full text-right text-[9px] font-black uppercase leading-none tracking-[0.32em] text-brandGold">Total</span>
-                                    <span className="text-[1.05rem] font-extrabold leading-tight text-slate-100 dark:text-white">الإجمالي النهائي</span>
+                                    <span className="block w-full text-right text-[1.05rem] font-extrabold leading-tight text-slate-100 dark:text-white">الإجمالي النهائي</span>
                                 </span>
                                 <span className="text-2xl font-black text-green-600 dark:text-brandGold">{formatCurrency(finalTotal)}</span>
                             </div>
@@ -512,8 +512,8 @@ export default function CheckoutPageContent({ checkoutType }) {
                             <div className="flex items-center justify-between gap-3">
                                 <div className="flex-1 text-right">
                                     <p className="block w-full text-right text-[9px] font-black uppercase leading-none tracking-[0.32em] text-brandGold">Promo Code</p>
-                                    <p className="mt-1 text-base font-extrabold leading-tight text-slate-100 dark:text-white">كود الخصم</p>
-                                    <p className="mt-2 text-[0.95rem] font-bold leading-7 text-slate-500 dark:text-slate-300">
+                                    <p className="mt-1 block w-full text-right text-base font-extrabold leading-tight text-slate-100 dark:text-white">كود الخصم</p>
+                                    <p className="mt-2 block w-full text-right text-[0.95rem] font-bold leading-7 text-slate-500 dark:text-slate-300">
                                         {promoSettings.normalizedCode ? 'اكتب البرومو كود واضغط تطبيق عشان الخصم ينزل على الطلب.' : 'لا يوجد Promo Code مفعّل حالياً من لوحة الإدارة.'}
                                     </p>
                                 </div>
