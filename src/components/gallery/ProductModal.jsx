@@ -707,7 +707,7 @@ export default function ProductModal() {
     const lastSyncedShareCodeRef = useRef('');
     const dismissedShareCodeRef = useRef('');
     const [retailOrderSheet, setRetailOrderSheet] = useState(null);
-    const retailPriceIncreasePercentage = parsePercentage(derivedSettings?.priceIncrease);
+    const [isClientMounted, setIsClientMounted] = useState(false);
     const requestedShareCode = String(searchParams?.get('code') || '').trim();
     const selectedProductShareCode = getProductShareCode(selectedProduct);
     const activeRetailSummary = useMemo(
@@ -715,11 +715,17 @@ export default function ProductModal() {
         [cartCount, cartItems, cartSubtotal, retailOrderSheet]
     );
     const shouldUseEmbeddedVariantCartBar = Boolean(
+        isClientMounted
+        &&
         selectedProduct
         && Array.isArray(selectedProduct?.variants)
         && selectedProduct.variants.length > 0
         && isCompactMobileViewport()
     );
+
+    useEffect(() => {
+        setIsClientMounted(true);
+    }, []);
 
     useEffect(() => {
         if (selectedProduct) {
@@ -856,7 +862,7 @@ export default function ProductModal() {
                 />
             ) : null}
 
-            {!shouldUseEmbeddedVariantCartBar ? (
+            {isClientMounted && !shouldUseEmbeddedVariantCartBar ? (
                 <ProductOrderDecisionSheet
                     summary={activeRetailSummary}
                     onDismiss={dismissRetailOrderSheet}
@@ -873,7 +879,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
     const [quantity, setQuantity] = useState(1);
     const [wholesaleQuantity, setWholesaleQuantity] = useState(1);
     const [showMobileVariantPicker, setShowMobileVariantPicker] = useState(false);
-    const { siteSettings } = useSiteSettings();
+    const { siteSettings, derivedSettings } = useSiteSettings();
     const [showLiveIndicator, setShowLiveIndicator] = useState(false);
     const [lightboxState, setLightboxState] = useState({ isOpen: false, images: [], index: 0, title: '' });
     const router = useRouter();
@@ -1121,6 +1127,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
     };
 
     const hasMultipleVariants = hasVariants && selectedProduct.variants.length > 1;
+    const productModalRetailIncreasePercentage = parsePercentage(derivedSettings?.priceIncrease);
 
     const stepActiveVariant = (direction) => {
         if (!hasMultipleVariants) return;
@@ -1141,7 +1148,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
         const variantNetPrice = variantExplicitNet > 0 ? variantExplicitNet : Math.max(0, variantRetailPrice - variantDiscountValue);
         const variantDisplayPrice = isStrictWholesaleUser
             ? variantNetPrice
-            : getGlobalRetailDisplayPrice(variantRetailPrice, retailPriceIncreasePercentage, userRole);
+            : getGlobalRetailDisplayPrice(variantRetailPrice, productModalRetailIncreasePercentage, userRole);
         
         return {
             src: displayImage,
@@ -1205,7 +1212,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
         || activePricingSource?.net
     );
     const netPriceValue = explicitNetPrice > 0 ? explicitNetPrice : Math.max(0, retailPriceValue - discountValue);
-    const adjustedRetailPriceValue = getGlobalRetailDisplayPrice(retailPriceValue, retailPriceIncreasePercentage, userRole);
+    const adjustedRetailPriceValue = getGlobalRetailDisplayPrice(retailPriceValue, productModalRetailIncreasePercentage, userRole);
     const primaryDisplayPrice = isStrictWholesaleUser ? netPriceValue : adjustedRetailPriceValue;
     const canShowWholesaleOrder = isWholesaleCustomer && wholesalePriceValue > 0;
 
