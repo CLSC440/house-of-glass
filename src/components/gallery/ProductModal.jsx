@@ -15,7 +15,7 @@ function parsePrice(value) {
 }
 
 function formatPriceLabel(value) {
-    return `${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EGP`;
+    return `${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م`;
 }
 
 function normalizeShareCode(value) {
@@ -540,8 +540,8 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
                 <div ref={sheetRef} className="pointer-events-auto order-sheet-scroll w-full max-w-lg overflow-y-auto rounded-[2rem] border border-brandGold/20 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.34)] animate-[order-sheet-rise_260ms_cubic-bezier(0.22,1,0.36,1)] dark:bg-[#11192c] max-h-[68vh] sm:max-h-[74vh] sm:max-w-xl" onClick={(event) => {
                     event.stopPropagation();
                 }}>
-                    <div className="order-sheet-drag-handle sticky top-0 z-10 flex justify-center border-b border-slate-200/80 bg-slate-50/94 px-5 pb-3 pt-3 backdrop-blur dark:border-white/10 dark:bg-[#11192c]/94" onPointerDown={handlePointerStart}>
-                        <div className="flex flex-col items-center gap-2">
+                    <div className="order-sheet-drag-handle sticky top-0 z-20 border-b border-slate-200/80 bg-slate-50/94 px-5 pb-4 pt-3 backdrop-blur dark:border-white/10 dark:bg-[#11192c]/94">
+                        <div className="flex flex-col items-center gap-2" onPointerDown={handlePointerStart}>
                             <span className="h-1.5 w-20 rounded-full bg-slate-300 dark:bg-white/15"></span>
                             <button
                                 type="button"
@@ -552,6 +552,13 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
                                 <i className="fa-solid fa-chevron-down text-[11px]"></i>
                             </button>
                         </div>
+
+                        {summary.isCartFallback ? (
+                            <div className="mt-4 flex items-start justify-between gap-4 rounded-[1.4rem] border border-slate-200/80 bg-white/70 px-4 py-3 dark:border-white/10 dark:bg-[#1a2238]" dir="ltr">
+                                <span className="pt-2 text-sm font-black text-slate-600 dark:text-slate-200">Total cart | إجمالي العربة</span>
+                                <span className="self-start text-xl font-black leading-none text-brandBlue dark:text-white">{formatPriceLabel(summary.nextCartSubtotal)}</span>
+                            </div>
+                        ) : null}
                     </div>
 
                     <div className="border-b border-slate-200 bg-slate-50/90 px-5 py-5 dark:border-white/10 dark:bg-white/[0.04]">
@@ -574,13 +581,6 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
                         <button type="button" onClick={handleDismissClick} className="mt-4 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition-colors hover:text-red-500 dark:border-white/10 dark:bg-white/10 dark:text-white">
                             <i className="fa-solid fa-xmark"></i>
                         </button>
-                    ) : null}
-
-                    {summary.isCartFallback ? (
-                        <div className="mt-5 flex items-center justify-between gap-4 rounded-[1.4rem] border border-slate-200/80 bg-white/70 px-4 py-3 dark:border-white/10 dark:bg-[#1a2238]" dir="ltr">
-                            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-600 dark:text-slate-200">Current Cart</span>
-                            <span className="text-xl font-black text-brandBlue dark:text-white">{formatPriceLabel(summary.nextCartSubtotal)}</span>
-                        </div>
                     ) : null}
                 </div>
 
