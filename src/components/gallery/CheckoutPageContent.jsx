@@ -346,12 +346,32 @@ export default function CheckoutPageContent({ checkoutType }) {
                         return (
                             <article key={item.cartId} className="rounded-[1.8rem] border border-brandGold/18 bg-white p-5 shadow-[0_20px_45px_rgba(18,25,38,0.06)] dark:border-brandGold/15 dark:bg-darkCard md:p-6">
                                 <div className="flex flex-col gap-5 md:flex-row md:items-center">
-                                    <div className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-[1.5rem] border border-brandGold/15 bg-gray-50 p-3 dark:bg-gray-900/50">
+                                    <div className="hidden h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-[1.5rem] border border-brandGold/15 bg-gray-50 p-3 dark:bg-gray-900/50 md:flex">
                                         <img src={item.image || '/logo.png'} alt={item.title || item.name} className="max-h-full max-w-full object-contain" />
                                     </div>
 
                                     <div className="min-w-0 flex-1">
-                                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                                        <div className="flex items-start justify-between gap-3 md:hidden">
+                                            <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[1.35rem] border border-brandGold/15 bg-gray-50 p-3 dark:bg-gray-900/50">
+                                                <img src={item.image || '/logo.png'} alt={item.title || item.name} className="max-h-full max-w-full object-contain" />
+                                            </div>
+
+                                            <div className="min-w-0 flex-1 pt-1 text-right">
+                                                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-brandGold">{item.category || (isWholesale ? 'Wholesale Item' : 'Gallery Item')}</p>
+                                                <h2 className="mt-2 text-[1.75rem] font-black leading-none text-brandBlue dark:text-white">{item.title || item.name}</h2>
+                                                {item.productCode ? <p className="mt-2 text-xs font-bold tracking-[0.18em] text-slate-400">Code: {item.productCode}</p> : null}
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => removeItem(item.cartId)}
+                                                className="shrink-0 self-start rounded-full border border-red-200 px-5 py-2 text-xs font-black text-red-500 transition-colors hover:bg-red-50 dark:border-red-500/20 dark:hover:bg-red-500/10"
+                                            >
+                                                حذف
+                                            </button>
+                                        </div>
+
+                                        <div className="hidden md:flex md:flex-row md:items-start md:justify-between md:gap-4">
                                             <div>
                                                 <p className="text-[10px] font-black uppercase tracking-[0.28em] text-brandGold">{item.category || (isWholesale ? 'Wholesale Item' : 'Gallery Item')}</p>
                                                 <h2 className="mt-2 text-xl font-black text-brandBlue dark:text-white">{item.title || item.name}</h2>
@@ -367,13 +387,13 @@ export default function CheckoutPageContent({ checkoutType }) {
                                             </button>
                                         </div>
 
-                                        <div className="mt-5 grid gap-4 md:grid-cols-[auto_auto_1fr] md:items-end">
-                                            <div>
+                                        <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-end gap-4 md:grid-cols-[auto_auto_1fr] md:items-end">
+                                            <div className="text-right md:text-right">
                                                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Price</p>
                                                 <p className="mt-2 text-xl font-black text-green-600 dark:text-brandGold">{formatCurrency(item.price)}</p>
                                             </div>
 
-                                            <div>
+                                            <div className="text-center">
                                                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Quantity</p>
                                                 <div className="mt-2 inline-flex items-center rounded-2xl border border-brandGold/20 bg-white shadow-sm dark:bg-gray-900">
                                                     <button
@@ -395,7 +415,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                                                 </div>
                                             </div>
 
-                                            <div className="md:text-left">
+                                            <div className="text-left md:text-left">
                                                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Line Total</p>
                                                 <p className="mt-2 text-xl font-black text-brandBlue dark:text-white">{formatCurrency((Number(item.price) || 0) * item.quantity)}</p>
                                                 {stockLimit !== null ? (
