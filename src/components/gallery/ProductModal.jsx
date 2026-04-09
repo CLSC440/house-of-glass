@@ -480,6 +480,27 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
         };
     }, []);
 
+    useEffect(() => {
+        if (typeof document === 'undefined') {
+            return undefined;
+        }
+
+        if (isMinimized || !summary) {
+            return undefined;
+        }
+
+        const previousBodyOverflow = document.body.style.overflow;
+        const previousHtmlOverflow = document.documentElement.style.overflow;
+
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+
+        return () => {
+            document.body.style.overflow = previousBodyOverflow;
+            document.documentElement.style.overflow = previousHtmlOverflow;
+        };
+    }, [isMinimized, summary]);
+
     if (!summary) {
         return null;
     }
@@ -537,7 +558,7 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
             ></button>
 
             <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6">
-                <div ref={sheetRef} className="pointer-events-auto order-sheet-scroll w-full max-w-lg overflow-y-auto rounded-[2rem] border border-brandGold/20 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.34)] animate-[order-sheet-rise_260ms_cubic-bezier(0.22,1,0.36,1)] dark:bg-[#11192c] max-h-[68vh] sm:max-h-[74vh] sm:max-w-xl" onClick={(event) => {
+                <div ref={sheetRef} className="pointer-events-auto order-sheet-scroll w-full max-w-lg overflow-y-auto overscroll-contain rounded-[2rem] border border-brandGold/20 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.34)] animate-[order-sheet-rise_260ms_cubic-bezier(0.22,1,0.36,1)] dark:bg-[#11192c] max-h-[68vh] sm:max-h-[74vh] sm:max-w-xl" onClick={(event) => {
                     event.stopPropagation();
                 }}>
                     <div className="order-sheet-drag-handle sticky top-0 z-20 border-b border-slate-200/80 bg-slate-50/94 px-5 pb-4 pt-3 backdrop-blur dark:border-white/10 dark:bg-[#11192c]/94">
@@ -554,9 +575,9 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
                         </div>
 
                         {summary.isCartFallback ? (
-                            <div className="mt-4 flex items-start justify-between gap-4 rounded-[1.4rem] border border-slate-200/80 bg-white/70 px-4 py-3 dark:border-white/10 dark:bg-[#1a2238]" dir="ltr">
-                                <span className="pt-2 text-sm font-black text-slate-600 dark:text-slate-200">Total cart | إجمالي العربة</span>
-                                <span className="self-start text-xl font-black leading-none text-brandBlue dark:text-white">{formatPriceLabel(summary.nextCartSubtotal)}</span>
+                            <div className="mt-4 flex items-center justify-between gap-4 rounded-[1.4rem] border border-slate-200/80 bg-white/70 px-4 py-3 dark:border-white/10 dark:bg-[#1a2238]" dir="ltr">
+                                <span className="text-sm font-black text-slate-600 dark:text-slate-200">Total cart | إجمالي العربة</span>
+                                <span className="text-xl font-black text-brandBlue dark:text-white">{formatPriceLabel(summary.nextCartSubtotal)}</span>
                             </div>
                         ) : null}
                     </div>
