@@ -911,12 +911,6 @@ export default function ProductGrid() {
                             
                             <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:block"></div>
                             
-                            <div className="absolute bottom-6 left-0 right-0 px-6 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 hidden md:block">
-                                <button className="w-full bg-white text-gray-900 font-bold py-3.5 rounded-xl shadow-xl flex items-center justify-center gap-2 hover:bg-brandGold hover:text-white transition-colors">
-                                    <i className="fa-regular fa-eye"></i>
-                                    عرض التفاصيل
-                                </button>
-                            </div>
                         </div>
 
                         <div>
