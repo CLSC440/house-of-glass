@@ -302,6 +302,40 @@ export default function ProductGrid() {
         return variant?.name || variant?.label || variant?.title || `Variant ${index + 1}`;
     };
 
+    const getProductShareCode = (product = {}) => {
+        const safeProduct = product && typeof product === 'object' ? product : {};
+        const primaryCode = [safeProduct.code, safeProduct.barcode, safeProduct.sku]
+            .map((entry) => String(entry || '').trim())
+            .find(Boolean);
+
+        if (primaryCode) {
+            return primaryCode;
+        }
+
+        const variants = Array.isArray(safeProduct.variants) ? safeProduct.variants : [];
+        return variants
+            .flatMap((variant) => [variant?.code, variant?.barcode, variant?.sku])
+            .map((entry) => String(entry || '').trim())
+            .find(Boolean) || '';
+    };
+
+    const buildProductDetailUrl = (nextShareCode) => {
+        if (typeof window === 'undefined') {
+            return '/';
+        }
+
+        const params = new URLSearchParams(window.location.search);
+
+        if (nextShareCode) {
+            params.set('code', nextShareCode);
+        } else {
+            params.delete('code');
+        }
+
+        const query = params.toString();
+        return `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash || ''}`;
+    };
+
     const getVariantImageUrl = (variant) => {
         if (variant?.image) return variant.image;
 
@@ -328,6 +362,26 @@ export default function ProductGrid() {
 
     const openProductDetails = (product, event) => {
         if (event) event.stopPropagation();
+
+        if (typeof window !== 'undefined') {
+            const shareCode = getProductShareCode(product);
+
+            if (shareCode) {
+                const currentUrl = buildProductDetailUrl('');
+                const productUrl = buildProductDetailUrl(shareCode);
+                const baseState = window.history.state || {};
+
+                if (productUrl !== window.location.href.replace(window.location.origin, '')) {
+                    if (currentUrl !== '/') {
+                        window.history.replaceState({ ...baseState, hogStorefrontBackGuard: 'home-base' }, '', '/');
+                        window.history.pushState({ ...baseState, hogStorefrontBackGuard: 'filter-step' }, '', currentUrl);
+                    }
+
+                    window.history.pushState({ ...baseState, hogStorefrontBackGuard: 'product-step' }, '', productUrl);
+                }
+            }
+        }
+
         setSelectedProduct(product);
     };
 

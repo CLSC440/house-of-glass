@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { auth, db } from '@/lib/firebase';
@@ -158,7 +158,7 @@ export default function Header() {
         closeSidebar();
     };
 
-    const resetStorefrontToHome = ({ forceNavigation = false } = {}) => {
+    const resetStorefrontToHome = useCallback(({ forceNavigation = false } = {}) => {
         setSelectedProduct(null);
         clearAllFilters();
         closeAccountPanel();
@@ -170,12 +170,12 @@ export default function Header() {
         }
 
         if (!forceNavigation && pathname === '/') {
-            window.history.replaceState(window.history.state, '', '/');
+            window.history.replaceState({ ...(window.history.state || {}), hogStorefrontBackGuard: 'home-base' }, '', '/');
             return;
         }
 
         window.location.replace('/');
-    };
+    }, [pathname, router, setSelectedProduct, clearAllFilters]);
 
     const handleHomeNavigation = (event) => {
         event?.preventDefault?.();
@@ -187,12 +187,59 @@ export default function Header() {
             return;
         }
 
-        const hasDirtyUrl = Boolean(window.location.search || window.location.hash);
-        const nextShouldGuardBack = pathname !== '/' || activeFilterChips.length > 0 || Boolean(selectedProduct) || hasDirtyUrl;
+        const params = new URLSearchParams(window.location.search);
+        const hasCode = Boolean(params.get('code'));
+        const hasFilterParams = ['category', 'categories', 'categoryGroups', 'brands', 'origins', 'search', 'stock'].some((key) => {
+            return params.getAll(key).some((value) => String(value || '').trim());
+        });
+        const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash || ''}`;
+        const currentGuardState = window.history.state?.hogStorefrontBackGuard;
+        const baseState = window.history.state || {};
+        const nextShouldGuardBack = pathname !== '/' || activeFilterChips.length > 0 || Boolean(selectedProduct) || hasCode || hasFilterParams;
+
         shouldGuardBackRef.current = nextShouldGuardBack;
 
+        if (currentGuardState === 'product-step' || currentGuardState === 'filter-step' || currentGuardState === 'route-step') {
+            backGuardActiveRef.current = true;
+            return;
+        }
+
+        if (currentGuardState === 'home-base') {
+            backGuardActiveRef.current = false;
+            return;
+        }
+
         if (nextShouldGuardBack && !backGuardActiveRef.current) {
-            window.history.pushState({ ...(window.history.state || {}), hogStorefrontBackGuard: true }, '', window.location.href);
+            if (pathname !== '/') {
+                window.history.replaceState({ ...baseState, hogStorefrontBackGuard: 'home-base' }, '', '/');
+                window.history.pushState({ ...baseState, hogStorefrontBackGuard: 'route-step' }, '', currentUrl);
+                backGuardActiveRef.current = true;
+                return;
+            }
+
+            if (hasCode) {
+                params.delete('code');
+                const filterQuery = params.toString();
+                const filterUrl = `${window.location.pathname}${filterQuery ? `?${filterQuery}` : ''}${window.location.hash || ''}`;
+
+                window.history.replaceState({ ...baseState, hogStorefrontBackGuard: 'home-base' }, '', '/');
+
+                if (filterUrl !== '/') {
+                    window.history.pushState({ ...baseState, hogStorefrontBackGuard: 'filter-step' }, '', filterUrl);
+                }
+
+                window.history.pushState({ ...baseState, hogStorefrontBackGuard: 'product-step' }, '', currentUrl);
+                backGuardActiveRef.current = true;
+                return;
+            }
+
+            if (hasFilterParams && currentUrl !== '/') {
+                window.history.replaceState({ ...baseState, hogStorefrontBackGuard: 'home-base' }, '', '/');
+                window.history.pushState({ ...baseState, hogStorefrontBackGuard: 'filter-step' }, '', currentUrl);
+                backGuardActiveRef.current = true;
+                return;
+            }
+
             backGuardActiveRef.current = true;
             return;
         }
@@ -207,7 +254,17 @@ export default function Header() {
             return;
         }
 
-        const handlePopState = () => {
+        const handlePopState = (event) => {
+            const guardState = event.state?.hogStorefrontBackGuard;
+
+            if (guardState === 'filter-step') {
+                setSelectedProduct(null);
+                closeAccountPanel();
+                closeSidebar();
+                backGuardActiveRef.current = true;
+                return;
+            }
+
             const shouldForceCleanHome = window.location.pathname !== '/' || Boolean(window.location.search || window.location.hash) || shouldGuardBackRef.current;
 
             backGuardActiveRef.current = false;
@@ -221,7 +278,7 @@ export default function Header() {
 
         window.addEventListener('popstate', handlePopState);
         return () => window.removeEventListener('popstate', handlePopState);
-    }, [pathname]);
+    }, [pathname, resetStorefrontToHome, setSelectedProduct]);
 
     const navigateToAdminDashboard = () => {
         if (isAdminRedirecting) {
