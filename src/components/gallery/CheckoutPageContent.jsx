@@ -304,33 +304,33 @@ export default function CheckoutPageContent({ checkoutType }) {
     return (
         <section className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-8 md:px-8 md:py-12" dir="rtl">
             <div className="overflow-hidden rounded-[2rem] border border-brandGold/20 bg-white shadow-[0_25px_80px_rgba(18,25,38,0.08)] dark:bg-darkCard">
-                <div className={`relative overflow-hidden px-6 py-8 md:px-10 md:py-10 ${isWholesale ? 'bg-[radial-gradient(circle_at_top_left,_rgba(212,175,55,0.25),_transparent_38%),linear-gradient(135deg,#121926_0%,#1e2740_45%,#0b1222_100%)]' : 'bg-[radial-gradient(circle_at_top_left,_rgba(212,175,55,0.18),_transparent_35%),linear-gradient(135deg,#f7f3e8_0%,#ffffff_42%,#eef3fb_100%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(212,175,55,0.22),_transparent_38%),linear-gradient(135deg,#121926_0%,#1c2438_48%,#0b1222_100%)]'}`}>
+                <div className={`relative overflow-hidden px-5 py-6 md:px-10 md:py-10 ${isWholesale ? 'bg-[radial-gradient(circle_at_top_left,_rgba(212,175,55,0.25),_transparent_38%),linear-gradient(135deg,#121926_0%,#1e2740_45%,#0b1222_100%)]' : 'bg-[radial-gradient(circle_at_top_left,_rgba(212,175,55,0.18),_transparent_35%),linear-gradient(135deg,#f7f3e8_0%,#ffffff_42%,#eef3fb_100%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(212,175,55,0.22),_transparent_38%),linear-gradient(135deg,#121926_0%,#1c2438_48%,#0b1222_100%)]'}`}>
                     <div className="absolute inset-y-0 left-0 hidden w-56 bg-[linear-gradient(135deg,rgba(212,175,55,0.14),transparent)] md:block dark:bg-[linear-gradient(135deg,rgba(212,175,55,0.12),transparent)]"></div>
-                    <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                    <div className="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                         <div>
-                            <p className={`text-[11px] font-black uppercase tracking-[0.35em] ${isWholesale ? 'text-brandGold' : 'text-brandBlue/60 dark:text-brandGold'}`}>
+                            <p className={`text-[10px] font-black uppercase tracking-[0.28em] md:text-[11px] md:tracking-[0.35em] ${isWholesale ? 'text-brandGold' : 'text-brandBlue/60 dark:text-brandGold'}`}>
                                 {isWholesale ? 'Wholesale Checkout' : 'Retail Checkout'}
                             </p>
-                            <h1 className={`mt-3 text-3xl font-black md:text-4xl ${isWholesale ? 'text-white' : 'text-brandBlue dark:text-white'}`}>
+                            <h1 className={`mt-2 text-[2.15rem] font-black leading-[0.98] sm:text-[2.4rem] md:mt-3 md:text-4xl ${isWholesale ? 'text-white' : 'text-brandBlue dark:text-white'}`}>
                                 {isWholesale ? 'راجع طلب الجملة قبل التأكيد' : 'راجع تفاصيل الطلب قبل التأكيد'}
                             </h1>
-                            <p className={`mt-3 max-w-2xl text-sm leading-7 md:text-base ${isWholesale ? 'text-slate-200' : 'text-slate-600 dark:text-slate-300'}`}>
+                            <p className={`mt-2 max-w-xl text-[13px] leading-6 sm:text-sm md:mt-3 md:max-w-2xl md:text-base md:leading-7 ${isWholesale ? 'text-slate-200' : 'text-slate-600 dark:text-slate-300'}`}>
                                 هنا تقدر تشوف كل المنتجات، تعدل الكميات، وتراجع بيانات الحساب قبل إرسال الطلب النهائي.
                             </p>
                         </div>
 
-                        <div className="grid gap-3 sm:grid-cols-3">
-                            <div className={`rounded-[1.4rem] border px-5 py-4 ${isWholesale ? 'border-brandGold/20 bg-white/8 text-white' : 'border-brandBlue/10 bg-white/80 text-brandBlue dark:border-brandGold/20 dark:bg-white/[0.05] dark:text-white'}`}>
-                                <p className="text-[10px] font-black uppercase tracking-[0.24em] opacity-60">Items</p>
-                                <p className="mt-2 text-2xl font-black">{itemCount}</p>
+                        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                            <div className={`rounded-[1.1rem] border px-3 py-3 sm:rounded-[1.4rem] sm:px-5 sm:py-4 ${isWholesale ? 'border-brandGold/20 bg-white/8 text-white' : 'border-brandBlue/10 bg-white/80 text-brandBlue dark:border-brandGold/20 dark:bg-white/[0.05] dark:text-white'}`}>
+                                <p className="text-[9px] font-black uppercase tracking-[0.18em] opacity-60 sm:text-[10px] sm:tracking-[0.24em]">Items</p>
+                                <p className="mt-1 text-xl font-black sm:mt-2 sm:text-2xl">{itemCount}</p>
                             </div>
-                            <div className={`rounded-[1.4rem] border px-5 py-4 ${isWholesale ? 'border-brandGold/20 bg-white/8 text-white' : 'border-brandBlue/10 bg-white/80 text-brandBlue dark:border-brandGold/20 dark:bg-white/[0.05] dark:text-white'}`}>
-                                <p className="text-[10px] font-black uppercase tracking-[0.24em] opacity-60">Order Type</p>
-                                <p className="mt-2 text-lg font-black">{isWholesale ? 'Wholesale' : 'Retail'}</p>
+                            <div className={`rounded-[1.1rem] border px-3 py-3 sm:rounded-[1.4rem] sm:px-5 sm:py-4 ${isWholesale ? 'border-brandGold/20 bg-white/8 text-white' : 'border-brandBlue/10 bg-white/80 text-brandBlue dark:border-brandGold/20 dark:bg-white/[0.05] dark:text-white'}`}>
+                                <p className="text-[9px] font-black uppercase tracking-[0.18em] opacity-60 sm:text-[10px] sm:tracking-[0.24em]">Type</p>
+                                <p className="mt-1 text-sm font-black sm:mt-2 sm:text-lg">{isWholesale ? 'Wholesale' : 'Retail'}</p>
                             </div>
-                            <div className={`rounded-[1.4rem] border px-5 py-4 ${isWholesale ? 'border-brandGold/20 bg-white/8 text-white' : 'border-brandBlue/10 bg-white/80 text-brandBlue dark:border-brandGold/20 dark:bg-white/[0.05] dark:text-white'}`}>
-                                <p className="text-[10px] font-black uppercase tracking-[0.24em] opacity-60">Total</p>
-                                <p className="mt-2 text-2xl font-black">{formatCurrency(subtotal)}</p>
+                            <div className={`rounded-[1.1rem] border px-3 py-3 sm:rounded-[1.4rem] sm:px-5 sm:py-4 ${isWholesale ? 'border-brandGold/20 bg-white/8 text-white' : 'border-brandBlue/10 bg-white/80 text-brandBlue dark:border-brandGold/20 dark:bg-white/[0.05] dark:text-white'}`}>
+                                <p className="text-[9px] font-black uppercase tracking-[0.18em] opacity-60 sm:text-[10px] sm:tracking-[0.24em]">Total</p>
+                                <p className="mt-1 text-lg font-black sm:mt-2 sm:text-2xl">{formatCurrency(subtotal)}</p>
                             </div>
                         </div>
                     </div>
