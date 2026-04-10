@@ -707,6 +707,7 @@ export function GalleryProvider({ children }) {
     const [toast, setToast] = useState(null);
     const [isCartHydrated, setIsCartHydrated] = useState(false);
     const [isWholesaleCartHydrated, setIsWholesaleCartHydrated] = useState(false);
+    const [hasHydratedUrlFilters, setHasHydratedUrlFilters] = useState(false);
     const [dcLiveUpdateAt, setDcLiveUpdateAt] = useState(0);
     const [dcSyncedAt, setDcSyncedAt] = useState(0);
     const didRestoreUrlFiltersRef = useRef(false);
@@ -1004,6 +1005,7 @@ export function GalleryProvider({ children }) {
         if (originsParam.length > 0) setSelectedOrigins(originsParam);
 
         didRestoreUrlFiltersRef.current = true;
+        setHasHydratedUrlFilters(true);
     }, [categories, categoryGroups]);
 
     useEffect(() => {
@@ -1033,7 +1035,7 @@ export function GalleryProvider({ children }) {
     }, [cartItems, isCartHydrated]);
 
     useEffect(() => {
-        if (typeof window === 'undefined') return;
+        if (typeof window === 'undefined' || !hasHydratedUrlFilters) return;
 
         const url = new URL(window.location.href);
         url.searchParams.delete('category');
@@ -1070,7 +1072,7 @@ export function GalleryProvider({ children }) {
         }
 
         window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
-    }, [searchQuery, selectedCategories, selectedCategoryGroupIds, selectedBrands, selectedOrigins, hideOutOfStockProducts, categories, categoryGroups]);
+    }, [searchQuery, selectedCategories, selectedCategoryGroupIds, selectedBrands, selectedOrigins, hideOutOfStockProducts, categories, categoryGroups, hasHydratedUrlFilters]);
 
     useEffect(() => {
         if (typeof window === 'undefined' || !isWholesaleCartHydrated) return;
