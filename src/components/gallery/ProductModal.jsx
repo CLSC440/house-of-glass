@@ -312,6 +312,27 @@ function ProductDetailCard({ iconClassName, iconWrapperClassName, label, value, 
     );
 }
 
+function buildAvailabilityCardContent({ isWholesaleContext, stockStatus, stockLimit, retailStockLimit }) {
+    const isOutOfStock = stockStatus === 'out_of_stock' || stockLimit === 0;
+    const hasRetailFallback = isWholesaleContext && Number.isFinite(retailStockLimit) && retailStockLimit > 0;
+
+    return {
+        label: isWholesaleContext ? 'Wholesale Availability | توفر الجملة' : 'Availability | حالة التوفر',
+        value: isOutOfStock
+            ? (hasRetailFallback ? 'نفدت كمية الجملة' : 'نفدت الكمية')
+            : stockStatus === 'low_stock'
+                ? (stockLimit !== null ? `كمية محدودة (${stockLimit})` : 'كمية محدودة')
+                : 'متوفر',
+        caption: isOutOfStock
+            ? (hasRetailFallback
+                ? `الجملة غير متاحة حالياً، لكن العبوات متاحة حتى ${retailStockLimit}.`
+                : 'سيتم التحديث بمجرد توفر شحنة جديدة.')
+            : stockLimit !== null
+                ? `الحد الأقصى المتاح حالياً: ${stockLimit}`
+                : 'جاهز للطلب الآن.'
+    };
+}
+
 function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startMinimized = false }) {
     const sheetRef = useRef(null);
     const backdropRef = useRef(null);
@@ -1229,16 +1250,14 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
     const wholesaleOutOfStock = wholesaleStockStatus === 'out_of_stock' || wholesaleStockLimit === 0;
     const isOutOfStock = normalizedStockStatus === 'out_of_stock' || stockLimit === 0;
     const showStockLimitMessage = stockLimit !== null && quantity >= stockLimit;
-    const stockLabel = isOutOfStock
-        ? 'نفدت الكمية'
-        : normalizedStockStatus === 'low_stock'
-            ? (stockLimit !== null ? `كمية محدودة (${stockLimit})` : 'كمية محدودة')
-            : 'متوفر';
-    const stockCaption = isOutOfStock
-        ? 'سيتم التحديث بمجرد توفر شحنة جديدة.'
-        : stockLimit !== null
-            ? `الحد الأقصى المتاح حالياً: ${stockLimit}`
-            : 'جاهز للطلب الآن.';
+    const stockCardContent = buildAvailabilityCardContent({
+        isWholesaleContext: isStrictWholesaleUser,
+        stockStatus: normalizedStockStatus,
+        stockLimit,
+        retailStockLimit
+    });
+    const stockLabel = stockCardContent.value;
+    const stockCaption = stockCardContent.caption;
     const stockCardTone = isOutOfStock
         ? 'bg-rose-500 text-white'
         : normalizedStockStatus === 'low_stock'
@@ -1642,16 +1661,16 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
         const variantRetailOutOfStock = variantRetailStockStatus === 'out_of_stock' || variantRetailStockLimit === 0;
         const variantWholesaleOutOfStock = variantWholesaleStockStatus === 'out_of_stock' || variantWholesaleStockLimit === 0;
         const variantOutOfStock = variantNormalizedStockStatus === 'out_of_stock' || variantStockLimit === 0;
-        const variantStockLabel = variantOutOfStock
-            ? 'نفدت الكمية'
-            : variantNormalizedStockStatus === 'low_stock'
-                ? (variantStockLimit !== null ? `كمية محدودة (${variantStockLimit})` : 'كمية محدودة')
-                : 'متوفر';
-        const variantStockCaption = variantOutOfStock
+        const variantStockCardContent = buildAvailabilityCardContent({
+            isWholesaleContext: isStrictWholesaleUser,
+            stockStatus: variantNormalizedStockStatus,
+            stockLimit: variantStockLimit,
+            retailStockLimit: variantRetailStockLimit
+        });
+        const variantStockLabel = variantStockCardContent.value;
+        const variantStockCaption = variantOutOfStock && !isStrictWholesaleUser
             ? 'هذا الموديل غير متاح حالياً.'
-            : variantStockLimit !== null
-                ? `الحد الأقصى المتاح حالياً: ${variantStockLimit}`
-                : 'جاهز للطلب الآن.';
+            : variantStockCardContent.caption;
         const variantStockCardTone = variantOutOfStock
             ? 'bg-rose-500 text-white'
             : variantNormalizedStockStatus === 'low_stock'
@@ -1723,7 +1742,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                     <ProductDetailCard
                         iconClassName={variantStockIcon}
                         iconWrapperClassName={variantStockCardTone}
-                        label="Availability | حالة التوفر"
+                        label={variantStockCardContent.label}
                         value={variantStockLabel}
                         valueClassName={variantOutOfStock ? 'text-rose-500 dark:text-rose-300' : variantNormalizedStockStatus === 'low_stock' ? 'text-amber-500 dark:text-amber-300' : 'text-emerald-600 dark:text-emerald-300'}
                         caption={variantStockCaption}
@@ -2010,7 +2029,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                             <ProductDetailCard
                                 iconClassName={stockIcon}
                                 iconWrapperClassName={stockCardTone}
-                                label="Availability | حالة التوفر"
+                                label={stockCardContent.label}
                                 value={stockLabel}
                                 valueClassName={isOutOfStock ? 'text-rose-500 dark:text-rose-300' : normalizedStockStatus === 'low_stock' ? 'text-amber-500 dark:text-amber-300' : 'text-emerald-600 dark:text-emerald-300'}
                                 caption={stockCaption}
@@ -2331,7 +2350,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                             <ProductDetailCard
                                 iconClassName={stockIcon}
                                 iconWrapperClassName={stockCardTone}
-                                label="Availability | حالة التوفر"
+                                label={stockCardContent.label}
                                 value={stockLabel}
                                 valueClassName={isOutOfStock ? 'text-rose-500 dark:text-rose-300' : normalizedStockStatus === 'low_stock' ? 'text-amber-500 dark:text-amber-300' : 'text-emerald-600 dark:text-emerald-300'}
                                 caption={stockCaption}
