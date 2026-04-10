@@ -64,6 +64,15 @@ function getOrderShippingAddress(order) {
     return order.shippingAddress || order.customerInfo?.shippingAddress || order.customer?.shippingAddress || '';
 }
 
+function getOrderPromoCode(order) {
+    return String(order.promoCode || order.promo_code || '').trim();
+}
+
+function getOrderDiscountAmount(order) {
+    const normalized = Number(order.discountAmount ?? order.discount_amount ?? 0);
+    return Number.isFinite(normalized) ? normalized : 0;
+}
+
 function getItemUnitPrice(item, orderType) {
     const rawPrice = orderType === 'wholesale'
         ? item.wholesalePrice || item.wholesale_price || item.cartonPrice || item.bulkPrice || item.price
@@ -820,6 +829,8 @@ export default function AdminOrders() {
                                                                         <InfoPill label="Items Count" value={String(order.itemCount || items.reduce((sum, item) => sum + Number(item.quantity || 0), 0) || items.length)} />
                                                                         <InfoPill label="Source" value={order.source || 'Website'} />
                                                                         <InfoPill label="Date" value={parseTimestamp(getOrderDateValue(order))} />
+                                                                        <InfoPill label="Promo Code" value={getOrderPromoCode(order) || 'Not used'} />
+                                                                        <InfoPill label="Discount Applied" value={`${getOrderDiscountAmount(order).toLocaleString()} ج.م`} />
                                                                         <InfoPill label="Total" value={`${amount.toLocaleString()} ج.م`} />
                                                                         <InfoPill label="DC Sync" value={dcSyncState.label} />
                                                                     </div>
