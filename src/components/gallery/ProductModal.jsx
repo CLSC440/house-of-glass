@@ -312,6 +312,36 @@ function ProductDetailCard({ iconClassName, iconWrapperClassName, label, value, 
     );
 }
 
+function buildWholesaleAvailabilityCaption({ isStrictWholesaleUser, retailStockLimit, wholesaleStockLimit, fallbackCaption }) {
+    if (!isStrictWholesaleUser) {
+        return fallbackCaption;
+    }
+
+    const captionLines = [];
+
+    if (retailStockLimit !== null) {
+        captionLines.push(
+            <span key="retail-stock-limit" className="block">
+                الحد الأقصى المتاح حالياً للعبوات: {retailStockLimit}
+            </span>
+        );
+    }
+
+    if (wholesaleStockLimit !== null) {
+        captionLines.push(
+            <span key="wholesale-stock-limit" className="block">
+                الحد الأقصى المتاح حالياً للجملة: {wholesaleStockLimit}
+            </span>
+        );
+    }
+
+    if (captionLines.length === 0) {
+        return fallbackCaption;
+    }
+
+    return <>{captionLines}</>;
+}
+
 function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startMinimized = false }) {
     const sheetRef = useRef(null);
     const backdropRef = useRef(null);
@@ -1238,6 +1268,12 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
         : stockLimit !== null
             ? `الحد الأقصى المتاح حالياً: ${stockLimit}`
             : 'جاهز للطلب الآن.';
+    const stockCaptionContent = buildWholesaleAvailabilityCaption({
+        isStrictWholesaleUser,
+        retailStockLimit,
+        wholesaleStockLimit,
+        fallbackCaption: stockCaption
+    });
     const stockCardTone = isOutOfStock
         ? 'bg-rose-500 text-white'
         : normalizedStockStatus === 'low_stock'
@@ -1651,6 +1687,12 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
             : variantStockLimit !== null
                 ? `الحد الأقصى المتاح حالياً: ${variantStockLimit}`
                 : 'جاهز للطلب الآن.';
+        const variantStockCaptionContent = buildWholesaleAvailabilityCaption({
+            isStrictWholesaleUser,
+            retailStockLimit: variantRetailStockLimit,
+            wholesaleStockLimit: variantWholesaleStockLimit,
+            fallbackCaption: variantStockCaption
+        });
         const variantStockCardTone = variantOutOfStock
             ? 'bg-rose-500 text-white'
             : variantNormalizedStockStatus === 'low_stock'
@@ -1725,7 +1767,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                         label="Availability | حالة التوفر"
                         value={variantStockLabel}
                         valueClassName={variantOutOfStock ? 'text-rose-500 dark:text-rose-300' : variantNormalizedStockStatus === 'low_stock' ? 'text-amber-500 dark:text-amber-300' : 'text-emerald-600 dark:text-emerald-300'}
-                        caption={variantStockCaption}
+                        caption={variantStockCaptionContent}
                     />
 
                     {isWholesaleCustomer && variantWholesalePrice > 0 ? renderWholesaleOrderCard({
@@ -2012,7 +2054,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                                 label="Availability | حالة التوفر"
                                 value={stockLabel}
                                 valueClassName={isOutOfStock ? 'text-rose-500 dark:text-rose-300' : normalizedStockStatus === 'low_stock' ? 'text-amber-500 dark:text-amber-300' : 'text-emerald-600 dark:text-emerald-300'}
-                                caption={stockCaption}
+                                caption={stockCaptionContent}
                             />
 
                             {activeVariantDescription !== '' ? (
@@ -2333,7 +2375,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                                 label="Availability | حالة التوفر"
                                 value={stockLabel}
                                 valueClassName={isOutOfStock ? 'text-rose-500 dark:text-rose-300' : normalizedStockStatus === 'low_stock' ? 'text-amber-500 dark:text-amber-300' : 'text-emerald-600 dark:text-emerald-300'}
-                                caption={stockCaption}
+                                caption={stockCaptionContent}
                             />
                         ) : null}
                         
