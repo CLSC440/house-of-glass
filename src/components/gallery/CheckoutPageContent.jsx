@@ -510,55 +510,71 @@ export default function CheckoutPageContent({ checkoutType }) {
                                         </span>
                                     </div>
 
-                                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setDeliveryMethod('pickup');
-                                                setShippingAddressError('');
-                                            }}
-                                            className={`rounded-[1.35rem] border px-4 py-4 text-right transition-colors ${!isShippingSelected ? 'border-brandBlue bg-brandBlue text-white shadow-lg shadow-brandBlue/15 dark:border-brandGold dark:bg-brandGold dark:text-brandBlue' : 'border-brandGold/18 bg-white text-brandBlue hover:bg-brandGold/10 dark:bg-gray-900/60 dark:text-white'}`}
-                                        >
-                                            <p className={`text-[10px] font-black uppercase tracking-[0.22em] ${!isShippingSelected ? 'text-white/75 dark:text-brandBlue/75' : 'text-brandGold'}`}>Pickup</p>
-                                            <p className="mt-2 text-base font-black">استلام الطلب من المعرض</p>
-                                            <p className={`mt-2 text-sm font-bold leading-6 ${!isShippingSelected ? 'text-white/80 dark:text-brandBlue/80' : 'text-slate-500 dark:text-slate-300'}`}>بدون رسوم شحن، وتأكيد الطلب يتم بنفس بياناتك الحالية.</p>
-                                        </button>
-
-                                        <button
-                                            type="button"
-                                            onClick={() => setDeliveryMethod('shipping')}
-                                            className={`rounded-[1.35rem] border px-4 py-4 text-right transition-colors ${isShippingSelected ? 'border-brandBlue bg-brandBlue text-white shadow-lg shadow-brandBlue/15 dark:border-brandGold dark:bg-brandGold dark:text-brandBlue' : 'border-brandGold/18 bg-white text-brandBlue hover:bg-brandGold/10 dark:bg-gray-900/60 dark:text-white'}`}
-                                        >
-                                            <p className={`text-[10px] font-black uppercase tracking-[0.22em] ${isShippingSelected ? 'text-white/75 dark:text-brandBlue/75' : 'text-brandGold'}`}>Shipping</p>
-                                            <p className="mt-2 text-base font-black">شحن الطلب إلى عنواني</p>
-                                            <p className={`mt-2 text-sm font-bold leading-6 ${isShippingSelected ? 'text-white/80 dark:text-brandBlue/80' : 'text-slate-500 dark:text-slate-300'}`}>رسوم الشحن الحالية: {formatCurrency(configuredShippingAmount)}</p>
-                                        </button>
-                                    </div>
-
-                                    {isShippingSelected ? (
-                                        <div className="mt-4">
-                                            <label className="block text-right text-[11px] font-black uppercase tracking-[0.2em] text-brandGold">Shipping Address | عنوان الشحن</label>
-                                            <textarea
-                                                value={shippingAddress}
-                                                onChange={(event) => {
-                                                    setShippingAddress(event.target.value);
+                                    <div className="mt-4 space-y-3">
+                                        <div className={`overflow-hidden rounded-[1.35rem] border transition-colors ${!isShippingSelected ? 'border-brandBlue bg-brandBlue text-white shadow-lg shadow-brandBlue/15 dark:border-brandGold dark:bg-brandGold dark:text-brandBlue' : 'border-brandGold/18 bg-white text-brandBlue dark:bg-gray-900/60 dark:text-white'}`}>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setDeliveryMethod('pickup');
                                                     setShippingAddressError('');
                                                 }}
-                                                rows={4}
-                                                placeholder="اكتب عنوان الشحن بالتفصيل: المحافظة، المنطقة، الشارع، رقم العقار، وأي علامة مميزة"
-                                                className={`mt-3 min-h-[120px] w-full rounded-[1.35rem] border bg-white px-4 py-3 text-sm font-bold text-brandBlue outline-none transition-colors placeholder:text-slate-400 dark:bg-gray-900 dark:text-white ${shippingAddressError ? 'border-red-400 focus:border-red-500' : 'border-brandGold/20 focus:border-brandGold'}`}
-                                            />
-                                            {shippingAddressError ? (
-                                                <p className="mt-2 text-sm font-extrabold text-red-500 dark:text-red-400">{shippingAddressError}</p>
-                                            ) : (
-                                                <p className="mt-2 text-sm font-bold leading-7 text-slate-500 dark:text-slate-300">سيُحفظ هذا العنوان مع الطلب حتى يظهر للإدارة أثناء المراجعة.</p>
-                                            )}
+                                                className="flex w-full items-center justify-between gap-4 px-4 py-4 text-right"
+                                            >
+                                                <div>
+                                                    <p className={`text-[10px] font-black uppercase tracking-[0.22em] ${!isShippingSelected ? 'text-white/75 dark:text-brandBlue/75' : 'text-brandGold'}`}>Pickup</p>
+                                                    <p className="mt-2 text-base font-black">استلام الطلب من المعرض</p>
+                                                </div>
+                                                <i className={`fa-solid ${!isShippingSelected ? 'fa-chevron-up' : 'fa-chevron-down'} text-sm ${!isShippingSelected ? 'text-white/75 dark:text-brandBlue/75' : 'text-brandGold'}`}></i>
+                                            </button>
+
+                                            {!isShippingSelected ? (
+                                                <div className="border-t border-white/12 px-4 pb-4 pt-4 dark:border-brandBlue/15">
+                                                    <p className="text-sm font-bold leading-7 text-white/85 dark:text-brandBlue/85">
+                                                        بدون رسوم شحن، وتأكيد الطلب يتم بنفس بياناتك الحالية.
+                                                    </p>
+                                                </div>
+                                            ) : null}
                                         </div>
-                                    ) : (
-                                        <p className="mt-4 rounded-2xl border border-dashed border-brandGold/20 bg-white/70 px-4 py-3 text-sm font-bold leading-7 text-slate-500 dark:bg-gray-900/50 dark:text-slate-300">
-                                            تم اختيار الاستلام من المعرض، لذلك لن يُطلب عنوان شحن ولن تُضاف رسوم توصيل على الإجمالي.
-                                        </p>
-                                    )}
+
+                                        <div className={`overflow-hidden rounded-[1.35rem] border transition-colors ${isShippingSelected ? 'border-brandBlue bg-brandBlue text-white shadow-lg shadow-brandBlue/15 dark:border-brandGold dark:bg-brandGold dark:text-brandBlue' : 'border-brandGold/18 bg-white text-brandBlue dark:bg-gray-900/60 dark:text-white'}`}>
+                                            <button
+                                                type="button"
+                                                onClick={() => setDeliveryMethod('shipping')}
+                                                className="flex w-full items-center justify-between gap-4 px-4 py-4 text-right"
+                                            >
+                                                <div>
+                                                    <p className={`text-[10px] font-black uppercase tracking-[0.22em] ${isShippingSelected ? 'text-white/75 dark:text-brandBlue/75' : 'text-brandGold'}`}>Shipping</p>
+                                                    <p className="mt-2 text-base font-black">شحن الطلب إلى عنواني</p>
+                                                </div>
+                                                <i className={`fa-solid ${isShippingSelected ? 'fa-chevron-up' : 'fa-chevron-down'} text-sm ${isShippingSelected ? 'text-white/75 dark:text-brandBlue/75' : 'text-brandGold'}`}></i>
+                                            </button>
+
+                                            {isShippingSelected ? (
+                                                <div className="border-t border-white/12 px-4 pb-4 pt-4 dark:border-brandBlue/15">
+                                                    <p className="text-sm font-bold leading-7 text-white/85 dark:text-brandBlue/85">
+                                                        رسوم الشحن الحالية: {formatCurrency(configuredShippingAmount)}
+                                                    </p>
+
+                                                    <label className="mt-4 block text-right text-[11px] font-black uppercase tracking-[0.2em] text-white/75 dark:text-brandBlue/75">Shipping Address | عنوان الشحن</label>
+                                                    <textarea
+                                                        value={shippingAddress}
+                                                        onChange={(event) => {
+                                                            setShippingAddress(event.target.value);
+                                                            setShippingAddressError('');
+                                                        }}
+                                                        rows={4}
+                                                        placeholder="اكتب عنوان الشحن بالتفصيل: المحافظة، المنطقة، الشارع، رقم العقار، وأي علامة مميزة"
+                                                        className={`mt-3 min-h-[120px] w-full rounded-[1.35rem] border bg-white px-4 py-3 text-sm font-bold text-brandBlue outline-none transition-colors placeholder:text-slate-400 dark:bg-gray-900 dark:text-white ${shippingAddressError ? 'border-red-400 focus:border-red-500' : 'border-brandGold/20 focus:border-brandGold'}`}
+                                                    />
+                                                    {shippingAddressError ? (
+                                                        <p className="mt-2 text-sm font-extrabold text-red-200 dark:text-red-500">{shippingAddressError}</p>
+                                                    ) : (
+                                                        <p className="mt-2 text-sm font-bold leading-7 text-white/80 dark:text-brandBlue/80">سيُحفظ هذا العنوان مع الطلب حتى يظهر للإدارة أثناء المراجعة.</p>
+                                                    )}
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         ) : (
