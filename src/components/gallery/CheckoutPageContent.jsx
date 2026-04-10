@@ -351,15 +351,15 @@ export default function CheckoutPageContent({ checkoutType }) {
                                     </div>
 
                                     <div className="min-w-0 flex-1">
-                                        <div className="space-y-3 md:hidden">
-                                            <div className="flex items-start gap-3">
-                                                <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[1.35rem] border border-brandGold/15 bg-gray-50 p-3 dark:bg-gray-900/50">
+                                        <div className="space-y-4 md:hidden">
+                                            <div className="flex items-start gap-4">
+                                                <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[1.35rem] border border-brandGold/15 bg-gray-50 p-2 dark:bg-gray-900/50">
                                                     <img src={item.image || '/logo.png'} alt={item.title || item.name} className="max-h-full max-w-full object-contain" />
                                                 </div>
 
                                                 <div className="min-w-0 flex-1 pt-1 text-right">
                                                     <p className="text-[9px] font-black uppercase tracking-[0.22em] text-brandGold">{item.category || (isWholesale ? 'Wholesale Item' : 'Gallery Item')}</p>
-                                                    <h2 className="mt-2 text-[1.28rem] font-black leading-[1.15] text-brandBlue dark:text-white sm:text-[1.45rem]">{item.title || item.name}</h2>
+                                                    <h2 className="mt-2 text-[1.2rem] font-black leading-[1.35] text-brandBlue dark:text-white sm:text-[1.35rem]">{item.title || item.name}</h2>
                                                     {item.productCode ? <p className="mt-2 text-[11px] font-bold tracking-[0.14em] text-slate-400">Code: {item.productCode}</p> : null}
                                                 </div>
                                             </div>
@@ -376,7 +376,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                                         <div className="hidden md:flex md:flex-row md:items-start md:justify-between md:gap-4">
                                             <div>
                                                 <p className="text-[10px] font-black uppercase tracking-[0.28em] text-brandGold">{item.category || (isWholesale ? 'Wholesale Item' : 'Gallery Item')}</p>
-                                                <h2 className="mt-2 text-xl font-black text-brandBlue dark:text-white">{item.title || item.name}</h2>
+                                                <h2 className="mt-2 text-xl font-black leading-[1.35] text-brandBlue dark:text-white">{item.title || item.name}</h2>
                                                 {item.productCode ? <p className="mt-2 text-xs font-bold tracking-[0.18em] text-slate-400">Code: {item.productCode}</p> : null}
                                             </div>
 
