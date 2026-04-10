@@ -1619,7 +1619,7 @@ export function GalleryProvider({ children }) {
         }
     };
 
-    const buildOrderPayload = ({ currentUser, profileData, items, subtotalAmount, shippingAmount, discountAmount, totalPrice, itemCount, orderType, promoCode, promoDiscountType, promoDiscountValue }) => {
+    const buildOrderPayload = ({ currentUser, profileData, items, subtotalAmount, shippingAmount, discountAmount, totalPrice, itemCount, orderType, promoCode, promoDiscountType, promoDiscountValue, deliveryMethod, shippingAddress }) => {
         const customerName = profileData.name
             || [profileData.firstName, profileData.lastName].filter(Boolean).join(' ')
             || currentUser.displayName
@@ -1632,6 +1632,8 @@ export function GalleryProvider({ children }) {
         const normalizedPromoCode = String(promoCode || '').trim();
         const normalizedPromoDiscountType = String(promoDiscountType || '').trim().toLowerCase();
         const normalizedPromoDiscountValue = Number(promoDiscountValue) || 0;
+        const normalizedDeliveryMethod = String(deliveryMethod || '').trim().toLowerCase() === 'shipping' ? 'shipping' : 'pickup';
+        const normalizedShippingAddress = normalizedDeliveryMethod === 'shipping' ? String(shippingAddress || '').trim() : '';
 
         return {
             customer: {
@@ -1639,14 +1641,18 @@ export function GalleryProvider({ children }) {
                 name: customerName,
                 email: customerEmail,
                 phone: customerPhone,
-                role: normalizeUserRole(profileData.role || USER_ROLE_VALUES.CST_RETAIL)
+                role: normalizeUserRole(profileData.role || USER_ROLE_VALUES.CST_RETAIL),
+                deliveryMethod: normalizedDeliveryMethod,
+                shippingAddress: normalizedShippingAddress
             },
             customerInfo: {
                 uid: currentUser.uid,
                 fullName: customerName,
                 email: customerEmail,
                 phone: customerPhone,
-                role: normalizeUserRole(profileData.role || USER_ROLE_VALUES.CST_RETAIL)
+                role: normalizeUserRole(profileData.role || USER_ROLE_VALUES.CST_RETAIL),
+                deliveryMethod: normalizedDeliveryMethod,
+                shippingAddress: normalizedShippingAddress
             },
             items,
             subtotalAmount,
@@ -1654,6 +1660,8 @@ export function GalleryProvider({ children }) {
             discountAmount: normalizedDiscountAmount,
             totalPrice,
             itemCount,
+            deliveryMethod: normalizedDeliveryMethod,
+            shippingAddress: normalizedShippingAddress,
             promoCode: normalizedPromoCode,
             promoDiscountType: normalizedPromoDiscountType,
             promoDiscountValue: normalizedPromoDiscountValue,
@@ -1734,7 +1742,9 @@ export function GalleryProvider({ children }) {
                 orderType: 'retail',
                 promoCode: options.promoCode,
                 promoDiscountType: options.promoDiscountType,
-                promoDiscountValue: options.promoDiscountValue
+                promoDiscountValue: options.promoDiscountValue,
+                deliveryMethod: options.deliveryMethod,
+                shippingAddress: options.shippingAddress
             });
 
             orderData.websiteOrderRef = await allocateWebsiteOrderRef();
@@ -1807,7 +1817,9 @@ export function GalleryProvider({ children }) {
                 orderType: 'wholesale',
                 promoCode: options.promoCode,
                 promoDiscountType: options.promoDiscountType,
-                promoDiscountValue: options.promoDiscountValue
+                promoDiscountValue: options.promoDiscountValue,
+                deliveryMethod: options.deliveryMethod,
+                shippingAddress: options.shippingAddress
             });
 
             orderData.websiteOrderRef = await allocateWebsiteOrderRef();

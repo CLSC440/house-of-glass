@@ -50,6 +50,20 @@ function getCustomerRole(order) {
     return order.customer?.role || order.customerInfo?.role || 'customer';
 }
 
+function getOrderDeliveryMethodValue(order) {
+    return String(order.deliveryMethod || order.customerInfo?.deliveryMethod || order.customer?.deliveryMethod || '').trim().toLowerCase() === 'shipping'
+        ? 'shipping'
+        : 'pickup';
+}
+
+function getOrderDeliveryMethodLabel(order) {
+    return getOrderDeliveryMethodValue(order) === 'shipping' ? 'Shipping | شحن' : 'Pickup | استلام من المعرض';
+}
+
+function getOrderShippingAddress(order) {
+    return order.shippingAddress || order.customerInfo?.shippingAddress || order.customer?.shippingAddress || '';
+}
+
 function getItemUnitPrice(item, orderType) {
     const rawPrice = orderType === 'wholesale'
         ? item.wholesalePrice || item.wholesale_price || item.cartonPrice || item.bulkPrice || item.price
@@ -789,6 +803,10 @@ export default function AdminOrders() {
                                                                         <p><span className="text-slate-500">Email:</span> {getCustomerEmail(order)}</p>
                                                                         <p><span className="text-slate-500">Phone:</span> {getOrderCustomerPhone(order) || 'Not provided'}</p>
                                                                         <p><span className="text-slate-500">Governorate:</span> {getCustomerGovernorate(order)}</p>
+                                                                        <p><span className="text-slate-500">Delivery:</span> {getOrderDeliveryMethodLabel(order)}</p>
+                                                                        {getOrderDeliveryMethodValue(order) === 'shipping' ? (
+                                                                            <p className="leading-6"><span className="text-slate-500">Shipping Address:</span> {getOrderShippingAddress(order) || 'Not provided'}</p>
+                                                                        ) : null}
                                                                         <p><span className="text-slate-500">Role:</span> {getCustomerRole(order)}</p>
                                                                     </div>
                                                                 </div>

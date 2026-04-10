@@ -21,6 +21,10 @@ function parseAmount(value) {
     return Number.isFinite(numericValue) ? Math.max(0, numericValue) : 0;
 }
 
+function normalizeDeliveryMethod(value) {
+    return String(value || '').trim().toLowerCase() === 'shipping' ? 'shipping' : 'pickup';
+}
+
 function normalizePromoCode(value) {
     return String(value || '').trim().toLowerCase();
 }
@@ -116,6 +120,9 @@ export default function CheckoutPageContent({ checkoutType }) {
     const [promoCodeInput, setPromoCodeInput] = useState('');
     const [appliedPromoCode, setAppliedPromoCode] = useState('');
     const [promoFeedback, setPromoFeedback] = useState(null);
+    const [deliveryMethod, setDeliveryMethod] = useState('pickup');
+    const [shippingAddress, setShippingAddress] = useState('');
+    const [shippingAddressError, setShippingAddressError] = useState('');
 
     const items = isWholesale ? wholesaleCartItems : cartItems;
     const itemCount = isWholesale ? wholesaleCartCount : cartCount;
@@ -124,7 +131,10 @@ export default function CheckoutPageContent({ checkoutType }) {
     const removeItem = isWholesale ? removeFromWholesaleCart : removeFromCart;
     const submitCheckout = isWholesale ? checkoutWholesaleCart : checkoutCart;
     const isSubmitting = isWholesale ? isCheckingOutWholesale : isCheckingOut;
-    const shippingAmount = parseAmount(derivedSettings?.shippingPrice);
+    const normalizedDeliveryMethod = normalizeDeliveryMethod(deliveryMethod);
+    const isShippingSelected = normalizedDeliveryMethod === 'shipping';
+    const configuredShippingAmount = parseAmount(derivedSettings?.shippingPrice);
+    const shippingAmount = isShippingSelected ? configuredShippingAmount : 0;
     const productCount = items.length;
     const promoSettings = useMemo(() => getConfiguredPromoSettings(derivedSettings), [derivedSettings]);
     const isPromoApplied = promoSettings.normalizedCode && normalizePromoCode(appliedPromoCode) === promoSettings.normalizedCode;
@@ -231,6 +241,15 @@ export default function CheckoutPageContent({ checkoutType }) {
             return;
         }
 
+        if (isShippingSelected && !shippingAddress.trim()) {
+            const errorMessage = 'اكتب عنوان الشحن بالتفصيل قبل تأكيد الطلب.';
+            setShippingAddressError(errorMessage);
+            showToast(errorMessage, 'error');
+            return;
+        }
+
+        setShippingAddressError('');
+
         const result = await submitCheckout({
             subtotalAmount: subtotal,
             shippingAmount,
@@ -238,7 +257,9 @@ export default function CheckoutPageContent({ checkoutType }) {
             totalPrice: finalTotal,
             promoCode: isPromoApplied ? promoSettings.code : '',
             promoDiscountType: isPromoApplied ? promoSettings.discountType : '',
-            promoDiscountValue: isPromoApplied ? promoSettings.discountValue : 0
+            promoDiscountValue: isPromoApplied ? promoSettings.discountValue : 0,
+            deliveryMethod: normalizedDeliveryMethod,
+            shippingAddress: isShippingSelected ? shippingAddress.trim() : ''
         });
 
         if (result.requiresAuth) {
@@ -474,6 +495,71 @@ export default function CheckoutPageContent({ checkoutType }) {
                                     <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">رقم الهاتف</p>
                                     <p className="mt-2 text-sm font-black text-brandBlue dark:text-white">{customerInfo.phone}</p>
                                 </div>
+
+                                <div className="rounded-[1.5rem] border border-brandGold/15 bg-brandGold/[0.04] px-4 py-4 dark:bg-brandGold/[0.06]">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="text-right">
+                                            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-brandGold">Delivery Method</p>
+                                            <h3 className="mt-2 text-base font-black text-brandBlue dark:text-white">طريقة الاستلام أو التوصيل</h3>
+                                            <p className="mt-2 text-sm font-bold leading-7 text-slate-500 dark:text-slate-300">
+                                                اختَر إذا كنت ستستلم الطلب من المعرض أو تريد شحنه إلى عنوانك.
+                                            </p>
+                                        </div>
+                                        <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-brandBlue shadow-sm dark:bg-white/10 dark:text-brandGold">
+                                            {isShippingSelected ? 'Shipping' : 'Pickup'}
+                                        </span>
+                                    </div>
+
+                                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setDeliveryMethod('pickup');
+                                                setShippingAddressError('');
+                                            }}
+                                            className={`rounded-[1.35rem] border px-4 py-4 text-right transition-colors ${!isShippingSelected ? 'border-brandBlue bg-brandBlue text-white shadow-lg shadow-brandBlue/15 dark:border-brandGold dark:bg-brandGold dark:text-brandBlue' : 'border-brandGold/18 bg-white text-brandBlue hover:bg-brandGold/10 dark:bg-gray-900/60 dark:text-white'}`}
+                                        >
+                                            <p className={`text-[10px] font-black uppercase tracking-[0.22em] ${!isShippingSelected ? 'text-white/75 dark:text-brandBlue/75' : 'text-brandGold'}`}>Pickup</p>
+                                            <p className="mt-2 text-base font-black">استلام الطلب من المعرض</p>
+                                            <p className={`mt-2 text-sm font-bold leading-6 ${!isShippingSelected ? 'text-white/80 dark:text-brandBlue/80' : 'text-slate-500 dark:text-slate-300'}`}>بدون رسوم شحن، وتأكيد الطلب يتم بنفس بياناتك الحالية.</p>
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => setDeliveryMethod('shipping')}
+                                            className={`rounded-[1.35rem] border px-4 py-4 text-right transition-colors ${isShippingSelected ? 'border-brandBlue bg-brandBlue text-white shadow-lg shadow-brandBlue/15 dark:border-brandGold dark:bg-brandGold dark:text-brandBlue' : 'border-brandGold/18 bg-white text-brandBlue hover:bg-brandGold/10 dark:bg-gray-900/60 dark:text-white'}`}
+                                        >
+                                            <p className={`text-[10px] font-black uppercase tracking-[0.22em] ${isShippingSelected ? 'text-white/75 dark:text-brandBlue/75' : 'text-brandGold'}`}>Shipping</p>
+                                            <p className="mt-2 text-base font-black">شحن الطلب إلى عنواني</p>
+                                            <p className={`mt-2 text-sm font-bold leading-6 ${isShippingSelected ? 'text-white/80 dark:text-brandBlue/80' : 'text-slate-500 dark:text-slate-300'}`}>رسوم الشحن الحالية: {formatCurrency(configuredShippingAmount)}</p>
+                                        </button>
+                                    </div>
+
+                                    {isShippingSelected ? (
+                                        <div className="mt-4">
+                                            <label className="block text-right text-[11px] font-black uppercase tracking-[0.2em] text-brandGold">Shipping Address | عنوان الشحن</label>
+                                            <textarea
+                                                value={shippingAddress}
+                                                onChange={(event) => {
+                                                    setShippingAddress(event.target.value);
+                                                    setShippingAddressError('');
+                                                }}
+                                                rows={4}
+                                                placeholder="اكتب عنوان الشحن بالتفصيل: المحافظة، المنطقة، الشارع، رقم العقار، وأي علامة مميزة"
+                                                className={`mt-3 min-h-[120px] w-full rounded-[1.35rem] border bg-white px-4 py-3 text-sm font-bold text-brandBlue outline-none transition-colors placeholder:text-slate-400 dark:bg-gray-900 dark:text-white ${shippingAddressError ? 'border-red-400 focus:border-red-500' : 'border-brandGold/20 focus:border-brandGold'}`}
+                                            />
+                                            {shippingAddressError ? (
+                                                <p className="mt-2 text-sm font-extrabold text-red-500 dark:text-red-400">{shippingAddressError}</p>
+                                            ) : (
+                                                <p className="mt-2 text-sm font-bold leading-7 text-slate-500 dark:text-slate-300">سيُحفظ هذا العنوان مع الطلب حتى يظهر للإدارة أثناء المراجعة.</p>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <p className="mt-4 rounded-2xl border border-dashed border-brandGold/20 bg-white/70 px-4 py-3 text-sm font-bold leading-7 text-slate-500 dark:bg-gray-900/50 dark:text-slate-300">
+                                            تم اختيار الاستلام من المعرض، لذلك لن يُطلب عنوان شحن ولن تُضاف رسوم توصيل على الإجمالي.
+                                        </p>
+                                    )}
+                                </div>
                             </div>
                         ) : (
                             <div className="space-y-4 pt-5">
@@ -521,6 +607,13 @@ export default function CheckoutPageContent({ checkoutType }) {
                                 <span className={discountAmount > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-brandBlue dark:text-white'}>
                                     {discountAmount > 0 ? `- ${formatCurrency(discountAmount)}` : formatCurrency(0)}
                                 </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-4">
+                                <span className="flex flex-col items-end gap-1 text-right">
+                                    <span className="block w-full text-right text-[9px] font-black uppercase leading-none tracking-[0.32em] text-brandGold">Delivery</span>
+                                    <span className="block w-full text-right text-base font-extrabold leading-tight text-brandBlue dark:text-white">طريقة الاستلام</span>
+                                </span>
+                                <span className="text-brandBlue dark:text-white">{isShippingSelected ? 'شحن' : 'استلام من المعرض'}</span>
                             </div>
                             <div className="flex items-center justify-between gap-4">
                                 <span className="flex flex-col items-end gap-1 text-right">
