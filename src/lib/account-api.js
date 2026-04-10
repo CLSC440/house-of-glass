@@ -48,12 +48,13 @@ export async function upsertCurrentUserProfile(currentUser, profile = {}, option
     return callAccountApi('upsertProfile', { profile, options }, idToken);
 }
 
-export async function deleteOwnAccount(currentUser) {
+export async function deleteOwnAccount(currentUser, options = {}) {
     if (!currentUser) {
         throw new Error('Authentication required');
     }
 
-    const idToken = await currentUser.getIdToken();
+    const forceRefresh = options.forceRefresh === true;
+    const idToken = await currentUser.getIdToken(forceRefresh);
     return callAccountApi('deleteOwnAccount', {}, idToken);
 }
 

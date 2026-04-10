@@ -6,6 +6,7 @@ const require = createRequire(import.meta.url);
 const { admin, getDb, verifyRequestUser } = require('../../../api/_firebaseAdmin.js');
 
 const ALLOWED_ROLES = new Set(['customer', 'cst_wholesale', 'moderator', 'admin']);
+const RECENT_AUTH_MAX_AGE_SECONDS = 5 * 60;
 
 function createError(status, message) {
     const error = new Error(message);
@@ -35,6 +36,15 @@ function normalizePhone(value) {
     if (/^20\d{10}$/.test(digits)) return `+${digits}`;
     if (/^\+20\d{10}$/.test(trimmed)) return trimmed;
     return trimmed;
+}
+
+function requireRecentAuthentication(tokenData) {
+    const authTimeSeconds = Number(tokenData?.auth_time || 0);
+    const nowSeconds = Math.floor(Date.now() / 1000);
+
+    if (!authTimeSeconds || nowSeconds - authTimeSeconds > RECENT_AUTH_MAX_AGE_SECONDS) {
+        throw createError(401, 'Recent authentication required before deleting your account.');
+    }
 }
 
 function buildDisplayName({ firstName = '', lastName = '', name = '', email = '' }) {
@@ -389,6 +399,7 @@ export async function POST(request) {
 
         if (action === 'deleteOwnAccount') {
             const tokenData = await verifyUserFromRequest(request);
+            requireRecentAuthentication(tokenData);
             const userRef = db.collection('users').doc(tokenData.uid);
             const userSnap = await userRef.get();
             const batch = db.batch();

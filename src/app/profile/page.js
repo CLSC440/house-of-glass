@@ -1,9 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { onAuthStateChanged, signOut, updateProfile } from 'firebase/auth';
+import { EmailAuthProvider, onAuthStateChanged, reauthenticateWithCredential, reauthenticateWithPopup, signOut, updateProfile } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { auth, db, googleProvider } from '@/lib/firebase';
 import Link from 'next/link';
 import { deleteOwnAccount, getOwnOrders, upsertCurrentUserProfile } from '@/lib/account-api';
 import { deleteImageKitFiles, uploadToImageKit } from '@/lib/imagekit-client';
@@ -87,6 +87,45 @@ function getAutomaticThemePreference() {
     return hour < 6 || hour >= 18;
 }
 
+function getDeleteAccountErrorMessage(error) {
+    const code = String(error?.code || '').toLowerCase();
+    const message = String(error?.message || '');
+
+    if (/password confirmation is required/i.test(message)) {
+        return 'Please enter your current password before deleting the account.';
+    }
+
+    if (/unable to verify your password/i.test(message)) {
+        return 'Unable to verify the password for this account right now.';
+    }
+
+    if (/not supported for self-service deletion/i.test(message)) {
+        return 'This sign-in method is not supported for account deletion from the profile page.';
+    }
+
+    if (code === 'auth/wrong-password' || code === 'auth/invalid-credential' || /wrong-password|invalid-credential|password is invalid|invalid login credentials/i.test(message)) {
+        return 'Incorrect password. Your account was not deleted.';
+    }
+
+    if (code === 'auth/popup-closed-by-user') {
+        return 'Google confirmation was cancelled.';
+    }
+
+    if (code === 'auth/popup-blocked') {
+        return 'Allow the Google confirmation popup, then try again.';
+    }
+
+    if (code === 'auth/cancelled-popup-request') {
+        return 'Google confirmation is already in progress.';
+    }
+
+    if (/recent authentication required/i.test(message)) {
+        return 'Please confirm your credentials again before deleting your account.';
+    }
+
+    return 'Failed to delete account.';
+}
+
 export default function UserProfile() {
     const router = useRouter();
     const [user, setUser] = useState(null);
@@ -109,6 +148,10 @@ export default function UserProfile() {
     const [removeProfilePhoto, setRemoveProfilePhoto] = useState(false);
     const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
     const [isSavingProfile, setIsSavingProfile] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [deletePassword, setDeletePassword] = useState('');
+    const [deleteAccountError, setDeleteAccountError] = useState('');
+    const [isDeletingAccount, setIsDeletingAccount] = useState(false);
     const [isAutoThemeEnabled, setIsAutoThemeEnabled] = useState(true);
     const [isDarkTheme, setIsDarkTheme] = useState(false);
 
@@ -380,16 +423,70 @@ export default function UserProfile() {
         router.push('/login');
     };
 
+    const providerIds = Array.isArray(user?.providerData)
+        ? user.providerData.map((entry) => entry?.providerId).filter(Boolean)
+        : [];
+    const canConfirmDeleteWithPassword = providerIds.includes('password');
+    const canConfirmDeleteWithGoogle = !canConfirmDeleteWithPassword && providerIds.includes('google.com');
+
+    const closeDeleteDialog = () => {
+        if (isDeletingAccount) {
+            return;
+        }
+
+        setIsDeleteDialogOpen(false);
+        setDeletePassword('');
+        setDeleteAccountError('');
+    };
+
     const handleDeleteAccount = async () => {
-        if (!window.confirm('Delete your account permanently?')) return;
+        setDeletePassword('');
+        setDeleteAccountError('');
+        setIsDeleteDialogOpen(true);
+    };
+
+    const confirmDeleteAccount = async (event) => {
+        event.preventDefault();
+
+        if (!user) {
+            setDeleteAccountError('Authentication required.');
+            return;
+        }
+
+        setDeleteAccountError('');
+        setSaveMessage({ type: '', text: '' });
+        setIsDeletingAccount(true);
+
         try {
-            await deleteOwnAccount(user);
+            if (canConfirmDeleteWithPassword) {
+                const passwordValue = deletePassword.trim();
+                const authEmail = user.email || user.providerData?.find((entry) => entry?.providerId === 'password')?.email || '';
+
+                if (!passwordValue) {
+                    throw new Error('Password confirmation is required.');
+                }
+
+                if (!authEmail) {
+                    throw new Error('Unable to verify your password for this account.');
+                }
+
+                const credential = EmailAuthProvider.credential(authEmail, passwordValue);
+                await reauthenticateWithCredential(user, credential);
+            } else if (canConfirmDeleteWithGoogle) {
+                await reauthenticateWithPopup(user, googleProvider);
+            } else {
+                throw new Error('This account provider is not supported for self-service deletion.');
+            }
+
+            await deleteOwnAccount(user, { forceRefresh: true });
             sessionStorage.removeItem('isAdmin');
             sessionStorage.removeItem('userRole');
             router.push('/signup');
         } catch (err) {
             console.error(err);
-            setSaveMessage({ type: 'error', text: 'Failed to delete account.' });
+            setDeleteAccountError(getDeleteAccountErrorMessage(err));
+        } finally {
+            setIsDeletingAccount(false);
         }
     };
 
@@ -766,6 +863,87 @@ export default function UserProfile() {
 
                 </div>
             </div>
+
+            {isDeleteDialogOpen ? (
+                <div className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-950/70 px-4 py-6 backdrop-blur-sm" onClick={closeDeleteDialog}>
+                    <div
+                        className="relative w-full max-w-md overflow-hidden rounded-[2rem] border border-red-200/70 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.32)] dark:border-red-900/40 dark:bg-darkCard"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="border-b border-red-100 bg-[linear-gradient(135deg,rgba(255,245,245,0.98),rgba(255,255,255,0.96))] px-6 py-5 dark:border-red-900/30 dark:bg-[linear-gradient(135deg,rgba(60,10,10,0.65),rgba(17,24,39,0.96))]">
+                            <div className="flex items-start gap-4">
+                                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-500/10 text-red-500 dark:bg-red-500/15 dark:text-red-300">
+                                    <i className="fa-solid fa-triangle-exclamation text-lg"></i>
+                                </span>
+                                <div>
+                                    <p className="text-[11px] font-black uppercase tracking-[0.24em] text-red-400">Permanent Action</p>
+                                    <h3 className="mt-2 text-xl font-black text-brandBlue dark:text-white">Delete Account</h3>
+                                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                                        {canConfirmDeleteWithPassword
+                                            ? 'Enter your current password to confirm permanent account deletion.'
+                                            : canConfirmDeleteWithGoogle
+                                                ? 'Confirm with Google to permanently delete your account.'
+                                                : 'This account needs an additional sign-in check before it can be deleted.'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <form onSubmit={confirmDeleteAccount} className="space-y-4 px-6 py-6">
+                            <div className="rounded-2xl border border-red-100 bg-red-50/80 px-4 py-3 text-sm font-medium text-red-600 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-300">
+                                This removes your profile record and signs you out immediately.
+                            </div>
+
+                            {canConfirmDeleteWithPassword ? (
+                                <div>
+                                    <label className="mb-1.5 block text-xs font-black uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Current Password</label>
+                                    <input
+                                        type="password"
+                                        value={deletePassword}
+                                        onChange={(event) => setDeletePassword(event.target.value)}
+                                        autoComplete="current-password"
+                                        className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-brandBlue outline-none transition-colors focus:border-red-300 focus:bg-white dark:border-gray-700 dark:bg-gray-900/40 dark:text-white"
+                                        placeholder="Enter your password"
+                                        disabled={isDeletingAccount}
+                                    />
+                                </div>
+                            ) : canConfirmDeleteWithGoogle ? (
+                                <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-900/30 dark:text-gray-300">
+                                    Clicking delete will open a Google confirmation popup for the signed-in account.
+                                </div>
+                            ) : (
+                                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-300">
+                                    Unable to determine a supported sign-in method for confirmation.
+                                </div>
+                            )}
+
+                            {deleteAccountError ? (
+                                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-300">
+                                    {deleteAccountError}
+                                </div>
+                            ) : null}
+
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={closeDeleteDialog}
+                                    disabled={isDeletingAccount}
+                                    className="flex-1 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-black uppercase tracking-[0.16em] text-gray-500 transition-colors hover:border-gray-300 hover:text-brandBlue disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900/30 dark:text-gray-300"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isDeletingAccount || (!canConfirmDeleteWithPassword && !canConfirmDeleteWithGoogle)}
+                                    className="flex-1 rounded-2xl bg-red-500 px-4 py-3 text-sm font-black uppercase tracking-[0.16em] text-white shadow-[0_14px_30px_rgba(239,68,68,0.25)] transition-all hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {isDeletingAccount ? 'Deleting...' : 'Delete Permanently'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }
