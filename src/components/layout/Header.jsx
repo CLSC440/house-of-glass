@@ -28,12 +28,15 @@ export default function Header() {
     const [expandedCategoryGroups, setExpandedCategoryGroups] = useState({});
     const pathname = usePathname();
     const router = useRouter();
+    const backGuardActiveRef = useRef(false);
+    const shouldGuardBackRef = useRef(false);
     const {
         categories,
         activeCategory,
         setActiveCategory,
         filteredProducts,
         selectedProduct,
+        setSelectedProduct,
         userRole,
         getProductStockLimit,
         getProductStockStatus,
@@ -155,6 +158,71 @@ export default function Header() {
         closeSidebar();
     };
 
+    const resetStorefrontToHome = ({ forceNavigation = false } = {}) => {
+        setSelectedProduct(null);
+        clearAllFilters();
+        closeAccountPanel();
+        closeSidebar();
+
+        if (typeof window === 'undefined') {
+            router.replace('/');
+            return;
+        }
+
+        if (!forceNavigation && pathname === '/') {
+            window.history.replaceState(window.history.state, '', '/');
+            return;
+        }
+
+        window.location.replace('/');
+    };
+
+    const handleHomeNavigation = (event) => {
+        event?.preventDefault?.();
+        resetStorefrontToHome({ forceNavigation: pathname !== '/' });
+    };
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const hasDirtyUrl = Boolean(window.location.search || window.location.hash);
+        const nextShouldGuardBack = pathname !== '/' || activeFilterChips.length > 0 || Boolean(selectedProduct) || hasDirtyUrl;
+        shouldGuardBackRef.current = nextShouldGuardBack;
+
+        if (nextShouldGuardBack && !backGuardActiveRef.current) {
+            window.history.pushState({ ...(window.history.state || {}), hogStorefrontBackGuard: true }, '', window.location.href);
+            backGuardActiveRef.current = true;
+            return;
+        }
+
+        if (!nextShouldGuardBack) {
+            backGuardActiveRef.current = false;
+        }
+    }, [pathname, activeFilterChips.length, selectedProduct]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const handlePopState = () => {
+            const shouldForceCleanHome = window.location.pathname !== '/' || Boolean(window.location.search || window.location.hash) || shouldGuardBackRef.current;
+
+            backGuardActiveRef.current = false;
+
+            if (!shouldForceCleanHome) {
+                return;
+            }
+
+            resetStorefrontToHome({ forceNavigation: window.location.pathname !== '/' });
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, [pathname]);
+
     const navigateToAdminDashboard = () => {
         if (isAdminRedirecting) {
             return;
@@ -212,7 +280,7 @@ export default function Header() {
                     </div>
 
                     <div className="flex-none md:flex-1 flex justify-center md:justify-start md:ml-4">
-                        <Link href="/" className="flex items-center group">
+                        <Link href="/" onClick={handleHomeNavigation} className="flex items-center group">
                             <div className="shine-effect">
                                 <img src="/logo.png" alt="Logo" className="h-24 md:h-32 w-auto transition-all group-hover:scale-105 relative z-10" />
                             </div>
@@ -243,6 +311,7 @@ export default function Header() {
                         <nav className="hidden md:flex items-center space-x-6">
                             <Link
                                 href="/"
+                                onClick={handleHomeNavigation}
                                 className={`text-sm font-bold px-1 py-1 border-b-2 transition-colors ${pathname === '/' ? 'text-brandBlue dark:text-white border-brandGold' : 'text-gray-500 dark:text-gray-300 border-transparent hover:text-brandGold'}`}
                             >
                                 Home
