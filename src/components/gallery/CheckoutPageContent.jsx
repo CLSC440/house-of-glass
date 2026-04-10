@@ -497,15 +497,15 @@ export default function CheckoutPageContent({ checkoutType }) {
                                 </div>
 
                                 <div className="rounded-[1.5rem] border border-brandGold/15 bg-brandGold/[0.04] px-4 py-4 dark:bg-brandGold/[0.06]">
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div className="text-right">
+                                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                        <div className="text-right sm:flex-1">
                                             <p className="text-[10px] font-black uppercase tracking-[0.24em] text-brandGold">Delivery Method</p>
-                                            <h3 className="mt-2 text-base font-black text-brandBlue dark:text-white">طريقة الاستلام أو التوصيل</h3>
-                                            <p className="mt-2 text-sm font-bold leading-7 text-slate-500 dark:text-slate-300">
+                                            <h3 className="mt-2 text-lg font-black leading-[1.45] text-brandBlue dark:text-white sm:text-base sm:leading-[1.35]">طريقة الاستلام أو التوصيل</h3>
+                                            <p className="mt-2 text-sm font-bold leading-7 text-slate-500 dark:text-slate-300 sm:max-w-[26rem]">
                                                 اختَر إذا كنت ستستلم الطلب من المعرض أو تريد شحنه إلى عنوانك.
                                             </p>
                                         </div>
-                                        <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-brandBlue shadow-sm dark:bg-white/10 dark:text-brandGold">
+                                        <span className="inline-flex w-fit self-start rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-brandBlue shadow-sm dark:bg-white/10 dark:text-brandGold sm:self-auto">
                                             {isShippingSelected ? 'Shipping' : 'Pickup'}
                                         </span>
                                     </div>
