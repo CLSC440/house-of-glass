@@ -311,10 +311,10 @@ export default function CheckoutPageContent({ checkoutType }) {
                             <p className={`text-[10px] font-black uppercase tracking-[0.28em] md:text-[11px] md:tracking-[0.35em] ${isWholesale ? 'text-brandGold' : 'text-brandBlue/60 dark:text-brandGold'}`}>
                                 {isWholesale ? 'Wholesale Checkout' : 'Retail Checkout'}
                             </p>
-                            <h1 className={`mt-2 max-w-[11.5ch] text-[1.9rem] font-black leading-[1.02] sm:max-w-[13ch] sm:text-[2.2rem] md:mt-3 md:max-w-none md:text-4xl ${isWholesale ? 'text-white' : 'text-brandBlue dark:text-white'}`}>
+                            <h1 className={`mt-2 max-w-[280px] text-[1.95rem] font-black leading-[1.12] sm:max-w-sm sm:text-[2.2rem] md:mt-3 md:max-w-none md:text-4xl ${isWholesale ? 'text-white' : 'text-brandBlue dark:text-white'}`}>
                                 {isWholesale ? 'راجع طلب الجملة قبل التأكيد' : 'راجع تفاصيل الطلب قبل التأكيد'}
                             </h1>
-                            <p className={`mt-2 max-w-[30ch] text-[12px] leading-5 sm:max-w-xl sm:text-sm sm:leading-6 md:mt-3 md:max-w-2xl md:text-base md:leading-7 ${isWholesale ? 'text-slate-200' : 'text-slate-600 dark:text-slate-300'}`}>
+                            <p className={`mt-3 max-w-[290px] text-[12.5px] leading-6 sm:max-w-xl sm:text-sm md:max-w-2xl md:text-base md:leading-7 ${isWholesale ? 'text-slate-200' : 'text-slate-500 dark:text-slate-400'}`}>
                                 هنا تقدر تشوف كل المنتجات، تعدل الكميات، وتراجع بيانات الحساب قبل إرسال الطلب النهائي.
                             </p>
                         </div>
