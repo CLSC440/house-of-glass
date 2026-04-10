@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { EmailAuthProvider, onAuthStateChanged, reauthenticateWithCredential, reauthenticateWithPopup, signOut, updateProfile } from 'firebase/auth';
+import { EmailAuthProvider, linkWithCredential, onAuthStateChanged, reauthenticateWithCredential, reauthenticateWithPopup, signOut, updatePassword, updateProfile } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '@/lib/firebase';
 import Link from 'next/link';
@@ -126,6 +126,69 @@ function getDeleteAccountErrorMessage(error) {
     return 'Failed to delete account.';
 }
 
+function getPasswordActionErrorMessage(error) {
+    const code = String(error?.code || '').toLowerCase();
+    const message = String(error?.message || '');
+
+    if (/current password is required/i.test(message)) {
+        return 'Please enter your current password first.';
+    }
+
+    if (/new password is required/i.test(message)) {
+        return 'Please enter a new password.';
+    }
+
+    if (/at least 6 characters/i.test(message)) {
+        return 'The new password must be at least 6 characters.';
+    }
+
+    if (/do not match/i.test(message)) {
+        return 'The new password and confirmation do not match.';
+    }
+
+    if (/unable to verify/i.test(message)) {
+        return 'Unable to verify the sign-in email for this account right now.';
+    }
+
+    if (/not available for this sign-in method/i.test(message)) {
+        return 'Password management is not available for this sign-in method.';
+    }
+
+    if (code === 'auth/wrong-password' || code === 'auth/invalid-credential' || /wrong-password|invalid-credential|password is invalid|invalid login credentials/i.test(message)) {
+        return 'The current password is incorrect.';
+    }
+
+    if (code === 'auth/weak-password') {
+        return 'Choose a stronger password with at least 6 characters.';
+    }
+
+    if (code === 'auth/requires-recent-login') {
+        return 'Please confirm your sign-in again before changing the password.';
+    }
+
+    if (code === 'auth/provider-already-linked') {
+        return 'This account already has a password sign-in method linked.';
+    }
+
+    if (code === 'auth/email-already-in-use' || code === 'auth/credential-already-in-use') {
+        return 'This email is already linked to another password account.';
+    }
+
+    if (code === 'auth/popup-closed-by-user') {
+        return 'Google confirmation was cancelled.';
+    }
+
+    if (code === 'auth/popup-blocked') {
+        return 'Allow the Google confirmation popup, then try again.';
+    }
+
+    if (code === 'auth/cancelled-popup-request') {
+        return 'Google confirmation is already in progress.';
+    }
+
+    return 'Failed to update password.';
+}
+
 export default function UserProfile() {
     const router = useRouter();
     const [user, setUser] = useState(null);
@@ -152,6 +215,13 @@ export default function UserProfile() {
     const [deletePassword, setDeletePassword] = useState('');
     const [deleteAccountError, setDeleteAccountError] = useState('');
     const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+    const [passwordForm, setPasswordForm] = useState({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+    });
+    const [passwordMessage, setPasswordMessage] = useState({ type: '', text: '' });
+    const [isSavingPassword, setIsSavingPassword] = useState(false);
     const [isAutoThemeEnabled, setIsAutoThemeEnabled] = useState(true);
     const [isDarkTheme, setIsDarkTheme] = useState(false);
 
@@ -328,6 +398,12 @@ export default function UserProfile() {
         setSelectedPhotoPreview('');
         setRemoveProfilePhoto(false);
         setAvatarLoadFailed(false);
+        setPasswordForm({
+            currentPassword: '',
+            newPassword: '',
+            confirmPassword: ''
+        });
+        setPasswordMessage({ type: '', text: '' });
         setFormData((currentValue) => ({
             ...currentValue,
             photoURL: userData?.photoURL || user?.photoURL || ''
@@ -426,8 +502,101 @@ export default function UserProfile() {
     const providerIds = Array.isArray(user?.providerData)
         ? user.providerData.map((entry) => entry?.providerId).filter(Boolean)
         : [];
-    const canConfirmDeleteWithPassword = providerIds.includes('password');
-    const canConfirmDeleteWithGoogle = !canConfirmDeleteWithPassword && providerIds.includes('google.com');
+    const hasPasswordProvider = providerIds.includes('password');
+    const hasGoogleProvider = providerIds.includes('google.com');
+    const authEmail = user?.email || userData?.authEmail || user?.providerData?.find((entry) => entry?.providerId === 'password')?.email || '';
+    const canConfirmDeleteWithPassword = hasPasswordProvider;
+    const canConfirmDeleteWithGoogle = !hasPasswordProvider && hasGoogleProvider;
+    const canCreatePasswordWithGoogle = !hasPasswordProvider && hasGoogleProvider && Boolean(authEmail);
+    const canManagePassword = hasPasswordProvider || canCreatePasswordWithGoogle;
+    const passwordActionTitle = hasPasswordProvider ? 'Change Password' : 'Create Password';
+
+    const resetPasswordForm = () => {
+        setPasswordForm({
+            currentPassword: '',
+            newPassword: '',
+            confirmPassword: ''
+        });
+    };
+
+    const handlePasswordFieldChange = (field) => (event) => {
+        const nextValue = event.target.value;
+        setPasswordForm((currentValue) => ({
+            ...currentValue,
+            [field]: nextValue
+        }));
+
+        if (passwordMessage.text) {
+            setPasswordMessage({ type: '', text: '' });
+        }
+    };
+
+    const handlePasswordUpdate = async (event) => {
+        event.preventDefault();
+
+        if (!user) {
+            setPasswordMessage({ type: 'error', text: 'Authentication required.' });
+            return;
+        }
+
+        const currentPassword = passwordForm.currentPassword;
+        const nextPassword = passwordForm.newPassword;
+        const confirmPassword = passwordForm.confirmPassword;
+
+        if (hasPasswordProvider && !currentPassword.trim()) {
+            setPasswordMessage({ type: 'error', text: 'Please enter your current password first.' });
+            return;
+        }
+
+        if (!nextPassword) {
+            setPasswordMessage({ type: 'error', text: 'Please enter a new password.' });
+            return;
+        }
+
+        if (nextPassword.length < 6) {
+            setPasswordMessage({ type: 'error', text: 'The new password must be at least 6 characters.' });
+            return;
+        }
+
+        if (nextPassword !== confirmPassword) {
+            setPasswordMessage({ type: 'error', text: 'The new password and confirmation do not match.' });
+            return;
+        }
+
+        if (!canManagePassword) {
+            setPasswordMessage({ type: 'error', text: 'Password management is not available for this sign-in method.' });
+            return;
+        }
+
+        setPasswordMessage({ type: '', text: '' });
+        setSaveMessage({ type: '', text: '' });
+        setIsSavingPassword(true);
+
+        try {
+            if (hasPasswordProvider) {
+                if (!authEmail) {
+                    throw new Error('Unable to verify the sign-in email for this account right now.');
+                }
+
+                const credential = EmailAuthProvider.credential(authEmail, currentPassword);
+                await reauthenticateWithCredential(user, credential);
+                await updatePassword(user, nextPassword);
+                setPasswordMessage({ type: 'success', text: 'Password updated successfully.' });
+            } else if (canCreatePasswordWithGoogle) {
+                await reauthenticateWithPopup(user, googleProvider);
+                const credential = EmailAuthProvider.credential(authEmail, nextPassword);
+                await linkWithCredential(user, credential);
+                setPasswordMessage({ type: 'success', text: 'Password created successfully. You can now sign in with your password too.' });
+            }
+
+            resetPasswordForm();
+        } catch (error) {
+            console.error(error);
+            setPasswordMessage({ type: 'error', text: getPasswordActionErrorMessage(error) });
+        } finally {
+            setIsSavingPassword(false);
+        }
+    };
 
     const closeDeleteDialog = () => {
         if (isDeletingAccount) {
@@ -459,10 +628,9 @@ export default function UserProfile() {
 
         try {
             if (canConfirmDeleteWithPassword) {
-                const passwordValue = deletePassword.trim();
-                const authEmail = user.email || user.providerData?.find((entry) => entry?.providerId === 'password')?.email || '';
+                const passwordValue = deletePassword;
 
-                if (!passwordValue) {
+                if (!passwordValue.trim()) {
                     throw new Error('Password confirmation is required.');
                 }
 
@@ -545,64 +713,131 @@ export default function UserProfile() {
                             )}
 
                             {isEditing ? (
-                                <form onSubmit={handleSave} className="space-y-4">
-                                    <div className="rounded-[1.6rem] border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-gray-800/40">
-                                        <div className="flex items-center gap-4">
-                                            <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-brandGold/20 bg-white shadow-sm dark:bg-darkCard">
-                                                {displayedProfilePhoto && !avatarLoadFailed ? (
-                                                    <img src={displayedProfilePhoto} alt={formData.name || user?.displayName || 'Profile'} className="h-full w-full object-cover" onError={() => setAvatarLoadFailed(true)} />
-                                                ) : (
-                                                    <ProfileFallbackAvatar label={buildAvatarLabel(userData, user)} className="h-full w-full" />
-                                                )}
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-sm font-black text-brandBlue dark:text-white">Profile Photo</p>
-                                                <p className="mt-1 text-xs text-gray-500">Upload a square image and it will appear in the account icon immediately after saving.</p>
-                                                <div className="mt-3 flex flex-wrap gap-2">
-                                                    <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-brandGold/25 bg-brandGold/10 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-brandGold transition-colors hover:bg-brandGold hover:text-white">
-                                                        <input type="file" accept="image/*" className="hidden" onChange={handlePhotoSelection} />
-                                                        Choose Photo
-                                                    </label>
-                                                    {(displayedProfilePhoto || selectedPhotoFile) ? (
-                                                        <button type="button" onClick={handleRemoveProfilePhoto} className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-red-500 transition-colors hover:bg-red-500 hover:text-white dark:border-red-900/40 dark:bg-red-900/10">
-                                                            Remove Photo
-                                                        </button>
-                                                    ) : null}
+                                <div className="space-y-4">
+                                    <form onSubmit={handleSave} className="space-y-4">
+                                        <div className="rounded-[1.6rem] border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-gray-800/40">
+                                            <div className="flex items-center gap-4">
+                                                <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-brandGold/20 bg-white shadow-sm dark:bg-darkCard">
+                                                    {displayedProfilePhoto && !avatarLoadFailed ? (
+                                                        <img src={displayedProfilePhoto} alt={formData.name || user?.displayName || 'Profile'} className="h-full w-full object-cover" onError={() => setAvatarLoadFailed(true)} />
+                                                    ) : (
+                                                        <ProfileFallbackAvatar label={buildAvatarLabel(userData, user)} className="h-full w-full" />
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-sm font-black text-brandBlue dark:text-white">Profile Photo</p>
+                                                    <p className="mt-1 text-xs text-gray-500">Upload a square image and it will appear in the account icon immediately after saving.</p>
+                                                    <div className="mt-3 flex flex-wrap gap-2">
+                                                        <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-brandGold/25 bg-brandGold/10 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-brandGold transition-colors hover:bg-brandGold hover:text-white">
+                                                            <input type="file" accept="image/*" className="hidden" onChange={handlePhotoSelection} />
+                                                            Choose Photo
+                                                        </label>
+                                                        {(displayedProfilePhoto || selectedPhotoFile) ? (
+                                                            <button type="button" onClick={handleRemoveProfilePhoto} className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-red-500 transition-colors hover:bg-red-500 hover:text-white dark:border-red-900/40 dark:bg-red-900/10">
+                                                                Remove Photo
+                                                            </button>
+                                                        ) : null}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 mb-1">Username</label>
-                                        <input type="text" name="username" value={formData.username} onChange={(e) => setFormData({...formData, username: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 outline-none focus:border-brandGold text-sm font-medium" />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-500 mb-1">First Name</label>
-                                            <input type="text" name="firstName" value={formData.firstName} onChange={(e) => setFormData({...formData, firstName: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 outline-none focus:border-brandGold text-sm font-medium" />
+                                            <label className="block text-xs font-bold text-gray-500 mb-1">Username</label>
+                                            <input type="text" name="username" value={formData.username} onChange={(e) => setFormData({...formData, username: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 outline-none focus:border-brandGold text-sm font-medium" />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-500 mb-1">First Name</label>
+                                                <input type="text" name="firstName" value={formData.firstName} onChange={(e) => setFormData({...formData, firstName: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 outline-none focus:border-brandGold text-sm font-medium" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-500 mb-1">Last Name</label>
+                                                <input type="text" name="lastName" value={formData.lastName} onChange={(e) => setFormData({...formData, lastName: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 outline-none focus:border-brandGold text-sm font-medium" />
+                                            </div>
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-500 mb-1">Last Name</label>
-                                            <input type="text" name="lastName" value={formData.lastName} onChange={(e) => setFormData({...formData, lastName: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 outline-none focus:border-brandGold text-sm font-medium" />
+                                            <label className="block text-xs font-bold text-gray-500 mb-1">Full Name</label>
+                                            <input type="text" name="name" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 outline-none focus:border-brandGold text-sm font-medium" />
                                         </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 mb-1">Full Name</label>
-                                        <input type="text" name="name" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 outline-none focus:border-brandGold text-sm font-medium" />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 mb-1">Email</label>
-                                        <input type="email" name="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 outline-none focus:border-brandGold text-sm font-medium" />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 mb-1">Phone</label>
-                                        <input type="text" name="phone" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 outline-none focus:border-brandGold text-sm font-medium" />
-                                    </div>
-                                    <div className="flex gap-2 pt-2">
-                                        <button type="submit" disabled={isSavingProfile} className="flex-1 bg-brandGold text-white font-bold py-2.5 rounded-xl hover:bg-brandBlue transition-colors shadow-sm disabled:cursor-wait disabled:opacity-70">{isSavingProfile ? 'Saving...' : 'Save'}</button>
-                                        <button type="button" onClick={handleCancelEdit} disabled={isSavingProfile} className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-bold py-2.5 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:cursor-wait disabled:opacity-70">Cancel</button>
-                                    </div>
-                                </form>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 mb-1">Email</label>
+                                            <input type="email" name="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 outline-none focus:border-brandGold text-sm font-medium" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 mb-1">Phone</label>
+                                            <input type="text" name="phone" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 outline-none focus:border-brandGold text-sm font-medium" />
+                                        </div>
+                                        <div className="flex gap-2 pt-2">
+                                            <button type="submit" disabled={isSavingProfile || isSavingPassword} className="flex-1 bg-brandGold text-white font-bold py-2.5 rounded-xl hover:bg-brandBlue transition-colors shadow-sm disabled:cursor-wait disabled:opacity-70">{isSavingProfile ? 'Saving...' : 'Save Profile'}</button>
+                                            <button type="button" onClick={handleCancelEdit} disabled={isSavingProfile || isSavingPassword} className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-bold py-2.5 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:cursor-wait disabled:opacity-70">Cancel</button>
+                                        </div>
+                                    </form>
+
+                                    <form onSubmit={handlePasswordUpdate} className="rounded-[1.6rem] border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-gray-800/35">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div>
+                                                <p className="text-sm font-black text-brandBlue dark:text-white">{passwordActionTitle}</p>
+                                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                    {hasPasswordProvider
+                                                        ? 'Use a separate button to update the password without changing the rest of your profile.'
+                                                        : canCreatePasswordWithGoogle
+                                                            ? 'Add a password to this Google account. You will confirm with Google once before saving it.'
+                                                            : 'Password setup is not available for this sign-in method right now.'}
+                                                </p>
+                                            </div>
+                                            <span className={`inline-flex rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${hasPasswordProvider ? 'bg-brandGold/10 text-brandGold' : canCreatePasswordWithGoogle ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300' : 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-300'}`}>
+                                                {hasPasswordProvider ? 'Password Active' : canCreatePasswordWithGoogle ? 'Create Access' : 'Unavailable'}
+                                            </span>
+                                        </div>
+
+                                        {passwordMessage.text ? (
+                                            <div className={'mt-4 rounded-2xl border px-4 py-3 text-sm font-semibold ' + (passwordMessage.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-900/10 dark:text-emerald-300' : 'border-red-200 bg-red-50 text-red-600 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-300')}>
+                                                {passwordMessage.text}
+                                            </div>
+                                        ) : null}
+
+                                        <div className="mt-4 space-y-4">
+                                            {hasPasswordProvider ? (
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-500 mb-1">Current Password</label>
+                                                    <input type="password" value={passwordForm.currentPassword} onChange={handlePasswordFieldChange('currentPassword')} autoComplete="current-password" className="w-full bg-white dark:bg-gray-900/30 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 outline-none focus:border-brandGold text-sm font-medium" placeholder="Enter your current password" disabled={isSavingProfile || isSavingPassword} />
+                                                </div>
+                                            ) : null}
+
+                                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-500 mb-1">New Password</label>
+                                                    <input type="password" value={passwordForm.newPassword} onChange={handlePasswordFieldChange('newPassword')} autoComplete="new-password" className="w-full bg-white dark:bg-gray-900/30 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 outline-none focus:border-brandGold text-sm font-medium" placeholder="At least 6 characters" disabled={isSavingProfile || isSavingPassword || !canManagePassword} />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-500 mb-1">Confirm Password</label>
+                                                    <input type="password" value={passwordForm.confirmPassword} onChange={handlePasswordFieldChange('confirmPassword')} autoComplete="new-password" className="w-full bg-white dark:bg-gray-900/30 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 outline-none focus:border-brandGold text-sm font-medium" placeholder="Repeat the new password" disabled={isSavingProfile || isSavingPassword || !canManagePassword} />
+                                                </div>
+                                            </div>
+
+                                            {canManagePassword ? (
+                                                <div className="rounded-2xl border border-dashed border-gray-200 px-4 py-3 text-xs font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                                                    {hasPasswordProvider
+                                                        ? 'This updates only the password used to sign in. Your profile details stay unchanged.'
+                                                        : 'After creating the password, this account can sign in with the same account identity plus password.'}
+                                                </div>
+                                            ) : (
+                                                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-300">
+                                                    Password setup needs a supported sign-in email on this account.
+                                                </div>
+                                            )}
+
+                                            <div className="flex gap-2">
+                                                <button type="submit" disabled={isSavingProfile || isSavingPassword || !canManagePassword} className="flex-1 rounded-xl bg-brandBlue px-4 py-2.5 text-sm font-black text-white transition-colors hover:bg-brandGold hover:text-brandBlue disabled:cursor-not-allowed disabled:opacity-60">
+                                                    {isSavingPassword ? (hasPasswordProvider ? 'Updating Password...' : 'Creating Password...') : passwordActionTitle}
+                                                </button>
+                                                <button type="button" onClick={() => { resetPasswordForm(); setPasswordMessage({ type: '', text: '' }); }} disabled={isSavingProfile || isSavingPassword} className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-500 transition-colors hover:border-gray-300 hover:text-brandBlue disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900/30 dark:text-gray-300">
+                                                    Clear
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
                             ) : (
                                 <div className="space-y-4">
                                     <div className="flex items-start gap-4 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/30">
