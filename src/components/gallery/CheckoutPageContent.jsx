@@ -311,10 +311,10 @@ export default function CheckoutPageContent({ checkoutType }) {
                             <p className={`text-[10px] font-black uppercase tracking-[0.28em] md:text-[11px] md:tracking-[0.35em] ${isWholesale ? 'text-brandGold' : 'text-brandBlue/60 dark:text-brandGold'}`}>
                                 {isWholesale ? 'Wholesale Checkout' : 'Retail Checkout'}
                             </p>
-                            <h1 className={`mt-2 text-[2.15rem] font-black leading-[0.98] sm:text-[2.4rem] md:mt-3 md:text-4xl ${isWholesale ? 'text-white' : 'text-brandBlue dark:text-white'}`}>
+                            <h1 className={`mt-2 max-w-[11.5ch] text-[1.9rem] font-black leading-[1.02] sm:max-w-[13ch] sm:text-[2.2rem] md:mt-3 md:max-w-none md:text-4xl ${isWholesale ? 'text-white' : 'text-brandBlue dark:text-white'}`}>
                                 {isWholesale ? 'راجع طلب الجملة قبل التأكيد' : 'راجع تفاصيل الطلب قبل التأكيد'}
                             </h1>
-                            <p className={`mt-2 max-w-xl text-[13px] leading-6 sm:text-sm md:mt-3 md:max-w-2xl md:text-base md:leading-7 ${isWholesale ? 'text-slate-200' : 'text-slate-600 dark:text-slate-300'}`}>
+                            <p className={`mt-2 max-w-[30ch] text-[12px] leading-5 sm:max-w-xl sm:text-sm sm:leading-6 md:mt-3 md:max-w-2xl md:text-base md:leading-7 ${isWholesale ? 'text-slate-200' : 'text-slate-600 dark:text-slate-300'}`}>
                                 هنا تقدر تشوف كل المنتجات، تعدل الكميات، وتراجع بيانات الحساب قبل إرسال الطلب النهائي.
                             </p>
                         </div>
@@ -351,21 +351,23 @@ export default function CheckoutPageContent({ checkoutType }) {
                                     </div>
 
                                     <div className="min-w-0 flex-1">
-                                        <div className="flex items-start justify-between gap-3 md:hidden">
-                                            <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[1.35rem] border border-brandGold/15 bg-gray-50 p-3 dark:bg-gray-900/50">
-                                                <img src={item.image || '/logo.png'} alt={item.title || item.name} className="max-h-full max-w-full object-contain" />
-                                            </div>
+                                        <div className="space-y-3 md:hidden">
+                                            <div className="flex items-start gap-3">
+                                                <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[1.35rem] border border-brandGold/15 bg-gray-50 p-3 dark:bg-gray-900/50">
+                                                    <img src={item.image || '/logo.png'} alt={item.title || item.name} className="max-h-full max-w-full object-contain" />
+                                                </div>
 
-                                            <div className="min-w-0 flex-1 pt-1 text-right">
-                                                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-brandGold">{item.category || (isWholesale ? 'Wholesale Item' : 'Gallery Item')}</p>
-                                                <h2 className="mt-2 text-[1.75rem] font-black leading-none text-brandBlue dark:text-white">{item.title || item.name}</h2>
-                                                {item.productCode ? <p className="mt-2 text-xs font-bold tracking-[0.18em] text-slate-400">Code: {item.productCode}</p> : null}
+                                                <div className="min-w-0 flex-1 pt-1 text-right">
+                                                    <p className="text-[9px] font-black uppercase tracking-[0.22em] text-brandGold">{item.category || (isWholesale ? 'Wholesale Item' : 'Gallery Item')}</p>
+                                                    <h2 className="mt-2 text-[1.28rem] font-black leading-[1.15] text-brandBlue dark:text-white sm:text-[1.45rem]">{item.title || item.name}</h2>
+                                                    {item.productCode ? <p className="mt-2 text-[11px] font-bold tracking-[0.14em] text-slate-400">Code: {item.productCode}</p> : null}
+                                                </div>
                                             </div>
 
                                             <button
                                                 type="button"
                                                 onClick={() => removeItem(item.cartId)}
-                                                className="shrink-0 self-start rounded-full border border-red-200 px-5 py-2 text-xs font-black text-red-500 transition-colors hover:bg-red-50 dark:border-red-500/20 dark:hover:bg-red-500/10"
+                                                className="inline-flex items-center justify-center self-start rounded-full border border-red-200 px-5 py-2 text-xs font-black text-red-500 transition-colors hover:bg-red-50 dark:border-red-500/20 dark:hover:bg-red-500/10"
                                             >
                                                 حذف
                                             </button>
