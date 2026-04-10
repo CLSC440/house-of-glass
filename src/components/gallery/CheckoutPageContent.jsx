@@ -403,7 +403,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                                                 <p className="mt-2 text-xl font-black text-green-600 dark:text-brandGold">{formatCurrency(item.price)}</p>
                                             </div>
 
-                                            <div className="text-right md:text-center order-2 md:order-none">
+                                            <div className="text-left md:text-center order-2 md:order-none">
                                                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Quantity</p>
                                                 <div className="mt-2 inline-flex items-center rounded-2xl border border-brandGold/20 bg-white shadow-sm dark:bg-gray-900">
                                                     <button
@@ -425,7 +425,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                                                 </div>
                                             </div>
 
-                                            <div className="text-left md:text-left order-1 md:order-none">
+                                            <div className="text-right md:text-left order-1 md:order-none">
                                                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Line Total</p>
                                                 <p className="mt-2 text-2xl font-black text-brandBlue dark:text-white md:text-xl">{formatCurrency((Number(item.price) || 0) * item.quantity)}</p>
                                                 {stockLimit !== null ? (
