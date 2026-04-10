@@ -12,6 +12,13 @@ const ROLE_MENU_OPTIONS = MANAGEABLE_USER_ROLES.map((role) => ({
     label: getUserRoleLabel(role)
 }));
 
+const USER_ROLE_SORT_PRIORITY = {
+    [USER_ROLE_VALUES.ADMIN]: 0,
+    [USER_ROLE_VALUES.MODERATOR]: 1,
+    [USER_ROLE_VALUES.CST_WHOLESALE]: 2,
+    [USER_ROLE_VALUES.CST_RETAIL]: 3
+};
+
 export default function AdminUsers() {
     const [users, setUsers] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -58,12 +65,17 @@ export default function AdminUsers() {
                 ...doc.data()
             }));
             
-            // Sort to put admins on top, then newer users. Alternatively, just sort by date if it exists.
             usersData.sort((a, b) => {
                 const roleA = normalizeUserRole(a.role);
                 const roleB = normalizeUserRole(b.role);
-                if (roleA === USER_ROLE_VALUES.ADMIN && roleB !== USER_ROLE_VALUES.ADMIN) return -1;
-                if (roleA !== USER_ROLE_VALUES.ADMIN && roleB === USER_ROLE_VALUES.ADMIN) return 1;
+
+                const rolePriorityA = USER_ROLE_SORT_PRIORITY[roleA] ?? Number.MAX_SAFE_INTEGER;
+                const rolePriorityB = USER_ROLE_SORT_PRIORITY[roleB] ?? Number.MAX_SAFE_INTEGER;
+
+                if (rolePriorityA !== rolePriorityB) {
+                    return rolePriorityA - rolePriorityB;
+                }
+
                 return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
             });
             
