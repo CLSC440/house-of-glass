@@ -1572,10 +1572,25 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                                         </div>
                                     </div>
 
-                                    <div className="rounded-[1.45rem] border border-green-500/20 bg-green-500/5 p-4 dark:bg-green-500/10">
-                                        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-green-600 dark:text-green-300">Quantity | الكمية</p>
-                                        <div className="mt-3 flex items-center overflow-hidden rounded-xl border-2 border-green-500/20 bg-white dark:bg-neutral-900" dir="ltr">
-                                            <button type="button" onClick={decreaseQuantity} className="flex h-12 w-11 items-center justify-center text-lg font-black text-green-600 transition-colors hover:bg-green-500/10 dark:text-green-300">
+                                </div>
+                            </div>
+
+                            <div className="border-t border-slate-200/80 p-4 dark:border-white/10">
+                                <div className="space-y-3">
+                                    {showStockLimitMessage ? (
+                                        <p className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-2 text-center text-[11px] font-bold text-amber-600 dark:text-amber-300">
+                                            وصلت للكمية المتاحة حالياً: {retailStockLimit}
+                                        </p>
+                                    ) : null}
+
+                                    <div className="flex items-center gap-3" dir="ltr">
+                                        <div className="flex shrink-0 items-center overflow-hidden rounded-full border border-emerald-500/20 bg-emerald-500/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] dark:bg-emerald-500/10">
+                                            <button
+                                                type="button"
+                                                onClick={decreaseQuantity}
+                                                className="flex h-14 w-12 items-center justify-center text-[1.6rem] font-black leading-none text-emerald-600 transition-colors hover:bg-emerald-500/10 dark:text-emerald-300"
+                                                aria-label="Decrease quantity"
+                                            >
                                                 -
                                             </button>
                                             <input
@@ -1584,29 +1599,29 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                                                 pattern="[0-9]*"
                                                 value={quantity}
                                                 onChange={handleQuantityInputChange}
-                                                className="min-w-12 flex-1 border-x border-green-500/15 bg-transparent px-3 py-0 text-center text-base font-black text-brandBlue outline-none dark:text-white"
+                                                className="h-14 w-16 border-x border-emerald-500/15 bg-transparent px-2 text-center text-lg font-black text-slate-900 outline-none dark:text-white"
                                                 aria-label="Unit quantity"
                                             />
-                                            <button type="button" onClick={increaseQuantity} className="flex h-12 w-11 items-center justify-center text-lg font-black text-green-600 transition-colors hover:bg-green-500/10 dark:text-green-300">
+                                            <button
+                                                type="button"
+                                                onClick={increaseQuantity}
+                                                className="flex h-14 w-12 items-center justify-center text-[1.6rem] font-black leading-none text-emerald-600 transition-colors hover:bg-emerald-500/10 dark:text-emerald-300"
+                                                aria-label="Increase quantity"
+                                            >
                                                 +
                                             </button>
                                         </div>
-                                        {showStockLimitMessage ? (
-                                            <p className="mt-2 text-[11px] font-bold text-amber-600 dark:text-amber-300">وصلت للكمية المتاحة حالياً: {retailStockLimit}</p>
-                                        ) : null}
+
+                                        <button
+                                            type="button"
+                                            onClick={handleMobileVariantAddToCart}
+                                            disabled={retailOutOfStock}
+                                            className="flex-1 rounded-full bg-[linear-gradient(135deg,#f59e0b,#f97316)] px-5 py-4 text-sm font-black uppercase tracking-[0.12em] text-white shadow-[0_20px_45px_rgba(249,115,22,0.28)] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            {retailOutOfStock ? 'غير متوفر حالياً' : 'ADD PACK | اضف عبوة'}
+                                        </button>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="border-t border-slate-200/80 p-4 dark:border-white/10">
-                                <button
-                                    type="button"
-                                    onClick={handleMobileVariantAddToCart}
-                                    disabled={retailOutOfStock}
-                                    className="w-full rounded-full bg-[linear-gradient(135deg,#f59e0b,#f97316)] px-5 py-4 text-sm font-black uppercase tracking-[0.12em] text-white shadow-[0_20px_45px_rgba(249,115,22,0.28)] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                    {retailOutOfStock ? 'غير متوفر حالياً' : 'ADD PACK | اضف عبوة'}
-                                </button>
                             </div>
                     </div>
 
