@@ -312,27 +312,6 @@ function ProductDetailCard({ iconClassName, iconWrapperClassName, label, value, 
     );
 }
 
-function buildAvailabilityCardContent({ isWholesaleContext, stockStatus, stockLimit, retailStockLimit }) {
-    const isOutOfStock = stockStatus === 'out_of_stock' || stockLimit === 0;
-    const hasRetailFallback = isWholesaleContext && Number.isFinite(retailStockLimit) && retailStockLimit > 0;
-
-    return {
-        label: isWholesaleContext ? 'Wholesale Availability | توفر الجملة' : 'Availability | حالة التوفر',
-        value: isOutOfStock
-            ? (hasRetailFallback ? 'نفدت كمية الجملة' : 'نفدت الكمية')
-            : stockStatus === 'low_stock'
-                ? (stockLimit !== null ? `كمية محدودة (${stockLimit})` : 'كمية محدودة')
-                : 'متوفر',
-        caption: isOutOfStock
-            ? (hasRetailFallback
-                ? `الجملة غير متاحة حالياً، لكن العبوات متاحة حتى ${retailStockLimit}.`
-                : 'سيتم التحديث بمجرد توفر شحنة جديدة.')
-            : stockLimit !== null
-                ? `الحد الأقصى المتاح حالياً: ${stockLimit}`
-                : 'جاهز للطلب الآن.'
-    };
-}
-
 function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startMinimized = false }) {
     const sheetRef = useRef(null);
     const backdropRef = useRef(null);
@@ -1011,7 +990,6 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
     );
     const canViewAdminPricing = isAdminRole(userRole);
     const isStrictWholesaleUser = normalizeUserRole(userRole) === USER_ROLE_VALUES.CST_WHOLESALE;
-    const displayOrderType = isStrictWholesaleUser ? 'wholesale' : 'retail';
 
     const increaseQuantity = () => {
         setQuantity((currentValue) => {
@@ -1244,20 +1222,22 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
     const wholesaleStockLimit = hasVariants ? resolveStockLimit(activeVariant, 'wholesale') : resolveStockLimit(selectedProduct, 'wholesale');
     const retailStockStatus = hasVariants ? resolveStockStatus(activeVariant, 'retail') : resolveStockStatus(selectedProduct, 'retail');
     const wholesaleStockStatus = hasVariants ? resolveStockStatus(activeVariant, 'wholesale') : resolveStockStatus(selectedProduct, 'wholesale');
-    const stockLimit = displayOrderType === 'wholesale' ? wholesaleStockLimit : retailStockLimit;
-    const normalizedStockStatus = displayOrderType === 'wholesale' ? wholesaleStockStatus : retailStockStatus;
+    const stockLimit = retailStockLimit;
+    const normalizedStockStatus = retailStockStatus;
     const retailOutOfStock = retailStockStatus === 'out_of_stock' || retailStockLimit === 0;
     const wholesaleOutOfStock = wholesaleStockStatus === 'out_of_stock' || wholesaleStockLimit === 0;
     const isOutOfStock = normalizedStockStatus === 'out_of_stock' || stockLimit === 0;
     const showStockLimitMessage = stockLimit !== null && quantity >= stockLimit;
-    const stockCardContent = buildAvailabilityCardContent({
-        isWholesaleContext: isStrictWholesaleUser,
-        stockStatus: normalizedStockStatus,
-        stockLimit,
-        retailStockLimit
-    });
-    const stockLabel = stockCardContent.value;
-    const stockCaption = stockCardContent.caption;
+    const stockLabel = isOutOfStock
+        ? 'نفدت الكمية'
+        : normalizedStockStatus === 'low_stock'
+            ? (stockLimit !== null ? `كمية محدودة (${stockLimit})` : 'كمية محدودة')
+            : 'متوفر';
+    const stockCaption = isOutOfStock
+        ? 'سيتم التحديث بمجرد توفر شحنة جديدة.'
+        : stockLimit !== null
+            ? `الحد الأقصى المتاح حالياً: ${stockLimit}`
+            : 'جاهز للطلب الآن.';
     const stockCardTone = isOutOfStock
         ? 'bg-rose-500 text-white'
         : normalizedStockStatus === 'low_stock'
@@ -1527,8 +1507,8 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                                         <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-white/45">Choose option | اختر الشكل / اللون</p>
                                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                                             {selectedProduct.variants.map((variantEntry, idx) => {
-                                                const variantStatus = resolveStockStatus(variantEntry, displayOrderType);
-                                                const variantLimit = resolveStockLimit(variantEntry, displayOrderType);
+                                                const variantStatus = resolveStockStatus(variantEntry, 'retail');
+                                                const variantLimit = resolveStockLimit(variantEntry, 'retail');
                                                 const isAvailable = !(variantStatus === 'out_of_stock' || variantLimit === 0);
                                                 const variantImage = getVariantAllImages(variantEntry)[0] || currentVariantImage || '/logo.png';
 
@@ -1645,8 +1625,8 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
         const variantNetPrice = variantExplicitNetPrice > 0 ? variantExplicitNetPrice : Math.max(0, variantRetailPrice - variantDiscountValue);
         const vPrice = isStrictWholesaleUser ? variantNetPrice : variantRetailPrice;
         const getVariantAvailability = (candidateVariant) => {
-            const candidateStatus = resolveStockStatus(candidateVariant, displayOrderType);
-            const candidateStockLimit = resolveStockLimit(candidateVariant, displayOrderType);
+            const candidateStatus = resolveStockStatus(candidateVariant, 'retail');
+            const candidateStockLimit = resolveStockLimit(candidateVariant, 'retail');
 
             if (candidateStatus === 'out_of_stock') return 'out';
             if (candidateStockLimit === 0) return 'out';
@@ -1656,21 +1636,21 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
         const variantWholesaleStockLimit = resolveStockLimit(variant, 'wholesale');
         const variantRetailStockStatus = resolveStockStatus(variant, 'retail');
         const variantWholesaleStockStatus = resolveStockStatus(variant, 'wholesale');
-        const variantStockLimit = displayOrderType === 'wholesale' ? variantWholesaleStockLimit : variantRetailStockLimit;
-        const variantNormalizedStockStatus = displayOrderType === 'wholesale' ? variantWholesaleStockStatus : variantRetailStockStatus;
+        const variantStockLimit = variantRetailStockLimit;
+        const variantNormalizedStockStatus = variantRetailStockStatus;
         const variantRetailOutOfStock = variantRetailStockStatus === 'out_of_stock' || variantRetailStockLimit === 0;
         const variantWholesaleOutOfStock = variantWholesaleStockStatus === 'out_of_stock' || variantWholesaleStockLimit === 0;
         const variantOutOfStock = variantNormalizedStockStatus === 'out_of_stock' || variantStockLimit === 0;
-        const variantStockCardContent = buildAvailabilityCardContent({
-            isWholesaleContext: isStrictWholesaleUser,
-            stockStatus: variantNormalizedStockStatus,
-            stockLimit: variantStockLimit,
-            retailStockLimit: variantRetailStockLimit
-        });
-        const variantStockLabel = variantStockCardContent.value;
-        const variantStockCaption = variantOutOfStock && !isStrictWholesaleUser
+        const variantStockLabel = variantOutOfStock
+            ? 'نفدت الكمية'
+            : variantNormalizedStockStatus === 'low_stock'
+                ? (variantStockLimit !== null ? `كمية محدودة (${variantStockLimit})` : 'كمية محدودة')
+                : 'متوفر';
+        const variantStockCaption = variantOutOfStock
             ? 'هذا الموديل غير متاح حالياً.'
-            : variantStockCardContent.caption;
+            : variantStockLimit !== null
+                ? `الحد الأقصى المتاح حالياً: ${variantStockLimit}`
+                : 'جاهز للطلب الآن.';
         const variantStockCardTone = variantOutOfStock
             ? 'bg-rose-500 text-white'
             : variantNormalizedStockStatus === 'low_stock'
@@ -1742,7 +1722,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                     <ProductDetailCard
                         iconClassName={variantStockIcon}
                         iconWrapperClassName={variantStockCardTone}
-                        label={variantStockCardContent.label}
+                        label="Availability | حالة التوفر"
                         value={variantStockLabel}
                         valueClassName={variantOutOfStock ? 'text-rose-500 dark:text-rose-300' : variantNormalizedStockStatus === 'low_stock' ? 'text-amber-500 dark:text-amber-300' : 'text-emerald-600 dark:text-emerald-300'}
                         caption={variantStockCaption}
@@ -1975,8 +1955,8 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                                 <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-white/45">Choose Variant | اختر الشكل</p>
                                 <div className="flex flex-wrap gap-2">
                                     {selectedProduct.variants.map((variantEntry, idx) => {
-                                        const availability = resolveStockStatus(variantEntry, displayOrderType) === 'out_of_stock'
-                                            || resolveStockLimit(variantEntry, displayOrderType) === 0
+                                        const availability = resolveStockStatus(variantEntry, 'retail') === 'out_of_stock'
+                                            || resolveStockLimit(variantEntry, 'retail') === 0
                                             ? 'out'
                                             : 'available';
 
@@ -2029,7 +2009,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                             <ProductDetailCard
                                 iconClassName={stockIcon}
                                 iconWrapperClassName={stockCardTone}
-                                label={stockCardContent.label}
+                                label="Availability | حالة التوفر"
                                 value={stockLabel}
                                 valueClassName={isOutOfStock ? 'text-rose-500 dark:text-rose-300' : normalizedStockStatus === 'low_stock' ? 'text-amber-500 dark:text-amber-300' : 'text-emerald-600 dark:text-emerald-300'}
                                 caption={stockCaption}
@@ -2350,7 +2330,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                             <ProductDetailCard
                                 iconClassName={stockIcon}
                                 iconWrapperClassName={stockCardTone}
-                                label={stockCardContent.label}
+                                label="Availability | حالة التوفر"
                                 value={stockLabel}
                                 valueClassName={isOutOfStock ? 'text-rose-500 dark:text-rose-300' : normalizedStockStatus === 'low_stock' ? 'text-amber-500 dark:text-amber-300' : 'text-emerald-600 dark:text-emerald-300'}
                                 caption={stockCaption}
