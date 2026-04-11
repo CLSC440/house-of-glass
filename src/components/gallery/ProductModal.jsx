@@ -548,7 +548,7 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
 
     if (isMinimized) {
         return (
-            <div className="fixed inset-x-0 bottom-0 z-[180] px-3 pb-[max(0.15rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6" dir="rtl" onClick={(event) => event.stopPropagation()}>
+            <div key="order-sheet-minimized" className="fixed inset-x-0 bottom-0 z-[180] px-3 pb-[max(0.15rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6" dir="rtl" onClick={(event) => event.stopPropagation()}>
                 <button
                     type="button"
                     aria-label="Open order review summary"
@@ -578,7 +578,7 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
     }
 
     return (
-        <div className="fixed inset-0 z-[180]" dir="rtl" onClick={(event) => event.stopPropagation()}>
+        <div key="order-sheet-expanded" className="fixed inset-0 z-[180]" dir="rtl" onClick={(event) => event.stopPropagation()}>
             <button
                 type="button"
                 aria-label="Minimize order review"
@@ -744,12 +744,10 @@ export default function ProductModal() {
         () => buildRetailCartSummary(cartItems, cartCount, cartSubtotal, retailOrderSheet),
         [cartCount, cartItems, cartSubtotal, retailOrderSheet]
     );
-    const shouldUseEmbeddedVariantCartBar = Boolean(
+    const shouldUseEmbeddedMobileProductBar = Boolean(
         isClientMounted
         &&
         selectedProduct
-        && Array.isArray(selectedProduct?.variants)
-        && selectedProduct.variants.length > 0
         && isCompactMobileViewport()
     );
 
@@ -892,7 +890,7 @@ export default function ProductModal() {
                 />
             ) : null}
 
-            {isClientMounted && !shouldUseEmbeddedVariantCartBar ? (
+            {isClientMounted && !shouldUseEmbeddedMobileProductBar ? (
                 <ProductOrderDecisionSheet
                     summary={activeRetailSummary}
                     onDismiss={dismissRetailOrderSheet}
@@ -909,6 +907,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
     const [quantity, setQuantity] = useState(1);
     const [wholesaleQuantity, setWholesaleQuantity] = useState(1);
     const [showMobileVariantPicker, setShowMobileVariantPicker] = useState(false);
+    const [showMobileRetailQuantityBar, setShowMobileRetailQuantityBar] = useState(false);
     const { siteSettings, derivedSettings } = useSiteSettings();
     const [showLiveIndicator, setShowLiveIndicator] = useState(false);
     const [lightboxState, setLightboxState] = useState({ isOpen: false, images: [], index: 0, title: '' });
@@ -1123,6 +1122,8 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
             image: currentMedia?.url || currentMedia,
             title: selectedProduct.title || selectedProduct.name
         });
+
+        setShowMobileRetailQuantityBar(false);
     };
 
     const handleAddToWholesaleCart = () => {
@@ -1296,6 +1297,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
 
     useEffect(() => {
         setShowMobileVariantPicker(false);
+        setShowMobileRetailQuantityBar(false);
     }, [selectedProduct?.id, selectedProduct?.code, selectedProduct?.name]);
 
     useEffect(() => {
@@ -1470,6 +1472,140 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
 
         setRetailOrderSheet(cartSummary);
         closeModal();
+    };
+
+    const handleMobileRetailViewCart = () => {
+        const confirmation = handleRetailAddWithConfirmation(selectedProduct, quantity, {
+            unitPrice: primaryDisplayPrice,
+            image: currentMedia?.url || currentMedia,
+            title: selectedProduct.title || selectedProduct.name
+        });
+
+        if (!confirmation) {
+            return;
+        }
+
+        const targetCartId = String(
+            confirmation.cartId
+            || selectedProduct?.id
+            || selectedProduct?.code
+            || selectedProduct?.title
+            || selectedProduct?.name
+            || 'cart-item'
+        ).trim();
+        const resolvedTitle = resolveModalProductTitle(selectedProduct, selectedProduct?.title || selectedProduct?.name);
+        const resolvedImage = resolveModalProductImage(selectedProduct, currentMedia?.url || currentMedia);
+        const resolvedUnitPrice = parsePrice(primaryDisplayPrice);
+        const normalizedCartLines = cartItems.map((item) => {
+            const itemCartId = String(item?.cartId || item?.id || item?.code || item?.title || item?.name || '').trim();
+            const quantityValue = itemCartId === targetCartId
+                ? confirmation.nextQuantity
+                : Number(item?.quantity || 0);
+            const unitPriceValue = itemCartId === targetCartId
+                ? resolvedUnitPrice
+                : parsePrice(item?.price);
+
+            return {
+                id: String(item?.cartId || item?.id || item?.code || item?.title || item?.name || targetCartId),
+                title: itemCartId === targetCartId
+                    ? resolvedTitle
+                    : String(item?.title || item?.name || 'Cart item').trim() || 'Cart item',
+                quantity: quantityValue,
+                unitPrice: unitPriceValue,
+                lineTotal: quantityValue > 0 ? unitPriceValue * quantityValue : unitPriceValue
+            };
+        });
+        const targetLineExists = normalizedCartLines.some((item) => item.id === targetCartId);
+
+        if (!targetLineExists && confirmation.nextQuantity > 0) {
+            normalizedCartLines.push({
+                id: targetCartId,
+                title: resolvedTitle,
+                quantity: confirmation.nextQuantity,
+                unitPrice: resolvedUnitPrice,
+                lineTotal: resolvedUnitPrice * confirmation.nextQuantity
+            });
+        }
+
+        setRetailOrderSheet({
+            title: resolvedTitle,
+            image: resolvedImage,
+            addedQuantity: confirmation.actualAddedQuantity || quantity,
+            nextQuantity: confirmation.nextQuantity,
+            unitPrice: resolvedUnitPrice,
+            addedSubtotal: resolvedUnitPrice * Math.max(1, confirmation.actualAddedQuantity || quantity),
+            nextCartCount: confirmation.nextCartCount,
+            nextCartSubtotal: confirmation.nextCartSubtotal,
+            wasExisting: true,
+            cartItems: normalizedCartLines,
+            isCartFallback: true
+        });
+        setShowMobileRetailQuantityBar(false);
+        closeModal();
+    };
+
+    const renderMobileRetailAddBar = () => {
+        if (hasVariants) {
+            return null;
+        }
+
+        if (showMobileRetailQuantityBar) {
+            return (
+                <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[140] px-3 pb-[max(0.85rem,env(safe-area-inset-bottom))] md:hidden">
+                    <div className="mx-auto w-full max-w-3xl">
+                        <div className="pointer-events-auto animate-[order-sheet-rise_260ms_cubic-bezier(0.22,1,0.36,1)] rounded-[1.8rem] border border-brandGold/20 bg-[#11192c] px-3 py-3 shadow-[0_26px_70px_rgba(15,23,42,0.42)]">
+                            <div className="flex items-center gap-3" dir="ltr">
+                                <div className="flex shrink-0 items-center overflow-hidden rounded-full border border-slate-300 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]">
+                                    <button
+                                        type="button"
+                                        onClick={decreaseQuantity}
+                                        className="flex h-14 w-12 items-center justify-center text-[1.6rem] font-black leading-none text-slate-900 transition-colors hover:bg-slate-100"
+                                        aria-label="Decrease quantity"
+                                    >
+                                        -
+                                    </button>
+                                    <span className="flex h-14 min-w-14 items-center justify-center border-x border-slate-200 px-4 text-[1.35rem] font-black leading-none text-slate-900">
+                                        {quantity}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={increaseQuantity}
+                                        className="flex h-14 w-12 items-center justify-center text-[1.6rem] font-black leading-none text-slate-900 transition-colors hover:bg-slate-100"
+                                        aria-label="Increase quantity"
+                                    >
+                                        +
+                                    </button>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={handleMobileRetailViewCart}
+                                    disabled={retailOutOfStock}
+                                    className="flex-1 rounded-full bg-[linear-gradient(135deg,#f59e0b,#f97316)] px-5 py-4 text-center text-[1rem] font-black text-white shadow-[0_20px_45px_rgba(249,115,22,0.28)] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {retailOutOfStock ? 'غير متوفر حالياً' : 'View cart'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        return (
+            <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[140] px-3 pb-[max(0.85rem,env(safe-area-inset-bottom))] md:hidden">
+                <div className="mx-auto w-full max-w-3xl">
+                    <button
+                        type="button"
+                        onClick={() => setShowMobileRetailQuantityBar(true)}
+                        disabled={retailOutOfStock}
+                        className="pointer-events-auto w-full rounded-full bg-[linear-gradient(135deg,#f59e0b,#f97316)] px-5 py-4 text-sm font-black tracking-[0.04em] text-white shadow-[0_22px_55px_rgba(249,115,22,0.3)] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {retailOutOfStock ? 'غير متوفر حالياً' : 'Add to cart | اضف للعربة'}
+                    </button>
+                </div>
+            </div>
+        );
     };
 
     const renderMobileVariantCheckoutBar = () => {
@@ -2328,7 +2464,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                 </div>
 
                 {/* Info Section */}
-                <div className="custom-scrollbar flex w-full flex-col p-5 md:min-h-0 md:w-2/5 md:overflow-y-auto md:p-8">
+                <div className="custom-scrollbar flex w-full flex-col p-5 pb-28 md:min-h-0 md:w-2/5 md:overflow-y-auto md:p-8">
                     <div className="mb-2">
                         {metadata.length > 0 && (
                             <div className="mb-3 flex flex-wrap gap-2">
@@ -2470,6 +2606,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                 </div>
 
             </div>
+            {!lightboxState.isOpen ? renderMobileRetailAddBar() : null}
             {lightboxState.isOpen ? (
                 <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/95 p-4" dir="ltr">
                     <button
