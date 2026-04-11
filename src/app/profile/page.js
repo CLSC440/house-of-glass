@@ -224,6 +224,7 @@ export default function UserProfile() {
     const [isSavingPassword, setIsSavingPassword] = useState(false);
     const [isAutoThemeEnabled, setIsAutoThemeEnabled] = useState(true);
     const [isDarkTheme, setIsDarkTheme] = useState(false);
+    const [isProfileDetailsExpanded, setIsProfileDetailsExpanded] = useState(false);
 
     const [orders, setOrders] = useState([]);
     const [ordersLoading, setOrdersLoading] = useState(true);
@@ -387,6 +388,14 @@ export default function UserProfile() {
             ...currentValue,
             [orderId]: !currentValue[orderId]
         }));
+    };
+
+    const toggleProfileDetails = () => {
+        if (isEditing) {
+            return;
+        }
+
+        setIsProfileDetailsExpanded((currentValue) => !currentValue);
     };
 
     const handleCancelEdit = () => {
@@ -696,11 +705,20 @@ export default function UserProfile() {
                     <div className="lg:col-span-1 space-y-6">
                         <div id="profile-settings" className="bg-white dark:bg-darkCard rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-800 scroll-mt-28">
                             <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-lg font-black text-brandBlue dark:text-white flex items-center gap-2">
-                                    <i className="fa-regular fa-user text-brandGold"></i> Profile Details
-                                </h2>
+                                <button
+                                    type="button"
+                                    onClick={toggleProfileDetails}
+                                    disabled={isEditing}
+                                    aria-expanded={isEditing || isProfileDetailsExpanded}
+                                    className="flex flex-1 items-center justify-between gap-3 text-left disabled:cursor-default"
+                                >
+                                    <h2 className="text-lg font-black text-brandBlue dark:text-white flex items-center gap-2">
+                                        <i className="fa-regular fa-user text-brandGold"></i> Profile Details
+                                    </h2>
+                                    <i className={`fa-solid ${(isEditing || isProfileDetailsExpanded) ? 'fa-chevron-up' : 'fa-chevron-down'} text-sm text-brandGold transition-transform`}></i>
+                                </button>
                                 {!isEditing && (
-                                    <button onClick={() => setIsEditing(true)} className="text-brandGold hover:text-brandBlue dark:hover:text-white text-sm font-bold transition-colors">
+                                    <button onClick={() => { setIsEditing(true); setIsProfileDetailsExpanded(true); }} className="text-brandGold hover:text-brandBlue dark:hover:text-white text-sm font-bold transition-colors">
                                         Edit
                                     </button>
                                 )}
@@ -840,7 +858,12 @@ export default function UserProfile() {
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    <div className="flex items-start gap-4 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/30">
+                                    <button
+                                        type="button"
+                                        onClick={toggleProfileDetails}
+                                        className="flex w-full items-start gap-4 rounded-xl bg-gray-50 p-3 text-left transition-colors hover:bg-gray-100 dark:bg-gray-800/30 dark:hover:bg-gray-800/50"
+                                        aria-expanded={isProfileDetailsExpanded}
+                                    >
                                         <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-brandGold/20 bg-white text-brandGold dark:bg-darkCard">
                                             {displayedProfilePhoto && !avatarLoadFailed ? (
                                                 <img src={displayedProfilePhoto} alt={userData?.name || user?.displayName || 'Profile'} className="h-full w-full object-cover" onError={() => setAvatarLoadFailed(true)} />
@@ -848,31 +871,34 @@ export default function UserProfile() {
                                                 <ProfileFallbackAvatar label={buildAvatarLabel(userData, user)} className="h-full w-full" />
                                             )}
                                         </div>
-                                        <div>
+                                        <div className="min-w-0 flex-1">
                                             <p className="text-sm font-black text-brandBlue dark:text-white">{userData?.name || 'Adding Name...'}</p>
                                             <p className="text-xs text-gray-500">{user?.email || userData?.email}</p>
                                         </div>
-                                    </div>
+                                        <i className={`fa-solid ${isProfileDetailsExpanded ? 'fa-chevron-up' : 'fa-chevron-down'} mt-1 text-sm text-brandGold transition-transform`}></i>
+                                    </button>
                                     
-                                    <div className="pt-2">
-                                        <div className="mb-4">
-                                            <p className="text-xs text-gray-400 font-semibold mb-0.5">Username</p>
-                                            <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{userData?.username || 'Not provided'}</p>
+                                    {isProfileDetailsExpanded ? (
+                                        <div className="pt-2">
+                                            <div className="mb-4">
+                                                <p className="text-xs text-gray-400 font-semibold mb-0.5">Username</p>
+                                                <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{userData?.username || 'Not provided'}</p>
+                                            </div>
+                                            <div className="mb-4">
+                                                <p className="text-xs text-gray-400 font-semibold mb-0.5">Phone Number</p>
+                                                <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{userData?.phone || 'Not provided'}</p>
+                                            </div>
+                                            <div className="mb-4">
+                                                <p className="text-xs text-gray-400 font-semibold mb-0.5">First Name</p>
+                                                <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{userData?.firstName || 'Not provided'}</p>
+                                            </div>
+                                            <div className="mb-2">
+                                                <p className="text-xs text-gray-400 font-semibold mb-0.5">Last Name</p>
+                                                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{userData?.lastName || 'Not provided'}</p>
+                                            </div>
+                                            <button onClick={handleDeleteAccount} className="mt-4 w-full px-4 py-3 bg-red-50 dark:bg-red-900/10 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-xl text-xs font-black uppercase tracking-widest transition-all border border-red-100 dark:border-red-900/20">Delete Account</button>
                                         </div>
-                                        <div className="mb-4">
-                                            <p className="text-xs text-gray-400 font-semibold mb-0.5">Phone Number</p>
-                                            <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{userData?.phone || 'Not provided'}</p>
-                                        </div>
-                                        <div className="mb-4">
-                                            <p className="text-xs text-gray-400 font-semibold mb-0.5">First Name</p>
-                                            <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{userData?.firstName || 'Not provided'}</p>
-                                        </div>
-                                        <div className="mb-2">
-                                            <p className="text-xs text-gray-400 font-semibold mb-0.5">Last Name</p>
-                                            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{userData?.lastName || 'Not provided'}</p>
-                                        </div>
-                                        <button onClick={handleDeleteAccount} className="mt-4 w-full px-4 py-3 bg-red-50 dark:bg-red-900/10 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-xl text-xs font-black uppercase tracking-widest transition-all border border-red-100 dark:border-red-900/20">Delete Account</button>
-                                    </div>
+                                    ) : null}
                                 </div>
                             )}
                         </div>
