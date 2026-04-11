@@ -161,6 +161,14 @@ function isCompactMobileViewport() {
     return window.matchMedia('(max-width: 639px)').matches;
 }
 
+function isSummaryBarScrollViewport() {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+        return false;
+    }
+
+    return window.matchMedia('(max-width: 767px)').matches;
+}
+
 function buildProductModalUrl(pathname, currentSearch, nextShareCode, currentHash = '') {
     const params = new URLSearchParams(String(currentSearch || '').replace(/^\?/, ''));
 
@@ -351,7 +359,31 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
     const dragStartYRef = useRef(0);
     const dragOffsetRef = useRef(0);
     const dismissTimeoutRef = useRef(null);
+    const minimizedBarHideTimeoutRef = useRef(null);
+    const lastMinimizedBarScrollYRef = useRef(0);
     const [isMinimized, setIsMinimized] = useState(false);
+    const [isMinimizedBarVisible, setIsMinimizedBarVisible] = useState(Boolean(startMinimized));
+
+    const clearMinimizedBarHideTimeout = () => {
+        if (typeof window === 'undefined' || !minimizedBarHideTimeoutRef.current) {
+            return;
+        }
+
+        window.clearTimeout(minimizedBarHideTimeoutRef.current);
+        minimizedBarHideTimeoutRef.current = null;
+    };
+
+    const scheduleMinimizedBarHide = () => {
+        if (typeof window === 'undefined' || !isSummaryBarScrollViewport()) {
+            return;
+        }
+
+        clearMinimizedBarHideTimeout();
+        minimizedBarHideTimeoutRef.current = window.setTimeout(() => {
+            setIsMinimizedBarVisible(false);
+            minimizedBarHideTimeoutRef.current = null;
+        }, 3000);
+    };
 
     const detachDragListeners = () => {
         if (typeof window === 'undefined') {
@@ -390,6 +422,13 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
         }
 
         setIsMinimized(true);
+        setIsMinimizedBarVisible(true);
+
+        if (typeof window !== 'undefined') {
+            lastMinimizedBarScrollYRef.current = Math.max(0, window.scrollY || 0);
+        }
+
+        scheduleMinimizedBarHide();
         dragOffsetRef.current = 0;
     };
 
@@ -399,6 +438,8 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
             dismissTimeoutRef.current = null;
         }
 
+        clearMinimizedBarHideTimeout();
+        setIsMinimizedBarVisible(true);
         setIsMinimized(false);
         applyDragOffset(0, { animate: true });
     };
@@ -492,6 +533,17 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
 
     useEffect(() => {
         setIsMinimized(startMinimized);
+        setIsMinimizedBarVisible(Boolean(startMinimized));
+
+        clearMinimizedBarHideTimeout();
+
+        if (typeof window !== 'undefined') {
+            lastMinimizedBarScrollYRef.current = Math.max(0, window.scrollY || 0);
+        }
+
+        if (startMinimized) {
+            scheduleMinimizedBarHide();
+        }
 
         if (!startMinimized) {
             if (typeof window !== 'undefined') {
@@ -505,12 +557,49 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
     useEffect(() => {
         return () => {
             detachDragListeners();
+            clearMinimizedBarHideTimeout();
             if (dismissTimeoutRef.current) {
                 window.clearTimeout(dismissTimeoutRef.current);
                 dismissTimeoutRef.current = null;
             }
         };
     }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || !summary || !isMinimized || !isSummaryBarScrollViewport()) {
+            clearMinimizedBarHideTimeout();
+            return undefined;
+        }
+
+        lastMinimizedBarScrollYRef.current = Math.max(0, window.scrollY || 0);
+
+        const handleScroll = () => {
+            const nextScrollY = Math.max(0, window.scrollY || 0);
+            const deltaY = nextScrollY - lastMinimizedBarScrollYRef.current;
+
+            if (Math.abs(deltaY) < 6) {
+                return;
+            }
+
+            lastMinimizedBarScrollYRef.current = nextScrollY;
+
+            if (deltaY > 0) {
+                setIsMinimizedBarVisible(true);
+                scheduleMinimizedBarHide();
+                return;
+            }
+
+            clearMinimizedBarHideTimeout();
+            setIsMinimizedBarVisible(false);
+        };
+
+        window.addEventListener('scroll', handleScroll, { passive: true });
+
+        return () => {
+            window.removeEventListener('scroll', handleScroll);
+            clearMinimizedBarHideTimeout();
+        };
+    }, [isMinimized, summary]);
 
     useEffect(() => {
         if (typeof document === 'undefined') {
@@ -547,10 +636,21 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
         WebkitMaskSize: 'contain',
         maskSize: 'contain'
     };
+    const shouldTrackMinimizedBarScroll = isSummaryBarScrollViewport();
+    const isMinimizedBarShown = !shouldTrackMinimizedBarScroll || isMinimizedBarVisible;
 
     if (isMinimized) {
         return (
-            <div key="order-sheet-minimized" className="fixed inset-x-0 bottom-0 z-[180] px-3 pb-[max(0.15rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6" dir="rtl" onClick={(event) => event.stopPropagation()}>
+            <div
+                key="order-sheet-minimized"
+                className={`fixed inset-x-0 bottom-0 z-[180] px-3 pb-[max(0.15rem,env(safe-area-inset-bottom))] transition-[transform,opacity] duration-200 ease-out sm:px-6 sm:pb-6 ${isMinimizedBarShown ? 'pointer-events-auto' : 'pointer-events-none'}`}
+                dir="rtl"
+                style={{
+                    transform: isMinimizedBarShown ? 'translateY(0)' : 'translateY(calc(100% + 1.25rem))',
+                    opacity: isMinimizedBarShown ? 1 : 0
+                }}
+                onClick={(event) => event.stopPropagation()}
+            >
                 <button
                     type="button"
                     aria-label="Open order review summary"
