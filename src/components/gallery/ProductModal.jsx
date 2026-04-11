@@ -6,6 +6,8 @@ import { AnimatedTestimonials } from '@/components/ui/animated-testimonials';
 import { buildWhatsAppUrl, useSiteSettings } from '@/lib/use-site-settings';
 import { getGlobalRetailDisplayPrice, parsePercentage } from '@/lib/site-pricing';
 import { isAdminRole, normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
+import BrandLoadingScreen from '@/components/layout/BrandLoadingScreen';
+import useCheckoutNavigation from '@/lib/use-checkout-navigation';
 
 const LIVE_INDICATOR_DURATION_MS = 8000;
 
@@ -736,6 +738,7 @@ export default function ProductModal() {
     const searchParams = useSearchParams();
     const lastSyncedShareCodeRef = useRef('');
     const dismissedShareCodeRef = useRef('');
+    const { isCheckoutRouteLoading, pendingCheckoutHref, navigateToCheckout } = useCheckoutNavigation();
     const [retailOrderSheet, setRetailOrderSheet] = useState(null);
     const [isClientMounted, setIsClientMounted] = useState(false);
     const requestedShareCode = String(searchParams?.get('code') || '').trim();
@@ -750,6 +753,7 @@ export default function ProductModal() {
         selectedProduct
         && isCompactMobileViewport()
     );
+    const isWholesaleCheckoutLoading = pendingCheckoutHref.includes('type=wholesale');
 
     useEffect(() => {
         setIsClientMounted(true);
@@ -856,13 +860,13 @@ export default function ProductModal() {
     };
 
     const handleCompleteRetailOrder = () => {
-        setRetailOrderSheet(null);
+        navigateToCheckout('/checkout', () => {
+            setRetailOrderSheet(null);
 
-        if (selectedProduct) {
-            closeModal();
-        }
-
-        router.push('/checkout');
+            if (selectedProduct) {
+                closeModal();
+            }
+        });
     };
 
     if (!selectedProduct && !activeRetailSummary) return null;
@@ -896,6 +900,14 @@ export default function ProductModal() {
                     onDismiss={dismissRetailOrderSheet}
                     onCompleteOrder={handleCompleteRetailOrder}
                     startMinimized={!retailOrderSheet}
+                />
+            ) : null}
+
+            {isCheckoutRouteLoading ? (
+                <BrandLoadingScreen
+                    title={isWholesaleCheckoutLoading ? 'Loading wholesale checkout' : 'Loading checkout'}
+                    message={isWholesaleCheckoutLoading ? 'جاري تجهيز صفحة مراجعة طلب الجملة قبل فتحها' : 'جاري تجهيز صفحة الـ checkout ومراجعة الطلب قبل فتحها'}
+                    showProgressBar={false}
                 />
             ) : null}
         </>

@@ -1,10 +1,10 @@
 'use client';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useGallery } from '@/contexts/GalleryContext';
+import BrandLoadingScreen from '@/components/layout/BrandLoadingScreen';
+import useCheckoutNavigation from '@/lib/use-checkout-navigation';
 
 export default function CartModal() {
-    const router = useRouter();
     const {
         cartItems,
         cartCount,
@@ -23,15 +23,15 @@ export default function CartModal() {
         getCartItemStockLimit,
         isWholesaleCustomer
     } = useGallery();
+    const { isCheckoutRouteLoading, pendingCheckoutHref, navigateToCheckout } = useCheckoutNavigation();
+    const isWholesaleCheckoutLoading = pendingCheckoutHref.includes('type=wholesale');
 
     const handleCheckout = () => {
-        closeCart();
-        router.push('/checkout');
+        navigateToCheckout('/checkout', closeCart);
     };
 
     const handleWholesaleCheckout = () => {
-        closeWholesaleCart();
-        router.push('/checkout?type=wholesale');
+        navigateToCheckout('/checkout?type=wholesale', closeWholesaleCart);
     };
 
     return (
@@ -66,6 +66,14 @@ export default function CartModal() {
                     priceLabel="Wholesale"
                     accent="wholesale"
                     getCartItemStockLimit={getCartItemStockLimit}
+                />
+            ) : null}
+
+            {isCheckoutRouteLoading ? (
+                <BrandLoadingScreen
+                    title={isWholesaleCheckoutLoading ? 'Loading wholesale checkout' : 'Loading checkout'}
+                    message={isWholesaleCheckoutLoading ? 'جاري تجهيز صفحة مراجعة طلب الجملة قبل فتحها' : 'جاري تجهيز صفحة الـ checkout ومراجعة الطلب قبل فتحها'}
+                    showProgressBar={false}
                 />
             ) : null}
         </>

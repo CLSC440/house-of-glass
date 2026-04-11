@@ -3,7 +3,8 @@ import Image from 'next/image';
 export default function BrandLoadingScreen({
     title = 'Loading your account',
     message = 'Preparing your settings and order history...',
-    fixed = true
+    fixed = true,
+    showProgressBar = true
 }) {
     return (
         <div className={`${fixed ? 'fixed inset-0 z-[240]' : 'min-h-screen'} flex items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.16),transparent_28%),linear-gradient(180deg,#0b1020_0%,#121a2d_48%,#090d18_100%)] px-6`}>
@@ -17,9 +18,11 @@ export default function BrandLoadingScreen({
                 </div>
                 <p className="mt-7 text-lg font-black text-white">{title}</p>
                 <p className="mt-2 text-sm font-medium leading-relaxed text-slate-300" dir="rtl">{message}</p>
-                <div className="mt-6 h-1.5 w-full overflow-hidden rounded-full bg-white/8">
-                    <span className="block h-full w-1/2 animate-[loadingBar_1.25s_ease-in-out_infinite] rounded-full bg-brandGold"></span>
-                </div>
+                {showProgressBar ? (
+                    <div className="mt-6 h-1.5 w-full overflow-hidden rounded-full bg-white/8">
+                        <span className="block h-full w-1/2 animate-[loadingBar_1.25s_ease-in-out_infinite] rounded-full bg-brandGold"></span>
+                    </div>
+                ) : null}
             </div>
         </div>
     );

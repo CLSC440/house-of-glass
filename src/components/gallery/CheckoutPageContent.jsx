@@ -8,6 +8,7 @@ import { auth, db } from '@/lib/firebase';
 import { useGallery } from '@/contexts/GalleryContext';
 import { useSiteSettings } from '@/lib/use-site-settings';
 import { upsertCurrentUserProfile } from '@/lib/account-api';
+import BrandLoadingScreen from '@/components/layout/BrandLoadingScreen';
 
 function normalizeCheckoutType(value) {
     return String(value || '').trim().toLowerCase() === 'wholesale' ? 'wholesale' : 'retail';
@@ -104,6 +105,7 @@ export default function CheckoutPageContent({ checkoutType }) {
         cartItems,
         cartCount,
         cartSubtotal,
+        isLoading: isGalleryLoading,
         removeFromCart,
         updateCartQuantity,
         checkoutCart,
@@ -120,7 +122,7 @@ export default function CheckoutPageContent({ checkoutType }) {
         userRole,
         showToast
     } = useGallery();
-    const { derivedSettings } = useSiteSettings();
+    const { derivedSettings, isLoading: isSettingsLoading } = useSiteSettings();
     const [customerInfo, setCustomerInfo] = useState(null);
     const [isCustomerLoading, setIsCustomerLoading] = useState(true);
     const [promoCodeInput, setPromoCodeInput] = useState('');
@@ -345,6 +347,16 @@ export default function CheckoutPageContent({ checkoutType }) {
 
         await finalizeOrderConfirmation();
     };
+
+    if (isGalleryLoading || isSettingsLoading || isCustomerLoading) {
+        return (
+            <BrandLoadingScreen
+                title={isWholesale ? 'Loading wholesale checkout' : 'Loading checkout'}
+                message={isWholesale ? 'جاري تحميل بيانات طلب الجملة والحساب والإعدادات قبل فتح الصفحة' : 'جاري تحميل بيانات العربة والحساب والإعدادات قبل فتح صفحة الـ checkout'}
+                showProgressBar={false}
+            />
+        );
+    }
 
     if (isWholesale && auth.currentUser && !isWholesaleCustomer) {
         return (
