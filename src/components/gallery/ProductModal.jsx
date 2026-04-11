@@ -111,7 +111,7 @@ function buildRetailCartSummary(cartItems = [], cartCount = 0, cartSubtotal = 0,
         return {
             ...orderSummary,
             cartItems: Array.isArray(orderSummary.cartItems) ? orderSummary.cartItems : [],
-            isCartFallback: false
+            isCartFallback: Boolean(orderSummary.isCartFallback)
         };
     }
 
@@ -912,7 +912,6 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
     const { siteSettings, derivedSettings } = useSiteSettings();
     const [showLiveIndicator, setShowLiveIndicator] = useState(false);
     const [lightboxState, setLightboxState] = useState({ isOpen: false, images: [], index: 0, title: '' });
-    const router = useRouter();
 
     useEffect(() => {
         if (userRole !== 'admin' || !dcLiveUpdateAt) {
@@ -1462,9 +1461,15 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
         setQuantity(nextQuantity > 0 ? nextQuantity : 1);
     };
 
-    const handleMobileVariantGoToCart = () => {
+    const handleMobileVariantViewCart = () => {
+        const cartSummary = buildRetailCartSummary(cartItems, cartCount, cartSubtotal);
+
+        if (!cartSummary) {
+            return;
+        }
+
+        setRetailOrderSheet(cartSummary);
         closeModal();
-        router.push('/checkout');
     };
 
     const renderMobileVariantCheckoutBar = () => {
@@ -1499,10 +1504,10 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
 
                     <button
                         type="button"
-                        onClick={handleMobileVariantGoToCart}
+                        onClick={handleMobileVariantViewCart}
                         className="flex-1 rounded-full bg-[linear-gradient(135deg,#f59e0b,#f97316)] px-5 py-4 text-center text-[1.05rem] font-black text-white shadow-[0_20px_45px_rgba(249,115,22,0.28)] transition-transform hover:-translate-y-0.5"
                     >
-                        Go to cart
+                        View cart
                     </button>
                 </div>
             </div>
