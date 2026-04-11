@@ -106,6 +106,7 @@ export default function CheckoutPageContent({ checkoutType }) {
         cartCount,
         cartSubtotal,
         isLoading: isGalleryLoading,
+        isRetailCartPricingReady,
         removeFromCart,
         updateCartQuantity,
         checkoutCart,
@@ -113,6 +114,7 @@ export default function CheckoutPageContent({ checkoutType }) {
         wholesaleCartItems,
         wholesaleCartCount,
         wholesaleCartSubtotal,
+        isWholesaleCartPricingReady,
         removeFromWholesaleCart,
         updateWholesaleCartQuantity,
         checkoutWholesaleCart,
@@ -139,6 +141,7 @@ export default function CheckoutPageContent({ checkoutType }) {
     const items = isWholesale ? wholesaleCartItems : cartItems;
     const itemCount = isWholesale ? wholesaleCartCount : cartCount;
     const subtotal = isWholesale ? wholesaleCartSubtotal : cartSubtotal;
+    const isCartPricingReady = isWholesale ? isWholesaleCartPricingReady : isRetailCartPricingReady;
     const updateQuantity = isWholesale ? updateWholesaleCartQuantity : updateCartQuantity;
     const removeItem = isWholesale ? removeFromWholesaleCart : removeFromCart;
     const submitCheckout = isWholesale ? checkoutWholesaleCart : checkoutCart;
@@ -348,11 +351,11 @@ export default function CheckoutPageContent({ checkoutType }) {
         await finalizeOrderConfirmation();
     };
 
-    if (isGalleryLoading || isSettingsLoading || isCustomerLoading) {
+    if (isGalleryLoading || isSettingsLoading || isCustomerLoading || !isCartPricingReady) {
         return (
             <BrandLoadingScreen
                 title={isWholesale ? 'Loading wholesale checkout' : 'Loading checkout'}
-                message={isWholesale ? 'جاري تحميل بيانات طلب الجملة والحساب والإعدادات قبل فتح الصفحة' : 'جاري تحميل بيانات العربة والحساب والإعدادات قبل فتح صفحة الـ checkout'}
+                message={isWholesale ? 'جاري تحميل بيانات طلب الجملة والحساب والأسعار النهائية قبل فتح الصفحة' : 'جاري تحميل بيانات العربة والحساب والأسعار النهائية قبل فتح صفحة الـ checkout'}
                 showProgressBar={false}
             />
         );

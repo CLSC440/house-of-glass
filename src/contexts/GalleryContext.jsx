@@ -409,6 +409,29 @@ function getProductWholesalePrice(product) {
     );
 }
 
+function hasPendingCartPriceSync(items = [], products = [], orderType = 'retail', userRole = '', retailPriceIncreasePercentage = 0) {
+    if (!Array.isArray(items) || items.length === 0) {
+        return false;
+    }
+
+    if (!Array.isArray(products) || products.length === 0) {
+        return true;
+    }
+
+    return items.some((item) => {
+        const linkedProduct = findCatalogProductForCartItem(products, item);
+        if (!linkedProduct) {
+            return false;
+        }
+
+        const nextPrice = orderType === 'wholesale'
+            ? getProductWholesalePrice(linkedProduct)
+            : getProductUnitOrderPrice(linkedProduct, userRole, retailPriceIncreasePercentage);
+
+        return Math.abs((Number(item.price) || 0) - nextPrice) >= 0.0001;
+    });
+}
+
 function getFirstAvailableStockCount(values = []) {
     for (const value of values) {
         const parsed = Number(value);
@@ -650,6 +673,7 @@ const GalleryContext = createContext({
     cartItems: [],
     cartCount: 0,
     cartSubtotal: 0,
+    isRetailCartPricingReady: false,
     isCartOpen: false,
     openCart: noop,
     closeCart: noop,
@@ -661,6 +685,7 @@ const GalleryContext = createContext({
     wholesaleCartItems: [],
     wholesaleCartCount: 0,
     wholesaleCartSubtotal: 0,
+    isWholesaleCartPricingReady: false,
     isWholesaleCartOpen: false,
     openWholesaleCart: noop,
     closeWholesaleCart: noop,
@@ -707,6 +732,7 @@ export function GalleryProvider({ children }) {
     const [toast, setToast] = useState(null);
     const [isCartHydrated, setIsCartHydrated] = useState(false);
     const [isWholesaleCartHydrated, setIsWholesaleCartHydrated] = useState(false);
+    const [isDcCatalogReady, setIsDcCatalogReady] = useState(false);
     const [hasHydratedUrlFilters, setHasHydratedUrlFilters] = useState(false);
     const [dcLiveUpdateAt, setDcLiveUpdateAt] = useState(0);
     const [dcSyncedAt, setDcSyncedAt] = useState(0);
@@ -835,6 +861,9 @@ export function GalleryProvider({ children }) {
                 await syncDcCatalog({ markLiveUpdate: reason === 'watch-event' });
             } finally {
                 isSyncing = false;
+                if (!isDisposed) {
+                    setIsDcCatalogReady(true);
+                }
             }
         };
 
@@ -1159,6 +1188,34 @@ export function GalleryProvider({ children }) {
             return didChange ? nextCart : currentCart;
         });
     }, [catalogProducts, isCartHydrated, retailPriceIncreasePercentage, userRole]);
+
+    useEffect(() => {
+        if (!isWholesaleCartHydrated || catalogProducts.length === 0) return;
+
+        setWholesaleCartItems((currentCart) => {
+            let didChange = false;
+
+            const nextCart = currentCart.map((item) => {
+                const linkedProduct = findCatalogProductForCartItem(catalogProducts, item);
+                if (!linkedProduct) {
+                    return item;
+                }
+
+                const nextPrice = getProductWholesalePrice(linkedProduct);
+                if (Math.abs((Number(item.price) || 0) - nextPrice) < 0.0001) {
+                    return item;
+                }
+
+                didChange = true;
+                return {
+                    ...item,
+                    price: nextPrice
+                };
+            });
+
+            return didChange ? nextCart : currentCart;
+        });
+    }, [catalogProducts, isWholesaleCartHydrated]);
 
     const filteredProducts = catalogProducts.filter((product) => {
         const normalizedCategory = normalizeFilterValue(product.category);
@@ -1593,6 +1650,12 @@ export function GalleryProvider({ children }) {
     const cartSubtotal = cartItems.reduce((sum, item) => sum + ((Number(item.price) || 0) * item.quantity), 0);
     const wholesaleCartCount = wholesaleCartItems.reduce((sum, item) => sum + item.quantity, 0);
     const wholesaleCartSubtotal = wholesaleCartItems.reduce((sum, item) => sum + ((Number(item.price) || 0) * item.quantity), 0);
+    const isRetailCartPricingReady = isCartHydrated && (
+        cartItems.length === 0 || (isDcCatalogReady && !hasPendingCartPriceSync(cartItems, catalogProducts, 'retail', userRole, retailPriceIncreasePercentage))
+    );
+    const isWholesaleCartPricingReady = isWholesaleCartHydrated && (
+        wholesaleCartItems.length === 0 || (isDcCatalogReady && !hasPendingCartPriceSync(wholesaleCartItems, catalogProducts, 'wholesale', userRole, retailPriceIncreasePercentage))
+    );
 
     const allocateWebsiteOrderRef = async () => {
         const counterRef = doc(db, 'settings', 'orderCounter');
@@ -1888,6 +1951,7 @@ export function GalleryProvider({ children }) {
             cartItems,
             cartCount,
             cartSubtotal,
+            isRetailCartPricingReady,
             isCartOpen,
             openCart,
             closeCart,
@@ -1899,6 +1963,7 @@ export function GalleryProvider({ children }) {
             wholesaleCartItems,
             wholesaleCartCount,
             wholesaleCartSubtotal,
+            isWholesaleCartPricingReady,
             isWholesaleCartOpen,
             openWholesaleCart,
             closeWholesaleCart,
