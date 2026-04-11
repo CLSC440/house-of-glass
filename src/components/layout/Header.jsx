@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -108,6 +108,8 @@ export default function Header() {
             unsubscribe();
         };
     }, []);
+        const searchParams = useSearchParams();
+        const searchParamsString = searchParams?.toString() || '';
 
     useEffect(() => {
         setAccountPanelOpen(false);
@@ -187,15 +189,28 @@ export default function Header() {
             return;
         }
 
+        const currentSearch = searchParamsString;
         const params = new URLSearchParams(window.location.search);
         const hasCode = Boolean(params.get('code'));
         const hasFilterParams = ['category', 'categories', 'categoryGroups', 'brands', 'origins', 'search', 'stock'].some((key) => {
             return params.getAll(key).some((value) => String(value || '').trim());
         });
-        const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash || ''}`;
+        const currentRouteUrl = `${pathname || window.location.pathname}${currentSearch ? `?${currentSearch}` : ''}${window.location.hash || ''}`;
         const currentGuardState = window.history.state?.hogStorefrontBackGuard;
         const baseState = window.history.state || {};
-        const nextShouldGuardBack = pathname !== '/' || activeFilterChips.length > 0 || Boolean(selectedProduct) || hasCode || hasFilterParams;
+        const isStorefrontHomeRoute = pathname === '/';
+        const nextShouldGuardBack = isStorefrontHomeRoute && (activeFilterChips.length > 0 || Boolean(selectedProduct) || hasCode || hasFilterParams);
+
+        if (!isStorefrontHomeRoute) {
+            shouldGuardBackRef.current = false;
+            backGuardActiveRef.current = false;
+
+            if (`${window.location.pathname}${window.location.search}` !== `${pathname || window.location.pathname}${currentSearch ? `?${currentSearch}` : ''}`) {
+                window.history.replaceState(window.history.state, '', currentRouteUrl);
+            }
+
+            return;
+        }
 
         shouldGuardBackRef.current = nextShouldGuardBack;
 
@@ -210,13 +225,6 @@ export default function Header() {
         }
 
         if (nextShouldGuardBack && !backGuardActiveRef.current) {
-            if (pathname !== '/') {
-                window.history.replaceState({ ...baseState, hogStorefrontBackGuard: 'home-base' }, '', '/');
-                window.history.pushState({ ...baseState, hogStorefrontBackGuard: 'route-step' }, '', currentUrl);
-                backGuardActiveRef.current = true;
-                return;
-            }
-
             if (hasCode) {
                 params.delete('code');
                 const filterQuery = params.toString();
@@ -228,14 +236,14 @@ export default function Header() {
                     window.history.pushState({ ...baseState, hogStorefrontBackGuard: 'filter-step' }, '', filterUrl);
                 }
 
-                window.history.pushState({ ...baseState, hogStorefrontBackGuard: 'product-step' }, '', currentUrl);
+                window.history.pushState({ ...baseState, hogStorefrontBackGuard: 'product-step' }, '', currentRouteUrl);
                 backGuardActiveRef.current = true;
                 return;
             }
 
-            if (hasFilterParams && currentUrl !== '/') {
+            if (hasFilterParams && currentRouteUrl !== '/') {
                 window.history.replaceState({ ...baseState, hogStorefrontBackGuard: 'home-base' }, '', '/');
-                window.history.pushState({ ...baseState, hogStorefrontBackGuard: 'filter-step' }, '', currentUrl);
+                window.history.pushState({ ...baseState, hogStorefrontBackGuard: 'filter-step' }, '', currentRouteUrl);
                 backGuardActiveRef.current = true;
                 return;
             }
@@ -247,9 +255,13 @@ export default function Header() {
         if (!nextShouldGuardBack) {
             backGuardActiveRef.current = false;
         }
-    }, [pathname, activeFilterChips.length, selectedProduct]);
+    }, [pathname, searchParamsString, activeFilterChips.length, selectedProduct]);
 
     useEffect(() => {
+        if (typeof window === 'undefined' || pathname !== '/') {
+            return undefined;
+        }
+
         if (typeof window === 'undefined') {
             return;
         }
