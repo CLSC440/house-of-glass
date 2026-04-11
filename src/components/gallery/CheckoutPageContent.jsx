@@ -7,6 +7,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useGallery } from '@/contexts/GalleryContext';
 import { useSiteSettings } from '@/lib/use-site-settings';
+import { upsertCurrentUserProfile } from '@/lib/account-api';
 
 function normalizeCheckoutType(value) {
     return String(value || '').trim().toLowerCase() === 'wholesale' ? 'wholesale' : 'retail';
@@ -90,6 +91,11 @@ function buildCustomerSnapshot(currentUser, profileData, fallbackRole) {
     };
 }
 
+function getCustomerPhoneValue(customerInfo) {
+    const phone = String(customerInfo?.phone || '').trim();
+    return phone && phone !== 'غير متوفر' ? phone : '';
+}
+
 export default function CheckoutPageContent({ checkoutType }) {
     const router = useRouter();
     const normalizedCheckoutType = normalizeCheckoutType(checkoutType);
@@ -123,6 +129,10 @@ export default function CheckoutPageContent({ checkoutType }) {
     const [deliveryMethod, setDeliveryMethod] = useState('pickup');
     const [shippingAddress, setShippingAddress] = useState('');
     const [shippingAddressError, setShippingAddressError] = useState('');
+    const [isPhonePromptOpen, setIsPhonePromptOpen] = useState(false);
+    const [phonePromptValue, setPhonePromptValue] = useState('');
+    const [phonePromptError, setPhonePromptError] = useState('');
+    const [isSavingPhone, setIsSavingPhone] = useState(false);
 
     const items = isWholesale ? wholesaleCartItems : cartItems;
     const itemCount = isWholesale ? wholesaleCartCount : cartCount;
@@ -136,6 +146,7 @@ export default function CheckoutPageContent({ checkoutType }) {
     const configuredShippingAmount = parseAmount(derivedSettings?.shippingPrice);
     const shippingAmount = isShippingSelected ? configuredShippingAmount : 0;
     const productCount = items.length;
+    const customerPhoneValue = getCustomerPhoneValue(customerInfo);
     const promoSettings = useMemo(() => getConfiguredPromoSettings(derivedSettings), [derivedSettings]);
     const isPromoApplied = promoSettings.normalizedCode && normalizePromoCode(appliedPromoCode) === promoSettings.normalizedCode;
     const discountAmount = calculatePromoDiscountAmount(subtotal, promoSettings, isPromoApplied);
@@ -234,22 +245,17 @@ export default function CheckoutPageContent({ checkoutType }) {
         setPromoFeedback(null);
     };
 
-    const handleConfirmOrder = async () => {
-        if (!auth.currentUser) {
-            showToast('سجل الدخول أولاً لتأكيد الطلب.', 'error');
-            router.push(loginTarget);
+    const closePhonePrompt = () => {
+        if (isSavingPhone || isSubmitting) {
             return;
         }
 
-        if (isShippingSelected && !shippingAddress.trim()) {
-            const errorMessage = 'اكتب عنوان الشحن بالتفصيل قبل تأكيد الطلب.';
-            setShippingAddressError(errorMessage);
-            showToast(errorMessage, 'error');
-            return;
-        }
+        setIsPhonePromptOpen(false);
+        setPhonePromptValue('');
+        setPhonePromptError('');
+    };
 
-        setShippingAddressError('');
-
+    const finalizeOrderConfirmation = async () => {
         const result = await submitCheckout({
             subtotalAmount: subtotal,
             shippingAmount,
@@ -270,6 +276,74 @@ export default function CheckoutPageContent({ checkoutType }) {
         if (result.ok) {
             router.push('/profile');
         }
+    };
+
+    const handlePhonePromptSubmit = async (event) => {
+        event.preventDefault();
+
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+            closePhonePrompt();
+            showToast('سجل الدخول أولاً لتأكيد الطلب.', 'error');
+            router.push(loginTarget);
+            return;
+        }
+
+        const trimmedPhone = String(phonePromptValue || '').trim();
+        if (!trimmedPhone) {
+            setPhonePromptError('اكتب رقم الموبايل قبل إكمال الطلب.');
+            return;
+        }
+
+        setIsSavingPhone(true);
+        setPhonePromptError('');
+
+        try {
+            const response = await upsertCurrentUserProfile(currentUser, { phone: trimmedPhone });
+            const savedProfile = response?.profile || { phone: trimmedPhone };
+
+            setCustomerInfo(buildCustomerSnapshot(currentUser, savedProfile, userRole));
+            setIsPhonePromptOpen(false);
+            setPhonePromptValue('');
+
+            await finalizeOrderConfirmation();
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'تعذر حفظ رقم الموبايل حالياً. حاول مرة أخرى.';
+            setPhonePromptError(errorMessage);
+        } finally {
+            setIsSavingPhone(false);
+        }
+    };
+
+    const handleConfirmOrder = async () => {
+        if (!auth.currentUser) {
+            showToast('سجل الدخول أولاً لتأكيد الطلب.', 'error');
+            router.push(loginTarget);
+            return;
+        }
+
+        if (isCustomerLoading) {
+            showToast('جارٍ تحميل بيانات الحساب، حاول مرة أخرى خلال لحظة.', 'error');
+            return;
+        }
+
+        if (isShippingSelected && !shippingAddress.trim()) {
+            const errorMessage = 'اكتب عنوان الشحن بالتفصيل قبل تأكيد الطلب.';
+            setShippingAddressError(errorMessage);
+            showToast(errorMessage, 'error');
+            return;
+        }
+
+        setShippingAddressError('');
+
+        if (!customerPhoneValue) {
+            setPhonePromptError('');
+            setPhonePromptValue('');
+            setIsPhonePromptOpen(true);
+            return;
+        }
+
+        await finalizeOrderConfirmation();
     };
 
     if (isWholesale && auth.currentUser && !isWholesaleCustomer) {
@@ -719,6 +793,74 @@ export default function CheckoutPageContent({ checkoutType }) {
                     </div>
                 </aside>
             </div>
+            {isPhonePromptOpen ? (
+                <div className="fixed inset-0 z-[160] flex items-center justify-center bg-[#060b17]/72 px-4 py-6 backdrop-blur-sm" onClick={closePhonePrompt}>
+                    <div className="w-full max-w-md rounded-[1.8rem] border border-brandGold/20 bg-white p-6 shadow-[0_28px_80px_rgba(6,11,23,0.38)] dark:bg-darkCard" onClick={(event) => event.stopPropagation()}>
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="text-right">
+                                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-brandGold">Mobile Number Required</p>
+                                <h3 className="mt-2 text-2xl font-black text-brandBlue dark:text-white">أضف رقم الموبايل لإكمال الطلب</h3>
+                                <p className="mt-3 text-sm font-bold leading-7 text-slate-500 dark:text-slate-300">
+                                    قبل تأكيد الطلب نحتاج رقم موبايلك. بعد حفظه سيتم تسجيله في حسابك وإرسال الطلب للإدارة بشكل طبيعي.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={closePhonePrompt}
+                                disabled={isSavingPhone || isSubmitting}
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-brandGold/15 text-brandBlue transition-colors hover:bg-brandGold/10 disabled:cursor-not-allowed disabled:opacity-50 dark:text-white"
+                                aria-label="إغلاق"
+                            >
+                                <i className="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+
+                        <form className="mt-6" onSubmit={handlePhonePromptSubmit}>
+                            <label className="block text-right text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Mobile Number | رقم الموبايل</label>
+                            <input
+                                type="tel"
+                                inputMode="tel"
+                                autoFocus
+                                dir="ltr"
+                                value={phonePromptValue}
+                                onChange={(event) => {
+                                    setPhonePromptValue(event.target.value);
+                                    setPhonePromptError('');
+                                }}
+                                placeholder="01012345678 أو +201012345678"
+                                className={`mt-3 w-full rounded-[1.35rem] border bg-white px-4 py-3 text-left text-sm font-black text-brandBlue outline-none transition-colors placeholder:text-slate-400 dark:bg-gray-900 dark:text-white ${phonePromptError ? 'border-red-400 focus:border-red-500' : 'border-brandGold/20 focus:border-brandGold'}`}
+                            />
+
+                            {phonePromptError ? (
+                                <p className="mt-3 text-sm font-extrabold leading-7 text-red-500 dark:text-red-400">{phonePromptError}</p>
+                            ) : (
+                                <p className="mt-3 text-sm font-bold leading-7 text-slate-500 dark:text-slate-300">
+                                    يمكنك كتابة الرقم بصيغة `010...` أو `+20...` وسنحفظه في بياناتك مباشرة.
+                                </p>
+                            )}
+
+                            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                                <button
+                                    type="button"
+                                    onClick={closePhonePrompt}
+                                    disabled={isSavingPhone || isSubmitting}
+                                    className="inline-flex items-center justify-center rounded-2xl border border-brandGold/20 px-5 py-3 text-sm font-black text-brandBlue transition-colors hover:bg-brandGold/10 disabled:cursor-not-allowed disabled:opacity-50 dark:text-brandGold"
+                                >
+                                    إلغاء
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSavingPhone || isSubmitting}
+                                    className="inline-flex items-center justify-center gap-3 rounded-2xl border border-brandGold bg-brandBlue px-5 py-3 text-sm font-black text-white transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    <span>{isSavingPhone ? 'Saving...' : 'حفظ الرقم وتأكيد الطلب'}</span>
+                                    <i className="fa-solid fa-check"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            ) : null}
         </section>
     );
 }
