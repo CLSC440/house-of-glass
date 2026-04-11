@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -56,6 +56,10 @@ export default function Header() {
         clearAllFilters,
         activeFilterChips
     } = useGallery();
+    const selectedProductHistoryKey = String(selectedProduct?.id || selectedProduct?.code || selectedProduct?.name || '').trim();
+    const activeFilterHistoryKey = activeFilterChips
+        .map((chip) => `${chip.type}:${chip.value}`)
+        .join('|');
 
     useEffect(() => {
         let unsubscribeProfile = null;
@@ -108,8 +112,6 @@ export default function Header() {
             unsubscribe();
         };
     }, []);
-        const searchParams = useSearchParams();
-        const searchParamsString = searchParams?.toString() || '';
 
     useEffect(() => {
         setAccountPanelOpen(false);
@@ -189,7 +191,7 @@ export default function Header() {
             return;
         }
 
-        const currentSearch = searchParamsString;
+        const currentSearch = window.location.search || '';
         const params = new URLSearchParams(window.location.search);
         const hasCode = Boolean(params.get('code'));
         const hasFilterParams = ['category', 'categories', 'categoryGroups', 'brands', 'origins', 'search', 'stock'].some((key) => {
@@ -255,7 +257,7 @@ export default function Header() {
         if (!nextShouldGuardBack) {
             backGuardActiveRef.current = false;
         }
-    }, [pathname, searchParamsString, activeFilterChips.length, selectedProduct]);
+    }, [pathname, activeFilterHistoryKey, selectedProductHistoryKey]);
 
     useEffect(() => {
         if (typeof window === 'undefined' || pathname !== '/') {
