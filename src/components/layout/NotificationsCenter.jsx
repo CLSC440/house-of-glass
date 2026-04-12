@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { usePathname, useRouter } from 'next/navigation';
-import { collection, doc, onSnapshot, query, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { collection, deleteDoc, doc, onSnapshot, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useFloatingActionsVisibility } from '@/lib/use-floating-actions-visibility';
 import { formatNotificationTimeAgo, getNotificationVisuals, resolveNotificationDate } from '@/lib/utils/notifications';
@@ -14,6 +14,7 @@ export default function NotificationsCenter({ user, isAccountPanelOpen = false, 
     const [notifications, setNotifications] = useState([]);
     const [isOpen, setIsOpen] = useState(false);
     const [toastMessage, setToastMessage] = useState('');
+    const [deletingNotificationId, setDeletingNotificationId] = useState('');
     const { isMounted, isVisible } = useFloatingActionsVisibility();
     const isAdminVariant = variant === 'admin';
 
@@ -108,6 +109,20 @@ export default function NotificationsCenter({ user, isAccountPanelOpen = false, 
         }
     };
 
+    const clearNotification = async (notificationId) => {
+        if (!notificationId || deletingNotificationId === notificationId) return;
+
+        setDeletingNotificationId(notificationId);
+
+        try {
+            await deleteDoc(doc(db, 'notifications', notificationId));
+        } catch (error) {
+            console.error('Error clearing notification:', error);
+        } finally {
+            setDeletingNotificationId((currentValue) => (currentValue === notificationId ? '' : currentValue));
+        }
+    };
+
     const openNotificationAction = async (notification) => {
         if (!notification?.actionHref) return;
 
@@ -199,6 +214,7 @@ export default function NotificationsCenter({ user, isAccountPanelOpen = false, 
                                         notifications.map((notification) => {
                                             const notificationVisuals = getNotificationVisuals(notification);
                                             const isUnread = !notification.read;
+                                            const isDeleting = deletingNotificationId === notification.id;
 
                                             return (
                                                 <div
@@ -221,7 +237,25 @@ export default function NotificationsCenter({ user, isAccountPanelOpen = false, 
                                                     </div>
 
                                                     <div className="min-w-0 flex-1">
-                                                        <p className={`text-xs font-bold text-brandBlue dark:text-white ${isUnread ? '' : 'opacity-60'}`}>{notification.title || ''}</p>
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <p className={`min-w-0 flex-1 text-xs font-bold text-brandBlue dark:text-white ${isUnread ? '' : 'opacity-60'}`}>{notification.title || ''}</p>
+                                                            <div className="flex shrink-0 items-center gap-2">
+                                                                {isUnread ? <div className={`h-2 w-2 rounded-full ${notificationVisuals.unreadDotClassName}`}></div> : null}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(event) => {
+                                                                        event.stopPropagation();
+                                                                        clearNotification(notification.id);
+                                                                    }}
+                                                                    disabled={isDeleting}
+                                                                    className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-500 dark:hover:border-red-500/30 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+                                                                    aria-label="Clear notification"
+                                                                    title="Clear notification"
+                                                                >
+                                                                    <i className={`fa-solid ${isDeleting ? 'fa-spinner fa-spin' : 'fa-xmark'} text-[10px]`}></i>
+                                                                </button>
+                                                            </div>
+                                                        </div>
                                                         <p className="mt-0.5 whitespace-pre-line text-[10px] leading-relaxed text-gray-500 dark:text-gray-400">{notification.message || ''}</p>
                                                         {notification.actionHref ? (
                                                             <button
@@ -238,8 +272,6 @@ export default function NotificationsCenter({ user, isAccountPanelOpen = false, 
                                                         ) : null}
                                                         <p className="mt-1 text-[9px] uppercase tracking-widest text-gray-400">{formatNotificationTimeAgo(notification)}</p>
                                                     </div>
-
-                                                    {isUnread ? <div className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${notificationVisuals.unreadDotClassName}`}></div> : null}
                                                 </div>
                                             );
                                         })
