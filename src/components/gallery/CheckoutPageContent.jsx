@@ -827,9 +827,6 @@ export default function CheckoutPageContent({ checkoutType }) {
                                                         <div className="text-right">
                                                             <p className={`text-[10px] font-black uppercase tracking-[0.22em] ${!isShippingSelected ? selectedDeliveryEyebrowClasses : 'text-brandGold'}`}>Pickup</p>
                                                             <p className="mt-2 text-base font-black">استلام الطلب من المعرض</p>
-                                                            <p className={`mt-2 text-sm font-bold leading-7 ${!isShippingSelected ? selectedDeliveryMutedTextClasses : 'text-slate-500 dark:text-slate-300'}`}>
-                                                                بدون رسوم شحن، وتأكيد الطلب يتم بنفس بياناتك الحالية.
-                                                            </p>
                                                         </div>
                                                         <span className={`mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${!isShippingSelected ? selectedDeliveryCheckClasses : 'border-brandGold/35 bg-transparent text-brandGold/0 dark:border-brandGold/20 dark:text-brandGold/0'}`}>
                                                             <i className={`fa-solid fa-check text-[10px] ${!isShippingSelected ? 'opacity-100' : 'opacity-0'}`}></i>
