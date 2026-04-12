@@ -1921,7 +1921,9 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
         );
         const variantExplicitNetPrice = parsePrice(variant?.netPrice || variant?.net_price || variant?.net);
         const variantNetPrice = variantExplicitNetPrice > 0 ? variantExplicitNetPrice : Math.max(0, variantRetailPrice - variantDiscountValue);
-        const vPrice = isStrictWholesaleUser ? variantNetPrice : variantRetailPrice;
+        const variantDisplayPrice = isStrictWholesaleUser
+            ? variantNetPrice
+            : getGlobalRetailDisplayPrice(variantRetailPrice, productModalRetailIncreasePercentage, userRole);
         const getVariantAvailability = (candidateVariant) => {
             const candidateStatus = resolveStockStatus(candidateVariant, 'retail');
             const candidateStockLimit = resolveStockLimit(candidateVariant, 'retail');
@@ -2010,8 +2012,8 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                         iconClassName="fa-solid fa-coins"
                         iconWrapperClassName="bg-brandGold/15 text-brandGold dark:bg-brandGold/18"
                         label="Price | السعر"
-                        value={vPrice > 0 ? `${vPrice.toLocaleString()} ج.م` : 'تواصل معنا لمعرفة السعر'}
-                        valueClassName={vPrice > 0 ? 'text-brandBlue dark:text-white' : 'text-slate-500 dark:text-white/65'}
+                        value={variantDisplayPrice > 0 ? `${variantDisplayPrice.toLocaleString()} ج.م` : 'تواصل معنا لمعرفة السعر'}
+                        valueClassName={variantDisplayPrice > 0 ? 'text-brandBlue dark:text-white' : 'text-slate-500 dark:text-white/65'}
                         caption={isStrictWholesaleUser
                             ? (variantWholesalePrice > 0 ? `Wholesale: ${variantWholesalePrice.toLocaleString()} ج.م` : 'Wholesale: غير متاح')
                             : 'سعر البيع الحالي للعنصر المحدد.'}
@@ -2065,7 +2067,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                         <button
                             type="button"
                             onClick={() => handleRetailAddWithConfirmation(variant, quantity, {
-                                unitPrice: vPrice,
+                                unitPrice: variantDisplayPrice,
                                 image: getVariantAllImages(variant)[0],
                                 title: variant.name || variant.label || selectedProduct.title || selectedProduct.name
                             })}
