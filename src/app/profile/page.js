@@ -63,20 +63,20 @@ function OrderTrackingSteps({ status }) {
     }
 
     return (
-        <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-4 md:overflow-visible md:pb-0">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {steps.map((step, index) => {
                 const isCompleted = step.state === 'completed' || (isReceivedOrder && step.state === 'current');
                 const isCurrent = step.state === 'current' && !isReceivedOrder;
 
                 return (
-                    <div key={step.value} className={`relative min-w-[15rem] shrink-0 snap-start overflow-hidden rounded-2xl border px-4 py-5 md:min-w-0 md:shrink md:px-4 ${isCurrent ? 'border-brandGold/35 bg-brandGold/10 dark:bg-brandGold/10' : isCompleted ? 'border-emerald-200 bg-emerald-50/80 dark:border-emerald-900/30 dark:bg-emerald-900/10' : 'border-gray-200 bg-gray-50/80 dark:border-gray-800 dark:bg-gray-900/30'}`}>
-                        <div className="flex min-h-[148px] flex-col items-center justify-center gap-4 text-center md:min-h-[168px]">
-                            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-black ${isCurrent ? 'bg-brandGold text-brandBlue' : isCompleted ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
+                    <div key={step.value} className={`relative overflow-hidden rounded-[1.35rem] border px-3 py-4 sm:rounded-2xl sm:px-4 sm:py-5 ${isCurrent ? 'border-brandGold/35 bg-brandGold/10 dark:bg-brandGold/10' : isCompleted ? 'border-emerald-200 bg-emerald-50/80 dark:border-emerald-900/30 dark:bg-emerald-900/10' : 'border-gray-200 bg-gray-50/80 dark:border-gray-800 dark:bg-gray-900/30'}`}>
+                        <div className="flex min-h-[116px] flex-col items-center justify-center gap-3 text-center sm:min-h-[148px] md:min-h-[168px] md:gap-4">
+                            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[0.95rem] font-black sm:h-10 sm:w-10 sm:text-sm ${isCurrent ? 'bg-brandGold text-brandBlue' : isCompleted ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
                                 {isCompleted ? <i className="fa-solid fa-check"></i> : index + 1}
                             </span>
                             <div className="flex max-w-full flex-col items-center text-center">
-                                <p className={`text-xs font-black uppercase tracking-[0.16em] ${isCurrent ? 'text-brandGold' : isCompleted ? 'text-emerald-600 dark:text-emerald-300' : 'text-gray-400'}`}>{step.label}</p>
-                                <p className="mt-2 max-w-[10ch] text-balance text-[15px] font-semibold leading-[1.45] text-brandBlue dark:text-white sm:max-w-[12ch]">{step.customerLabel}</p>
+                                <p className={`text-[0.72rem] font-black uppercase tracking-[0.18em] sm:text-xs ${isCurrent ? 'text-brandGold' : isCompleted ? 'text-emerald-600 dark:text-emerald-300' : 'text-gray-400'}`}>{step.label}</p>
+                                <p className="mt-1.5 max-w-[8ch] text-balance text-[1.05rem] font-semibold leading-[1.35] text-brandBlue dark:text-white sm:mt-2 sm:max-w-[10ch] sm:text-[15px] sm:leading-[1.45] md:max-w-[12ch]">{step.customerLabel}</p>
                             </div>
                         </div>
                     </div>
@@ -1120,8 +1120,7 @@ export default function UserProfile() {
                                                 const statusHistory = getOrderStatusHistory(order);
                                                 const latestStatusEntry = statusHistory[statusHistory.length - 1];
                                                 const isReceivedOrder = normalizedStatus === 'received';
-                                                const isTerminalStatus = isTerminalOrderStatus(normalizedStatus);
-                                                const isExpanded = expandedOrderSummaries[order.id] ?? !isTerminalStatus;
+                                                const isExpanded = expandedOrderSummaries[order.id] ?? false;
 
                                                 return (
                                                     <>
@@ -1149,23 +1148,24 @@ export default function UserProfile() {
                                                         {order.orderType || 'retail'}
                                                     </span>
                                                 </div>
-                                                <div className="col-span-2 text-right sm:col-span-1">
-                                                    <span className="text-xs font-bold text-gray-400 block mb-1">Total Amount</span>
-                                                    <span className="text-base font-black text-brandGold">{getOrderAmount(order).toLocaleString()} ج.م</span>
-                                                </div>
-                                                {isTerminalStatus ? (
-                                                    <div className="col-span-2 flex items-center justify-end sm:col-span-1 sm:ml-auto sm:self-stretch sm:justify-start sm:self-auto">
+                                                <div className="col-span-2 mt-1 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 border-t border-gray-100/80 pt-3 dark:border-gray-800/70 sm:contents sm:mt-0 sm:border-t-0 sm:pt-0">
+                                                    <div className="text-right sm:col-span-1">
+                                                        <span className="text-xs font-bold text-gray-400 block mb-1">Total Amount</span>
+                                                        <span className="text-[1.05rem] font-black text-brandGold sm:text-base">{getOrderAmount(order).toLocaleString()} ج.م</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-end sm:col-span-1 sm:ml-auto sm:self-stretch sm:justify-start sm:self-auto">
                                                         <button
                                                             type="button"
                                                             onClick={() => toggleOrderSummary(order.id)}
-                                                            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-gray-50 text-gray-500 transition-colors hover:border-brandGold/35 hover:bg-brandGold/10 hover:text-brandGold dark:border-gray-800 dark:bg-gray-900/30 dark:text-gray-300"
+                                                            className="inline-flex h-11 min-w-[10.5rem] items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 text-[11px] font-black uppercase tracking-[0.2em] text-gray-500 transition-colors hover:border-brandGold/35 hover:bg-brandGold/10 hover:text-brandGold dark:border-gray-800 dark:bg-gray-900/30 dark:text-gray-300 sm:min-w-[12rem] sm:text-xs sm:tracking-[0.16em]"
                                                             aria-label={isExpanded ? 'Collapse order details' : 'Expand order details'}
                                                             aria-expanded={isExpanded}
                                                         >
+                                                            <span>{isExpanded ? 'Hide Details' : 'Show Details'}</span>
                                                             <i className={`fa-solid ${isExpanded ? 'fa-chevron-up' : 'fa-chevron-down'} text-sm`}></i>
                                                         </button>
                                                     </div>
-                                                ) : null}
+                                                </div>
                                             </div>
 
                                             {isExpanded ? (
