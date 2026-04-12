@@ -1119,12 +1119,44 @@ export default function UserProfile() {
                                                 const statusMeta = getOrderStatusMeta(normalizedStatus);
                                                 const statusHistory = getOrderStatusHistory(order);
                                                 const latestStatusEntry = statusHistory[statusHistory.length - 1];
+                                                const orderDateLabel = parseTimestamp(getOrderDateValue(order));
+                                                const compactOrderDateLabel = orderDateLabel.replace(/,\s*\d{4},\s*/, ', ');
+                                                const orderAmountLabel = `${getOrderAmount(order).toLocaleString()} ج.م`;
                                                 const isReceivedOrder = normalizedStatus === 'received';
                                                 const isExpanded = expandedOrderSummaries[order.id] ?? false;
 
                                                 return (
                                                     <>
-                                            <div className={`grid grid-cols-2 gap-x-4 gap-y-3 ${isExpanded ? 'mb-4 border-b border-gray-50 pb-4 dark:border-gray-800/50' : ''} sm:flex sm:flex-wrap sm:items-center sm:gap-3`}>
+                                            <div className={`sm:hidden ${isExpanded ? 'mb-4 border-b border-gray-50 pb-4 dark:border-gray-800/50' : ''}`}>
+                                                <div className="flex items-center gap-2 overflow-hidden rounded-[1.35rem] border border-gray-100 bg-gray-50/35 px-3 py-3 dark:border-gray-800 dark:bg-gray-900/20">
+                                                    <div className="min-w-0 shrink basis-[5.5rem]">
+                                                        <span className="block truncate font-mono text-[1.02rem] font-black text-brandBlue dark:text-white">#{getOrderExternalRef(order)}</span>
+                                                    </div>
+                                                    <div className="min-w-0 shrink basis-[6.25rem]">
+                                                        <span className="block text-[0.8rem] font-medium leading-4 text-gray-300 sm:text-sm">{compactOrderDateLabel}</span>
+                                                    </div>
+                                                    <div className="shrink-0">
+                                                        <span className={'inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-[0.12em] ' + statusMeta.lightBadgeClass}>
+                                                            <span className={`h-1.5 w-1.5 rounded-full ${statusMeta.dotClass}`}></span>
+                                                            {statusMeta.customerLabel}
+                                                        </span>
+                                                    </div>
+                                                    <div className="min-w-0 shrink-0 text-right">
+                                                        <span className="block whitespace-nowrap text-[1.18rem] font-black text-brandGold">{orderAmountLabel}</span>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggleOrderSummary(order.id)}
+                                                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-500 transition-colors hover:border-brandGold/35 hover:bg-brandGold/10 hover:text-brandGold dark:border-gray-800 dark:bg-gray-900/30 dark:text-gray-300"
+                                                        aria-label={isExpanded ? 'Collapse order details' : 'Expand order details'}
+                                                        aria-expanded={isExpanded}
+                                                    >
+                                                        <i className={`fa-solid ${isExpanded ? 'fa-chevron-up' : 'fa-chevron-down'} text-sm`}></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div className={`hidden ${isExpanded ? 'sm:mb-4 sm:border-b sm:border-gray-50 sm:pb-4 dark:sm:border-gray-800/50' : ''} sm:flex sm:flex-wrap sm:items-center sm:gap-3`}>
                                                 <div className="min-w-0">
                                                     <span className="text-xs font-bold text-gray-400 block mb-1">Order ID</span>
                                                     <span className="font-mono text-sm font-black text-brandBlue dark:text-white">#{getOrderExternalRef(order)}</span>
@@ -1132,7 +1164,7 @@ export default function UserProfile() {
                                                 <div className="min-w-0">
                                                     <span className="text-xs font-bold text-gray-400 block mb-1">Date</span>
                                                     <span className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                        {parseTimestamp(getOrderDateValue(order))}
+                                                        {orderDateLabel}
                                                     </span>
                                                 </div>
                                                 <div className="min-w-0">
@@ -1148,23 +1180,21 @@ export default function UserProfile() {
                                                         {order.orderType || 'retail'}
                                                     </span>
                                                 </div>
-                                                <div className="col-span-2 mt-1 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 border-t border-gray-100/80 pt-3 dark:border-gray-800/70 sm:contents sm:mt-0 sm:border-t-0 sm:pt-0">
-                                                    <div className="text-right sm:col-span-1">
-                                                        <span className="text-xs font-bold text-gray-400 block mb-1">Total Amount</span>
-                                                        <span className="text-[1.05rem] font-black text-brandGold sm:text-base">{getOrderAmount(order).toLocaleString()} ج.م</span>
-                                                    </div>
-                                                    <div className="flex items-center justify-end sm:col-span-1 sm:ml-auto sm:self-stretch sm:justify-start sm:self-auto">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => toggleOrderSummary(order.id)}
-                                                            className="inline-flex h-11 min-w-[10.5rem] items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 text-[11px] font-black uppercase tracking-[0.2em] text-gray-500 transition-colors hover:border-brandGold/35 hover:bg-brandGold/10 hover:text-brandGold dark:border-gray-800 dark:bg-gray-900/30 dark:text-gray-300 sm:min-w-[12rem] sm:text-xs sm:tracking-[0.16em]"
-                                                            aria-label={isExpanded ? 'Collapse order details' : 'Expand order details'}
-                                                            aria-expanded={isExpanded}
-                                                        >
-                                                            <span>{isExpanded ? 'Hide Details' : 'Show Details'}</span>
-                                                            <i className={`fa-solid ${isExpanded ? 'fa-chevron-up' : 'fa-chevron-down'} text-sm`}></i>
-                                                        </button>
-                                                    </div>
+                                                <div className="text-right">
+                                                    <span className="text-xs font-bold text-gray-400 block mb-1">Total Amount</span>
+                                                    <span className="text-base font-black text-brandGold">{orderAmountLabel}</span>
+                                                </div>
+                                                <div className="ml-auto flex items-center self-stretch sm:self-auto">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggleOrderSummary(order.id)}
+                                                        className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 text-xs font-black uppercase tracking-[0.16em] text-gray-500 transition-colors hover:border-brandGold/35 hover:bg-brandGold/10 hover:text-brandGold dark:border-gray-800 dark:bg-gray-900/30 dark:text-gray-300"
+                                                        aria-label={isExpanded ? 'Collapse order details' : 'Expand order details'}
+                                                        aria-expanded={isExpanded}
+                                                    >
+                                                        <span>{isExpanded ? 'Hide Details' : 'Show Details'}</span>
+                                                        <i className={`fa-solid ${isExpanded ? 'fa-chevron-up' : 'fa-chevron-down'} text-sm`}></i>
+                                                    </button>
                                                 </div>
                                             </div>
 
