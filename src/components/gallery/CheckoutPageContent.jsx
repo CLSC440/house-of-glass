@@ -97,6 +97,58 @@ function getCustomerPhoneValue(customerInfo) {
     return phone && phone !== 'غير متوفر' ? phone : '';
 }
 
+const SHIPPING_ADDRESS_FIELDS = [
+    {
+        key: 'streetName',
+        label: 'اسم الشارع',
+        placeholder: 'مثال: شارع عباس العقاد'
+    },
+    {
+        key: 'houseNumber',
+        label: 'رقم البيت',
+        placeholder: 'مثال: 24',
+        inputMode: 'numeric'
+    },
+    {
+        key: 'floorNumber',
+        label: 'الدور',
+        placeholder: 'مثال: 3',
+        inputMode: 'numeric'
+    },
+    {
+        key: 'apartmentNumber',
+        label: 'رقم الشقة',
+        placeholder: 'مثال: 12',
+        inputMode: 'numeric'
+    },
+    {
+        key: 'landmark',
+        label: 'علامة مميزة',
+        placeholder: 'مثال: بجوار بوابة النادي',
+        wrapperClassName: 'sm:col-span-2'
+    }
+];
+
+function createEmptyShippingAddressFields() {
+    return {
+        streetName: '',
+        houseNumber: '',
+        floorNumber: '',
+        apartmentNumber: '',
+        landmark: ''
+    };
+}
+
+function buildShippingAddressFromFields(fields) {
+    return SHIPPING_ADDRESS_FIELDS
+        .map(({ key, label }) => {
+            const value = String(fields?.[key] || '').trim();
+            return value ? `${label}: ${value}` : '';
+        })
+        .filter(Boolean)
+        .join(' | ');
+}
+
 function OrderSuccessPopup({ isWholesale, orderConfirmation, onTrackOrder, onCloseToHome }) {
     if (!orderConfirmation) {
         return null;
@@ -234,7 +286,9 @@ export default function CheckoutPageContent({ checkoutType }) {
     const [appliedPromoCode, setAppliedPromoCode] = useState('');
     const [promoFeedback, setPromoFeedback] = useState(null);
     const [deliveryMethod, setDeliveryMethod] = useState('pickup');
-    const [shippingAddress, setShippingAddress] = useState('');
+    const [expandedDeliverySection, setExpandedDeliverySection] = useState(null);
+    const [isShippingAddressFormOpen, setIsShippingAddressFormOpen] = useState(false);
+    const [shippingAddressFields, setShippingAddressFields] = useState(createEmptyShippingAddressFields);
     const [shippingAddressError, setShippingAddressError] = useState('');
     const [isPhonePromptOpen, setIsPhonePromptOpen] = useState(false);
     const [phonePromptValue, setPhonePromptValue] = useState('');
@@ -252,8 +306,12 @@ export default function CheckoutPageContent({ checkoutType }) {
     const isSubmitting = isWholesale ? isCheckingOutWholesale : isCheckingOut;
     const normalizedDeliveryMethod = normalizeDeliveryMethod(deliveryMethod);
     const isShippingSelected = normalizedDeliveryMethod === 'shipping';
+    const isPickupExpanded = expandedDeliverySection === 'pickup';
+    const isShippingExpanded = expandedDeliverySection === 'shipping';
     const configuredShippingAmount = parseAmount(derivedSettings?.shippingPrice);
     const shippingAmount = isShippingSelected ? configuredShippingAmount : 0;
+    const shippingAddress = useMemo(() => buildShippingAddressFromFields(shippingAddressFields), [shippingAddressFields]);
+    const hasSavedShippingAddress = Boolean(shippingAddress.trim());
     const productCount = items.length;
     const customerPhoneValue = getCustomerPhoneValue(customerInfo);
     const promoSettings = useMemo(() => getConfiguredPromoSettings(derivedSettings), [derivedSettings]);
@@ -263,6 +321,13 @@ export default function CheckoutPageContent({ checkoutType }) {
     const loginTarget = `/login?redirect=checkout${isWholesale ? '&type=wholesale' : ''}`;
     const signupTarget = `/signup?redirect=checkout${isWholesale ? '&type=wholesale' : ''}`;
     const isMobileSubmitting = isSubmitting && !orderConfirmation;
+    const selectedDeliveryCardClasses = 'border-brandGold/30 bg-[linear-gradient(135deg,rgba(212,175,55,0.14),rgba(255,255,255,0.96))] text-brandBlue shadow-[0_18px_45px_rgba(212,175,55,0.12)] dark:border-brandGold/24 dark:bg-[linear-gradient(135deg,rgba(212,175,55,0.14),rgba(15,23,42,0.9))] dark:text-white';
+    const selectedDeliveryEyebrowClasses = 'text-brandBlue/60 dark:text-brandGold/75';
+    const selectedDeliveryMutedTextClasses = 'text-brandBlue/78 dark:text-slate-200';
+    const selectedDeliveryCheckClasses = 'border-brandGold/35 bg-brandGold/10 text-brandBlue dark:border-brandGold/28 dark:bg-brandGold/16 dark:text-brandGold';
+    const selectedDeliveryToggleClasses = 'border-brandGold/22 bg-brandGold/8 text-brandBlue dark:border-brandGold/18 dark:bg-brandGold/14 dark:text-brandGold';
+    const selectedDeliveryDividerClasses = 'border-brandGold/16 dark:border-brandGold/10';
+    const selectedDeliveryActionClasses = 'border-brandGold/22 bg-brandGold/8 text-brandBlue hover:bg-brandGold/12 dark:border-brandGold/18 dark:bg-brandGold/14 dark:text-brandGold';
 
     useEffect(() => {
         let isMounted = true;
@@ -353,6 +418,30 @@ export default function CheckoutPageContent({ checkoutType }) {
         setAppliedPromoCode('');
         setPromoCodeInput('');
         setPromoFeedback(null);
+    };
+
+    const handleSelectDeliveryMethod = (nextDeliveryMethod) => {
+        const normalizedMethod = normalizeDeliveryMethod(nextDeliveryMethod);
+
+        setDeliveryMethod(normalizedMethod);
+        setShippingAddressError('');
+        setExpandedDeliverySection((current) => (current === normalizedMethod ? current : null));
+    };
+
+    const toggleDeliverySection = (sectionName) => {
+        const normalizedSection = normalizeDeliveryMethod(sectionName);
+        setExpandedDeliverySection((current) => (current === normalizedSection ? null : normalizedSection));
+    };
+
+    const handleShippingAddressFieldChange = (fieldKey, value) => {
+        setShippingAddressFields((current) => ({
+            ...current,
+            [fieldKey]: value
+        }));
+
+        if (shippingAddressError) {
+            setShippingAddressError('');
+        }
     };
 
     const closePhonePrompt = () => {
@@ -458,6 +547,8 @@ export default function CheckoutPageContent({ checkoutType }) {
 
         if (isShippingSelected && !shippingAddress.trim()) {
             const errorMessage = 'اكتب عنوان الشحن بالتفصيل قبل تأكيد الطلب.';
+            setExpandedDeliverySection('shipping');
+            setIsShippingAddressFormOpen(true);
             setShippingAddressError(errorMessage);
             showToast(errorMessage, 'error');
             return;
@@ -724,66 +815,134 @@ export default function CheckoutPageContent({ checkoutType }) {
                                     </div>
 
                                     <div className="mt-4 space-y-3">
-                                        <div className={`overflow-hidden rounded-[1.35rem] border transition-colors ${!isShippingSelected ? 'border-brandBlue bg-brandBlue text-white shadow-lg shadow-brandBlue/15 dark:border-brandGold dark:bg-brandGold dark:text-brandBlue' : 'border-brandGold/18 bg-white text-brandBlue dark:bg-gray-900/60 dark:text-white'}`}>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setDeliveryMethod('pickup');
-                                                    setShippingAddressError('');
-                                                }}
-                                                className="flex w-full items-center justify-between gap-4 px-4 py-4 text-right"
-                                            >
-                                                <div>
-                                                    <p className={`text-[10px] font-black uppercase tracking-[0.22em] ${!isShippingSelected ? 'text-white/75 dark:text-brandBlue/75' : 'text-brandGold'}`}>Pickup</p>
-                                                    <p className="mt-2 text-base font-black">استلام الطلب من المعرض</p>
-                                                </div>
-                                                <i className={`fa-solid ${!isShippingSelected ? 'fa-chevron-up' : 'fa-chevron-down'} text-sm ${!isShippingSelected ? 'text-white/75 dark:text-brandBlue/75' : 'text-brandGold'}`}></i>
-                                            </button>
+                                        <div className={`overflow-hidden rounded-[1.35rem] border transition-colors ${!isShippingSelected ? selectedDeliveryCardClasses : 'border-brandGold/18 bg-white text-brandBlue dark:bg-gray-900/60 dark:text-white'}`}>
+                                            <div className="flex items-center gap-3 px-4 py-4">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSelectDeliveryMethod('pickup')}
+                                                    className="flex-1 text-right"
+                                                >
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div className="text-right">
+                                                            <p className={`text-[10px] font-black uppercase tracking-[0.22em] ${!isShippingSelected ? selectedDeliveryEyebrowClasses : 'text-brandGold'}`}>Pickup</p>
+                                                            <p className="mt-2 text-base font-black">استلام الطلب من المعرض</p>
+                                                            <p className={`mt-2 text-sm font-bold leading-7 ${!isShippingSelected ? selectedDeliveryMutedTextClasses : 'text-slate-500 dark:text-slate-300'}`}>
+                                                                بدون رسوم شحن، وتأكيد الطلب يتم بنفس بياناتك الحالية.
+                                                            </p>
+                                                        </div>
+                                                        <span className={`mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${!isShippingSelected ? selectedDeliveryCheckClasses : 'border-brandGold/35 bg-transparent text-brandGold/0 dark:border-brandGold/20 dark:text-brandGold/0'}`}>
+                                                            <i className={`fa-solid fa-check text-[10px] ${!isShippingSelected ? 'opacity-100' : 'opacity-0'}`}></i>
+                                                        </span>
+                                                    </div>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleDeliverySection('pickup')}
+                                                    aria-label={isPickupExpanded ? 'إغلاق تفاصيل الاستلام' : 'فتح تفاصيل الاستلام'}
+                                                    aria-expanded={isPickupExpanded}
+                                                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors ${!isShippingSelected ? selectedDeliveryToggleClasses : 'border-brandGold/20 bg-brandGold/5 text-brandGold dark:border-brandGold/15 dark:bg-brandGold/10'}`}
+                                                >
+                                                    <i className={`fa-solid ${isPickupExpanded ? 'fa-chevron-up' : 'fa-chevron-down'} text-sm`}></i>
+                                                </button>
+                                            </div>
 
-                                            {!isShippingSelected ? (
-                                                <div className="border-t border-white/12 px-4 pb-4 pt-4 dark:border-brandBlue/15">
-                                                    <p className="text-sm font-bold leading-7 text-white/85 dark:text-brandBlue/85">
+                                            {isPickupExpanded ? (
+                                                <div className={`border-t px-4 pb-4 pt-4 ${!isShippingSelected ? selectedDeliveryDividerClasses : 'border-brandGold/15 dark:border-brandGold/10'}`}>
+                                                    <p className={`text-sm font-bold leading-7 ${!isShippingSelected ? selectedDeliveryMutedTextClasses : 'text-slate-500 dark:text-slate-300'}`}>
                                                         بدون رسوم شحن، وتأكيد الطلب يتم بنفس بياناتك الحالية.
                                                     </p>
                                                 </div>
                                             ) : null}
                                         </div>
 
-                                        <div className={`overflow-hidden rounded-[1.35rem] border transition-colors ${isShippingSelected ? 'border-brandBlue bg-brandBlue text-white shadow-lg shadow-brandBlue/15 dark:border-brandGold dark:bg-brandGold dark:text-brandBlue' : 'border-brandGold/18 bg-white text-brandBlue dark:bg-gray-900/60 dark:text-white'}`}>
-                                            <button
-                                                type="button"
-                                                onClick={() => setDeliveryMethod('shipping')}
-                                                className="flex w-full items-center justify-between gap-4 px-4 py-4 text-right"
-                                            >
-                                                <div>
-                                                    <p className={`text-[10px] font-black uppercase tracking-[0.22em] ${isShippingSelected ? 'text-white/75 dark:text-brandBlue/75' : 'text-brandGold'}`}>Shipping</p>
-                                                    <p className="mt-2 text-base font-black">شحن الطلب إلى عنواني</p>
-                                                </div>
-                                                <i className={`fa-solid ${isShippingSelected ? 'fa-chevron-up' : 'fa-chevron-down'} text-sm ${isShippingSelected ? 'text-white/75 dark:text-brandBlue/75' : 'text-brandGold'}`}></i>
-                                            </button>
+                                        <div className={`overflow-hidden rounded-[1.35rem] border transition-colors ${isShippingSelected ? selectedDeliveryCardClasses : 'border-brandGold/18 bg-white text-brandBlue dark:bg-gray-900/60 dark:text-white'}`}>
+                                            <div className="flex items-center gap-3 px-4 py-4">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSelectDeliveryMethod('shipping')}
+                                                    className="flex-1 text-right"
+                                                >
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div className="text-right">
+                                                            <p className={`text-[10px] font-black uppercase tracking-[0.22em] ${isShippingSelected ? selectedDeliveryEyebrowClasses : 'text-brandGold'}`}>Shipping</p>
+                                                            <p className="mt-2 text-base font-black">شحن الطلب إلى عنواني</p>
+                                                            <p className={`mt-2 text-sm font-bold leading-7 ${isShippingSelected ? selectedDeliveryMutedTextClasses : 'text-slate-500 dark:text-slate-300'}`}>
+                                                                رسوم الشحن الحالية: {formatCurrency(configuredShippingAmount)}
+                                                            </p>
+                                                            {hasSavedShippingAddress ? (
+                                                                <p className={`mt-2 text-xs font-black ${isShippingSelected ? selectedDeliveryEyebrowClasses : 'text-brandGold'}`}>
+                                                                    تمت إضافة عنوان الشحن
+                                                                </p>
+                                                            ) : null}
+                                                        </div>
+                                                        <span className={`mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${isShippingSelected ? selectedDeliveryCheckClasses : 'border-brandGold/35 bg-transparent text-brandGold/0 dark:border-brandGold/20 dark:text-brandGold/0'}`}>
+                                                            <i className={`fa-solid fa-check text-[10px] ${isShippingSelected ? 'opacity-100' : 'opacity-0'}`}></i>
+                                                        </span>
+                                                    </div>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleDeliverySection('shipping')}
+                                                    aria-label={isShippingExpanded ? 'إغلاق تفاصيل الشحن' : 'فتح تفاصيل الشحن'}
+                                                    aria-expanded={isShippingExpanded}
+                                                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors ${isShippingSelected ? selectedDeliveryToggleClasses : 'border-brandGold/20 bg-brandGold/5 text-brandGold dark:border-brandGold/15 dark:bg-brandGold/10'}`}
+                                                >
+                                                    <i className={`fa-solid ${isShippingExpanded ? 'fa-chevron-up' : 'fa-chevron-down'} text-sm`}></i>
+                                                </button>
+                                            </div>
 
-                                            {isShippingSelected ? (
-                                                <div className="border-t border-white/12 px-4 pb-4 pt-4 dark:border-brandBlue/15">
-                                                    <p className="text-sm font-bold leading-7 text-white/85 dark:text-brandBlue/85">
-                                                        رسوم الشحن الحالية: {formatCurrency(configuredShippingAmount)}
-                                                    </p>
+                                            {isShippingExpanded ? (
+                                                <div className={`border-t px-4 pb-4 pt-4 ${isShippingSelected ? selectedDeliveryDividerClasses : 'border-brandGold/15 dark:border-brandGold/10'}`}>
+                                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setIsShippingAddressFormOpen((current) => !current);
+                                                                setShippingAddressError('');
+                                                            }}
+                                                            className={`inline-flex w-fit items-center gap-2 rounded-full border px-4 py-2 text-sm font-black transition-colors ${isShippingSelected ? selectedDeliveryActionClasses : 'border-brandGold/20 bg-brandGold/5 text-brandBlue hover:bg-brandGold/10 dark:text-brandGold'}`}
+                                                        >
+                                                            <span className="text-base leading-none">{isShippingAddressFormOpen ? '−' : '+'}</span>
+                                                            <span>{isShippingAddressFormOpen ? 'إخفاء العنوان' : hasSavedShippingAddress ? 'تعديل العنوان' : 'إضافة عنوان'}</span>
+                                                        </button>
+                                                        <p className={`text-sm font-bold leading-7 ${isShippingSelected ? selectedDeliveryMutedTextClasses : 'text-slate-500 dark:text-slate-300'}`}>
+                                                            {hasSavedShippingAddress ? 'سيُحفظ هذا العنوان مع الطلب حتى يظهر للإدارة أثناء المراجعة.' : 'أضف بيانات العنوان بشكل منظم حتى يظهر الشحن للإدارة بوضوح.'}
+                                                        </p>
+                                                    </div>
 
-                                                    <label className="mt-4 block text-right text-[11px] font-black uppercase tracking-[0.2em] text-white/75 dark:text-brandBlue/75">Shipping Address | عنوان الشحن</label>
-                                                    <textarea
-                                                        value={shippingAddress}
-                                                        onChange={(event) => {
-                                                            setShippingAddress(event.target.value);
-                                                            setShippingAddressError('');
-                                                        }}
-                                                        rows={4}
-                                                        placeholder="اكتب عنوان الشحن بالتفصيل: المحافظة، المنطقة، الشارع، رقم العقار، وأي علامة مميزة"
-                                                        className={`mt-3 min-h-[120px] w-full rounded-[1.35rem] border bg-white px-4 py-3 text-sm font-bold text-brandBlue outline-none transition-colors placeholder:text-slate-400 dark:bg-gray-900 dark:text-white ${shippingAddressError ? 'border-red-400 focus:border-red-500' : 'border-brandGold/20 focus:border-brandGold'}`}
-                                                    />
-                                                    {shippingAddressError ? (
-                                                        <p className="mt-2 text-sm font-extrabold text-red-200 dark:text-red-500">{shippingAddressError}</p>
-                                                    ) : (
-                                                        <p className="mt-2 text-sm font-bold leading-7 text-white/80 dark:text-brandBlue/80">سيُحفظ هذا العنوان مع الطلب حتى يظهر للإدارة أثناء المراجعة.</p>
-                                                    )}
+                                                    {isShippingAddressFormOpen ? (
+                                                        <div className="mt-4">
+                                                            <label className={`block text-right text-[11px] font-black uppercase tracking-[0.2em] ${isShippingSelected ? selectedDeliveryEyebrowClasses : 'text-brandGold'}`}>Shipping Address | عنوان الشحن</label>
+                                                            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                                                                {SHIPPING_ADDRESS_FIELDS.map((field) => (
+                                                                    <label key={field.key} className={`block text-right ${field.wrapperClassName || ''}`}>
+                                                                        <span className={`block text-[11px] font-black uppercase tracking-[0.18em] ${isShippingSelected ? selectedDeliveryEyebrowClasses : 'text-slate-500 dark:text-slate-300'}`}>
+                                                                            {field.label}
+                                                                        </span>
+                                                                        <input
+                                                                            type="text"
+                                                                            name={field.key}
+                                                                            inputMode={field.inputMode || 'text'}
+                                                                            value={shippingAddressFields[field.key]}
+                                                                            onChange={(event) => handleShippingAddressFieldChange(field.key, event.target.value)}
+                                                                            placeholder={field.placeholder}
+                                                                            className={`mt-2 w-full rounded-[1.1rem] border bg-white px-4 py-3 text-sm font-bold text-brandBlue outline-none transition-colors placeholder:text-slate-400 dark:bg-gray-900 dark:text-white ${shippingAddressError ? 'border-red-400 focus:border-red-500' : 'border-brandGold/20 focus:border-brandGold'}`}
+                                                                        />
+                                                                    </label>
+                                                                ))}
+                                                            </div>
+
+                                                            {shippingAddressError ? (
+                                                                <p className="mt-3 text-sm font-extrabold text-red-200 dark:text-red-500">{shippingAddressError}</p>
+                                                            ) : (
+                                                                <p className={`mt-3 text-sm font-bold leading-7 ${isShippingSelected ? selectedDeliveryMutedTextClasses : 'text-slate-500 dark:text-slate-300'}`}>
+                                                                    سيتم تجميع هذه البيانات تلقائيًا داخل عنوان الشحن النهائي المرسل مع الطلب.
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    ) : shippingAddressError ? (
+                                                        <p className="mt-3 text-sm font-extrabold text-red-200 dark:text-red-500">{shippingAddressError}</p>
+                                                    ) : null}
                                                 </div>
                                             ) : null}
                                         </div>
