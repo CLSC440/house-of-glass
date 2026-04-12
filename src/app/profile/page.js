@@ -1120,7 +1120,7 @@ export default function UserProfile() {
                                                 const statusHistory = getOrderStatusHistory(order);
                                                 const latestStatusEntry = statusHistory[statusHistory.length - 1];
                                                 const orderDateLabel = parseTimestamp(getOrderDateValue(order));
-                                                const compactOrderDateLabel = orderDateLabel.replace(/,\s*\d{4},\s*/, ', ');
+                                                const compactOrderDateLabel = orderDateLabel.replace(/,\s*\d{4},\s*/, ' • ');
                                                 const orderAmountLabel = `${getOrderAmount(order).toLocaleString()} ج.م`;
                                                 const isReceivedOrder = normalizedStatus === 'received';
                                                 const isExpanded = expandedOrderSummaries[order.id] ?? false;
@@ -1128,36 +1128,40 @@ export default function UserProfile() {
                                                 return (
                                                     <>
                                             <div className={`sm:hidden ${isExpanded ? 'mb-4 border-b border-gray-50 pb-4 dark:border-gray-800/50' : ''}`}>
-                                                <div className="flex items-center gap-3 overflow-hidden rounded-[1.35rem] border border-gray-100 bg-gray-50/35 px-3 py-3 dark:border-gray-800 dark:bg-gray-900/20">
-                                                    <div className="min-w-0 flex-1">
-                                                        <span className="block truncate font-mono text-[1.02rem] font-black text-brandBlue dark:text-white">#{getOrderExternalRef(order)}</span>
-                                                        <span className="mt-1 block text-[0.82rem] font-medium leading-5 text-gray-300">{compactOrderDateLabel}</span>
+                                                <div className="space-y-2.5 overflow-hidden rounded-[1.35rem] border border-gray-100 bg-gray-50/35 px-3 py-3 dark:border-gray-800 dark:bg-gray-900/20">
+                                                    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                                                        <div className="min-w-0">
+                                                            <span className="block truncate font-mono text-[0.98rem] font-black text-brandBlue dark:text-white">#{getOrderExternalRef(order)}</span>
+                                                            <span className="mt-1 block truncate text-[0.78rem] font-medium leading-5 text-gray-300">{compactOrderDateLabel}</span>
+                                                        </div>
+
+                                                        <div className="flex items-start gap-2">
+                                                            <div className="shrink-0 text-right">
+                                                                <span className="block text-[0.64rem] font-black uppercase tracking-[0.16em] text-gray-400">Total</span>
+                                                                <span className="mt-1 block whitespace-nowrap text-[1.08rem] font-black text-brandGold">{orderAmountLabel}</span>
+                                                            </div>
+
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => toggleOrderSummary(order.id)}
+                                                                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-500 transition-colors hover:border-brandGold/35 hover:bg-brandGold/10 hover:text-brandGold dark:border-gray-800 dark:bg-gray-900/30 dark:text-gray-300"
+                                                                aria-label={isExpanded ? 'Collapse order details' : 'Expand order details'}
+                                                                aria-expanded={isExpanded}
+                                                            >
+                                                                <i className={`fa-solid ${isExpanded ? 'fa-chevron-up' : 'fa-chevron-down'} text-xs`}></i>
+                                                            </button>
+                                                        </div>
                                                     </div>
 
-                                                    <div className="shrink-0 space-y-1.5">
-                                                        <span className={'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] ' + statusMeta.lightBadgeClass}>
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <span className={'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.12em] ' + statusMeta.lightBadgeClass}>
                                                             <span className={`h-1.5 w-1.5 rounded-full ${statusMeta.dotClass}`}></span>
                                                             {statusMeta.customerLabel}
                                                         </span>
-                                                        <span className={'inline-flex px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.12em] ' + (order.orderType === 'wholesale' ? 'bg-brandGold/10 text-brandGold' : 'bg-green-500/10 text-green-600')}>
+                                                        <span className={'inline-flex px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-[0.12em] ' + (order.orderType === 'wholesale' ? 'bg-brandGold/10 text-brandGold' : 'bg-green-500/10 text-green-600')}>
                                                             {order.orderType || 'retail'}
                                                         </span>
                                                     </div>
-
-                                                    <div className="shrink-0 text-right">
-                                                        <span className="block text-[0.68rem] font-black uppercase tracking-[0.18em] text-gray-400">Total</span>
-                                                        <span className="mt-1 block whitespace-nowrap text-[1.18rem] font-black text-brandGold">{orderAmountLabel}</span>
-                                                    </div>
-
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => toggleOrderSummary(order.id)}
-                                                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-500 transition-colors hover:border-brandGold/35 hover:bg-brandGold/10 hover:text-brandGold dark:border-gray-800 dark:bg-gray-900/30 dark:text-gray-300"
-                                                        aria-label={isExpanded ? 'Collapse order details' : 'Expand order details'}
-                                                        aria-expanded={isExpanded}
-                                                    >
-                                                        <i className={`fa-solid ${isExpanded ? 'fa-chevron-up' : 'fa-chevron-down'} text-sm`}></i>
-                                                    </button>
                                                 </div>
                                             </div>
 
