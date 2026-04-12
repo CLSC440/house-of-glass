@@ -97,6 +97,109 @@ function getCustomerPhoneValue(customerInfo) {
     return phone && phone !== 'غير متوفر' ? phone : '';
 }
 
+function OrderSuccessPopup({ isWholesale, orderConfirmation, onTrackOrder, onCloseToHome }) {
+    if (!orderConfirmation) {
+        return null;
+    }
+
+    const isShippingOrder = normalizeDeliveryMethod(orderConfirmation.deliveryMethod) === 'shipping';
+
+    return (
+        <div className="fixed inset-0 z-[220] flex items-center justify-center bg-[#060b17]/72 px-4 py-6 backdrop-blur-sm" dir="rtl">
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="checkout-order-success-title"
+                className="relative w-full max-w-lg overflow-hidden rounded-[2rem] border border-brandGold/20 bg-white shadow-[0_28px_80px_rgba(6,11,23,0.38)] dark:bg-darkCard"
+            >
+                <div className="absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.22),transparent_68%),linear-gradient(180deg,rgba(18,25,38,0.05),transparent)] dark:bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.18),transparent_68%),linear-gradient(180deg,rgba(255,255,255,0.03),transparent)]"></div>
+                <div className="relative px-6 pb-6 pt-7 md:px-8 md:pb-8 md:pt-8">
+                    <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.24),rgba(18,25,38,0.08))] shadow-[0_18px_45px_rgba(18,25,38,0.16)]">
+                        <div className="relative flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full bg-white shadow-lg dark:bg-[#0f1728]">
+                            <img src="/logo.png" alt="House Of Glass" className="h-9 w-9 object-contain" />
+                            <span className="absolute -bottom-1 -left-1 flex h-8 w-8 items-center justify-center rounded-full border-4 border-white bg-emerald-500 text-sm text-white shadow-md dark:border-darkCard">
+                                <i className="fa-solid fa-check"></i>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="mt-5 text-center">
+                        <p className="text-[10px] font-black uppercase tracking-[0.32em] text-brandGold">
+                            {isWholesale ? 'Wholesale Order Received' : 'Order Received'}
+                        </p>
+                        <h3 id="checkout-order-success-title" className="mt-3 text-[1.9rem] font-black leading-[1.15] text-brandBlue dark:text-white sm:text-[2.1rem]">
+                            {isWholesale ? 'تم استلام طلب الجملة بنجاح' : 'تم استلام طلبك بنجاح'}
+                        </h3>
+                        <p className="mt-3 text-sm font-bold leading-7 text-slate-500 dark:text-slate-300">
+                            سجّلنا الطلب عندنا، وتقدر تتابع حالته من صفحة الحساب في أي وقت.
+                        </p>
+                    </div>
+
+                    <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-[1.45rem] border border-brandGold/15 bg-brandGold/[0.05] px-4 py-4 text-right dark:bg-brandGold/[0.08]">
+                            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-brandGold">Total Amount</p>
+                            <p className="mt-2 text-sm font-bold text-slate-500 dark:text-slate-300">الإجمالي المطلوب</p>
+                            <p className="mt-3 text-2xl font-black text-emerald-600 dark:text-brandGold">{formatCurrency(orderConfirmation.totalPrice)}</p>
+                        </div>
+                        <div className="rounded-[1.45rem] border border-brandBlue/10 bg-slate-50 px-4 py-4 text-right dark:border-brandGold/15 dark:bg-slate-900/40">
+                            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-brandGold">Order Number</p>
+                            <p className="mt-2 text-sm font-bold text-slate-500 dark:text-slate-300">رقم الطلب</p>
+                            <p className="mt-3 text-lg font-black text-brandBlue dark:text-white">{orderConfirmation.orderNumber}</p>
+                        </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                        <span className="inline-flex items-center rounded-full bg-brandBlue px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-white dark:bg-brandGold dark:text-brandBlue">
+                            {isShippingOrder ? 'Shipping | شحن' : 'Pickup | استلام'}
+                        </span>
+                        <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-600 dark:text-emerald-300">
+                            Pending Review | قيد المراجعة
+                        </span>
+                        <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+                            {orderConfirmation.itemCount} Items
+                        </span>
+                    </div>
+
+                    <p className="mt-4 text-center text-sm font-bold leading-7 text-slate-500 dark:text-slate-300">
+                        لو حابب تراجع التفاصيل دلوقتي، افتح سجل الطلبات. ولو خلصت، ارجع للمعرض وكمل التصفح.
+                    </p>
+
+                    <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                        <button
+                            type="button"
+                            onClick={onTrackOrder}
+                            className="inline-flex items-center justify-center gap-3 rounded-2xl border border-brandGold bg-brandBlue px-5 py-3 text-sm font-black text-white transition-transform hover:scale-[1.01] dark:text-white"
+                        >
+                            <span>تابع طلبك</span>
+                            <i className="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={onCloseToHome}
+                            className="inline-flex items-center justify-center rounded-2xl border border-brandGold/20 px-5 py-3 text-sm font-black text-brandBlue transition-colors hover:bg-brandGold/10 dark:text-brandGold"
+                        >
+                            Close | إغلاق
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function MobileCheckoutSubmittingOverlay({ isWholesale }) {
+    return (
+        <div className="md:hidden">
+            <BrandLoadingScreen
+                title={isWholesale ? 'Processing wholesale order' : 'Processing your order'}
+                message={isWholesale ? 'جاري إرسال طلب الجملة الآن، برجاء الانتظار لحظة حتى يتم تأكيده وعرض تفاصيله.' : 'جاري إرسال طلبك الآن، برجاء الانتظار لحظة حتى يتم تأكيده وعرض تفاصيله.'}
+                fixed
+                showProgressBar
+            />
+        </div>
+    );
+}
+
 export default function CheckoutPageContent({ checkoutType }) {
     const router = useRouter();
     const normalizedCheckoutType = normalizeCheckoutType(checkoutType);
@@ -137,6 +240,7 @@ export default function CheckoutPageContent({ checkoutType }) {
     const [phonePromptValue, setPhonePromptValue] = useState('');
     const [phonePromptError, setPhonePromptError] = useState('');
     const [isSavingPhone, setIsSavingPhone] = useState(false);
+    const [orderConfirmation, setOrderConfirmation] = useState(null);
 
     const items = isWholesale ? wholesaleCartItems : cartItems;
     const itemCount = isWholesale ? wholesaleCartCount : cartCount;
@@ -158,6 +262,7 @@ export default function CheckoutPageContent({ checkoutType }) {
     const finalTotal = Math.max(0, subtotal - discountAmount + shippingAmount);
     const loginTarget = `/login?redirect=checkout${isWholesale ? '&type=wholesale' : ''}`;
     const signupTarget = `/signup?redirect=checkout${isWholesale ? '&type=wholesale' : ''}`;
+    const isMobileSubmitting = isSubmitting && !orderConfirmation;
 
     useEffect(() => {
         let isMounted = true;
@@ -260,6 +365,16 @@ export default function CheckoutPageContent({ checkoutType }) {
         setPhonePromptError('');
     };
 
+    const handleTrackOrder = () => {
+        setOrderConfirmation(null);
+        router.replace('/profile#order-history');
+    };
+
+    const handleCloseOrderConfirmation = () => {
+        setOrderConfirmation(null);
+        router.replace('/');
+    };
+
     const finalizeOrderConfirmation = async () => {
         const result = await submitCheckout({
             subtotalAmount: subtotal,
@@ -270,7 +385,8 @@ export default function CheckoutPageContent({ checkoutType }) {
             promoDiscountType: isPromoApplied ? promoSettings.discountType : '',
             promoDiscountValue: isPromoApplied ? promoSettings.discountValue : 0,
             deliveryMethod: normalizedDeliveryMethod,
-            shippingAddress: isShippingSelected ? shippingAddress.trim() : ''
+            shippingAddress: isShippingSelected ? shippingAddress.trim() : '',
+            skipSuccessToast: true
         });
 
         if (result.requiresAuth) {
@@ -279,7 +395,12 @@ export default function CheckoutPageContent({ checkoutType }) {
         }
 
         if (result.ok) {
-            router.push('/profile');
+            setOrderConfirmation({
+                orderNumber: String(result.websiteOrderRef || result.orderId || '').trim() || 'WEB-ORDER',
+                totalPrice: parseAmount(result.totalPrice ?? finalTotal),
+                deliveryMethod: normalizeDeliveryMethod(result.deliveryMethod || normalizedDeliveryMethod),
+                itemCount: Number(result.itemCount) || itemCount
+            });
         }
     };
 
@@ -385,7 +506,7 @@ export default function CheckoutPageContent({ checkoutType }) {
         );
     }
 
-    if (items.length === 0) {
+    if (items.length === 0 && !orderConfirmation) {
         return (
             <section className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 md:px-8 md:py-12" dir="rtl">
                 <div className="overflow-hidden rounded-[2rem] border border-brandGold/20 bg-white shadow-[0_25px_80px_rgba(18,25,38,0.08)] dark:bg-darkCard">
@@ -876,6 +997,15 @@ export default function CheckoutPageContent({ checkoutType }) {
                     </div>
                 </div>
             ) : null}
+            {orderConfirmation ? (
+                <OrderSuccessPopup
+                    isWholesale={isWholesale}
+                    orderConfirmation={orderConfirmation}
+                    onTrackOrder={handleTrackOrder}
+                    onCloseToHome={handleCloseOrderConfirmation}
+                />
+            ) : null}
+            {isMobileSubmitting ? <MobileCheckoutSubmittingOverlay isWholesale={isWholesale} /> : null}
         </section>
     );
 }

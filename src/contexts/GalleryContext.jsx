@@ -1764,6 +1764,19 @@ export function GalleryProvider({ children }) {
         return Number.isFinite(numericValue) ? numericValue : fallbackValue;
     };
 
+    const buildCheckoutSuccessResult = (orderRef, orderData) => ({
+        ok: true,
+        orderId: orderRef.id,
+        websiteOrderRef: String(orderData?.websiteOrderRef || '').trim(),
+        totalPrice: Number(orderData?.totalPrice) || 0,
+        subtotalAmount: Number(orderData?.subtotalAmount) || 0,
+        shippingAmount: Number(orderData?.shippingAmount) || 0,
+        discountAmount: Number(orderData?.discountAmount) || 0,
+        itemCount: Number(orderData?.itemCount) || 0,
+        deliveryMethod: String(orderData?.deliveryMethod || 'pickup').trim().toLowerCase() === 'shipping' ? 'shipping' : 'pickup',
+        orderType: String(orderData?.orderType || 'retail').trim().toLowerCase() === 'wholesale' ? 'wholesale' : 'retail'
+    });
+
     const checkoutCart = async (options = {}) => {
         if (cartItems.length === 0) {
             showToast('العربة فارغة حالياً.', 'error');
@@ -1820,10 +1833,14 @@ export function GalleryProvider({ children }) {
                 console.error('Admin order notification failed:', notificationError);
             }
 
+            const successResult = buildCheckoutSuccessResult(orderRef, orderData);
+
             clearCart();
             closeCart();
-            showToast('تم إرسال طلبك بنجاح.');
-            return { ok: true };
+            if (!options.skipSuccessToast) {
+                showToast('تم إرسال طلبك بنجاح.');
+            }
+            return successResult;
         } catch (error) {
             console.error('Checkout failed:', error);
             showToast('تعذر إرسال الطلب حالياً. حاول مرة أخرى.', 'error');
@@ -1895,10 +1912,14 @@ export function GalleryProvider({ children }) {
                 console.error('Admin wholesale order notification failed:', notificationError);
             }
 
+            const successResult = buildCheckoutSuccessResult(orderRef, orderData);
+
             clearWholesaleCart();
             closeWholesaleCart();
-            showToast('تم إرسال طلب الجملة بنجاح.');
-            return { ok: true };
+            if (!options.skipSuccessToast) {
+                showToast('تم إرسال طلب الجملة بنجاح.');
+            }
+            return successResult;
         } catch (error) {
             console.error('Wholesale checkout failed:', error);
             showToast('تعذر إرسال طلب الجملة حالياً. حاول مرة أخرى.', 'error');
