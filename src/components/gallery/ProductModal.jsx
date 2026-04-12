@@ -960,13 +960,7 @@ export default function ProductModal() {
     };
 
     const handleCompleteRetailOrder = () => {
-        navigateToCheckout('/checkout', () => {
-            setRetailOrderSheet(null);
-
-            if (selectedProduct) {
-                closeModal();
-            }
-        });
+        navigateToCheckout('/checkout');
     };
 
     if (!selectedProduct && !activeRetailSummary) return null;

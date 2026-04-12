@@ -27,11 +27,11 @@ export default function CartModal() {
     const isWholesaleCheckoutLoading = pendingCheckoutHref.includes('type=wholesale');
 
     const handleCheckout = () => {
-        navigateToCheckout('/checkout', closeCart);
+        navigateToCheckout('/checkout');
     };
 
     const handleWholesaleCheckout = () => {
-        navigateToCheckout('/checkout?type=wholesale', closeWholesaleCart);
+        navigateToCheckout('/checkout?type=wholesale');
     };
 
     return (
