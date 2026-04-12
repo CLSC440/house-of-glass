@@ -63,14 +63,14 @@ function OrderTrackingSteps({ status }) {
     }
 
     return (
-        <div className="grid gap-3 md:grid-cols-4">
+        <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-4 md:overflow-visible md:pb-0">
             {steps.map((step, index) => {
                 const isCompleted = step.state === 'completed' || (isReceivedOrder && step.state === 'current');
                 const isCurrent = step.state === 'current' && !isReceivedOrder;
 
                 return (
-                    <div key={step.value} className={`relative overflow-hidden rounded-2xl border px-4 py-5 ${isCurrent ? 'border-brandGold/35 bg-brandGold/10 dark:bg-brandGold/10' : isCompleted ? 'border-emerald-200 bg-emerald-50/80 dark:border-emerald-900/30 dark:bg-emerald-900/10' : 'border-gray-200 bg-gray-50/80 dark:border-gray-800 dark:bg-gray-900/30'}`}>
-                        <div className="flex min-h-[168px] flex-col items-center justify-center gap-4 text-center">
+                    <div key={step.value} className={`relative min-w-[15rem] shrink-0 snap-start overflow-hidden rounded-2xl border px-4 py-5 md:min-w-0 md:shrink md:px-4 ${isCurrent ? 'border-brandGold/35 bg-brandGold/10 dark:bg-brandGold/10' : isCompleted ? 'border-emerald-200 bg-emerald-50/80 dark:border-emerald-900/30 dark:bg-emerald-900/10' : 'border-gray-200 bg-gray-50/80 dark:border-gray-800 dark:bg-gray-900/30'}`}>
+                        <div className="flex min-h-[148px] flex-col items-center justify-center gap-4 text-center md:min-h-[168px]">
                             <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-black ${isCurrent ? 'bg-brandGold text-brandBlue' : isCompleted ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
                                 {isCompleted ? <i className="fa-solid fa-check"></i> : index + 1}
                             </span>
@@ -241,6 +241,7 @@ export default function UserProfile() {
     const [expandedOrderSummaries, setExpandedOrderSummaries] = useState({});
     const trackedOrderScrollRef = useRef('');
     const trackedOrderParam = normalizeTrackedOrderValue(searchParams.get('trackOrder'));
+    const [isTrackedOrderLoading, setIsTrackedOrderLoading] = useState(Boolean(trackedOrderParam));
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -317,7 +318,27 @@ export default function UserProfile() {
     }, []);
 
     useEffect(() => {
-        if (typeof window === 'undefined' || !trackedOrderParam || ordersLoading || orders.length === 0) {
+        trackedOrderScrollRef.current = '';
+        setIsTrackedOrderLoading(Boolean(trackedOrderParam));
+    }, [trackedOrderParam]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        if (!trackedOrderParam) {
+            setIsTrackedOrderLoading(false);
+            return;
+        }
+
+        if (ordersLoading) {
+            setIsTrackedOrderLoading(true);
+            return;
+        }
+
+        if (orders.length === 0) {
+            setIsTrackedOrderLoading(false);
             return;
         }
 
@@ -334,6 +355,7 @@ export default function UserProfile() {
         const targetOrderRef = normalizeTrackedOrderValue(getOrderExternalRef(matchedOrder) || matchedOrder.id);
 
         if (trackedOrderScrollRef.current === targetOrderRef) {
+            setIsTrackedOrderLoading(false);
             return;
         }
 
@@ -348,6 +370,7 @@ export default function UserProfile() {
 
         let attempts = 0;
         let timeoutId;
+        let animationFrameId;
 
         const scrollToTrackingSection = () => {
             const exactTarget = document.getElementById(buildOrderTrackingSectionId(targetOrderRef));
@@ -356,20 +379,25 @@ export default function UserProfile() {
 
             if (targetElement) {
                 trackedOrderScrollRef.current = targetOrderRef;
-                targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                setIsTrackedOrderLoading(false);
+                animationFrameId = window.requestAnimationFrame(() => {
+                    targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-                const nextUrl = new URL(window.location.href);
-                nextUrl.searchParams.delete('trackOrder');
-                if (!nextUrl.hash) {
-                    nextUrl.hash = 'order-history';
-                }
-                window.history.replaceState(window.history.state, '', `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+                    const nextUrl = new URL(window.location.href);
+                    nextUrl.searchParams.delete('trackOrder');
+                    if (!nextUrl.hash) {
+                        nextUrl.hash = 'order-history';
+                    }
+                    window.history.replaceState(window.history.state, '', `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+                });
                 return;
             }
 
             attempts += 1;
             if (attempts < 12) {
                 timeoutId = window.setTimeout(scrollToTrackingSection, 120);
+            } else {
+                setIsTrackedOrderLoading(false);
             }
         };
 
@@ -378,6 +406,9 @@ export default function UserProfile() {
         return () => {
             if (timeoutId) {
                 window.clearTimeout(timeoutId);
+            }
+            if (animationFrameId) {
+                window.cancelAnimationFrame(animationFrameId);
             }
         };
     }, [orders, ordersLoading, trackedOrderParam]);
@@ -757,7 +788,7 @@ export default function UserProfile() {
     };
 
     if (loading) {
-        return <BrandLoadingScreen title="Loading your account" message="جاري تحميل الصفحة والبيانات الخاصة بحسابك" fixed={false} />;
+        return <BrandLoadingScreen title="Loading your account" message="جاري تحميل الصفحة والبيانات الخاصة بحسابك" fixed={false} showProgressBar={false} />;
     }
 
     return (
@@ -1082,7 +1113,7 @@ export default function UserProfile() {
                             ) : (
                                 <div className="space-y-4">
                                     {orders.map(order => (
-                                        <div key={order.id} className="border border-gray-100 dark:border-gray-800 rounded-2xl p-4 hover:border-brandGold/30 transition-colors">
+                                        <div key={order.id} className="rounded-[1.65rem] border border-gray-100 p-4 transition-colors hover:border-brandGold/30 dark:border-gray-800 sm:rounded-2xl">
                                             {(() => {
                                                 const normalizedStatus = normalizeOrderStatus(order.status);
                                                 const statusMeta = getOrderStatusMeta(normalizedStatus);
@@ -1094,36 +1125,36 @@ export default function UserProfile() {
 
                                                 return (
                                                     <>
-                                            <div className={`flex flex-wrap items-center gap-3 ${isExpanded ? 'mb-4 border-b border-gray-50 pb-4 dark:border-gray-800/50' : ''}`}>
-                                                <div>
+                                            <div className={`grid grid-cols-2 gap-x-4 gap-y-3 ${isExpanded ? 'mb-4 border-b border-gray-50 pb-4 dark:border-gray-800/50' : ''} sm:flex sm:flex-wrap sm:items-center sm:gap-3`}>
+                                                <div className="min-w-0">
                                                     <span className="text-xs font-bold text-gray-400 block mb-1">Order ID</span>
                                                     <span className="font-mono text-sm font-black text-brandBlue dark:text-white">#{getOrderExternalRef(order)}</span>
                                                 </div>
-                                                <div>
+                                                <div className="min-w-0">
                                                     <span className="text-xs font-bold text-gray-400 block mb-1">Date</span>
-                                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                    <span className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                                         {parseTimestamp(getOrderDateValue(order))}
                                                     </span>
                                                 </div>
-                                                <div>
+                                                <div className="min-w-0">
                                                     <span className="text-xs font-bold text-gray-400 block mb-1">Status</span>
                                                     <span className={'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-wider ' + statusMeta.lightBadgeClass}>
                                                         <span className={`h-2 w-2 rounded-full ${statusMeta.dotClass}`}></span>
                                                         {statusMeta.customerLabel}
                                                     </span>
                                                 </div>
-                                                <div>
+                                                <div className="min-w-0">
                                                     <span className="text-xs font-bold text-gray-400 block mb-1">Type</span>
                                                     <span className={'inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ' + (order.orderType === 'wholesale' ? 'bg-brandGold/10 text-brandGold' : 'bg-green-500/10 text-green-600')}>
                                                         {order.orderType || 'retail'}
                                                     </span>
                                                 </div>
-                                                <div className="text-right">
+                                                <div className="col-span-2 text-right sm:col-span-1">
                                                     <span className="text-xs font-bold text-gray-400 block mb-1">Total Amount</span>
                                                     <span className="text-base font-black text-brandGold">{getOrderAmount(order).toLocaleString()} ج.م</span>
                                                 </div>
                                                 {isTerminalStatus ? (
-                                                    <div className="ml-auto flex items-center self-stretch sm:self-auto">
+                                                    <div className="col-span-2 flex items-center justify-end sm:col-span-1 sm:ml-auto sm:self-stretch sm:justify-start sm:self-auto">
                                                         <button
                                                             type="button"
                                                             onClick={() => toggleOrderSummary(order.id)}
@@ -1142,16 +1173,16 @@ export default function UserProfile() {
                                             <div
                                                 id={buildOrderTrackingSectionId(getOrderExternalRef(order) || order.id)}
                                                 data-order-tracking-section="true"
-                                                className="mb-4 scroll-mt-28 space-y-4 rounded-[1.5rem] border border-gray-100 bg-gray-50/70 p-4 dark:border-gray-800 dark:bg-gray-900/20"
+                                                className="mb-4 scroll-mt-28 space-y-4 rounded-[1.4rem] border border-gray-100 bg-gray-50/70 p-4 dark:border-gray-800 dark:bg-gray-900/20 sm:rounded-[1.5rem]"
                                             >
                                                 <div className="flex flex-wrap items-start justify-between gap-3">
                                                     <div>
                                                         <p className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400">Order Tracking</p>
-                                                        <p className="mt-2 text-sm font-semibold text-brandBlue dark:text-white">{statusMeta.description}</p>
+                                                        <p className="mt-2 text-base font-semibold leading-8 text-brandBlue dark:text-white sm:text-sm sm:leading-7">{statusMeta.description}</p>
                                                     </div>
                                                     <div className="text-left md:text-right">
                                                         <p className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400">Last Update</p>
-                                                        <p className="mt-2 text-sm font-semibold text-gray-700 dark:text-gray-300">{parseTimestamp(latestStatusEntry?.at || order.statusUpdatedAt || getOrderDateValue(order))}</p>
+                                                        <p className="mt-2 text-base font-semibold text-gray-700 dark:text-gray-300 sm:text-sm">{parseTimestamp(latestStatusEntry?.at || order.statusUpdatedAt || getOrderDateValue(order))}</p>
                                                     </div>
                                                 </div>
 
@@ -1172,13 +1203,13 @@ export default function UserProfile() {
                                             
                                             <div>
                                                 <div className="text-xs font-bold text-gray-400 mb-2">Items Ordered</div>
-                                                <div className="flex flex-wrap gap-2">
+                                                <div className="grid gap-2 sm:flex sm:flex-wrap">
                                                     {(order.items || []).map((item, idx) => (
-                                                        <div key={idx} className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800/50 px-3 py-1.5 rounded-lg border border-gray-100 dark:border-gray-800">
+                                                        <div key={idx} className="flex items-center gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 dark:border-gray-800 dark:bg-gray-800/50 sm:py-1.5">
                                                             <div className="w-8 h-8 rounded-md bg-white dark:bg-darkCard border border-gray-100 dark:border-gray-700 overflow-hidden shrink-0 flex items-center justify-center p-1">
                                                                 <img src={item.image || item.imageUrl || '/logo.png'} alt={item.title || item.name} className="max-w-full max-h-full object-contain" />
                                                             </div>
-                                                            <div className="truncate max-w-[150px] md:max-w-xs">
+                                                            <div className="min-w-0 truncate max-w-[190px] md:max-w-xs">
                                                                 <p className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">{item.title || item.name}</p>
                                                                 <p className="text-[10px] text-gray-500 font-medium">Qty: {item.quantity}</p>
                                                             </div>
@@ -1286,6 +1317,15 @@ export default function UserProfile() {
                         </form>
                     </div>
                 </div>
+            ) : null}
+
+            {isTrackedOrderLoading ? (
+                <BrandLoadingScreen
+                    title="Opening your order"
+                    message="جاري فتح الطلب والانتقال مباشرة إلى حالة المتابعة"
+                    fixed
+                    showProgressBar={false}
+                />
             ) : null}
         </div>
     );
