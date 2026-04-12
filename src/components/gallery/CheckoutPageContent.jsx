@@ -105,50 +105,50 @@ function OrderSuccessPopup({ isWholesale, orderConfirmation, onTrackOrder, onClo
     const isShippingOrder = normalizeDeliveryMethod(orderConfirmation.deliveryMethod) === 'shipping';
 
     return (
-        <div className="fixed inset-0 z-[220] flex items-center justify-center bg-[#060b17]/72 px-4 py-6 backdrop-blur-sm" dir="rtl">
+        <div className="fixed inset-0 z-[220] flex items-start justify-center overflow-y-auto bg-[#060b17]/72 px-4 py-4 backdrop-blur-sm sm:items-center sm:py-6" dir="rtl">
             <div
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="checkout-order-success-title"
-                className="relative w-full max-w-lg overflow-hidden rounded-[2rem] border border-brandGold/20 bg-white shadow-[0_28px_80px_rgba(6,11,23,0.38)] dark:bg-darkCard"
+                className="relative my-auto w-full max-w-[42rem] overflow-hidden rounded-[2rem] border border-brandGold/20 bg-white shadow-[0_28px_80px_rgba(6,11,23,0.38)] dark:bg-darkCard"
             >
                 <div className="absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.22),transparent_68%),linear-gradient(180deg,rgba(18,25,38,0.05),transparent)] dark:bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.18),transparent_68%),linear-gradient(180deg,rgba(255,255,255,0.03),transparent)]"></div>
-                <div className="relative px-6 pb-6 pt-7 md:px-8 md:pb-8 md:pt-8">
-                    <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.24),rgba(18,25,38,0.08))] shadow-[0_18px_45px_rgba(18,25,38,0.16)]">
-                        <div className="relative flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full bg-white shadow-lg dark:bg-[#0f1728]">
-                            <img src="/logo.png" alt="House Of Glass" className="h-9 w-9 object-contain" />
-                            <span className="absolute -bottom-1 -left-1 flex h-8 w-8 items-center justify-center rounded-full border-4 border-white bg-emerald-500 text-sm text-white shadow-md dark:border-darkCard">
+                <div className="relative px-5 pb-5 pt-5 sm:px-8 sm:pb-8 sm:pt-8">
+                    <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.24),rgba(18,25,38,0.08))] shadow-[0_18px_45px_rgba(18,25,38,0.16)] sm:h-24 sm:w-24">
+                        <div className="relative flex h-[4rem] w-[4rem] items-center justify-center rounded-full bg-white shadow-lg dark:bg-[#0f1728] sm:h-[4.5rem] sm:w-[4.5rem]">
+                            <img src="/logo.png" alt="House Of Glass" className="h-8 w-8 object-contain sm:h-9 sm:w-9" />
+                            <span className="absolute -bottom-1 -left-1 flex h-7 w-7 items-center justify-center rounded-full border-4 border-white bg-emerald-500 text-xs text-white shadow-md dark:border-darkCard sm:h-8 sm:w-8 sm:text-sm">
                                 <i className="fa-solid fa-check"></i>
                             </span>
                         </div>
                     </div>
 
-                    <div className="mt-5 text-center">
+                    <div className="mt-4 text-center sm:mt-5">
                         <p className="text-[10px] font-black uppercase tracking-[0.32em] text-brandGold">
                             {isWholesale ? 'Wholesale Order Received' : 'Order Received'}
                         </p>
-                        <h3 id="checkout-order-success-title" className="mt-3 text-[1.9rem] font-black leading-[1.15] text-brandBlue dark:text-white sm:text-[2.1rem]">
+                        <h3 id="checkout-order-success-title" className="mt-3 text-[1.55rem] font-black leading-[1.12] text-brandBlue dark:text-white sm:text-[2.1rem]">
                             {isWholesale ? 'تم استلام طلب الجملة بنجاح' : 'تم استلام طلبك بنجاح'}
                         </h3>
-                        <p className="mt-3 text-sm font-bold leading-7 text-slate-500 dark:text-slate-300">
+                        <p className="mt-3 text-[0.95rem] font-bold leading-7 text-slate-500 dark:text-slate-300 sm:text-sm">
                             سجّلنا الطلب عندنا، وتقدر تتابع حالته من صفحة الحساب في أي وقت.
                         </p>
                     </div>
 
-                    <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                        <div className="rounded-[1.45rem] border border-brandGold/15 bg-brandGold/[0.05] px-4 py-4 text-right dark:bg-brandGold/[0.08]">
+                    <div className="mt-6 grid grid-cols-2 gap-3">
+                        <div className="rounded-[1.45rem] border border-brandGold/15 bg-brandGold/[0.05] px-3 py-4 text-right dark:bg-brandGold/[0.08] sm:px-4">
                             <p className="text-[10px] font-black uppercase tracking-[0.24em] text-brandGold">Total Amount</p>
                             <p className="mt-2 text-sm font-bold text-slate-500 dark:text-slate-300">الإجمالي المطلوب</p>
-                            <p className="mt-3 text-2xl font-black text-emerald-600 dark:text-brandGold">{formatCurrency(orderConfirmation.totalPrice)}</p>
+                            <p className="mt-3 text-[1.25rem] font-black text-emerald-600 dark:text-brandGold sm:text-2xl">{formatCurrency(orderConfirmation.totalPrice)}</p>
                         </div>
-                        <div className="rounded-[1.45rem] border border-brandBlue/10 bg-slate-50 px-4 py-4 text-right dark:border-brandGold/15 dark:bg-slate-900/40">
+                        <div className="rounded-[1.45rem] border border-brandBlue/10 bg-slate-50 px-3 py-4 text-right dark:border-brandGold/15 dark:bg-slate-900/40 sm:px-4">
                             <p className="text-[10px] font-black uppercase tracking-[0.24em] text-brandGold">Order Number</p>
                             <p className="mt-2 text-sm font-bold text-slate-500 dark:text-slate-300">رقم الطلب</p>
-                            <p className="mt-3 text-lg font-black text-brandBlue dark:text-white">{orderConfirmation.orderNumber}</p>
+                            <p className="mt-3 text-[1.15rem] font-black text-brandBlue dark:text-white sm:text-lg">{orderConfirmation.orderNumber}</p>
                         </div>
                     </div>
 
-                    <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-2 sm:flex-nowrap">
                         <span className="inline-flex items-center rounded-full bg-brandBlue px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-white dark:bg-brandGold dark:text-brandBlue">
                             {isShippingOrder ? 'Shipping | شحن' : 'Pickup | استلام'}
                         </span>
@@ -160,15 +160,15 @@ function OrderSuccessPopup({ isWholesale, orderConfirmation, onTrackOrder, onClo
                         </span>
                     </div>
 
-                    <p className="mt-4 text-center text-sm font-bold leading-7 text-slate-500 dark:text-slate-300">
+                    <p className="mt-4 text-center text-[0.95rem] font-bold leading-7 text-slate-500 dark:text-slate-300 sm:text-sm">
                         لو حابب تراجع التفاصيل دلوقتي، افتح سجل الطلبات. ولو خلصت، ارجع للمعرض وكمل التصفح.
                     </p>
 
-                    <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                    <div className="mt-6 grid grid-cols-2 gap-3">
                         <button
                             type="button"
                             onClick={onTrackOrder}
-                            className="inline-flex items-center justify-center gap-3 rounded-2xl border border-brandGold bg-brandBlue px-5 py-3 text-sm font-black text-white transition-transform hover:scale-[1.01] dark:text-white"
+                            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-brandGold bg-brandBlue px-3 py-3 text-[0.95rem] font-black text-white transition-transform hover:scale-[1.01] dark:text-white sm:gap-3 sm:px-5 sm:text-sm"
                         >
                             <span>تابع طلبك</span>
                             <i className="fa-solid fa-arrow-up-right-from-square text-xs"></i>
@@ -176,7 +176,7 @@ function OrderSuccessPopup({ isWholesale, orderConfirmation, onTrackOrder, onClo
                         <button
                             type="button"
                             onClick={onCloseToHome}
-                            className="inline-flex items-center justify-center rounded-2xl border border-brandGold/20 px-5 py-3 text-sm font-black text-brandBlue transition-colors hover:bg-brandGold/10 dark:text-brandGold"
+                            className="inline-flex items-center justify-center rounded-2xl border border-brandGold/20 px-3 py-3 text-[0.95rem] font-black text-brandBlue transition-colors hover:bg-brandGold/10 dark:text-brandGold sm:px-5 sm:text-sm"
                         >
                             Close | إغلاق
                         </button>
