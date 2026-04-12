@@ -366,8 +366,11 @@ export default function CheckoutPageContent({ checkoutType }) {
     };
 
     const handleTrackOrder = () => {
+        const trackedOrderNumber = String(orderConfirmation?.orderNumber || '').trim();
         setOrderConfirmation(null);
-        router.replace('/profile#order-history');
+        router.replace(trackedOrderNumber
+            ? `/profile?trackOrder=${encodeURIComponent(trackedOrderNumber)}#order-history`
+            : '/profile#order-history');
     };
 
     const handleCloseOrderConfirmation = () => {

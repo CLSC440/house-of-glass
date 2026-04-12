@@ -1,6 +1,6 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { EmailAuthProvider, linkWithCredential, onAuthStateChanged, reauthenticateWithCredential, reauthenticateWithPopup, signOut, updatePassword, updateProfile } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '@/lib/firebase';
@@ -29,6 +29,15 @@ function ProfileFallbackAvatar({ label, className = '' }) {
             </span>
         </div>
     );
+}
+
+function normalizeTrackedOrderValue(value) {
+    return String(value || '').trim().toUpperCase();
+}
+
+function buildOrderTrackingSectionId(value) {
+    const normalizedValue = normalizeTrackedOrderValue(value).replace(/[^A-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+    return `order-tracking-${normalizedValue || 'latest'}`;
 }
 
 function OrderTrackingSteps({ status }) {
@@ -191,6 +200,7 @@ function getPasswordActionErrorMessage(error) {
 
 export default function UserProfile() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [user, setUser] = useState(null);
     const [userData, setUserData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -229,6 +239,8 @@ export default function UserProfile() {
     const [orders, setOrders] = useState([]);
     const [ordersLoading, setOrdersLoading] = useState(true);
     const [expandedOrderSummaries, setExpandedOrderSummaries] = useState({});
+    const trackedOrderScrollRef = useRef('');
+    const trackedOrderParam = normalizeTrackedOrderValue(searchParams.get('trackOrder'));
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -303,6 +315,72 @@ export default function UserProfile() {
         setIsAutoThemeEnabled(autoEnabled);
         setIsDarkTheme(nextDarkTheme);
     }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || !trackedOrderParam || ordersLoading || orders.length === 0) {
+            return;
+        }
+
+        const matchedOrder = orders.find((order) => {
+            const externalRef = normalizeTrackedOrderValue(getOrderExternalRef(order));
+            const internalId = normalizeTrackedOrderValue(order.id);
+            return trackedOrderParam === externalRef || trackedOrderParam === internalId;
+        }) || orders[0];
+
+        if (!matchedOrder) {
+            return;
+        }
+
+        const targetOrderRef = normalizeTrackedOrderValue(getOrderExternalRef(matchedOrder) || matchedOrder.id);
+
+        if (trackedOrderScrollRef.current === targetOrderRef) {
+            return;
+        }
+
+        setExpandedOrderSummaries((currentValue) => (
+            currentValue[matchedOrder.id] === true
+                ? currentValue
+                : {
+                    ...currentValue,
+                    [matchedOrder.id]: true
+                }
+        ));
+
+        let attempts = 0;
+        let timeoutId;
+
+        const scrollToTrackingSection = () => {
+            const exactTarget = document.getElementById(buildOrderTrackingSectionId(targetOrderRef));
+            const fallbackTarget = document.querySelector('[data-order-tracking-section="true"]');
+            const targetElement = exactTarget || fallbackTarget;
+
+            if (targetElement) {
+                trackedOrderScrollRef.current = targetOrderRef;
+                targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                const nextUrl = new URL(window.location.href);
+                nextUrl.searchParams.delete('trackOrder');
+                if (!nextUrl.hash) {
+                    nextUrl.hash = 'order-history';
+                }
+                window.history.replaceState(window.history.state, '', `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+                return;
+            }
+
+            attempts += 1;
+            if (attempts < 12) {
+                timeoutId = window.setTimeout(scrollToTrackingSection, 120);
+            }
+        };
+
+        timeoutId = window.setTimeout(scrollToTrackingSection, 120);
+
+        return () => {
+            if (timeoutId) {
+                window.clearTimeout(timeoutId);
+            }
+        };
+    }, [orders, ordersLoading, trackedOrderParam]);
 
     const applyThemePreference = ({ autoEnabled, darkEnabled }) => {
         if (typeof window === 'undefined') {
@@ -1061,7 +1139,11 @@ export default function UserProfile() {
 
                                             {isExpanded ? (
                                             <>
-                                            <div className="mb-4 space-y-4 rounded-[1.5rem] border border-gray-100 bg-gray-50/70 p-4 dark:border-gray-800 dark:bg-gray-900/20">
+                                            <div
+                                                id={buildOrderTrackingSectionId(getOrderExternalRef(order) || order.id)}
+                                                data-order-tracking-section="true"
+                                                className="mb-4 scroll-mt-28 space-y-4 rounded-[1.5rem] border border-gray-100 bg-gray-50/70 p-4 dark:border-gray-800 dark:bg-gray-900/20"
+                                            >
                                                 <div className="flex flex-wrap items-start justify-between gap-3">
                                                     <div>
                                                         <p className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400">Order Tracking</p>
