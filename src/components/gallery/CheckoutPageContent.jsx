@@ -900,10 +900,10 @@ export default function CheckoutPageContent({ checkoutType }) {
                                                                 setIsShippingAddressFormOpen((current) => !current);
                                                                 setShippingAddressError('');
                                                             }}
-                                                            className={`inline-flex w-fit items-center gap-2 rounded-full border px-4 py-2 text-sm font-black transition-colors ${isShippingSelected ? selectedDeliveryActionClasses : 'border-brandGold/20 bg-brandGold/5 text-brandBlue hover:bg-brandGold/10 dark:text-brandGold'}`}
+                                                            className={`inline-flex w-fit shrink-0 items-center gap-3 whitespace-nowrap rounded-full border px-5 py-3 text-sm font-black leading-none transition-colors ${isShippingSelected ? selectedDeliveryActionClasses : 'border-brandGold/20 bg-brandGold/5 text-brandBlue hover:bg-brandGold/10 dark:text-brandGold'}`}
                                                         >
-                                                            <span className="text-base leading-none">{isShippingAddressFormOpen ? '−' : '+'}</span>
-                                                            <span>{isShippingAddressFormOpen ? 'إخفاء العنوان' : hasSavedShippingAddress ? 'تعديل العنوان' : 'إضافة عنوان'}</span>
+                                                            <span className="text-lg leading-none">{isShippingAddressFormOpen ? '−' : '+'}</span>
+                                                            <span className="leading-none">{isShippingAddressFormOpen ? 'إخفاء العنوان' : hasSavedShippingAddress ? 'تعديل العنوان' : 'إضافة عنوان'}</span>
                                                         </button>
                                                         <p className={`text-sm font-bold leading-7 ${isShippingSelected ? selectedDeliveryMutedTextClasses : 'text-slate-500 dark:text-slate-300'}`}>
                                                             {hasSavedShippingAddress ? 'سيُحفظ هذا العنوان مع الطلب حتى يظهر للإدارة أثناء المراجعة.' : 'أضف بيانات العنوان بشكل منظم حتى يظهر الشحن للإدارة بوضوح.'}
