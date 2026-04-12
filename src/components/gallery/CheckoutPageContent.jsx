@@ -321,6 +321,7 @@ export default function CheckoutPageContent({ checkoutType }) {
     const loginTarget = `/login?redirect=checkout${isWholesale ? '&type=wholesale' : ''}`;
     const signupTarget = `/signup?redirect=checkout${isWholesale ? '&type=wholesale' : ''}`;
     const isMobileSubmitting = isSubmitting && !orderConfirmation;
+    const shouldNudgePromoApplyButton = Boolean(normalizePromoCode(promoCodeInput)) && Boolean(promoSettings.normalizedCode) && !isPromoApplied;
     const selectedDeliveryCardClasses = 'border-brandGold/30 bg-[linear-gradient(135deg,rgba(212,175,55,0.14),rgba(255,255,255,0.96))] text-brandBlue shadow-[0_18px_45px_rgba(212,175,55,0.12)] dark:border-brandGold/24 dark:bg-[linear-gradient(135deg,rgba(212,175,55,0.14),rgba(15,23,42,0.9))] dark:text-white';
     const selectedDeliveryEyebrowClasses = 'text-brandBlue/60 dark:text-brandGold/75';
     const selectedDeliveryMutedTextClasses = 'text-brandBlue/78 dark:text-slate-200';
@@ -1052,7 +1053,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                                     type="button"
                                     onClick={handleApplyPromoCode}
                                     disabled={!promoSettings.normalizedCode}
-                                    className="inline-flex items-center justify-center rounded-2xl border border-brandBlue bg-brandBlue px-5 py-3 text-sm font-black text-white transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50"
+                                    className={`inline-flex items-center justify-center rounded-2xl border border-brandBlue bg-brandBlue px-5 py-3 text-sm font-black text-white transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50 ${shouldNudgePromoApplyButton ? 'promo-apply-attention' : ''}`}
                                 >
                                     تطبيق الكود
                                 </button>

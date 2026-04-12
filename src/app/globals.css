@@ -212,13 +212,48 @@
             16%, 38% { opacity: 0.9; }
             48% { transform: translate3d(165%, 0, 0) skewX(-18deg); opacity: 0; }
         }
+
+        .promo-apply-attention {
+            animation: promoApplyButtonVibrate 0.82s ease-in-out infinite;
+            box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.18), 0 14px 30px rgba(18, 25, 38, 0.24);
+            will-change: transform;
+        }
+
+        @keyframes promoApplyButtonVibrate {
+            0%, 100% {
+                transform: translate3d(0, 0, 0) rotate(0deg);
+            }
+            12% {
+                transform: translate3d(-1px, 0, 0) rotate(-0.6deg);
+            }
+            24% {
+                transform: translate3d(1.5px, 0, 0) rotate(0.7deg);
+            }
+            36% {
+                transform: translate3d(-2px, 0, 0) rotate(-0.9deg);
+            }
+            48% {
+                transform: translate3d(2px, 0, 0) rotate(0.9deg);
+            }
+            60% {
+                transform: translate3d(-1.5px, 0, 0) rotate(-0.6deg);
+            }
+            72% {
+                transform: translate3d(1px, 0, 0) rotate(0.4deg);
+            }
+            84% {
+                transform: translate3d(-0.5px, 0, 0) rotate(-0.2deg);
+            }
+        }
+
         @media (prefers-reduced-motion: reduce) {
             .see-all-link,
             .see-all-link::before,
             .see-all-link::after,
             .see-all-link-text,
             .see-all-link-text::after,
-            .see-all-link-arrow {
+            .see-all-link-arrow,
+            .promo-apply-attention {
                 animation: none !important;
                 transition: none !important;
             }
