@@ -109,7 +109,7 @@ function resolveModalProductImage(product = {}, fallbackImage = '') {
 }
 
 function buildRetailCartSummary(cartItems = [], cartCount = 0, cartSubtotal = 0, orderSummary = null) {
-    if (orderSummary) {
+    if (orderSummary && !orderSummary.isCartFallback) {
         return {
             ...orderSummary,
             cartItems: Array.isArray(orderSummary.cartItems) ? orderSummary.cartItems : [],
@@ -125,12 +125,14 @@ function buildRetailCartSummary(cartItems = [], cartCount = 0, cartSubtotal = 0,
     const latestQuantity = Number(latestItem?.quantity || 0);
     const latestUnitPrice = parsePrice(latestItem?.price);
     const latestSubtotal = latestUnitPrice > 0 && latestQuantity > 0 ? latestUnitPrice * latestQuantity : cartSubtotal;
-    const cartLines = cartItems.map((item) => {
+    const cartLines = cartItems.map((item, index) => {
         const quantity = Number(item?.quantity || 0);
         const unitPrice = parsePrice(item?.price);
+        const cartId = String(item?.cartId || item?.id || item?.code || item?.title || item?.name || `cart-item-${index}`);
 
         return {
-            id: String(item?.cartId || item?.id || item?.code || item?.title || item?.name || Math.random()),
+            id: cartId,
+            cartId,
             title: String(item?.title || item?.name || 'Cart item').trim() || 'Cart item',
             quantity,
             unitPrice,
@@ -352,7 +354,7 @@ function buildWholesaleAvailabilityCaption({ isStrictWholesaleUser, retailStockL
     return <>{captionLines}</>;
 }
 
-function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startMinimized = false }) {
+function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, onRemoveCartItem, onUpdateCartItemQuantity, startMinimized = false }) {
     const sheetRef = useRef(null);
     const backdropRef = useRef(null);
     const activePointerIdRef = useRef(null);
@@ -758,7 +760,7 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
                             <div className="flex items-center justify-between gap-3">
                                 <div>
                                     <p className="text-sm font-black text-slate-900 dark:text-white">{summary.isCartFallback ? 'Cart details' : 'Order details'}</p>
-                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-300" dir="rtl">{summary.isCartFallback ? 'الأسعار التالية هي إجمالي كل منتج داخل العربة.' : 'راجع الإضافة الجديدة قبل ما تفتح العربة أو تكمل التسوق.'}</p>
+                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-300" dir="rtl">{summary.isCartFallback ? 'تقدر تعدل الكمية أو تحذف أي منتج من هنا قبل إتمام الطلب.' : 'راجع الإضافة الجديدة قبل ما تفتح العربة أو تكمل التسوق.'}</p>
                                 </div>
                                 <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-emerald-400/15 bg-emerald-500/12 px-3.5 py-2 text-emerald-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                                     <span className="text-base font-black leading-none">{summary.isCartFallback ? summary.nextCartCount : `+${summary.addedQuantity}`}</span>
@@ -769,15 +771,62 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
 
                         {summary.isCartFallback ? (
                             <div className="divide-y divide-slate-200 dark:divide-white/10">
-                                {summary.cartItems.map((item) => (
-                                    <div key={item.id} className="flex items-center justify-between gap-4 px-4 py-3 text-sm" dir="ltr">
-                                        <div className="min-w-0 flex-1">
-                                            <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{item.title}</p>
-                                            <p className="mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-300">x{item.quantity}</p>
+                                {summary.cartItems.map((item) => {
+                                    const itemCartId = String(item?.cartId || item?.id || '').trim();
+                                    const canRemoveItem = Boolean(itemCartId) && typeof onRemoveCartItem === 'function';
+                                    const canDecreaseQuantity = Boolean(itemCartId) && typeof onUpdateCartItemQuantity === 'function' && Number(item?.quantity || 0) > 1;
+                                    const canIncreaseQuantity = Boolean(itemCartId) && typeof onUpdateCartItemQuantity === 'function';
+
+                                    return (
+                                        <div key={itemCartId || item.id} className="px-4 py-4 text-sm" dir="ltr">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="truncate text-sm font-bold text-slate-900 dark:text-white" dir="auto">{item.title}</p>
+                                                    <p className="mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-300">{formatPriceLabel(item.unitPrice)} / pack</p>
+
+                                                    <div className="mt-3 flex items-end justify-between gap-3">
+                                                        <div className="flex items-center overflow-hidden rounded-full border border-slate-200 bg-slate-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] dark:border-white/10 dark:bg-[#0d1426] dark:shadow-none">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => onUpdateCartItemQuantity(itemCartId, item.quantity - 1)}
+                                                                disabled={!canDecreaseQuantity}
+                                                                className="flex h-10 w-10 items-center justify-center text-lg font-black text-slate-900 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-35 dark:text-white dark:hover:bg-white/10"
+                                                                aria-label={`Decrease quantity for ${item.title}`}
+                                                            >
+                                                                -
+                                                            </button>
+                                                            <span className="min-w-10 border-x border-slate-200 px-3 text-center text-sm font-black text-brandBlue dark:border-white/10 dark:text-white">{item.quantity}</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => onUpdateCartItemQuantity(itemCartId, item.quantity + 1)}
+                                                                disabled={!canIncreaseQuantity}
+                                                                className="flex h-10 w-10 items-center justify-center text-lg font-black text-slate-900 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-35 dark:text-white dark:hover:bg-white/10"
+                                                                aria-label={`Increase quantity for ${item.title}`}
+                                                            >
+                                                                +
+                                                            </button>
+                                                        </div>
+
+                                                        <div className="text-right">
+                                                            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Line total</p>
+                                                            <p className="mt-1 text-sm font-black text-slate-900 dark:text-white">{formatPriceLabel(item.lineTotal)}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onRemoveCartItem(itemCartId)}
+                                                    disabled={!canRemoveItem}
+                                                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-rose-400/25 bg-rose-500/10 text-rose-500 transition-colors hover:bg-rose-500/16 disabled:cursor-not-allowed disabled:opacity-35 dark:border-rose-400/20 dark:text-rose-300"
+                                                    aria-label={`Remove ${item.title} from cart`}
+                                                >
+                                                    <i className="fa-solid fa-trash-can text-sm"></i>
+                                                </button>
+                                            </div>
                                         </div>
-                                        <span className="shrink-0 text-[12px] font-semibold text-slate-500 dark:text-slate-300">{formatPriceLabel(item.lineTotal)}</span>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         ) : (
                             <div className="divide-y divide-slate-200 dark:divide-white/10">
@@ -831,7 +880,7 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, startM
 }
 
 export default function ProductModal() {
-    const { selectedProduct, setSelectedProduct, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, dcSyncedAt, refreshDcCatalog, allProducts, getProductStockLimit, getProductStockStatus, cartItems, cartCount, cartSubtotal, updateCartQuantity } = useGallery();
+    const { selectedProduct, setSelectedProduct, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, dcSyncedAt, refreshDcCatalog, allProducts, getProductStockLimit, getProductStockStatus, cartItems, cartCount, cartSubtotal, removeFromCart, updateCartQuantity } = useGallery();
     const { derivedSettings } = useSiteSettings();
     const pathname = usePathname();
     const router = useRouter();
@@ -843,10 +892,21 @@ export default function ProductModal() {
     const [isClientMounted, setIsClientMounted] = useState(false);
     const requestedShareCode = String(searchParams?.get('code') || '').trim();
     const selectedProductShareCode = getProductShareCode(selectedProduct);
-    const activeRetailSummary = useMemo(
-        () => buildRetailCartSummary(cartItems, cartCount, cartSubtotal, retailOrderSheet),
-        [cartCount, cartItems, cartSubtotal, retailOrderSheet]
-    );
+    const activeRetailSummary = useMemo(() => {
+        if (retailOrderSheet?.isCartFallback) {
+            if (cartCount <= 0 && Array.isArray(retailOrderSheet.cartItems) && retailOrderSheet.cartItems.length > 0) {
+                return {
+                    ...retailOrderSheet,
+                    cartItems: retailOrderSheet.cartItems,
+                    isCartFallback: true
+                };
+            }
+
+            return buildRetailCartSummary(cartItems, cartCount, cartSubtotal);
+        }
+
+        return buildRetailCartSummary(cartItems, cartCount, cartSubtotal, retailOrderSheet);
+    }, [cartCount, cartItems, cartSubtotal, retailOrderSheet]);
     const shouldUseEmbeddedMobileProductBar = Boolean(
         isClientMounted
         &&
@@ -993,6 +1053,8 @@ export default function ProductModal() {
                     summary={activeRetailSummary}
                     onDismiss={dismissRetailOrderSheet}
                     onCompleteOrder={handleCompleteRetailOrder}
+                    onRemoveCartItem={removeFromCart}
+                    onUpdateCartItemQuantity={updateCartQuantity}
                     startMinimized={!retailOrderSheet}
                 />
             ) : null}
@@ -1613,6 +1675,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
 
             return {
                 id: String(item?.cartId || item?.id || item?.code || item?.title || item?.name || targetCartId),
+                cartId: itemCartId || targetCartId,
                 title: itemCartId === targetCartId
                     ? resolvedTitle
                     : String(item?.title || item?.name || 'Cart item').trim() || 'Cart item',
@@ -1626,6 +1689,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
         if (!targetLineExists && confirmation.nextQuantity > 0) {
             normalizedCartLines.push({
                 id: targetCartId,
+                cartId: targetCartId,
                 title: resolvedTitle,
                 quantity: confirmation.nextQuantity,
                 unitPrice: resolvedUnitPrice,
