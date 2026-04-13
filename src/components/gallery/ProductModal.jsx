@@ -1705,7 +1705,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                         type="button"
                         onClick={() => setShowMobileRetailQuantityBar(true)}
                         disabled={retailOutOfStock}
-                        className="pointer-events-auto w-full rounded-full bg-[linear-gradient(135deg,#f59e0b,#f97316)] px-5 py-4 text-sm font-black tracking-[0.04em] text-white shadow-[0_22px_55px_rgba(249,115,22,0.3)] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="attention-vibrate pointer-events-auto w-full rounded-full bg-[linear-gradient(135deg,#f59e0b,#f97316)] px-5 py-4 text-sm font-black tracking-[0.04em] text-white shadow-[0_22px_55px_rgba(249,115,22,0.3)] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {retailOutOfStock ? 'غير متوفر حالياً' : 'Add to cart | اضف للعربة'}
                     </button>
@@ -1876,7 +1876,7 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                         <button
                             type="button"
                             onClick={() => setShowMobileVariantPicker(true)}
-                            className="pointer-events-auto w-full rounded-full bg-[linear-gradient(135deg,#f59e0b,#f97316)] px-5 py-4 text-sm font-black tracking-[0.04em] text-white shadow-[0_22px_55px_rgba(249,115,22,0.3)] transition-transform hover:-translate-y-0.5"
+                            className="attention-vibrate pointer-events-auto w-full rounded-full bg-[linear-gradient(135deg,#f59e0b,#f97316)] px-5 py-4 text-sm font-black tracking-[0.04em] text-white shadow-[0_22px_55px_rgba(249,115,22,0.3)] transition-transform hover:-translate-y-0.5"
                         >
                             {hasAnyVariantInCart ? 'Add to cart | اضف للعربة' : 'Select an option | اختر الشكل / اللون'}
                         </button>

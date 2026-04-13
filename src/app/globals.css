@@ -213,10 +213,37 @@
             48% { transform: translate3d(165%, 0, 0) skewX(-18deg); opacity: 0; }
         }
 
+        .attention-vibrate {
+            animation: attentionVibrateSoft 1s ease-in-out 5;
+            box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.18), 0 14px 30px rgba(18, 25, 38, 0.24);
+            will-change: transform;
+        }
+
         .promo-apply-attention {
             animation: promoApplyButtonVibrate 0.82s ease-in-out infinite;
             box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.18), 0 14px 30px rgba(18, 25, 38, 0.24);
             will-change: transform;
+        }
+
+        @keyframes attentionVibrateSoft {
+            0%, 100% {
+                transform: translate3d(0, 0, 0) rotate(0deg);
+            }
+            16% {
+                transform: translate3d(-0.5px, 0, 0) rotate(-0.2deg);
+            }
+            32% {
+                transform: translate3d(0.75px, 0, 0) rotate(0.24deg);
+            }
+            48% {
+                transform: translate3d(-1px, 0, 0) rotate(-0.3deg);
+            }
+            64% {
+                transform: translate3d(1px, 0, 0) rotate(0.3deg);
+            }
+            80% {
+                transform: translate3d(-0.35px, 0, 0) rotate(-0.12deg);
+            }
         }
 
         @keyframes promoApplyButtonVibrate {
@@ -253,6 +280,7 @@
             .see-all-link-text,
             .see-all-link-text::after,
             .see-all-link-arrow,
+            .attention-vibrate,
             .promo-apply-attention {
                 animation: none !important;
                 transition: none !important;
