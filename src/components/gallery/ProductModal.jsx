@@ -533,6 +533,8 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, onRemo
         window.addEventListener('pointercancel', handlePointerEnd);
     };
 
+    const summaryStateSyncKey = summary?.isCartFallback ? 'cart-fallback' : summary;
+
     useEffect(() => {
         setIsMinimized(startMinimized);
         setIsMinimizedBarVisible(Boolean(startMinimized));
@@ -554,7 +556,7 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, onRemo
                 applyDragOffset(0);
             }
         }
-    }, [startMinimized, summary]);
+    }, [startMinimized, summaryStateSyncKey]);
 
     useEffect(() => {
         return () => {
