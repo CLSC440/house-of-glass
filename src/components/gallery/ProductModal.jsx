@@ -710,7 +710,7 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, onRemo
                         ) : null}
 
                         {summary.isCartFallback ? (
-                            <p className="pointer-events-none absolute right-4 top-3 text-right text-[1.22rem] font-black leading-none tracking-tight text-white sm:right-5 sm:text-[1.34rem]">
+                            <p className="pointer-events-none absolute right-4 top-[0.95rem] text-right text-[1.3rem] font-black leading-none tracking-tight text-white sm:right-5 sm:text-[1.42rem]">
                                 {formatPriceLabel(summary.nextCartSubtotal)}
                             </p>
                         ) : null}
