@@ -693,11 +693,11 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, onRemo
                 onClick={handleMinimizeClick}
             ></button>
 
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6">
-                <div ref={sheetRef} className="pointer-events-auto order-sheet-scroll w-full max-w-lg overflow-y-auto overscroll-contain rounded-[2rem] border border-brandGold/20 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.34)] animate-[order-sheet-rise_260ms_cubic-bezier(0.22,1,0.36,1)] dark:bg-[#11192c] max-h-[68vh] sm:max-h-[74vh] sm:max-w-xl" onClick={(event) => {
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-3 pb-[max(0.45rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6">
+                <div ref={sheetRef} className="pointer-events-auto order-sheet-scroll w-full max-w-lg overflow-y-auto overscroll-contain rounded-[2rem] border border-brandGold/20 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.34)] animate-[order-sheet-rise_260ms_cubic-bezier(0.22,1,0.36,1)] dark:bg-[#11192c] max-h-[78vh] sm:max-h-[74vh] sm:max-w-xl" onClick={(event) => {
                     event.stopPropagation();
                 }}>
-                    <div className="order-sheet-drag-handle sticky top-0 z-20 border-b border-slate-200/80 bg-slate-50/94 px-5 pb-4 pt-3 backdrop-blur dark:border-white/10 dark:bg-[#11192c]/94">
+                    <div className="order-sheet-drag-handle sticky top-0 z-20 border-b border-slate-200/80 bg-slate-50/94 px-4 pb-3 pt-3 backdrop-blur dark:border-white/10 dark:bg-[#11192c]/94 sm:px-5 sm:pb-4">
                         <div className="flex flex-col items-center gap-2" onPointerDown={handlePointerStart}>
                             <span className="h-1.5 w-20 rounded-full bg-slate-300 dark:bg-white/15"></span>
                             <button
@@ -711,22 +711,22 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, onRemo
                         </div>
 
                         {summary.isCartFallback ? (
-                            <div className="mt-4 flex items-center justify-between gap-4 rounded-[1.4rem] border border-slate-200/80 bg-white/70 px-4 py-3 dark:border-white/10 dark:bg-[#1a2238]" dir="ltr">
-                                <span className="text-sm font-black text-slate-600 dark:text-slate-200">Total cart | إجمالي العربة</span>
-                                <span className="text-xl font-black text-brandBlue dark:text-white">{formatPriceLabel(summary.nextCartSubtotal)}</span>
+                            <div className="mt-4 flex items-center justify-between gap-3 rounded-[1.25rem] border border-slate-200/80 bg-white/70 px-3.5 py-2.5 dark:border-white/10 dark:bg-[#1a2238] sm:gap-4 sm:rounded-[1.4rem] sm:px-4 sm:py-3" dir="ltr">
+                                <span className="text-[13px] font-black text-slate-600 dark:text-slate-200 sm:text-sm">Total cart | إجمالي العربة</span>
+                                <span className="text-[1.35rem] font-black text-brandBlue dark:text-white sm:text-xl">{formatPriceLabel(summary.nextCartSubtotal)}</span>
                             </div>
                         ) : null}
                     </div>
 
-                    <div className="border-b border-slate-200 bg-slate-50/90 px-5 py-5 dark:border-white/10 dark:bg-white/[0.04]">
+                    <div className="border-b border-slate-200 bg-slate-50/90 px-4 py-4 dark:border-white/10 dark:bg-white/[0.04] sm:px-5 sm:py-5">
                     <div className="text-right">
-                        <p className="text-[11px] font-black uppercase tracking-[0.24em] text-brandGold">{summary.isCartFallback ? 'Cart Summary' : 'Order Review'}</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-brandGold sm:text-[11px] sm:tracking-[0.24em]">{summary.isCartFallback ? 'Cart Summary' : 'Order Review'}</p>
                         {!summary.isCartFallback ? (
-                            <h3 className="mt-2 text-2xl font-black text-brandBlue dark:text-white">
+                            <h3 className="mt-2 text-[1.55rem] font-black text-brandBlue dark:text-white sm:text-2xl">
                                 {summary.wasExisting ? 'Quantity Updated' : 'Pack Added'}
                             </h3>
                         ) : null}
-                        <p className="mt-2 text-sm text-slate-500 dark:text-slate-300" dir="rtl">
+                        <p className="mt-2 text-[13px] leading-6 text-slate-500 dark:text-slate-300 sm:text-sm" dir="rtl">
                             {summary.isCartFallback
                                 ? 'ملخص واضح لكل الموجود داخل العربة حالياً، وكل منتج ظاهر بسعره المنفصل.'
                                 : summary.wasExisting
@@ -741,15 +741,15 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, onRemo
                     ) : null}
                 </div>
 
-                    <div className="space-y-5 px-5 py-5">
+                    <div className="space-y-4 px-4 py-4 sm:space-y-5 sm:px-5 sm:py-5">
                     {summary.isCartFallback ? null : (
-                        <div className="flex items-center gap-3 rounded-[1.6rem] border border-slate-200 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-[#141d32]">
+                        <div className="flex items-center gap-3 rounded-[1.35rem] border border-slate-200 bg-white p-3.5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-[#141d32] sm:rounded-[1.6rem] sm:p-4">
                             <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[1.1rem] border border-slate-200 bg-slate-50 p-2 dark:border-white/10 dark:bg-[#0d1426] sm:h-20 sm:w-20 sm:rounded-[1.2rem]">
                                 <img src={summary.image} alt={summary.title} className="h-full w-full object-contain" />
                             </div>
                             <div className="min-w-0 flex-1 text-left" dir="ltr">
-                                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Order Summary</p>
-                                <p className="mt-1 text-sm font-black leading-snug text-brandBlue dark:text-white sm:text-base">{summary.title}</p>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 sm:text-[11px] sm:tracking-[0.18em]">Order Summary</p>
+                                <p className="mt-1 text-[13px] font-black leading-snug text-brandBlue dark:text-white sm:text-base">{summary.title}</p>
                                 <p className="mt-2 text-xs font-medium text-slate-500 dark:text-slate-300" dir="rtl">
                                     إجمالي الكمية لهذا المنتج داخل العربة: {summary.nextQuantity}
                                 </p>
@@ -758,15 +758,15 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, onRemo
                     )}
 
                     <div className="overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white shadow-[0_14px_32px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-[#141d32]">
-                        <div className="border-b border-slate-200 px-4 py-4 dark:border-white/10">
+                        <div className="border-b border-slate-200 px-3.5 py-3 dark:border-white/10 sm:px-4 sm:py-4">
                             <div className="flex items-center justify-between gap-3">
                                 <div>
-                                    <p className="text-sm font-black text-slate-900 dark:text-white">{summary.isCartFallback ? 'Cart details' : 'Order details'}</p>
+                                    <p className="text-[13px] font-black text-slate-900 dark:text-white sm:text-sm">{summary.isCartFallback ? 'Cart details' : 'Order details'}</p>
                                     <p className="mt-1 text-xs text-slate-500 dark:text-slate-300" dir="rtl">{summary.isCartFallback ? 'تقدر تعدل الكمية أو تحذف أي منتج من هنا قبل إتمام الطلب.' : 'راجع الإضافة الجديدة قبل ما تفتح العربة أو تكمل التسوق.'}</p>
                                 </div>
-                                <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-emerald-400/15 bg-emerald-500/12 px-3.5 py-2 text-emerald-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                                    <span className="text-base font-black leading-none">{summary.isCartFallback ? summary.nextCartCount : `+${summary.addedQuantity}`}</span>
-                                    <span className="whitespace-nowrap text-[11px] font-black uppercase tracking-[0.12em] leading-none">{summary.isCartFallback ? 'items' : 'pack'}</span>
+                                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-400/15 bg-emerald-500/12 px-3 py-1.5 text-emerald-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:gap-2 sm:px-3.5 sm:py-2">
+                                    <span className="text-[15px] font-black leading-none sm:text-base">{summary.isCartFallback ? summary.nextCartCount : `+${summary.addedQuantity}`}</span>
+                                    <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.1em] leading-none sm:text-[11px] sm:tracking-[0.12em]">{summary.isCartFallback ? 'items' : 'pack'}</span>
                                 </span>
                             </div>
                         </div>
@@ -780,11 +780,11 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, onRemo
                                     const canIncreaseQuantity = Boolean(itemCartId) && typeof onUpdateCartItemQuantity === 'function';
 
                                     return (
-                                        <div key={itemCartId || item.id} className="px-4 py-4 text-sm" dir="ltr">
+                                        <div key={itemCartId || item.id} className="px-3.5 py-3.5 text-sm sm:px-4 sm:py-4" dir="ltr">
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="min-w-0 flex-1">
-                                                    <p className="truncate text-sm font-bold text-slate-900 dark:text-white" dir="auto">{item.title}</p>
-                                                    <p className="mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-300">{formatPriceLabel(item.unitPrice)} / pack</p>
+                                                    <p className="truncate text-[13px] font-bold text-slate-900 dark:text-white sm:text-sm" dir="auto">{item.title}</p>
+                                                    <p className="mt-1 text-[10px] font-medium text-slate-500 dark:text-slate-300 sm:text-[11px]">{formatPriceLabel(item.unitPrice)} / pack</p>
 
                                                     <div className="mt-3 flex items-end justify-between gap-3">
                                                         <div className="flex items-center overflow-hidden rounded-full border border-slate-200 bg-slate-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] dark:border-white/10 dark:bg-[#0d1426] dark:shadow-none">
@@ -792,17 +792,17 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, onRemo
                                                                 type="button"
                                                                 onClick={() => onUpdateCartItemQuantity(itemCartId, item.quantity - 1)}
                                                                 disabled={!canDecreaseQuantity}
-                                                                className="flex h-10 w-10 items-center justify-center text-lg font-black text-slate-900 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-35 dark:text-white dark:hover:bg-white/10"
+                                                                className="flex h-9 w-9 items-center justify-center text-[1rem] font-black text-slate-900 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-35 dark:text-white dark:hover:bg-white/10 sm:h-10 sm:w-10 sm:text-lg"
                                                                 aria-label={`Decrease quantity for ${item.title}`}
                                                             >
                                                                 -
                                                             </button>
-                                                            <span className="min-w-10 border-x border-slate-200 px-3 text-center text-sm font-black text-brandBlue dark:border-white/10 dark:text-white">{item.quantity}</span>
+                                                            <span className="min-w-9 border-x border-slate-200 px-2.5 text-center text-[13px] font-black text-brandBlue dark:border-white/10 dark:text-white sm:min-w-10 sm:px-3 sm:text-sm">{item.quantity}</span>
                                                             <button
                                                                 type="button"
                                                                 onClick={() => onUpdateCartItemQuantity(itemCartId, item.quantity + 1)}
                                                                 disabled={!canIncreaseQuantity}
-                                                                className="flex h-10 w-10 items-center justify-center text-lg font-black text-slate-900 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-35 dark:text-white dark:hover:bg-white/10"
+                                                                className="flex h-9 w-9 items-center justify-center text-[1rem] font-black text-slate-900 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-35 dark:text-white dark:hover:bg-white/10 sm:h-10 sm:w-10 sm:text-lg"
                                                                 aria-label={`Increase quantity for ${item.title}`}
                                                             >
                                                                 +
@@ -811,7 +811,7 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, onRemo
 
                                                         <div className="text-right">
                                                             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Line total</p>
-                                                            <p className="mt-1 text-sm font-black text-slate-900 dark:text-white">{formatPriceLabel(item.lineTotal)}</p>
+                                                            <p className="mt-1 text-[13px] font-black text-slate-900 dark:text-white sm:text-sm">{formatPriceLabel(item.lineTotal)}</p>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -820,7 +820,7 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, onRemo
                                                     type="button"
                                                     onClick={() => onRemoveCartItem(itemCartId)}
                                                     disabled={!canRemoveItem}
-                                                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-rose-400/25 bg-rose-500/10 text-rose-500 transition-colors hover:bg-rose-500/16 disabled:cursor-not-allowed disabled:opacity-35 dark:border-rose-400/20 dark:text-rose-300"
+                                                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-rose-400/25 bg-rose-500/10 text-rose-500 transition-colors hover:bg-rose-500/16 disabled:cursor-not-allowed disabled:opacity-35 dark:border-rose-400/20 dark:text-rose-300 sm:h-10 sm:w-10"
                                                     aria-label={`Remove ${item.title} from cart`}
                                                 >
                                                     <i className="fa-solid fa-trash-can text-sm"></i>
@@ -864,12 +864,12 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, onRemo
                         ) : null}
                     </div>
 
-                        <div className="sticky bottom-0 z-10 -mx-5 mt-2 border-t border-slate-200 bg-slate-50/95 px-5 py-4 backdrop-blur dark:border-white/10 dark:bg-[#11192c]/95">
+                        <div className="sticky bottom-0 z-10 -mx-4 mt-1 border-t border-slate-200 bg-slate-50/95 px-4 py-3 backdrop-blur dark:border-white/10 dark:bg-[#11192c]/95 sm:-mx-5 sm:mt-2 sm:px-5 sm:py-4">
                             <div className="grid gap-3 sm:grid-cols-2">
-                                <button type="button" onClick={handleMinimizeClick} className="rounded-[1.2rem] border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 transition-colors hover:border-brandGold hover:text-brandGold dark:border-white/10 dark:bg-[#141d32] dark:text-white">
+                                <button type="button" onClick={handleMinimizeClick} className="rounded-[1.1rem] border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-black text-slate-700 transition-colors hover:border-brandGold hover:text-brandGold dark:border-white/10 dark:bg-[#141d32] dark:text-white sm:rounded-[1.2rem] sm:py-3 sm:text-sm">
                                 Continue Shopping | كمل تسوق
                                 </button>
-                                <button type="button" onClick={handleCompleteOrderClick} className="rounded-[1.2rem] border border-brandGold bg-brandGold px-4 py-3 text-sm font-black text-brandBlue transition-colors hover:bg-[#e0bc46]">
+                                <button type="button" onClick={handleCompleteOrderClick} className="rounded-[1.1rem] border border-brandGold bg-brandGold px-4 py-2.5 text-[13px] font-black text-brandBlue transition-colors hover:bg-[#e0bc46] sm:rounded-[1.2rem] sm:py-3 sm:text-sm">
                                 Complete Order | اتمام الطلب
                                 </button>
                             </div>
