@@ -698,6 +698,23 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, onRemo
                     event.stopPropagation();
                 }}>
                     <div className="order-sheet-drag-handle sticky top-0 z-20 border-b border-slate-200/80 bg-slate-50/94 px-4 pb-3 pt-3 backdrop-blur dark:border-white/10 dark:bg-[#11192c]/94 sm:px-5 sm:pb-4">
+                        {summary.isCartFallback ? (
+                            <div className="pointer-events-none absolute left-4 top-3 text-left sm:left-5">
+                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-brandGold sm:text-[11px] sm:tracking-[0.24em]">
+                                    Cart Total
+                                </p>
+                                <p className="mt-1 whitespace-nowrap text-[14px] font-black leading-none text-slate-100 sm:text-[15px]" dir="rtl">
+                                    إجمالي العربة
+                                </p>
+                            </div>
+                        ) : null}
+
+                        {summary.isCartFallback ? (
+                            <p className="pointer-events-none absolute right-4 top-3 text-right text-[1.22rem] font-black leading-none tracking-tight text-white sm:right-5 sm:text-[1.34rem]">
+                                {formatPriceLabel(summary.nextCartSubtotal)}
+                            </p>
+                        ) : null}
+
                         <div className="flex flex-col items-center gap-2" onPointerDown={handlePointerStart}>
                             <span className="h-1.5 w-20 rounded-full bg-slate-300 dark:bg-white/15"></span>
                             <button
@@ -710,36 +727,26 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, onRemo
                             </button>
                         </div>
 
-                        {summary.isCartFallback ? (
-                            <div className="mt-4 flex items-center justify-between gap-3 rounded-[1.25rem] border border-slate-200/80 bg-white/70 px-3.5 py-2.5 dark:border-white/10 dark:bg-[#1a2238] sm:gap-4 sm:rounded-[1.4rem] sm:px-4 sm:py-3" dir="ltr">
-                                <span className="text-[13px] font-black text-slate-600 dark:text-slate-200 sm:text-sm">Total cart | إجمالي العربة</span>
-                                <span className="text-[1.35rem] font-black text-brandBlue dark:text-white sm:text-xl">{formatPriceLabel(summary.nextCartSubtotal)}</span>
-                            </div>
-                        ) : null}
                     </div>
 
-                    <div className="border-b border-slate-200 bg-slate-50/90 px-4 py-4 dark:border-white/10 dark:bg-white/[0.04] sm:px-5 sm:py-5">
-                    <div className="text-right">
-                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-brandGold sm:text-[11px] sm:tracking-[0.24em]">{summary.isCartFallback ? 'Cart Summary' : 'Order Review'}</p>
-                        {!summary.isCartFallback ? (
-                            <h3 className="mt-2 text-[1.55rem] font-black text-brandBlue dark:text-white sm:text-2xl">
-                                {summary.wasExisting ? 'Quantity Updated' : 'Pack Added'}
-                            </h3>
-                        ) : null}
-                        <p className="mt-2 text-[13px] leading-6 text-slate-500 dark:text-slate-300 sm:text-sm" dir="rtl">
-                            {summary.isCartFallback
-                                ? 'ملخص واضح لكل الموجود داخل العربة حالياً، وكل منتج ظاهر بسعره المنفصل.'
-                                : summary.wasExisting
-                                    ? 'تم تحديث الكمية داخل طلبك الحالي.'
-                                    : 'تمت إضافة العبوة إلى طلبك بنجاح.'}
-                        </p>
-                    </div>
-                    {!summary.isCartFallback ? (
-                        <button type="button" onClick={handleDismissClick} className="mt-4 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition-colors hover:text-red-500 dark:border-white/10 dark:bg-white/10 dark:text-white">
-                            <i className="fa-solid fa-xmark"></i>
-                        </button>
-                    ) : null}
-                </div>
+                    {summary.isCartFallback ? null : (
+                        <div className="border-b border-slate-200 bg-slate-50/90 px-4 py-4 dark:border-white/10 dark:bg-white/[0.04] sm:px-5 sm:py-5">
+                            <div className="text-right">
+                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-brandGold sm:text-[11px] sm:tracking-[0.24em]">Order Review</p>
+                                <h3 className="mt-2 text-[1.55rem] font-black text-brandBlue dark:text-white sm:text-2xl">
+                                    {summary.wasExisting ? 'Quantity Updated' : 'Pack Added'}
+                                </h3>
+                                <p className="mt-2 text-[13px] leading-6 text-slate-500 dark:text-slate-300 sm:text-sm" dir="rtl">
+                                    {summary.wasExisting
+                                        ? 'تم تحديث الكمية داخل طلبك الحالي.'
+                                        : 'تمت إضافة العبوة إلى طلبك بنجاح.'}
+                                </p>
+                            </div>
+                            <button type="button" onClick={handleDismissClick} className="mt-4 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition-colors hover:text-red-500 dark:border-white/10 dark:bg-white/10 dark:text-white">
+                                <i className="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    )}
 
                     <div className="space-y-4 px-4 py-4 sm:space-y-5 sm:px-5 sm:py-5">
                     {summary.isCartFallback ? null : (
