@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import firebaseAdminModule from '../../../../api/_firebaseAdmin.js';
-import { createBostaDeliveryForOrder } from '@/lib/bosta';
+import { assertBostaAccountCanCreateOrders, createBostaDeliveryForOrder } from '@/lib/bosta';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -107,6 +107,9 @@ export async function POST(request) {
             role: requesterRole
         };
 
+        shouldPersistFailure = true;
+        await assertBostaAccountCanCreateOrders();
+
         await orderRef.set({
             bostaSync: buildBostaSyncPayload({
                 status: 'sending',
@@ -116,7 +119,6 @@ export async function POST(request) {
             }),
             updatedAt: new Date().toISOString()
         }, { merge: true });
-        shouldPersistFailure = true;
 
         const result = await createBostaDeliveryForOrder(order, {
             districtHint,

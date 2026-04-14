@@ -2,6 +2,7 @@ import { getOrderAmount, getOrderCustomerName, getOrderCustomerPhone, getOrderEx
 
 const DEFAULT_BOSTA_BASE_URL = 'https://app.bosta.co/api/v2';
 const DEFAULT_BOSTA_DELIVERY_TYPE = 10;
+const BOSTA_SUBSCRIPTION_REQUIRED_MESSAGE = 'Bosta account needs an active shipping bundle before orders can be created. Activate a bundle/subscription in Bosta dashboard, then retry.';
 const SHIPPING_ADDRESS_LABEL_MAP = new Map([
     ['المحافظه', 'governorate'],
     ['الحي المنطقه', 'districtName'],
@@ -109,6 +110,10 @@ function getErrorMessageFromPayload(payload, fallback) {
     );
 }
 
+function isBostaSubscriptionRequiredMessage(message) {
+    return /active bundle subscription required to create orders/i.test(String(message || ''));
+}
+
 async function bostaFetch(path, { method = 'GET', body } = {}) {
     const config = getConfig();
     const url = `${config.baseUrl}${path}`;
@@ -134,8 +139,14 @@ async function bostaFetch(path, { method = 'GET', body } = {}) {
             return payload.parsed ?? payload.text;
         }
 
-        const message = getErrorMessageFromPayload(payload.parsed || payload.text, `Bosta request failed with status ${response.status}`);
-        lastError = createBostaError(response.status, message, 'bosta_request_failed', payload.parsed || payload.text);
+        const upstreamMessage = getErrorMessageFromPayload(payload.parsed || payload.text, `Bosta request failed with status ${response.status}`);
+        const message = isBostaSubscriptionRequiredMessage(upstreamMessage)
+            ? BOSTA_SUBSCRIPTION_REQUIRED_MESSAGE
+            : upstreamMessage;
+        const code = isBostaSubscriptionRequiredMessage(upstreamMessage)
+            ? 'bosta_subscription_required'
+            : 'bosta_request_failed';
+        lastError = createBostaError(response.status, message, code, payload.parsed || payload.text);
 
         if (response.status !== 401) {
             throw lastError;
@@ -197,6 +208,31 @@ async function listBusinessPickupLocations() {
         : (Array.isArray(payload?.list) ? payload.list : []);
 
     return list;
+}
+
+async function listBusinessProducts() {
+    const payload = await bostaFetch('/products');
+    const products = Array.isArray(payload?.data?.products)
+        ? payload.data.products
+        : (Array.isArray(payload?.products) ? payload.products : []);
+    const parsedCount = Number.parseInt(payload?.data?.count ?? payload?.count ?? '', 10);
+
+    return {
+        count: Number.isFinite(parsedCount) ? parsedCount : products.length,
+        products
+    };
+}
+
+export async function assertBostaAccountCanCreateOrders() {
+    const { count, products } = await listBusinessProducts();
+    if ((Number.isFinite(count) && count > 0) || products.length > 0) {
+        return {
+            count: Number.isFinite(count) ? count : products.length,
+            products
+        };
+    }
+
+    throw createBostaError(409, BOSTA_SUBSCRIPTION_REQUIRED_MESSAGE, 'bosta_subscription_required');
 }
 
 async function resolveBusinessLocationId() {
