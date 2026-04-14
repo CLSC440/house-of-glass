@@ -6,7 +6,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useGallery } from '@/contexts/GalleryContext';
-import { calculatePromoDiscountAmount, findPromoCodeByInput, normalizePromoCodeLookupValue } from '@/lib/promo-codes';
+import { findPromoCodeByInput, getPromoCodeApplicationDetails, normalizePromoCodeLookupValue } from '@/lib/promo-codes';
 import { useSiteSettings } from '@/lib/use-site-settings';
 import { upsertCurrentUserProfile } from '@/lib/account-api';
 import { GOVERNORATE_OPTIONS, getShippingPricingDetails } from '@/lib/shipping-zones';
@@ -30,11 +30,31 @@ function normalizeDeliveryMethod(value) {
 }
 
 function formatPromoDiscountLabel(promoSettings) {
+    if (promoSettings.discountType === 'free_shipping') {
+        return 'شحن مجاني';
+    }
+
     if (promoSettings.discountType === 'percentage') {
         return `${promoSettings.numericDiscountValue ?? promoSettings.discountValue}%`;
     }
 
     return formatCurrency(promoSettings.numericDiscountValue ?? promoSettings.discountValue);
+}
+
+function getPromoApplicationErrorMessage(reason) {
+    if (reason === 'shipping_required') {
+        return 'كود الشحن المجاني يعمل فقط عند اختيار الشحن إلى العنوان.';
+    }
+
+    if (reason === 'governorate_required') {
+        return 'اختر المحافظة أولاً لتفعيل كود الشحن المجاني.';
+    }
+
+    if (reason === 'governorate_not_eligible') {
+        return 'كود الشحن المجاني لا ينطبق على المحافظة المختارة.';
+    }
+
+    return 'هذا الـ Promo Code لا يمكن تطبيقه حالياً.';
 }
 
 function buildCustomerSnapshot(currentUser, profileData, fallbackRole) {
@@ -299,8 +319,15 @@ export default function CheckoutPageContent({ checkoutType }) {
     const customerPhoneValue = getCustomerPhoneValue(customerInfo);
     const activePromoCodes = useMemo(() => derivedSettings?.activePromoCodes || [], [derivedSettings?.activePromoCodes]);
     const appliedPromoSettings = useMemo(() => findPromoCodeByInput(activePromoCodes, appliedPromoCode), [activePromoCodes, appliedPromoCode]);
+    const appliedPromoApplicationDetails = useMemo(() => getPromoCodeApplicationDetails({
+        subtotal,
+        shippingAmount,
+        promoCodeEntry: appliedPromoSettings,
+        governorate: selectedShippingGovernorate,
+        isShippingSelected
+    }), [appliedPromoSettings, isShippingSelected, selectedShippingGovernorate, shippingAmount, subtotal]);
     const isPromoApplied = Boolean(appliedPromoSettings);
-    const discountAmount = calculatePromoDiscountAmount(subtotal, appliedPromoSettings);
+    const discountAmount = appliedPromoApplicationDetails.amount;
     const finalTotal = Math.max(0, subtotal - discountAmount + shippingAmount);
     const totalDisplayValue = isShippingSelected && !selectedShippingGovernorate ? 'اختر المحافظة' : formatCurrency(finalTotal);
     const shippingDisplayValue = isShippingSelected
@@ -368,6 +395,22 @@ export default function CheckoutPageContent({ checkoutType }) {
         }
     }, [activePromoCodes, appliedPromoCode]);
 
+    useEffect(() => {
+        if (!appliedPromoCode || !appliedPromoSettings || appliedPromoSettings.discountType !== 'free_shipping') {
+            return;
+        }
+
+        if (appliedPromoApplicationDetails.isApplicable) {
+            return;
+        }
+
+        setAppliedPromoCode('');
+        setPromoFeedback({
+            type: 'error',
+            message: getPromoApplicationErrorMessage(appliedPromoApplicationDetails.reason)
+        });
+    }, [appliedPromoApplicationDetails.isApplicable, appliedPromoApplicationDetails.reason, appliedPromoCode, appliedPromoSettings]);
+
     const handleApplyPromoCode = () => {
         if (!activePromoCodes.length) {
             setAppliedPromoCode('');
@@ -391,11 +434,27 @@ export default function CheckoutPageContent({ checkoutType }) {
             return;
         }
 
+        const promoApplicationDetails = getPromoCodeApplicationDetails({
+            subtotal,
+            shippingAmount,
+            promoCodeEntry: matchedPromoCode,
+            governorate: selectedShippingGovernorate,
+            isShippingSelected
+        });
+
+        if (!promoApplicationDetails.isApplicable) {
+            setAppliedPromoCode('');
+            setPromoFeedback({ type: 'error', message: getPromoApplicationErrorMessage(promoApplicationDetails.reason) });
+            return;
+        }
+
         setAppliedPromoCode(matchedPromoCode.code);
         setPromoCodeInput(matchedPromoCode.code);
         setPromoFeedback({
             type: 'success',
-            message: `تم تطبيق خصم ${formatPromoDiscountLabel(matchedPromoCode)} على الطلب.`
+            message: matchedPromoCode.discountType === 'free_shipping'
+                ? 'تم تطبيق كود الشحن المجاني على المحافظة المختارة.'
+                : `تم تطبيق خصم ${formatPromoDiscountLabel(matchedPromoCode)} على الطلب.`
         });
     };
 
@@ -1058,7 +1117,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                                     <p className="block w-full text-right text-[9px] font-black uppercase leading-none tracking-[0.32em] text-brandGold">Promo Code</p>
                                     <p className="mt-1 block w-full text-right text-base font-extrabold leading-tight text-brandBlue dark:text-white">كود الخصم</p>
                                     <p className="mt-2 block w-full text-right text-[0.95rem] font-bold leading-7 text-slate-500 dark:text-slate-300">
-                                        {activePromoCodes.length > 0 ? 'اكتب أي Promo Code مفعّل واضغط تطبيق عشان الخصم ينزل على الطلب.' : 'لا يوجد Promo Code مفعّل حالياً من لوحة الإدارة.'}
+                                        {activePromoCodes.length > 0 ? 'اكتب أي Promo Code مفعّل واضغط تطبيق. أكواد الشحن المجاني تحتاج اختيار الشحن والمحافظة أولاً.' : 'لا يوجد Promo Code مفعّل حالياً من لوحة الإدارة.'}
                                     </p>
                                 </div>
                                 {isPromoApplied ? (

@@ -7,7 +7,7 @@ import { auth, db } from '@/lib/firebase';
 import { CATEGORY_GROUPS_COLLECTION, sortCategoryGroupDocs } from '@/lib/category-groups';
 import { createEmptyPromoCodeEntry, findDuplicatePromoCodes } from '@/lib/promo-codes';
 import { DEFAULT_SITE_SETTINGS, normalizeSiteSettings, useSiteSettings } from '@/lib/use-site-settings';
-import { SHIPPING_ZONE_RATE_FIELDS } from '@/lib/shipping-zones';
+import { GOVERNORATE_OPTIONS, SHIPPING_ZONE_RATE_FIELDS } from '@/lib/shipping-zones';
 import { normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
 import { signOut } from 'firebase/auth';
 import { addDoc, collection, deleteDoc, doc, getDocs, onSnapshot, query, setDoc, updateDoc, where } from 'firebase/firestore';
@@ -368,7 +368,41 @@ export default function FloatingDockDemo({
             promoCodes: (currentValue.promoCodes || []).map((entry) => entry.id === promoId
                 ? {
                     ...entry,
+                    ...((fieldName === 'discountType' && value === 'free_shipping') ? { discountValue: '0' } : {}),
                     [fieldName]: value
+                }
+                : entry)
+        }));
+    };
+
+    const togglePromoCodeGovernorate = (promoId, governorateValue) => {
+        setSettingsForm((currentValue) => ({
+            ...currentValue,
+            promoCodes: (currentValue.promoCodes || []).map((entry) => {
+                if (entry.id !== promoId) {
+                    return entry;
+                }
+
+                const governorates = Array.isArray(entry.eligibleGovernorates) ? entry.eligibleGovernorates : [];
+                const nextGovernorates = governorates.includes(governorateValue)
+                    ? governorates.filter((value) => value !== governorateValue)
+                    : [...governorates, governorateValue];
+
+                return {
+                    ...entry,
+                    eligibleGovernorates: nextGovernorates
+                };
+            })
+        }));
+    };
+
+    const setPromoCodeGovernorates = (promoId, governorates) => {
+        setSettingsForm((currentValue) => ({
+            ...currentValue,
+            promoCodes: (currentValue.promoCodes || []).map((entry) => entry.id === promoId
+                ? {
+                    ...entry,
+                    eligibleGovernorates: governorates
                 }
                 : entry)
         }));
@@ -1005,7 +1039,7 @@ export default function FloatingDockDemo({
                                         <div>
                                             <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Promo Codes</span>
                                             <p className="mt-2 text-sm leading-7 text-slate-400">
-                                                Add more than one promo code, choose each discount type and value, then activate or deactivate each code independently.
+                                                Add more than one promo code, choose discount, or free shipping, then activate or deactivate each code independently.
                                             </p>
                                         </div>
                                         <button
@@ -1067,6 +1101,7 @@ export default function FloatingDockDemo({
                                                             >
                                                                 <option value="percentage" className="bg-slate-900 text-white">Percentage %</option>
                                                                 <option value="fixed" className="bg-slate-900 text-white">Fixed EGP</option>
+                                                                <option value="free_shipping" className="bg-slate-900 text-white">Free Shipping</option>
                                                             </select>
                                                         </label>
 
@@ -1078,11 +1113,59 @@ export default function FloatingDockDemo({
                                                                 step="0.01"
                                                                 value={promoEntry.discountValue}
                                                                 onChange={(event) => updatePromoCodeEntryField(promoEntry.id, 'discountValue', event.target.value)}
-                                                                placeholder="0"
-                                                                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white outline-none transition-colors placeholder:text-slate-500 focus:border-brandGold/50"
+                                                                placeholder={promoEntry.discountType === 'free_shipping' ? 'No value needed' : '0'}
+                                                                disabled={promoEntry.discountType === 'free_shipping'}
+                                                                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white outline-none transition-colors placeholder:text-slate-500 focus:border-brandGold/50 disabled:cursor-not-allowed disabled:opacity-50"
                                                             />
                                                         </label>
                                                     </div>
+
+                                                    {promoEntry.discountType === 'free_shipping' ? (
+                                                        <div className="mt-4 rounded-[1.2rem] border border-brandGold/15 bg-brandGold/[0.05] p-4">
+                                                            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                                                <div>
+                                                                    <p className="text-xs font-black uppercase tracking-[0.18em] text-brandGold">Eligible Governorates</p>
+                                                                    <p className="mt-2 text-sm leading-7 text-slate-300">
+                                                                        Choose the governorates where this free-shipping code should work. If you leave the list empty, the code works for all governorates.
+                                                                    </p>
+                                                                </div>
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setPromoCodeGovernorates(promoEntry.id, GOVERNORATE_OPTIONS.map((entry) => entry.value))}
+                                                                        className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-200 transition-colors hover:bg-white/[0.09]"
+                                                                    >
+                                                                        All Governorates
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setPromoCodeGovernorates(promoEntry.id, [])}
+                                                                        className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-200 transition-colors hover:bg-white/[0.09]"
+                                                                    >
+                                                                        Clear Selection
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="mt-4 grid gap-2 md:grid-cols-3 xl:grid-cols-4">
+                                                                {GOVERNORATE_OPTIONS.map((governorateEntry) => {
+                                                                    const isSelected = (promoEntry.eligibleGovernorates || []).includes(governorateEntry.value);
+
+                                                                    return (
+                                                                        <label key={`${promoEntry.id}-${governorateEntry.value}`} className={`flex cursor-pointer items-center gap-3 rounded-2xl border px-3 py-3 text-sm font-bold transition-colors ${isSelected ? 'border-brandGold/35 bg-brandGold/12 text-white' : 'border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.06]'}`}>
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={isSelected}
+                                                                                onChange={() => togglePromoCodeGovernorate(promoEntry.id, governorateEntry.value)}
+                                                                                className="h-4 w-4 rounded border-white/20 bg-transparent text-brandGold focus:ring-brandGold"
+                                                                            />
+                                                                            <span>{governorateEntry.label}</span>
+                                                                        </label>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    ) : null}
                                                 </div>
                                             ))}
                                         </div>
