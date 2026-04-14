@@ -81,6 +81,20 @@ function getCustomerPhoneValue(customerInfo) {
     return phone && phone !== 'غير متوفر' ? phone : '';
 }
 
+function normalizeDistrictLookupValue(value) {
+    return String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[أإآ]/g, 'ا')
+        .replace(/ؤ/g, 'و')
+        .replace(/ئ/g, 'ي')
+        .replace(/ة/g, 'ه')
+        .replace(/ى/g, 'ي')
+        .replace(/[\u064b-\u065f\u0670]/g, '')
+        .replace(/[^a-z0-9\u0600-\u06ff\s-]/gi, ' ')
+        .replace(/\s+/g, ' ');
+}
+
 const SHIPPING_ADDRESS_FIELDS = [
     {
         key: 'recipientName',
@@ -215,7 +229,7 @@ function createShippingAddressFieldsFromSavedAddress(address = {}) {
 function hasDetailedShippingAddress(fields) {
     return Boolean(
         String(fields?.governorate || '').trim()
-        && String(fields?.district || '').trim()
+        && String(fields?.districtId || '').trim()
         && String(fields?.streetName || '').trim()
         && String(fields?.houseNumber || '').trim()
     );
@@ -229,9 +243,9 @@ function getShippingAddressValidation(fields) {
         };
     }
 
-    if (!String(fields?.district || '').trim()) {
+    if (!String(fields?.districtId || '').trim()) {
         return {
-            errorMessage: 'اختر الحي / المنطقة من قائمة Bosta قبل تأكيد الطلب.',
+            errorMessage: 'اكتب جزء من اسم الحي / المنطقة ثم اختَر النتيجة المناسبة من اقتراحات Bosta قبل تأكيد الطلب.',
             missingFieldKey: 'district'
         };
     }
@@ -451,6 +465,7 @@ export default function CheckoutPageContent({ checkoutType }) {
     const [districtOptions, setDistrictOptions] = useState([]);
     const [isLoadingDistrictOptions, setIsLoadingDistrictOptions] = useState(false);
     const [districtOptionsError, setDistrictOptionsError] = useState('');
+    const [isDistrictSuggestionsOpen, setIsDistrictSuggestionsOpen] = useState(false);
     const [shippingAddressError, setShippingAddressError] = useState('');
     const [isPhonePromptOpen, setIsPhonePromptOpen] = useState(false);
     const [phonePromptValue, setPhonePromptValue] = useState('');
@@ -460,6 +475,7 @@ export default function CheckoutPageContent({ checkoutType }) {
     const [shouldScrollToShippingAddress, setShouldScrollToShippingAddress] = useState(false);
     const shippingAddressSectionRef = useRef(null);
     const shippingAddressFieldRefs = useRef({});
+    const districtAutocompleteRef = useRef(null);
 
     const items = isWholesale ? wholesaleCartItems : cartItems;
     const itemCount = isWholesale ? wholesaleCartCount : cartCount;
@@ -497,6 +513,24 @@ export default function CheckoutPageContent({ checkoutType }) {
             || (currentDistrictName && String(option?.districtName || '').trim() === currentDistrictName)
         ))?.optionId || '';
     }, [districtOptions, shippingAddressFields.district, shippingAddressFields.districtId]);
+    const filteredDistrictOptions = useMemo(() => {
+        const normalizedQuery = normalizeDistrictLookupValue(shippingAddressFields.district);
+        if (!normalizedQuery) {
+            return districtOptions.slice(0, 12);
+        }
+
+        return districtOptions
+            .filter((option) => {
+                const searchableValues = [
+                    option?.label,
+                    option?.districtName,
+                    option?.zoneName
+                ].map(normalizeDistrictLookupValue).filter(Boolean);
+
+                return searchableValues.some((value) => value.includes(normalizedQuery));
+            })
+            .slice(0, 12);
+    }, [districtOptions, shippingAddressFields.district]);
     const activePromoCodes = useMemo(() => derivedSettings?.activePromoCodes || [], [derivedSettings?.activePromoCodes]);
     const appliedPromoSettings = useMemo(() => findPromoCodeByInput(activePromoCodes, appliedPromoCode), [activePromoCodes, appliedPromoCode]);
     const appliedPromoApplicationDetails = useMemo(() => getPromoCodeApplicationDetails({
@@ -655,6 +689,7 @@ export default function CheckoutPageContent({ checkoutType }) {
             setDistrictOptions([]);
             setDistrictOptionsError('');
             setIsLoadingDistrictOptions(false);
+            setIsDistrictSuggestionsOpen(false);
             return undefined;
         }
 
@@ -727,6 +762,17 @@ export default function CheckoutPageContent({ checkoutType }) {
             abortController.abort();
         };
     }, [shippingAddressFields.governorate]);
+
+    useEffect(() => {
+        const handlePointerDownOutsideDistrictAutocomplete = (event) => {
+            if (!districtAutocompleteRef.current?.contains(event.target)) {
+                setIsDistrictSuggestionsOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handlePointerDownOutsideDistrictAutocomplete);
+        return () => document.removeEventListener('mousedown', handlePointerDownOutsideDistrictAutocomplete);
+    }, []);
 
     const handleApplyPromoCode = () => {
         if (!activePromoCodes.length) {
@@ -812,7 +858,22 @@ export default function CheckoutPageContent({ checkoutType }) {
         if (fieldKey === 'governorate') {
             setDistrictOptions([]);
             setDistrictOptionsError('');
+            setIsDistrictSuggestionsOpen(false);
         }
+
+        if (shippingAddressError) {
+            setShippingAddressError('');
+        }
+    };
+
+    const handleDistrictInputChange = (value) => {
+        setShippingAddressFields((current) => ({
+            ...current,
+            district: value,
+            districtId: '',
+            zoneId: ''
+        }));
+        setIsDistrictSuggestionsOpen(true);
 
         if (shippingAddressError) {
             setShippingAddressError('');
@@ -822,6 +883,10 @@ export default function CheckoutPageContent({ checkoutType }) {
     const handleDistrictSelection = (selectedOptionId) => {
         const nextDistrict = districtOptions.find((option) => String(option?.optionId || '').trim() === String(selectedOptionId || '').trim());
 
+        if (!nextDistrict) {
+            return;
+        }
+
         setShippingAddressFields((current) => ({
             ...current,
             district: String(nextDistrict?.districtName || '').trim(),
@@ -830,9 +895,22 @@ export default function CheckoutPageContent({ checkoutType }) {
             cityName: String(nextDistrict?.cityName || current.cityName || '').trim(),
             zoneId: String(nextDistrict?.zoneId || '').trim()
         }));
+        setIsDistrictSuggestionsOpen(false);
 
         if (shippingAddressError) {
             setShippingAddressError('');
+        }
+    };
+
+    const handleDistrictInputKeyDown = (event) => {
+        if (event.key === 'Enter' && filteredDistrictOptions.length > 0) {
+            event.preventDefault();
+            handleDistrictSelection(filteredDistrictOptions[0].optionId);
+            return;
+        }
+
+        if (event.key === 'Escape') {
+            setIsDistrictSuggestionsOpen(false);
         }
     };
 
@@ -1277,29 +1355,58 @@ export default function CheckoutPageContent({ checkoutType }) {
                                                         ))}
                                                     </select>
                                                 ) : field.type === 'district-select' ? (
-                                                    <select
-                                                        ref={(element) => {
-                                                            shippingAddressFieldRefs.current[field.key] = element;
-                                                        }}
-                                                        name={field.key}
-                                                        value={selectedDistrictOptionId}
-                                                        onChange={(event) => handleDistrictSelection(event.target.value)}
-                                                        disabled={!selectedShippingGovernorate || isLoadingDistrictOptions || districtOptions.length === 0}
-                                                        className={`mt-2 w-full rounded-[1.1rem] border bg-white px-4 py-3 text-sm font-bold text-brandBlue outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-60 dark:bg-gray-900 dark:text-white ${shippingAddressError ? 'border-red-400 focus:border-red-500' : 'border-brandGold/20 focus:border-brandGold'}`}
-                                                    >
-                                                        <option value="">
-                                                            {!selectedShippingGovernorate
+                                                    <div ref={districtAutocompleteRef} className="relative mt-2">
+                                                        <input
+                                                            ref={(element) => {
+                                                                shippingAddressFieldRefs.current[field.key] = element;
+                                                            }}
+                                                            type="text"
+                                                            name={field.key}
+                                                            value={shippingAddressFields[field.key]}
+                                                            onChange={(event) => handleDistrictInputChange(event.target.value)}
+                                                            onFocus={() => {
+                                                                if (selectedShippingGovernorate && districtOptions.length > 0) {
+                                                                    setIsDistrictSuggestionsOpen(true);
+                                                                }
+                                                            }}
+                                                            onKeyDown={handleDistrictInputKeyDown}
+                                                            disabled={!selectedShippingGovernorate || isLoadingDistrictOptions || districtOptions.length === 0}
+                                                            placeholder={!selectedShippingGovernorate
                                                                 ? 'اختر المحافظة أولاً'
                                                                 : isLoadingDistrictOptions
                                                                     ? 'جاري تحميل المناطق من Bosta...'
                                                                     : districtOptions.length > 0
-                                                                        ? field.placeholder
+                                                                        ? 'ابدأ اكتب الحي / المنطقة'
                                                                         : 'لا توجد مناطق متاحة حالياً'}
-                                                        </option>
-                                                        {districtOptions.map((option) => (
-                                                            <option key={option.optionId} value={option.optionId}>{option.label}</option>
-                                                        ))}
-                                                    </select>
+                                                            className={`w-full rounded-[1.1rem] border bg-white px-4 py-3 text-right text-sm font-bold text-brandBlue outline-none transition-colors placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-gray-900 dark:text-white ${shippingAddressError ? 'border-red-400 focus:border-red-500' : 'border-brandGold/20 focus:border-brandGold'}`}
+                                                        />
+
+                                                        {isDistrictSuggestionsOpen && selectedShippingGovernorate && !isLoadingDistrictOptions && districtOptions.length > 0 ? (
+                                                            <div className="custom-scroll absolute inset-x-0 top-full z-[90] mt-2 max-h-64 overflow-y-auto rounded-[1rem] border border-brandGold/20 bg-[#11192b] py-2 shadow-[0_20px_45px_rgba(6,11,23,0.35)]">
+                                                                {filteredDistrictOptions.length > 0 ? (
+                                                                    filteredDistrictOptions.map((option) => {
+                                                                        const isSelectedDistrict = String(option?.optionId || '').trim() === selectedDistrictOptionId;
+
+                                                                        return (
+                                                                            <button
+                                                                                key={option.optionId}
+                                                                                type="button"
+                                                                                onClick={() => handleDistrictSelection(option.optionId)}
+                                                                                className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-right text-sm font-bold transition-colors ${isSelectedDistrict ? 'bg-brandGold/12 text-brandGold' : 'text-white hover:bg-white/5'}`}
+                                                                            >
+                                                                                <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                                                                                {isSelectedDistrict ? <i className="fa-solid fa-check text-[11px]"></i> : null}
+                                                                            </button>
+                                                                        );
+                                                                    })
+                                                                ) : (
+                                                                    <div className="px-4 py-3 text-sm font-bold text-slate-300">
+                                                                        لا يوجد حي / منطقة مطابقة لما كتبته.
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ) : null}
+                                                    </div>
                                                 ) : (
                                                     <input
                                                         ref={(element) => {
@@ -1337,6 +1444,11 @@ export default function CheckoutPageContent({ checkoutType }) {
                                             {shippingAddressFields.district ? (
                                                 <p className={`mt-2 text-sm font-bold leading-7 ${isShippingSelected ? selectedDeliveryMutedTextClasses : 'text-slate-500 dark:text-slate-300'}`}>
                                                     الحي / المنطقة: {shippingAddressFields.district}
+                                                </p>
+                                            ) : null}
+                                            {shippingAddressFields.districtId ? (
+                                                <p className="mt-2 text-xs font-black text-emerald-600 dark:text-brandGold">
+                                                    تم اختيار المنطقة من بيانات Bosta بنجاح.
                                                 </p>
                                             ) : null}
                                             <p className={`mt-2 text-sm font-bold leading-7 ${isShippingSelected ? selectedDeliveryMutedTextClasses : 'text-slate-500 dark:text-slate-300'}`}>
