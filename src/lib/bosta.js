@@ -237,13 +237,13 @@ function buildDistrictOptionId(district = {}) {
     }
 
     const zoneId = normalizeText(district?.zoneId, 'zone');
-    const districtSlug = normalizeLookupValue(district?.districtName || district?.districtOtherName || district?.zoneName || 'district').replace(/\s+/g, '-');
+    const districtSlug = normalizeLookupValue(district?.districtOtherName || district?.districtName || district?.zoneOtherName || district?.zoneName || 'district').replace(/\s+/g, '-');
     return `${zoneId}-${districtSlug}`;
 }
 
 function buildDistrictOptionLabel(district = {}) {
-    const districtName = normalizeText(district?.districtName || district?.districtOtherName);
-    const zoneName = normalizeText(district?.zoneName || district?.zoneOtherName);
+    const districtName = normalizeText(district?.districtOtherName || district?.districtName);
+    const zoneName = normalizeText(district?.zoneOtherName || district?.zoneName);
     return [districtName, zoneName && zoneName !== districtName ? zoneName : '']
         .filter(Boolean)
         .join(' - ')
@@ -267,9 +267,9 @@ export async function listBostaDistrictOptionsForGovernorate(governorate = '') {
         .map((district) => ({
             optionId: buildDistrictOptionId(district),
             districtId: normalizeText(district?.districtId),
-            districtName: normalizeText(district?.districtName || district?.districtOtherName),
+            districtName: normalizeText(district?.districtOtherName || district?.districtName),
             zoneId: normalizeText(district?.zoneId),
-            zoneName: normalizeText(district?.zoneName || district?.zoneOtherName),
+            zoneName: normalizeText(district?.zoneOtherName || district?.zoneName),
             cityId: normalizeText(city._id),
             cityName: normalizeText(city?.nameAr || city?.name),
             label: buildDistrictOptionLabel(district)
