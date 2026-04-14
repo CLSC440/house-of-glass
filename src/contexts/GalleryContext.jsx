@@ -150,12 +150,75 @@ function buildDcLookupMap(items) {
     return nextMap;
 }
 
+function getFirstPositivePriceValue(values = []) {
+    for (const value of values) {
+        if (value === undefined || value === null) continue;
+        if (typeof value === 'string' && value.trim() === '') continue;
+
+        const parsedValue = parsePrice(value);
+        if (parsedValue > 0) {
+            return parsedValue;
+        }
+    }
+
+    return 0;
+}
+
+function getPreferredRetailPrice(product = {}, dcProduct = {}, dcStock = {}) {
+    return getFirstPositivePriceValue([
+        dcProduct?.price,
+        dcProduct?.retailPrice,
+        dcProduct?.retail_price,
+        dcProduct?.salePrice,
+        dcProduct?.sellingPrice,
+        dcStock?.price,
+        dcStock?.retailPrice,
+        dcStock?.retail_price,
+        dcStock?.salePrice,
+        dcStock?.sellingPrice,
+        product?.price,
+        product?.retailPrice,
+        product?.retail_price,
+        product?.salePrice,
+        product?.sellingPrice
+    ]);
+}
+
+function getPreferredWholesalePrice(product = {}, dcProduct = {}, dcStock = {}) {
+    return getFirstPositivePriceValue([
+        dcProduct?.wholesalePrice,
+        dcProduct?.wholesale_price,
+        dcProduct?.cartonPrice,
+        dcProduct?.wholesaleCartonPrice,
+        dcProduct?.priceWholesale,
+        dcProduct?.bulkPrice,
+        dcProduct?.bulk_price,
+        dcStock?.wholesalePrice,
+        dcStock?.wholesale_price,
+        dcStock?.cartonPrice,
+        dcStock?.wholesaleCartonPrice,
+        dcStock?.priceWholesale,
+        dcStock?.bulkPrice,
+        dcStock?.bulk_price,
+        product?.wholesalePrice,
+        product?.wholesale_price,
+        product?.cartonPrice,
+        product?.wholesaleCartonPrice,
+        product?.priceWholesale,
+        product?.bulkPrice,
+        product?.bulk_price,
+        product?.price,
+        product?.retailPrice,
+        product?.retail_price
+    ]);
+}
+
 function mergeProductWithDcData(product, dcProduct, dcStock) {
     const liveEntry = dcStock || dcProduct;
     if (!dcProduct && !dcStock) return product;
 
-    const retailPrice = getProductPrice({ ...product, ...dcProduct, ...dcStock });
-    const wholesalePrice = getProductWholesalePrice({ ...product, ...dcProduct, ...dcStock });
+    const retailPrice = getPreferredRetailPrice(product, dcProduct, dcStock);
+    const wholesalePrice = getPreferredWholesalePrice(product, dcProduct, dcStock);
     const warehouseBuckets = getDcWarehouseBuckets(liveEntry || {});
     const discountAmount = parsePrice(
         dcProduct?.discount_amount
@@ -232,8 +295,8 @@ function enrichProductVariantsWithDcData(product, dcProductsMap, dcStockMap) {
             const totalStock = getDcTotalStock(liveEntry || {});
             const hasLiveStock = Number.isFinite(totalStock);
 
-            const variantRetailPrice = getProductPrice({ ...variant, ...dcVariantProduct, ...dcVariantStock });
-            const variantWholesalePrice = getProductWholesalePrice({ ...variant, ...dcVariantProduct, ...dcVariantStock });
+            const variantRetailPrice = getPreferredRetailPrice(variant, dcVariantProduct, dcVariantStock);
+            const variantWholesalePrice = getPreferredWholesalePrice(variant, dcVariantProduct, dcVariantStock);
             const variantDiscountAmount = parsePrice(
                 dcVariantProduct?.discount_amount || dcVariantProduct?.discountAmount || dcVariantProduct?.discount ||
                 dcVariantStock?.discount_amount || dcVariantStock?.discountAmount || dcVariantStock?.discount ||
