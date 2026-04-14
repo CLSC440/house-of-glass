@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { DEFAULT_BOSTA_DELIVERY_RATES, normalizeShippingRates } from '@/lib/shipping-zones';
 
 export const DEFAULT_SITE_SETTINGS = Object.freeze({
     whatsapp: '201026600350',
     priceIncrease: '0',
     shipping: '0',
+    shippingRates: Object.freeze({ ...DEFAULT_BOSTA_DELIVERY_RATES }),
     promoCode: '',
     promoDiscountType: 'percentage',
     promoDiscountValue: '0',
@@ -57,6 +59,7 @@ export function normalizeSiteSettings(settings = {}) {
         whatsapp: sanitizePhoneNumber(settings.whatsapp || DEFAULT_SITE_SETTINGS.whatsapp) || DEFAULT_SITE_SETTINGS.whatsapp,
         priceIncrease: normalizeText(settings.priceIncrease, DEFAULT_SITE_SETTINGS.priceIncrease),
         shipping: normalizeText(settings.shipping, DEFAULT_SITE_SETTINGS.shipping),
+        shippingRates: normalizeShippingRates(settings.shippingRates || DEFAULT_SITE_SETTINGS.shippingRates),
         promoCode: normalizeText(settings.promoCode, DEFAULT_SITE_SETTINGS.promoCode),
         promoDiscountType: normalizePromoDiscountType(settings.promoDiscountType || DEFAULT_SITE_SETTINGS.promoDiscountType),
         promoDiscountValue: normalizeText(settings.promoDiscountValue, DEFAULT_SITE_SETTINGS.promoDiscountValue),
@@ -113,6 +116,7 @@ export function useSiteSettings() {
             mapsUrl: siteSettings.maps || DEFAULT_SITE_SETTINGS.maps,
             priceIncrease: siteSettings.priceIncrease,
             shippingPrice: siteSettings.shipping,
+            shippingRates: normalizeShippingRates(siteSettings.shippingRates),
             promoCode: siteSettings.promoCode,
             promoDiscountType: normalizePromoDiscountType(siteSettings.promoDiscountType),
             promoDiscountValue: siteSettings.promoDiscountValue

@@ -6,6 +6,7 @@ import { FloatingDock } from '@/components/ui/floating-dock';
 import { auth, db } from '@/lib/firebase';
 import { CATEGORY_GROUPS_COLLECTION, sortCategoryGroupDocs } from '@/lib/category-groups';
 import { DEFAULT_SITE_SETTINGS, normalizeSiteSettings, useSiteSettings } from '@/lib/use-site-settings';
+import { SHIPPING_ZONE_RATE_FIELDS } from '@/lib/shipping-zones';
 import { normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
 import { signOut } from 'firebase/auth';
 import { addDoc, collection, deleteDoc, doc, getDocs, onSnapshot, query, setDoc, updateDoc, where } from 'firebase/firestore';
@@ -340,6 +341,16 @@ export default function FloatingDockDemo({
         setSettingsForm((currentValue) => ({
             ...currentValue,
             [fieldName]: value
+        }));
+    };
+
+    const updateShippingRateField = (zoneKey, value) => {
+        setSettingsForm((currentValue) => ({
+            ...currentValue,
+            shippingRates: {
+                ...(currentValue.shippingRates || {}),
+                [zoneKey]: value
+            }
         }));
     };
 
@@ -907,7 +918,7 @@ export default function FloatingDockDemo({
                                 </label>
 
                                 <label className="space-y-2">
-                                    <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Shipping Price (EGP)</span>
+                                    <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Fallback Shipping Price (EGP)</span>
                                     <input
                                         type="number"
                                         min="0"
@@ -918,6 +929,32 @@ export default function FloatingDockDemo({
                                         className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white outline-none transition-colors placeholder:text-slate-500 focus:border-brandGold/50"
                                     />
                                 </label>
+
+                                <div className="space-y-3 md:col-span-2">
+                                    <div>
+                                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Bosta Delivery Rates | Small &amp; Medium</span>
+                                        <p className="mt-2 text-sm leading-7 text-slate-400">
+                                            These public Bosta zone rates are used by checkout to calculate shipping automatically after the customer selects a governorate.
+                                        </p>
+                                    </div>
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        {SHIPPING_ZONE_RATE_FIELDS.map((field) => (
+                                            <label key={field.key} className="space-y-2">
+                                                <span className="block text-xs font-black uppercase tracking-[0.18em] text-slate-300">{field.label}</span>
+                                                <span className="block text-[12px] leading-6 text-slate-500">{field.description}</span>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.01"
+                                                    value={settingsForm.shippingRates?.[field.key] || ''}
+                                                    onChange={(event) => updateShippingRateField(field.key, event.target.value)}
+                                                    placeholder="0"
+                                                    className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white outline-none transition-colors placeholder:text-slate-500 focus:border-brandGold/50"
+                                                />
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
 
                                 <label className="space-y-2">
                                     <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Promo Code</span>

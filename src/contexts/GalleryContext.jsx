@@ -1682,7 +1682,7 @@ export function GalleryProvider({ children }) {
         }
     };
 
-    const buildOrderPayload = ({ currentUser, profileData, items, subtotalAmount, shippingAmount, discountAmount, totalPrice, itemCount, orderType, promoCode, promoDiscountType, promoDiscountValue, deliveryMethod, shippingAddress }) => {
+    const buildOrderPayload = ({ currentUser, profileData, items, subtotalAmount, shippingAmount, discountAmount, totalPrice, itemCount, orderType, promoCode, promoDiscountType, promoDiscountValue, deliveryMethod, shippingAddress, shippingGovernorate, shippingZone }) => {
         const customerName = profileData.name
             || [profileData.firstName, profileData.lastName].filter(Boolean).join(' ')
             || currentUser.displayName
@@ -1697,6 +1697,8 @@ export function GalleryProvider({ children }) {
         const normalizedPromoDiscountValue = Number(promoDiscountValue) || 0;
         const normalizedDeliveryMethod = String(deliveryMethod || '').trim().toLowerCase() === 'shipping' ? 'shipping' : 'pickup';
         const normalizedShippingAddress = normalizedDeliveryMethod === 'shipping' ? String(shippingAddress || '').trim() : '';
+        const normalizedShippingGovernorate = normalizedDeliveryMethod === 'shipping' ? String(shippingGovernorate || '').trim() : '';
+        const normalizedShippingZone = normalizedDeliveryMethod === 'shipping' ? String(shippingZone || '').trim() : '';
 
         return {
             customer: {
@@ -1706,7 +1708,9 @@ export function GalleryProvider({ children }) {
                 phone: customerPhone,
                 role: normalizeUserRole(profileData.role || USER_ROLE_VALUES.CST_RETAIL),
                 deliveryMethod: normalizedDeliveryMethod,
-                shippingAddress: normalizedShippingAddress
+                shippingAddress: normalizedShippingAddress,
+                governorate: normalizedShippingGovernorate,
+                shippingZone: normalizedShippingZone
             },
             customerInfo: {
                 uid: currentUser.uid,
@@ -1715,7 +1719,9 @@ export function GalleryProvider({ children }) {
                 phone: customerPhone,
                 role: normalizeUserRole(profileData.role || USER_ROLE_VALUES.CST_RETAIL),
                 deliveryMethod: normalizedDeliveryMethod,
-                shippingAddress: normalizedShippingAddress
+                shippingAddress: normalizedShippingAddress,
+                governorate: normalizedShippingGovernorate,
+                shippingZone: normalizedShippingZone
             },
             items,
             subtotalAmount,
@@ -1725,6 +1731,8 @@ export function GalleryProvider({ children }) {
             itemCount,
             deliveryMethod: normalizedDeliveryMethod,
             shippingAddress: normalizedShippingAddress,
+            governorate: normalizedShippingGovernorate,
+            shippingZone: normalizedShippingZone,
             promoCode: normalizedPromoCode,
             promoDiscountType: normalizedPromoDiscountType,
             promoDiscountValue: normalizedPromoDiscountValue,
@@ -1820,7 +1828,9 @@ export function GalleryProvider({ children }) {
                 promoDiscountType: options.promoDiscountType,
                 promoDiscountValue: options.promoDiscountValue,
                 deliveryMethod: options.deliveryMethod,
-                shippingAddress: options.shippingAddress
+                shippingAddress: options.shippingAddress,
+                shippingGovernorate: options.shippingGovernorate,
+                shippingZone: options.shippingZone
             });
 
             orderData.websiteOrderRef = await allocateWebsiteOrderRef();
@@ -1899,7 +1909,9 @@ export function GalleryProvider({ children }) {
                 promoDiscountType: options.promoDiscountType,
                 promoDiscountValue: options.promoDiscountValue,
                 deliveryMethod: options.deliveryMethod,
-                shippingAddress: options.shippingAddress
+                shippingAddress: options.shippingAddress,
+                shippingGovernorate: options.shippingGovernorate,
+                shippingZone: options.shippingZone
             });
 
             orderData.websiteOrderRef = await allocateWebsiteOrderRef();
