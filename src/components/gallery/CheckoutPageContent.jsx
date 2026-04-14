@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -292,6 +292,9 @@ export default function CheckoutPageContent({ checkoutType }) {
     const [phonePromptError, setPhonePromptError] = useState('');
     const [isSavingPhone, setIsSavingPhone] = useState(false);
     const [orderConfirmation, setOrderConfirmation] = useState(null);
+    const [shouldScrollToShippingAddress, setShouldScrollToShippingAddress] = useState(false);
+    const shippingAddressSectionRef = useRef(null);
+    const shippingAddressFieldRefs = useRef({});
 
     const items = isWholesale ? wholesaleCartItems : cartItems;
     const itemCount = isWholesale ? wholesaleCartCount : cartCount;
@@ -410,6 +413,39 @@ export default function CheckoutPageContent({ checkoutType }) {
             message: getPromoApplicationErrorMessage(appliedPromoApplicationDetails.reason)
         });
     }, [appliedPromoApplicationDetails.isApplicable, appliedPromoApplicationDetails.reason, appliedPromoCode, appliedPromoSettings]);
+
+    useEffect(() => {
+        if (!shouldScrollToShippingAddress || !isShippingSelected || !isShippingExpanded || !isShippingAddressFormOpen) {
+            return undefined;
+        }
+
+        const timeoutId = window.setTimeout(() => {
+            shippingAddressSectionRef.current?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+
+            const missingFieldKey = !String(shippingAddressFields.governorate || '').trim()
+                ? 'governorate'
+                : (!String(shippingAddressFields.streetName || '').trim() ? 'streetName' : '');
+
+            const targetField = missingFieldKey ? shippingAddressFieldRefs.current[missingFieldKey] : null;
+            if (targetField?.focus) {
+                targetField.focus({ preventScroll: true });
+            }
+
+            setShouldScrollToShippingAddress(false);
+        }, 120);
+
+        return () => window.clearTimeout(timeoutId);
+    }, [
+        isShippingAddressFormOpen,
+        isShippingExpanded,
+        isShippingSelected,
+        shippingAddressFields.governorate,
+        shippingAddressFields.streetName,
+        shouldScrollToShippingAddress
+    ]);
 
     const handleApplyPromoCode = () => {
         if (!activePromoCodes.length) {
@@ -596,6 +632,7 @@ export default function CheckoutPageContent({ checkoutType }) {
             setExpandedDeliverySection('shipping');
             setIsShippingAddressFormOpen(true);
             setShippingAddressError(errorMessage);
+            setShouldScrollToShippingAddress(true);
             showToast(errorMessage, 'error');
             return;
         }
@@ -728,7 +765,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                             </div>
 
                             {isShippingAddressFormOpen ? (
-                                <div className="mt-4">
+                                <div ref={shippingAddressSectionRef} className="mt-4 scroll-mt-28">
                                     <label className={`block text-right text-[11px] font-black uppercase tracking-[0.2em] ${isShippingSelected ? selectedDeliveryEyebrowClasses : 'text-brandGold'}`}>Shipping Address | عنوان الشحن</label>
                                     <div className="mt-3 grid gap-3 sm:grid-cols-2">
                                         {SHIPPING_ADDRESS_FIELDS.map((field) => (
@@ -738,6 +775,9 @@ export default function CheckoutPageContent({ checkoutType }) {
                                                 </span>
                                                 {field.type === 'select' ? (
                                                     <select
+                                                        ref={(element) => {
+                                                            shippingAddressFieldRefs.current[field.key] = element;
+                                                        }}
                                                         name={field.key}
                                                         value={shippingAddressFields[field.key]}
                                                         onChange={(event) => handleShippingAddressFieldChange(field.key, event.target.value)}
@@ -750,6 +790,9 @@ export default function CheckoutPageContent({ checkoutType }) {
                                                     </select>
                                                 ) : (
                                                     <input
+                                                        ref={(element) => {
+                                                            shippingAddressFieldRefs.current[field.key] = element;
+                                                        }}
                                                         type="text"
                                                         name={field.key}
                                                         inputMode={field.inputMode || 'text'}
