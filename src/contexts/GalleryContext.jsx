@@ -1745,7 +1745,7 @@ export function GalleryProvider({ children }) {
         }
     };
 
-    const buildOrderPayload = ({ currentUser, profileData, items, subtotalAmount, shippingAmount, discountAmount, totalPrice, itemCount, orderType, promoCode, promoDiscountType, promoDiscountValue, deliveryMethod, shippingAddress, shippingGovernorate, shippingZone }) => {
+    const buildOrderPayload = ({ currentUser, profileData, items, subtotalAmount, shippingAmount, discountAmount, totalPrice, itemCount, orderType, promoCode, promoDiscountType, promoDiscountValue, deliveryMethod, shippingAddress, shippingGovernorate, shippingZone, shippingDistrict, shippingDistrictId, shippingCityId, shippingCityName, shippingBostaZoneId, shippingRecipientName, shippingRecipientPhone, shippingAddressId }) => {
         const customerName = profileData.name
             || [profileData.firstName, profileData.lastName].filter(Boolean).join(' ')
             || currentUser.displayName
@@ -1762,6 +1762,18 @@ export function GalleryProvider({ children }) {
         const normalizedShippingAddress = normalizedDeliveryMethod === 'shipping' ? String(shippingAddress || '').trim() : '';
         const normalizedShippingGovernorate = normalizedDeliveryMethod === 'shipping' ? String(shippingGovernorate || '').trim() : '';
         const normalizedShippingZone = normalizedDeliveryMethod === 'shipping' ? String(shippingZone || '').trim() : '';
+        const normalizedShippingDistrict = normalizedDeliveryMethod === 'shipping' ? String(shippingDistrict || '').trim() : '';
+        const normalizedShippingDistrictId = normalizedDeliveryMethod === 'shipping' ? String(shippingDistrictId || '').trim() : '';
+        const normalizedShippingCityId = normalizedDeliveryMethod === 'shipping' ? String(shippingCityId || '').trim() : '';
+        const normalizedShippingCityName = normalizedDeliveryMethod === 'shipping' ? String(shippingCityName || '').trim() : '';
+        const normalizedShippingBostaZoneId = normalizedDeliveryMethod === 'shipping' ? String(shippingBostaZoneId || '').trim() : '';
+        const normalizedShippingAddressId = normalizedDeliveryMethod === 'shipping' ? String(shippingAddressId || '').trim() : '';
+        const normalizedShippingRecipientName = normalizedDeliveryMethod === 'shipping'
+            ? (String(shippingRecipientName || '').trim() || customerName)
+            : customerName;
+        const normalizedShippingRecipientPhone = normalizedDeliveryMethod === 'shipping'
+            ? (String(shippingRecipientPhone || '').trim() || customerPhone)
+            : customerPhone;
 
         return {
             customer: {
@@ -1773,7 +1785,12 @@ export function GalleryProvider({ children }) {
                 deliveryMethod: normalizedDeliveryMethod,
                 shippingAddress: normalizedShippingAddress,
                 governorate: normalizedShippingGovernorate,
-                shippingZone: normalizedShippingZone
+                shippingZone: normalizedShippingZone,
+                shippingDistrict: normalizedShippingDistrict,
+                shippingDistrictId: normalizedShippingDistrictId,
+                shippingCityId: normalizedShippingCityId,
+                shippingCityName: normalizedShippingCityName,
+                shippingBostaZoneId: normalizedShippingBostaZoneId
             },
             customerInfo: {
                 uid: currentUser.uid,
@@ -1784,7 +1801,12 @@ export function GalleryProvider({ children }) {
                 deliveryMethod: normalizedDeliveryMethod,
                 shippingAddress: normalizedShippingAddress,
                 governorate: normalizedShippingGovernorate,
-                shippingZone: normalizedShippingZone
+                shippingZone: normalizedShippingZone,
+                shippingDistrict: normalizedShippingDistrict,
+                shippingDistrictId: normalizedShippingDistrictId,
+                shippingCityId: normalizedShippingCityId,
+                shippingCityName: normalizedShippingCityName,
+                shippingBostaZoneId: normalizedShippingBostaZoneId
             },
             items,
             subtotalAmount,
@@ -1796,6 +1818,16 @@ export function GalleryProvider({ children }) {
             shippingAddress: normalizedShippingAddress,
             governorate: normalizedShippingGovernorate,
             shippingZone: normalizedShippingZone,
+            shippingDistrict: normalizedShippingDistrict,
+            shippingDistrictId: normalizedShippingDistrictId,
+            shippingCityId: normalizedShippingCityId,
+            shippingCityName: normalizedShippingCityName,
+            shippingBostaZoneId: normalizedShippingBostaZoneId,
+            shippingAddressId: normalizedShippingAddressId,
+            shippingRecipient: {
+                name: normalizedShippingRecipientName,
+                phone: normalizedShippingRecipientPhone
+            },
             promoCode: normalizedPromoCode,
             promoDiscountType: normalizedPromoDiscountType,
             promoDiscountValue: normalizedPromoDiscountValue,
@@ -1893,7 +1925,15 @@ export function GalleryProvider({ children }) {
                 deliveryMethod: options.deliveryMethod,
                 shippingAddress: options.shippingAddress,
                 shippingGovernorate: options.shippingGovernorate,
-                shippingZone: options.shippingZone
+                shippingZone: options.shippingZone,
+                shippingDistrict: options.shippingDistrict,
+                shippingDistrictId: options.shippingDistrictId,
+                shippingCityId: options.shippingCityId,
+                shippingCityName: options.shippingCityName,
+                shippingBostaZoneId: options.shippingBostaZoneId,
+                shippingRecipientName: options.shippingRecipientName,
+                shippingRecipientPhone: options.shippingRecipientPhone,
+                shippingAddressId: options.shippingAddressId
             });
 
             orderData.websiteOrderRef = await allocateWebsiteOrderRef();
@@ -1974,7 +2014,15 @@ export function GalleryProvider({ children }) {
                 deliveryMethod: options.deliveryMethod,
                 shippingAddress: options.shippingAddress,
                 shippingGovernorate: options.shippingGovernorate,
-                shippingZone: options.shippingZone
+                shippingZone: options.shippingZone,
+                shippingDistrict: options.shippingDistrict,
+                shippingDistrictId: options.shippingDistrictId,
+                shippingCityId: options.shippingCityId,
+                shippingCityName: options.shippingCityName,
+                shippingBostaZoneId: options.shippingBostaZoneId,
+                shippingRecipientName: options.shippingRecipientName,
+                shippingRecipientPhone: options.shippingRecipientPhone,
+                shippingAddressId: options.shippingAddressId
             });
 
             orderData.websiteOrderRef = await allocateWebsiteOrderRef();

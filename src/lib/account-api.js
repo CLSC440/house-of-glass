@@ -48,6 +48,15 @@ export async function upsertCurrentUserProfile(currentUser, profile = {}, option
     return callAccountApi('upsertProfile', { profile, options }, idToken);
 }
 
+export async function saveCurrentUserShippingAddress(currentUser, address = {}, options = {}) {
+    if (!currentUser) {
+        throw new Error('Authentication required');
+    }
+
+    const idToken = await currentUser.getIdToken();
+    return callAccountApi('upsertShippingAddress', { address, options }, idToken);
+}
+
 export async function deleteOwnAccount(currentUser, options = {}) {
     if (!currentUser) {
         throw new Error('Authentication required');

@@ -8,7 +8,7 @@ import { auth, db } from '@/lib/firebase';
 import { useGallery } from '@/contexts/GalleryContext';
 import { findPromoCodeByInput, getPromoCodeApplicationDetails, normalizePromoCodeLookupValue } from '@/lib/promo-codes';
 import { useSiteSettings } from '@/lib/use-site-settings';
-import { upsertCurrentUserProfile } from '@/lib/account-api';
+import { saveCurrentUserShippingAddress, upsertCurrentUserProfile } from '@/lib/account-api';
 import { GOVERNORATE_OPTIONS, getShippingPricingDetails } from '@/lib/shipping-zones';
 import BrandLoadingScreen from '@/components/layout/BrandLoadingScreen';
 
@@ -83,11 +83,34 @@ function getCustomerPhoneValue(customerInfo) {
 
 const SHIPPING_ADDRESS_FIELDS = [
     {
+        key: 'recipientName',
+        label: 'اسم المستلم (اختياري)',
+        placeholder: 'اتركه فارغًا لاستخدام اسم الحساب',
+        includeInAddressSummary: false,
+        wrapperClassName: 'sm:col-span-2'
+    },
+    {
+        key: 'recipientPhone',
+        label: 'رقم موبايل بديل (اختياري)',
+        placeholder: '01012345678',
+        includeInAddressSummary: false,
+        inputMode: 'tel',
+        dir: 'ltr',
+        wrapperClassName: 'sm:col-span-2'
+    },
+    {
         key: 'governorate',
         label: 'المحافظة',
         placeholder: 'اختر المحافظة',
         type: 'select',
         options: GOVERNORATE_OPTIONS,
+        wrapperClassName: 'sm:col-span-2'
+    },
+    {
+        key: 'district',
+        label: 'الحي / المنطقة',
+        placeholder: 'اختر الحي / المنطقة',
+        type: 'district-select',
         wrapperClassName: 'sm:col-span-2'
     },
     {
@@ -97,7 +120,7 @@ const SHIPPING_ADDRESS_FIELDS = [
     },
     {
         key: 'houseNumber',
-        label: 'رقم البيت',
+        label: 'رقم العقار / البيت',
         placeholder: 'مثال: 24',
         inputMode: 'numeric'
     },
@@ -114,36 +137,171 @@ const SHIPPING_ADDRESS_FIELDS = [
         inputMode: 'numeric'
     },
     {
-        key: 'landmark',
-        label: 'علامة مميزة',
-        placeholder: 'مثال: بجوار بوابة النادي',
+        key: 'deliveryInstructions',
+        label: 'علامة مميزة / تعليمات التوصيل',
+        placeholder: 'مثال: مدينة نصر - الحي السابع - بجوار سيتي ستارز',
         wrapperClassName: 'sm:col-span-2'
     }
 ];
 
 function createEmptyShippingAddressFields() {
     return {
+        recipientName: '',
+        recipientPhone: '',
         governorate: '',
+        district: '',
+        districtId: '',
+        cityId: '',
+        cityName: '',
+        zoneId: '',
         streetName: '',
         houseNumber: '',
         floorNumber: '',
         apartmentNumber: '',
-        landmark: ''
+        deliveryInstructions: ''
+    };
+}
+
+function normalizeSavedShippingAddress(rawAddress = {}) {
+    return {
+        id: String(rawAddress?.id || '').trim(),
+        recipientName: String(rawAddress?.recipientName || '').trim(),
+        recipientPhone: String(rawAddress?.recipientPhone || '').trim(),
+        governorate: String(rawAddress?.governorate || '').trim(),
+        district: String(rawAddress?.district || '').trim(),
+        districtId: String(rawAddress?.districtId || '').trim(),
+        cityId: String(rawAddress?.cityId || '').trim(),
+        cityName: String(rawAddress?.cityName || '').trim(),
+        zoneId: String(rawAddress?.zoneId || '').trim(),
+        streetName: String(rawAddress?.streetName || '').trim(),
+        houseNumber: String(rawAddress?.houseNumber || '').trim(),
+        floorNumber: String(rawAddress?.floorNumber || '').trim(),
+        apartmentNumber: String(rawAddress?.apartmentNumber || '').trim(),
+        deliveryInstructions: String(rawAddress?.deliveryInstructions || '').trim(),
+        createdAt: String(rawAddress?.createdAt || '').trim(),
+        updatedAt: String(rawAddress?.updatedAt || '').trim()
+    };
+}
+
+function normalizeSavedShippingAddresses(rawAddresses = []) {
+    if (!Array.isArray(rawAddresses)) {
+        return [];
+    }
+
+    return rawAddresses
+        .map(normalizeSavedShippingAddress)
+        .filter((address) => address.id && address.governorate && address.district && address.streetName && address.houseNumber);
+}
+
+function createShippingAddressFieldsFromSavedAddress(address = {}) {
+    const normalizedAddress = normalizeSavedShippingAddress(address);
+    return {
+        recipientName: normalizedAddress.recipientName,
+        recipientPhone: normalizedAddress.recipientPhone,
+        governorate: normalizedAddress.governorate,
+        district: normalizedAddress.district,
+        districtId: normalizedAddress.districtId,
+        cityId: normalizedAddress.cityId,
+        cityName: normalizedAddress.cityName,
+        zoneId: normalizedAddress.zoneId,
+        streetName: normalizedAddress.streetName,
+        houseNumber: normalizedAddress.houseNumber,
+        floorNumber: normalizedAddress.floorNumber,
+        apartmentNumber: normalizedAddress.apartmentNumber,
+        deliveryInstructions: normalizedAddress.deliveryInstructions
     };
 }
 
 function hasDetailedShippingAddress(fields) {
-    return Boolean(String(fields?.governorate || '').trim() && String(fields?.streetName || '').trim());
+    return Boolean(
+        String(fields?.governorate || '').trim()
+        && String(fields?.district || '').trim()
+        && String(fields?.streetName || '').trim()
+        && String(fields?.houseNumber || '').trim()
+    );
+}
+
+function getShippingAddressValidation(fields) {
+    if (!String(fields?.governorate || '').trim()) {
+        return {
+            errorMessage: 'اختر المحافظة أولاً قبل تأكيد الطلب.',
+            missingFieldKey: 'governorate'
+        };
+    }
+
+    if (!String(fields?.district || '').trim()) {
+        return {
+            errorMessage: 'اختر الحي / المنطقة من قائمة Bosta قبل تأكيد الطلب.',
+            missingFieldKey: 'district'
+        };
+    }
+
+    if (!String(fields?.streetName || '').trim()) {
+        return {
+            errorMessage: 'اكتب اسم الشارع قبل تأكيد الطلب.',
+            missingFieldKey: 'streetName'
+        };
+    }
+
+    if (!String(fields?.houseNumber || '').trim()) {
+        return {
+            errorMessage: 'اكتب رقم العقار / البيت قبل تأكيد الطلب.',
+            missingFieldKey: 'houseNumber'
+        };
+    }
+
+    return {
+        errorMessage: '',
+        missingFieldKey: ''
+    };
 }
 
 function buildShippingAddressFromFields(fields) {
     return SHIPPING_ADDRESS_FIELDS
+        .filter(({ includeInAddressSummary = true }) => includeInAddressSummary)
         .map(({ key, label }) => {
             const value = String(fields?.[key] || '').trim();
             return value ? `${label}: ${value}` : '';
         })
         .filter(Boolean)
         .join(' | ');
+}
+
+function getEffectiveShippingRecipientName(fields, customerInfo) {
+    return String(fields?.recipientName || '').trim() || String(customerInfo?.name || '').trim();
+}
+
+function getEffectiveShippingRecipientPhone(fields, customerInfo) {
+    return String(fields?.recipientPhone || '').trim() || getCustomerPhoneValue(customerInfo);
+}
+
+function buildSavedShippingAddressPayload(fields) {
+    return {
+        recipientName: String(fields?.recipientName || '').trim(),
+        recipientPhone: String(fields?.recipientPhone || '').trim(),
+        governorate: String(fields?.governorate || '').trim(),
+        district: String(fields?.district || '').trim(),
+        districtId: String(fields?.districtId || '').trim(),
+        cityId: String(fields?.cityId || '').trim(),
+        cityName: String(fields?.cityName || '').trim(),
+        zoneId: String(fields?.zoneId || '').trim(),
+        streetName: String(fields?.streetName || '').trim(),
+        houseNumber: String(fields?.houseNumber || '').trim(),
+        floorNumber: String(fields?.floorNumber || '').trim(),
+        apartmentNumber: String(fields?.apartmentNumber || '').trim(),
+        deliveryInstructions: String(fields?.deliveryInstructions || '').trim()
+    };
+}
+
+function buildSavedShippingAddressSummary(address = {}) {
+    const normalizedAddress = normalizeSavedShippingAddress(address);
+    return [
+        normalizedAddress.governorate,
+        normalizedAddress.district,
+        normalizedAddress.streetName,
+        normalizedAddress.houseNumber ? `عقار ${normalizedAddress.houseNumber}` : '',
+        normalizedAddress.deliveryInstructions
+    ].filter(Boolean).join(' | ');
 }
 
 function OrderSuccessPopup({ isWholesale, orderConfirmation, onTrackOrder, onCloseToHome }) {
@@ -286,6 +444,13 @@ export default function CheckoutPageContent({ checkoutType }) {
     const [expandedDeliverySection, setExpandedDeliverySection] = useState(null);
     const [isShippingAddressFormOpen, setIsShippingAddressFormOpen] = useState(false);
     const [shippingAddressFields, setShippingAddressFields] = useState(createEmptyShippingAddressFields);
+    const [savedShippingAddresses, setSavedShippingAddresses] = useState([]);
+    const [selectedShippingAddressId, setSelectedShippingAddressId] = useState('');
+    const [defaultShippingAddressId, setDefaultShippingAddressId] = useState('');
+    const [makeShippingAddressDefault, setMakeShippingAddressDefault] = useState(false);
+    const [districtOptions, setDistrictOptions] = useState([]);
+    const [isLoadingDistrictOptions, setIsLoadingDistrictOptions] = useState(false);
+    const [districtOptionsError, setDistrictOptionsError] = useState('');
     const [shippingAddressError, setShippingAddressError] = useState('');
     const [isPhonePromptOpen, setIsPhonePromptOpen] = useState(false);
     const [phonePromptValue, setPhonePromptValue] = useState('');
@@ -320,6 +485,18 @@ export default function CheckoutPageContent({ checkoutType }) {
     const hasSavedShippingAddress = hasDetailedShippingAddress(shippingAddressFields);
     const productCount = items.length;
     const customerPhoneValue = getCustomerPhoneValue(customerInfo);
+    const selectedSavedShippingAddress = useMemo(
+        () => savedShippingAddresses.find((address) => address.id === selectedShippingAddressId) || null,
+        [savedShippingAddresses, selectedShippingAddressId]
+    );
+    const selectedDistrictOptionId = useMemo(() => {
+        const currentDistrictId = String(shippingAddressFields.districtId || '').trim();
+        const currentDistrictName = String(shippingAddressFields.district || '').trim();
+        return districtOptions.find((option) => (
+            (currentDistrictId && String(option?.districtId || '').trim() === currentDistrictId)
+            || (currentDistrictName && String(option?.districtName || '').trim() === currentDistrictName)
+        ))?.optionId || '';
+    }, [districtOptions, shippingAddressFields.district, shippingAddressFields.districtId]);
     const activePromoCodes = useMemo(() => derivedSettings?.activePromoCodes || [], [derivedSettings?.activePromoCodes]);
     const appliedPromoSettings = useMemo(() => findPromoCodeByInput(activePromoCodes, appliedPromoCode), [activePromoCodes, appliedPromoCode]);
     const appliedPromoApplicationDetails = useMemo(() => getPromoCodeApplicationDetails({
@@ -358,6 +535,13 @@ export default function CheckoutPageContent({ checkoutType }) {
 
             if (!currentUser) {
                 setCustomerInfo(null);
+                setSavedShippingAddresses([]);
+                setSelectedShippingAddressId('');
+                setDefaultShippingAddressId('');
+                setMakeShippingAddressDefault(false);
+                setDistrictOptions([]);
+                setDistrictOptionsError('');
+                setShippingAddressFields(createEmptyShippingAddressFields());
                 setIsCustomerLoading(false);
                 return;
             }
@@ -367,16 +551,33 @@ export default function CheckoutPageContent({ checkoutType }) {
             try {
                 const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
                 const profileData = userDoc.exists() ? userDoc.data() : {};
+                const nextSavedShippingAddresses = normalizeSavedShippingAddresses(profileData.shippingAddresses);
+                const preferredDefaultShippingAddressId = String(profileData.defaultShippingAddressId || '').trim();
+                const defaultShippingAddress = nextSavedShippingAddresses.find((address) => address.id === preferredDefaultShippingAddressId)
+                    || nextSavedShippingAddresses[0]
+                    || null;
 
                 if (!isMounted) {
                     return;
                 }
 
                 setCustomerInfo(buildCustomerSnapshot(currentUser, profileData, userRole));
+                setSavedShippingAddresses(nextSavedShippingAddresses);
+                setDefaultShippingAddressId(defaultShippingAddress?.id || '');
+                setSelectedShippingAddressId(defaultShippingAddress?.id || '');
+                setMakeShippingAddressDefault(Boolean(defaultShippingAddress?.id));
+                setShippingAddressFields(defaultShippingAddress
+                    ? createShippingAddressFieldsFromSavedAddress(defaultShippingAddress)
+                    : createEmptyShippingAddressFields());
             } catch (error) {
                 console.error('Failed to load checkout customer profile:', error);
                 if (isMounted) {
                     setCustomerInfo(buildCustomerSnapshot(currentUser, {}, userRole));
+                    setSavedShippingAddresses([]);
+                    setSelectedShippingAddressId('');
+                    setDefaultShippingAddressId('');
+                    setMakeShippingAddressDefault(false);
+                    setShippingAddressFields(createEmptyShippingAddressFields());
                 }
             } finally {
                 if (isMounted) {
@@ -425,9 +626,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                 block: 'start'
             });
 
-            const missingFieldKey = !String(shippingAddressFields.governorate || '').trim()
-                ? 'governorate'
-                : (!String(shippingAddressFields.streetName || '').trim() ? 'streetName' : '');
+            const { missingFieldKey } = getShippingAddressValidation(shippingAddressFields);
 
             const targetField = missingFieldKey ? shippingAddressFieldRefs.current[missingFieldKey] : null;
             if (targetField?.focus) {
@@ -443,9 +642,91 @@ export default function CheckoutPageContent({ checkoutType }) {
         isShippingExpanded,
         isShippingSelected,
         shippingAddressFields.governorate,
+        shippingAddressFields.district,
+        shippingAddressFields.houseNumber,
         shippingAddressFields.streetName,
         shouldScrollToShippingAddress
     ]);
+
+    useEffect(() => {
+        const selectedGovernorate = String(shippingAddressFields.governorate || '').trim();
+
+        if (!selectedGovernorate) {
+            setDistrictOptions([]);
+            setDistrictOptionsError('');
+            setIsLoadingDistrictOptions(false);
+            return undefined;
+        }
+
+        const abortController = new AbortController();
+        let isCancelled = false;
+
+        const loadDistrictOptions = async () => {
+            setIsLoadingDistrictOptions(true);
+            setDistrictOptionsError('');
+
+            try {
+                const response = await fetch(`/api/integrations/bosta/districts?governorate=${encodeURIComponent(selectedGovernorate)}`, {
+                    cache: 'no-store',
+                    signal: abortController.signal
+                });
+                const payload = await response.json().catch(() => ({}));
+
+                if (!response.ok || payload?.ok === false) {
+                    throw new Error(payload?.error || 'تعذر تحميل الأحياء / المناطق من Bosta حالياً.');
+                }
+
+                if (isCancelled) {
+                    return;
+                }
+
+                const nextDistrictOptions = Array.isArray(payload?.districts) ? payload.districts : [];
+                const cityId = String(payload?.city?.id || '').trim();
+                const cityName = String(payload?.city?.name || '').trim();
+
+                setDistrictOptions(nextDistrictOptions);
+                setShippingAddressFields((current) => {
+                    if (String(current.governorate || '').trim() !== selectedGovernorate) {
+                        return current;
+                    }
+
+                    const currentDistrictId = String(current.districtId || '').trim();
+                    const currentDistrictName = String(current.district || '').trim();
+                    const matchedDistrict = nextDistrictOptions.find((option) => (
+                        (currentDistrictId && String(option?.districtId || '').trim() === currentDistrictId)
+                        || (currentDistrictName && String(option?.districtName || '').trim() === currentDistrictName)
+                    ));
+
+                    return {
+                        ...current,
+                        cityId,
+                        cityName,
+                        district: matchedDistrict ? String(matchedDistrict.districtName || matchedDistrict.label || '').trim() : '',
+                        districtId: matchedDistrict ? String(matchedDistrict.districtId || '').trim() : '',
+                        zoneId: matchedDistrict ? String(matchedDistrict.zoneId || '').trim() : ''
+                    };
+                });
+            } catch (error) {
+                if (abortController.signal.aborted || isCancelled) {
+                    return;
+                }
+
+                setDistrictOptions([]);
+                setDistrictOptionsError(error instanceof Error ? error.message : 'تعذر تحميل الأحياء / المناطق حالياً.');
+            } finally {
+                if (!isCancelled) {
+                    setIsLoadingDistrictOptions(false);
+                }
+            }
+        };
+
+        loadDistrictOptions();
+
+        return () => {
+            isCancelled = true;
+            abortController.abort();
+        };
+    }, [shippingAddressFields.governorate]);
 
     const handleApplyPromoCode = () => {
         if (!activePromoCodes.length) {
@@ -516,12 +797,102 @@ export default function CheckoutPageContent({ checkoutType }) {
     const handleShippingAddressFieldChange = (fieldKey, value) => {
         setShippingAddressFields((current) => ({
             ...current,
-            [fieldKey]: value
+            [fieldKey]: value,
+            ...(fieldKey === 'governorate'
+                ? {
+                    district: '',
+                    districtId: '',
+                    cityId: '',
+                    cityName: '',
+                    zoneId: ''
+                }
+                : {})
+        }));
+
+        if (fieldKey === 'governorate') {
+            setDistrictOptions([]);
+            setDistrictOptionsError('');
+        }
+
+        if (shippingAddressError) {
+            setShippingAddressError('');
+        }
+    };
+
+    const handleDistrictSelection = (selectedOptionId) => {
+        const nextDistrict = districtOptions.find((option) => String(option?.optionId || '').trim() === String(selectedOptionId || '').trim());
+
+        setShippingAddressFields((current) => ({
+            ...current,
+            district: String(nextDistrict?.districtName || '').trim(),
+            districtId: String(nextDistrict?.districtId || '').trim(),
+            cityId: String(nextDistrict?.cityId || current.cityId || '').trim(),
+            cityName: String(nextDistrict?.cityName || current.cityName || '').trim(),
+            zoneId: String(nextDistrict?.zoneId || '').trim()
         }));
 
         if (shippingAddressError) {
             setShippingAddressError('');
         }
+    };
+
+    const handleSelectSavedShippingAddress = (addressId) => {
+        const nextAddress = savedShippingAddresses.find((address) => address.id === addressId);
+        if (!nextAddress) {
+            return;
+        }
+
+        setSelectedShippingAddressId(nextAddress.id);
+        setMakeShippingAddressDefault(nextAddress.id === defaultShippingAddressId);
+        setShippingAddressFields(createShippingAddressFieldsFromSavedAddress(nextAddress));
+        setIsShippingAddressFormOpen(false);
+        setExpandedDeliverySection('shipping');
+        setShippingAddressError('');
+    };
+
+    const handleAddNewShippingAddress = () => {
+        setSelectedShippingAddressId('');
+        setMakeShippingAddressDefault(savedShippingAddresses.length === 0 || !defaultShippingAddressId);
+        setShippingAddressFields(createEmptyShippingAddressFields());
+        setDistrictOptions([]);
+        setDistrictOptionsError('');
+        setIsShippingAddressFormOpen(true);
+        setExpandedDeliverySection('shipping');
+        setShippingAddressError('');
+        setShouldScrollToShippingAddress(true);
+    };
+
+    const persistShippingAddressSelection = async (currentUser) => {
+        if (!currentUser || !isShippingSelected) {
+            return {
+                addressId: String(selectedShippingAddressId || '').trim()
+            };
+        }
+
+        const response = await saveCurrentUserShippingAddress(currentUser, {
+            id: selectedShippingAddressId,
+            ...buildSavedShippingAddressPayload(shippingAddressFields)
+        }, {
+            makeDefault: makeShippingAddressDefault,
+            defaultAddressId: defaultShippingAddressId
+        });
+
+        const nextSavedShippingAddresses = normalizeSavedShippingAddresses(response?.profile?.shippingAddresses);
+        const nextDefaultShippingAddressId = String(response?.defaultShippingAddressId || response?.profile?.defaultShippingAddressId || '').trim();
+        const persistedAddress = nextSavedShippingAddresses.find((address) => address.id === String(response?.addressId || '').trim()) || null;
+
+        setSavedShippingAddresses(nextSavedShippingAddresses);
+        setDefaultShippingAddressId(nextDefaultShippingAddressId);
+
+        if (persistedAddress) {
+            setSelectedShippingAddressId(persistedAddress.id);
+            setMakeShippingAddressDefault(persistedAddress.id === nextDefaultShippingAddressId);
+            setShippingAddressFields(createShippingAddressFieldsFromSavedAddress(persistedAddress));
+        }
+
+        return {
+            addressId: persistedAddress?.id || String(response?.addressId || '').trim()
+        };
     };
 
     const closePhonePrompt = () => {
@@ -547,7 +918,9 @@ export default function CheckoutPageContent({ checkoutType }) {
         router.replace('/');
     };
 
-    const finalizeOrderConfirmation = async () => {
+    const finalizeOrderConfirmation = async ({ shippingAddressIdOverride = '', shippingRecipientNameOverride = '', shippingRecipientPhoneOverride = '' } = {}) => {
+        const effectiveShippingRecipientName = shippingRecipientNameOverride || getEffectiveShippingRecipientName(shippingAddressFields, customerInfo);
+        const effectiveShippingRecipientPhone = shippingRecipientPhoneOverride || getEffectiveShippingRecipientPhone(shippingAddressFields, customerInfo);
         const result = await submitCheckout({
             subtotalAmount: subtotal,
             shippingAmount,
@@ -560,6 +933,14 @@ export default function CheckoutPageContent({ checkoutType }) {
             shippingAddress: isShippingSelected ? shippingAddress.trim() : '',
             shippingGovernorate: isShippingSelected ? selectedShippingGovernorate : '',
             shippingZone: isShippingSelected ? shippingPricingDetails.zoneKey : '',
+            shippingDistrict: isShippingSelected ? String(shippingAddressFields.district || '').trim() : '',
+            shippingDistrictId: isShippingSelected ? String(shippingAddressFields.districtId || '').trim() : '',
+            shippingCityId: isShippingSelected ? String(shippingAddressFields.cityId || '').trim() : '',
+            shippingCityName: isShippingSelected ? String(shippingAddressFields.cityName || '').trim() : '',
+            shippingBostaZoneId: isShippingSelected ? String(shippingAddressFields.zoneId || '').trim() : '',
+            shippingRecipientName: isShippingSelected ? effectiveShippingRecipientName : '',
+            shippingRecipientPhone: isShippingSelected ? effectiveShippingRecipientPhone : '',
+            shippingAddressId: isShippingSelected ? String(shippingAddressIdOverride || selectedShippingAddressId || '').trim() : '',
             skipSuccessToast: true
         });
 
@@ -601,12 +982,25 @@ export default function CheckoutPageContent({ checkoutType }) {
         try {
             const response = await upsertCurrentUserProfile(currentUser, { phone: trimmedPhone });
             const savedProfile = response?.profile || { phone: trimmedPhone };
+            const nextCustomerInfo = buildCustomerSnapshot(currentUser, savedProfile, userRole);
+            const effectiveShippingRecipientName = getEffectiveShippingRecipientName(shippingAddressFields, nextCustomerInfo);
+            const effectiveShippingRecipientPhone = String(shippingAddressFields.recipientPhone || '').trim() || trimmedPhone;
+            let persistedShippingAddressId = String(selectedShippingAddressId || '').trim();
 
-            setCustomerInfo(buildCustomerSnapshot(currentUser, savedProfile, userRole));
+            setCustomerInfo(nextCustomerInfo);
             setIsPhonePromptOpen(false);
             setPhonePromptValue('');
 
-            await finalizeOrderConfirmation();
+            if (isShippingSelected) {
+                const persistResult = await persistShippingAddressSelection(currentUser);
+                persistedShippingAddressId = persistResult.addressId || persistedShippingAddressId;
+            }
+
+            await finalizeOrderConfirmation({
+                shippingAddressIdOverride: persistedShippingAddressId,
+                shippingRecipientNameOverride: effectiveShippingRecipientName,
+                shippingRecipientPhoneOverride: effectiveShippingRecipientPhone
+            });
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'تعذر حفظ رقم الموبايل حالياً. حاول مرة أخرى.';
             setPhonePromptError(errorMessage);
@@ -627,26 +1021,50 @@ export default function CheckoutPageContent({ checkoutType }) {
             return;
         }
 
-        if (isShippingSelected && !hasSavedShippingAddress) {
-            const errorMessage = 'اختر المحافظة واكتب اسم الشارع على الأقل قبل تأكيد الطلب.';
-            setExpandedDeliverySection('shipping');
-            setIsShippingAddressFormOpen(true);
-            setShippingAddressError(errorMessage);
-            setShouldScrollToShippingAddress(true);
-            showToast(errorMessage, 'error');
-            return;
+        if (isShippingSelected) {
+            const { errorMessage } = getShippingAddressValidation(shippingAddressFields);
+            if (errorMessage) {
+                setExpandedDeliverySection('shipping');
+                setIsShippingAddressFormOpen(true);
+                setShippingAddressError(errorMessage);
+                setShouldScrollToShippingAddress(true);
+                showToast(errorMessage, 'error');
+                return;
+            }
         }
 
         setShippingAddressError('');
 
-        if (!customerPhoneValue) {
+        const effectiveShippingRecipientPhone = getEffectiveShippingRecipientPhone(shippingAddressFields, customerInfo);
+
+        if (!effectiveShippingRecipientPhone) {
             setPhonePromptError('');
             setPhonePromptValue('');
             setIsPhonePromptOpen(true);
             return;
         }
 
-        await finalizeOrderConfirmation();
+        let persistedShippingAddressId = String(selectedShippingAddressId || '').trim();
+
+        if (isShippingSelected) {
+            try {
+                const persistResult = await persistShippingAddressSelection(auth.currentUser);
+                persistedShippingAddressId = persistResult.addressId || persistedShippingAddressId;
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'تعذر حفظ عنوان الشحن حالياً. حاول مرة أخرى.';
+                setExpandedDeliverySection('shipping');
+                setIsShippingAddressFormOpen(true);
+                setShippingAddressError(errorMessage);
+                showToast(errorMessage, 'error');
+                return;
+            }
+        }
+
+        await finalizeOrderConfirmation({
+            shippingAddressIdOverride: persistedShippingAddressId,
+            shippingRecipientNameOverride: getEffectiveShippingRecipientName(shippingAddressFields, customerInfo),
+            shippingRecipientPhoneOverride: effectiveShippingRecipientPhone
+        });
     };
 
     const deliveryMethodSection = (
@@ -723,9 +1141,13 @@ export default function CheckoutPageContent({ checkoutType }) {
                                             {shippingPricingDetails.zoneLabel}
                                         </p>
                                     ) : null}
-                                    {hasSavedShippingAddress ? (
+                                    {selectedShippingAddressId ? (
                                         <p className={`mt-2 text-xs font-black ${isShippingSelected ? selectedDeliveryEyebrowClasses : 'text-brandGold'}`}>
-                                            تمت إضافة عنوان الشحن
+                                            تم اختيار عنوان محفوظ
+                                        </p>
+                                    ) : hasSavedShippingAddress ? (
+                                        <p className={`mt-2 text-xs font-black ${isShippingSelected ? selectedDeliveryEyebrowClasses : 'text-brandGold'}`}>
+                                            العنوان الحالي جاهز للحفظ مع الطلب
                                         </p>
                                     ) : null}
                                 </div>
@@ -747,6 +1169,64 @@ export default function CheckoutPageContent({ checkoutType }) {
 
                     {isShippingExpanded ? (
                         <div className={`border-t px-4 pb-4 pt-4 ${isShippingSelected ? selectedDeliveryDividerClasses : 'border-brandGold/15 dark:border-brandGold/10'}`}>
+                            {savedShippingAddresses.length > 0 ? (
+                                <div className="mb-4 space-y-3 rounded-[1.1rem] border border-brandGold/15 bg-brandGold/[0.04] p-4 dark:bg-brandGold/[0.08]">
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <div className="text-right">
+                                            <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${isShippingSelected ? selectedDeliveryEyebrowClasses : 'text-brandGold'}`}>Saved Addresses</p>
+                                            <p className="mt-2 text-sm font-black text-brandBlue dark:text-white">العناوين المحفوظة</p>
+                                            <p className={`mt-2 text-sm font-bold leading-7 ${isShippingSelected ? selectedDeliveryMutedTextClasses : 'text-slate-500 dark:text-slate-300'}`}>
+                                                اختَر عنوانًا محفوظًا أو أضف عنوانًا جديدًا بدون فقدان الافتراضي الحالي.
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={handleAddNewShippingAddress}
+                                            className={`inline-flex items-center justify-center rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.16em] transition-colors ${isShippingSelected ? selectedDeliveryActionClasses : 'border-brandGold/20 bg-brandGold/5 text-brandBlue hover:bg-brandGold/10 dark:text-brandGold'}`}
+                                        >
+                                            إضافة عنوان جديد
+                                        </button>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        {savedShippingAddresses.map((address) => {
+                                            const isSelectedAddress = address.id === selectedShippingAddressId;
+                                            const isDefaultAddress = address.id === defaultShippingAddressId;
+
+                                            return (
+                                                <button
+                                                    key={address.id}
+                                                    type="button"
+                                                    onClick={() => handleSelectSavedShippingAddress(address.id)}
+                                                    className={`w-full rounded-[1rem] border px-4 py-3 text-right transition-colors ${isSelectedAddress ? 'border-brandGold/35 bg-brandGold/10 text-brandBlue dark:text-white' : 'border-brandGold/12 bg-white/70 text-brandBlue hover:bg-brandGold/[0.06] dark:bg-gray-900/35 dark:text-slate-200'}`}
+                                                >
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div className="min-w-0 flex-1 text-right">
+                                                            <div className="flex flex-wrap justify-end gap-2">
+                                                                {isDefaultAddress ? (
+                                                                    <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">Default</span>
+                                                                ) : null}
+                                                                {isSelectedAddress ? (
+                                                                    <span className="rounded-full bg-brandBlue/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-brandBlue dark:text-brandGold">Selected</span>
+                                                                ) : null}
+                                                            </div>
+                                                            <p className="mt-2 text-sm font-black">{address.recipientName || customerInfo?.name || 'عنوان محفوظ'}</p>
+                                                            <p className="mt-2 text-xs font-bold leading-6 text-slate-500 dark:text-slate-300">{buildSavedShippingAddressSummary(address)}</p>
+                                                            {address.recipientPhone ? (
+                                                                <p className="mt-2 text-[11px] font-black text-slate-400">رقم بديل: {address.recipientPhone}</p>
+                                                            ) : null}
+                                                        </div>
+                                                        <span className={`mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${isSelectedAddress ? selectedDeliveryCheckClasses : 'border-brandGold/35 bg-transparent text-brandGold/0 dark:border-brandGold/20 dark:text-brandGold/0'}`}>
+                                                            <i className={`fa-solid fa-check text-[10px] ${isSelectedAddress ? 'opacity-100' : 'opacity-0'}`}></i>
+                                                        </span>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ) : null}
+
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <button
                                     type="button"
@@ -757,12 +1237,20 @@ export default function CheckoutPageContent({ checkoutType }) {
                                     className={`inline-flex w-fit shrink-0 items-center gap-3 whitespace-nowrap rounded-full border px-5 py-3 text-sm font-black leading-none transition-colors ${isShippingSelected ? selectedDeliveryActionClasses : 'border-brandGold/20 bg-brandGold/5 text-brandBlue hover:bg-brandGold/10 dark:text-brandGold'}`}
                                 >
                                     <span className="text-lg leading-none">{isShippingAddressFormOpen ? '−' : '+'}</span>
-                                    <span className="leading-none">{isShippingAddressFormOpen ? 'إخفاء العنوان' : hasSavedShippingAddress ? 'تعديل العنوان' : 'إضافة عنوان'}</span>
+                                    <span className="leading-none">{isShippingAddressFormOpen ? 'إخفاء العنوان' : selectedShippingAddressId ? 'تعديل العنوان المختار' : hasSavedShippingAddress ? 'تعديل العنوان' : 'إضافة عنوان'}</span>
                                 </button>
                                 <p className={`text-sm font-bold leading-7 ${isShippingSelected ? selectedDeliveryMutedTextClasses : 'text-slate-500 dark:text-slate-300'}`}>
-                                    {hasSavedShippingAddress ? 'سيُحفظ هذا العنوان مع الطلب حتى يظهر للإدارة أثناء المراجعة.' : 'أضف بيانات العنوان بشكل منظم حتى يظهر الشحن للإدارة بوضوح.'}
+                                    {selectedShippingAddressId ? 'يمكنك استخدام العنوان المختار كما هو أو تعديله قبل تأكيد الطلب.' : hasSavedShippingAddress ? 'سيُحفظ هذا العنوان مع الطلب ويمكن جعله الافتراضي للحساب.' : 'أضف بيانات العنوان بشكل منظم حتى يظهر الشحن للإدارة وبوستا بوضوح.'}
                                 </p>
                             </div>
+
+                            {selectedSavedShippingAddress && !isShippingAddressFormOpen ? (
+                                <div className="mt-4 rounded-[1.1rem] border border-brandGold/15 bg-white/70 px-4 py-4 text-right dark:bg-gray-900/35">
+                                    <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${isShippingSelected ? selectedDeliveryEyebrowClasses : 'text-brandGold'}`}>Selected Address</p>
+                                    <p className="mt-2 text-sm font-black text-brandBlue dark:text-white">{selectedSavedShippingAddress.recipientName || customerInfo?.name || 'عنوان الشحن المختار'}</p>
+                                    <p className={`mt-2 text-sm font-bold leading-7 ${isShippingSelected ? selectedDeliveryMutedTextClasses : 'text-slate-500 dark:text-slate-300'}`}>{buildSavedShippingAddressSummary(selectedSavedShippingAddress)}</p>
+                                </div>
+                            ) : null}
 
                             {isShippingAddressFormOpen ? (
                                 <div ref={shippingAddressSectionRef} className="mt-4 scroll-mt-28">
@@ -788,6 +1276,30 @@ export default function CheckoutPageContent({ checkoutType }) {
                                                             <option key={option.value} value={option.value}>{option.label}</option>
                                                         ))}
                                                     </select>
+                                                ) : field.type === 'district-select' ? (
+                                                    <select
+                                                        ref={(element) => {
+                                                            shippingAddressFieldRefs.current[field.key] = element;
+                                                        }}
+                                                        name={field.key}
+                                                        value={selectedDistrictOptionId}
+                                                        onChange={(event) => handleDistrictSelection(event.target.value)}
+                                                        disabled={!selectedShippingGovernorate || isLoadingDistrictOptions || districtOptions.length === 0}
+                                                        className={`mt-2 w-full rounded-[1.1rem] border bg-white px-4 py-3 text-sm font-bold text-brandBlue outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-60 dark:bg-gray-900 dark:text-white ${shippingAddressError ? 'border-red-400 focus:border-red-500' : 'border-brandGold/20 focus:border-brandGold'}`}
+                                                    >
+                                                        <option value="">
+                                                            {!selectedShippingGovernorate
+                                                                ? 'اختر المحافظة أولاً'
+                                                                : isLoadingDistrictOptions
+                                                                    ? 'جاري تحميل المناطق من Bosta...'
+                                                                    : districtOptions.length > 0
+                                                                        ? field.placeholder
+                                                                        : 'لا توجد مناطق متاحة حالياً'}
+                                                        </option>
+                                                        {districtOptions.map((option) => (
+                                                            <option key={option.optionId} value={option.optionId}>{option.label}</option>
+                                                        ))}
+                                                    </select>
                                                 ) : (
                                                     <input
                                                         ref={(element) => {
@@ -796,6 +1308,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                                                         type="text"
                                                         name={field.key}
                                                         inputMode={field.inputMode || 'text'}
+                                                        dir={field.dir || 'rtl'}
                                                         value={shippingAddressFields[field.key]}
                                                         onChange={(event) => handleShippingAddressFieldChange(field.key, event.target.value)}
                                                         placeholder={field.placeholder}
@@ -806,11 +1319,26 @@ export default function CheckoutPageContent({ checkoutType }) {
                                         ))}
                                     </div>
 
+                                    <label className="mt-4 flex items-center justify-end gap-3 text-right">
+                                        <span className={`text-sm font-black leading-7 ${isShippingSelected ? selectedDeliveryMutedTextClasses : 'text-slate-500 dark:text-slate-300'}`}>اجعل هذا العنوان هو الافتراضي للحساب</span>
+                                        <input
+                                            type="checkbox"
+                                            checked={makeShippingAddressDefault}
+                                            onChange={(event) => setMakeShippingAddressDefault(event.target.checked)}
+                                            className="h-4 w-4 rounded border-brandGold/30 text-brandGold focus:ring-brandGold"
+                                        />
+                                    </label>
+
                                     {selectedShippingGovernorate ? (
                                         <div className="mt-3 rounded-[1.1rem] border border-brandGold/15 bg-brandGold/[0.05] px-4 py-3 text-right dark:bg-brandGold/[0.08]">
                                             <p className={`text-sm font-black ${isShippingSelected ? selectedDeliveryMutedTextClasses : 'text-slate-500 dark:text-slate-300'}`}>
                                                 المحافظة: {selectedShippingGovernorate}
                                             </p>
+                                            {shippingAddressFields.district ? (
+                                                <p className={`mt-2 text-sm font-bold leading-7 ${isShippingSelected ? selectedDeliveryMutedTextClasses : 'text-slate-500 dark:text-slate-300'}`}>
+                                                    الحي / المنطقة: {shippingAddressFields.district}
+                                                </p>
+                                            ) : null}
                                             <p className={`mt-2 text-sm font-bold leading-7 ${isShippingSelected ? selectedDeliveryMutedTextClasses : 'text-slate-500 dark:text-slate-300'}`}>
                                                 {shippingPricingDetails.zoneLabel ? `منطقة التسعير: ${shippingPricingDetails.zoneLabel}` : 'سيتم استخدام سعر الشحن الافتراضي.'}
                                             </p>
@@ -820,11 +1348,15 @@ export default function CheckoutPageContent({ checkoutType }) {
                                         </div>
                                     ) : null}
 
+                                    {districtOptionsError ? (
+                                        <p className="mt-3 text-sm font-extrabold text-red-200 dark:text-red-500">{districtOptionsError}</p>
+                                    ) : null}
+
                                     {shippingAddressError ? (
                                         <p className="mt-3 text-sm font-extrabold text-red-200 dark:text-red-500">{shippingAddressError}</p>
                                     ) : (
                                         <p className={`mt-3 text-sm font-bold leading-7 ${isShippingSelected ? selectedDeliveryMutedTextClasses : 'text-slate-500 dark:text-slate-300'}`}>
-                                            سيتم تجميع هذه البيانات تلقائيًا داخل عنوان الشحن النهائي المرسل مع الطلب، مع حفظ المحافظة وسعر الشحن مع الأوردر.
+                                            سيتم حفظ هذا العنوان في حسابك، واستخدام الحي / المنطقة المختارة مباشرة مع Bosta بدل التخمين من النص الحر.
                                         </p>
                                     )}
                                 </div>

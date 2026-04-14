@@ -4,11 +4,17 @@ const DEFAULT_BOSTA_BASE_URL = 'https://app.bosta.co/api/v2';
 const DEFAULT_BOSTA_DELIVERY_TYPE = 10;
 const SHIPPING_ADDRESS_LABEL_MAP = new Map([
     ['المحافظه', 'governorate'],
+    ['الحي المنطقه', 'districtName'],
+    ['الحي', 'districtName'],
+    ['المنطقه', 'districtName'],
     ['اسم الشارع', 'streetName'],
+    ['رقم العقار البيت', 'houseNumber'],
     ['رقم البيت', 'houseNumber'],
     ['الدور', 'floorNumber'],
     ['رقم الشقه', 'apartmentNumber'],
-    ['علامه مميزه', 'landmark']
+    ['علامه مميزه تعليمات التوصيل', 'deliveryInstructions'],
+    ['تعليمات التوصيل', 'deliveryInstructions'],
+    ['علامه مميزه', 'deliveryInstructions']
 ]);
 
 function createBostaError(status, message, code, details) {
@@ -150,11 +156,12 @@ function getShippingGovernorate(order = {}) {
 function parseShippingAddress(rawAddress, fallbackGovernorate = '') {
     const parsedFields = {
         governorate: normalizeText(fallbackGovernorate),
+        districtName: '',
         streetName: '',
         houseNumber: '',
         floorNumber: '',
         apartmentNumber: '',
-        landmark: '',
+        deliveryInstructions: '',
         rawAddress: normalizeText(rawAddress)
     };
 
@@ -223,6 +230,62 @@ async function listCityDistricts(cityId) {
         : (Array.isArray(payload?.list) ? payload.list : []);
 }
 
+function buildDistrictOptionId(district = {}) {
+    const districtId = normalizeText(district?.districtId);
+    if (districtId) {
+        return districtId;
+    }
+
+    const zoneId = normalizeText(district?.zoneId, 'zone');
+    const districtSlug = normalizeLookupValue(district?.districtName || district?.districtOtherName || district?.zoneName || 'district').replace(/\s+/g, '-');
+    return `${zoneId}-${districtSlug}`;
+}
+
+function buildDistrictOptionLabel(district = {}) {
+    const districtName = normalizeText(district?.districtName || district?.districtOtherName);
+    const zoneName = normalizeText(district?.zoneName || district?.zoneOtherName);
+    return [districtName, zoneName && zoneName !== districtName ? zoneName : '']
+        .filter(Boolean)
+        .join(' - ')
+        || 'Unnamed district';
+}
+
+export async function listBostaDistrictOptionsForGovernorate(governorate = '') {
+    const normalizedGovernorate = normalizeText(governorate);
+    if (!normalizedGovernorate) {
+        throw createBostaError(400, 'Governorate is required', 'bosta_governorate_required');
+    }
+
+    const cities = await listCities();
+    const city = resolveCityMatch(cities, normalizedGovernorate);
+    if (!city?._id) {
+        throw createBostaError(404, `Could not map governorate "${normalizedGovernorate}" to a Bosta city`, 'bosta_city_match_failed');
+    }
+
+    const districts = await listCityDistricts(city._id);
+    const normalizedDistricts = districts
+        .map((district) => ({
+            optionId: buildDistrictOptionId(district),
+            districtId: normalizeText(district?.districtId),
+            districtName: normalizeText(district?.districtName || district?.districtOtherName),
+            zoneId: normalizeText(district?.zoneId),
+            zoneName: normalizeText(district?.zoneName || district?.zoneOtherName),
+            cityId: normalizeText(city._id),
+            cityName: normalizeText(city?.nameAr || city?.name),
+            label: buildDistrictOptionLabel(district)
+        }))
+        .filter((entry) => entry.districtName || entry.zoneName)
+        .sort((left, right) => left.label.localeCompare(right.label, 'ar'));
+
+    return {
+        city: {
+            id: normalizeText(city._id),
+            name: normalizeText(city.nameAr || city.name)
+        },
+        districts: normalizedDistricts
+    };
+}
+
 function resolveCityMatch(cities = [], governorate) {
     const normalizedGovernorate = normalizeLookupValue(governorate);
     if (!normalizedGovernorate) return null;
@@ -243,12 +306,68 @@ function resolveCityMatch(cities = [], governorate) {
 function getDistrictSearchTexts({ addressFields, districtHint }) {
     return [
         districtHint,
-        addressFields?.landmark,
+        addressFields?.districtName,
+        addressFields?.deliveryInstructions,
         addressFields?.streetName,
         addressFields?.rawAddress
     ]
         .map(normalizeLookupValue)
         .filter(Boolean);
+}
+
+function getStoredShippingLocation(order = {}) {
+    return {
+        cityId: normalizeText(order.shippingCityId || order.customerInfo?.shippingCityId || order.customer?.shippingCityId),
+        cityName: normalizeText(order.shippingCityName || order.customerInfo?.shippingCityName || order.customer?.shippingCityName),
+        districtId: normalizeText(order.shippingDistrictId || order.customerInfo?.shippingDistrictId || order.customer?.shippingDistrictId),
+        districtName: normalizeText(order.shippingDistrict || order.customerInfo?.shippingDistrict || order.customer?.shippingDistrict),
+        zoneId: normalizeText(order.shippingBostaZoneId || order.customerInfo?.shippingBostaZoneId || order.customer?.shippingBostaZoneId)
+    };
+}
+
+function resolveDistrictFromStoredSelection(districts = [], storedLocation = {}) {
+    const storedDistrictId = normalizeText(storedLocation.districtId);
+    const storedZoneId = normalizeText(storedLocation.zoneId);
+    const storedDistrictName = normalizeLookupValue(storedLocation.districtName);
+
+    if (storedDistrictId) {
+        const exactDistrict = districts.find((district) => normalizeText(district?.districtId) === storedDistrictId);
+        if (exactDistrict) {
+            return exactDistrict;
+        }
+    }
+
+    if (storedZoneId) {
+        const zoneMatch = districts.find((district) => {
+            if (normalizeText(district?.zoneId) !== storedZoneId) {
+                return false;
+            }
+
+            if (!storedDistrictName) {
+                return true;
+            }
+
+            const districtCandidates = [district?.districtName, district?.districtOtherName, district?.zoneName, district?.zoneOtherName]
+                .map(normalizeLookupValue)
+                .filter(Boolean);
+            return districtCandidates.includes(storedDistrictName);
+        });
+
+        if (zoneMatch) {
+            return zoneMatch;
+        }
+    }
+
+    if (!storedDistrictName) {
+        return null;
+    }
+
+    return districts.find((district) => {
+        const districtCandidates = [district?.districtName, district?.districtOtherName, district?.zoneName, district?.zoneOtherName]
+            .map(normalizeLookupValue)
+            .filter(Boolean);
+        return districtCandidates.includes(storedDistrictName);
+    }) || null;
 }
 
 function scoreDistrictMatch(district, searchTexts) {
@@ -353,7 +472,7 @@ function buildDropOffAddress({ addressFields, city, district }) {
         || city?.name
         || 'Address not provided';
 
-    const secondLine = [addressFields.landmark].filter(Boolean).join(' | ');
+    const secondLine = [addressFields.districtName, addressFields.deliveryInstructions].filter(Boolean).join(' | ');
 
     return cleanObject({
         city: normalizeText(addressFields.governorate || city?.nameAr || city?.name),
@@ -425,6 +544,11 @@ export async function createBostaDeliveryForOrder(order, { districtHint = '', re
     const rawAddress = getShippingAddressString(order);
     const governorate = getShippingGovernorate(order);
     const addressFields = parseShippingAddress(rawAddress, governorate);
+    const storedLocation = getStoredShippingLocation(order);
+
+    if (!addressFields.districtName) {
+        addressFields.districtName = storedLocation.districtName;
+    }
 
     if (!phone) {
         throw createBostaError(400, 'Customer phone is required before sending the shipment to Bosta', 'bosta_phone_required');
@@ -439,13 +563,17 @@ export async function createBostaDeliveryForOrder(order, { districtHint = '', re
     }
 
     const cities = await listCities();
-    const city = resolveCityMatch(cities, addressFields.governorate);
+    const city = (storedLocation.cityId
+        ? (cities.find((entry) => normalizeText(entry?._id) === storedLocation.cityId) || null)
+        : null)
+        || resolveCityMatch(cities, addressFields.governorate);
     if (!city?._id) {
         throw createBostaError(400, `Could not map governorate "${addressFields.governorate}" to a Bosta city`, 'bosta_city_match_failed');
     }
 
     const districts = await listCityDistricts(city._id);
-    const district = resolveDistrictMatch(districts, { addressFields, districtHint: normalizeText(districtHint) });
+    const district = resolveDistrictFromStoredSelection(districts, storedLocation)
+        || resolveDistrictMatch(districts, { addressFields, districtHint: normalizeText(districtHint) });
     if (!district?.districtId && !district?.zoneId) {
         throw createBostaError(
             400,
@@ -476,7 +604,8 @@ export async function createBostaDeliveryForOrder(order, { districtHint = '', re
         cod: codAmount,
         notes: [
             `Website order ${businessReference}`,
-            addressFields.landmark ? `Landmark: ${addressFields.landmark}` : '',
+            addressFields.districtName ? `District: ${addressFields.districtName}` : '',
+            addressFields.deliveryInstructions ? `Delivery instructions: ${addressFields.deliveryInstructions}` : '',
             districtHint ? `District hint: ${districtHint}` : ''
         ].filter(Boolean).join(' | '),
         dropOffAddress,

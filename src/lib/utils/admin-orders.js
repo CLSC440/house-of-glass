@@ -55,7 +55,8 @@ export function getOrderAmount(order = {}) {
 }
 
 export function getOrderCustomerName(order = {}) {
-    return order.customer?.name
+    return order.shippingRecipient?.name
+        || order.customer?.name
         || order.customer?.fullName
         || order.customerInfo?.fullName
         || order.customerInfo?.name
@@ -65,7 +66,8 @@ export function getOrderCustomerName(order = {}) {
 }
 
 export function getOrderCustomerPhone(order = {}) {
-    return order.customer?.phone
+    return order.shippingRecipient?.phone
+        || order.customer?.phone
         || order.customerInfo?.phone
         || order.phone
         || '';

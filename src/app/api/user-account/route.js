@@ -89,6 +89,77 @@ function sanitizeProfile(rawProfile = {}, tokenData = {}, currentProfile = {}) {
     };
 }
 
+function normalizeShippingAddressId(value) {
+    return normalizeString(value, 80).replace(/[^a-z0-9_-]/gi, '');
+}
+
+function generateShippingAddressId() {
+    return `addr_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function sanitizeSavedShippingAddress(rawAddress = {}) {
+    const governorate = normalizeString(rawAddress.governorate, 120);
+    const district = normalizeString(rawAddress.district, 120);
+    const streetName = normalizeString(rawAddress.streetName, 160);
+    const houseNumber = normalizeString(rawAddress.houseNumber, 40);
+
+    if (!governorate) {
+        throw createError(400, 'Governorate is required before saving the shipping address.');
+    }
+
+    if (!district) {
+        throw createError(400, 'District is required before saving the shipping address.');
+    }
+
+    if (!streetName) {
+        throw createError(400, 'Street name is required before saving the shipping address.');
+    }
+
+    if (!houseNumber) {
+        throw createError(400, 'Building number is required before saving the shipping address.');
+    }
+
+    return {
+        id: normalizeShippingAddressId(rawAddress.id),
+        recipientName: normalizeString(rawAddress.recipientName, 120),
+        recipientPhone: normalizePhone(rawAddress.recipientPhone),
+        governorate,
+        district,
+        streetName,
+        houseNumber,
+        floorNumber: normalizeString(rawAddress.floorNumber, 40),
+        apartmentNumber: normalizeString(rawAddress.apartmentNumber, 40),
+        deliveryInstructions: normalizeString(rawAddress.deliveryInstructions, 240),
+        cityId: normalizeString(rawAddress.cityId, 80),
+        cityName: normalizeString(rawAddress.cityName, 120),
+        districtId: normalizeString(rawAddress.districtId, 80),
+        zoneId: normalizeString(rawAddress.zoneId, 80)
+    };
+}
+
+function normalizeSavedShippingAddresses(rawAddresses = []) {
+    if (!Array.isArray(rawAddresses)) {
+        return [];
+    }
+
+    return rawAddresses
+        .map((entry) => {
+            try {
+                const normalized = sanitizeSavedShippingAddress(entry);
+                return {
+                    ...normalized,
+                    id: normalized.id || generateShippingAddressId(),
+                    createdAt: normalizeString(entry?.createdAt, 80),
+                    updatedAt: normalizeString(entry?.updatedAt, 80)
+                };
+            } catch (_error) {
+                return null;
+            }
+        })
+        .filter(Boolean)
+        .slice(0, 10);
+}
+
 function makeDirectoryId(type, value) {
     return `${type}:${value}`;
 }
@@ -357,6 +428,45 @@ export async function POST(request) {
 
             const savedSnap = await userRef.get();
             return NextResponse.json({ success: true, profile: savedSnap.data() });
+        }
+
+        if (action === 'upsertShippingAddress') {
+            const tokenData = await verifyUserFromRequest(request);
+            const userRef = db.collection('users').doc(tokenData.uid);
+            const currentSnap = await userRef.get();
+            const currentProfile = currentSnap.exists ? currentSnap.data() : {};
+            const existingAddresses = normalizeSavedShippingAddresses(currentProfile.shippingAddresses);
+            const sanitizedAddress = sanitizeSavedShippingAddress(body?.address || {});
+            const existingAddress = existingAddresses.find((entry) => entry.id === sanitizedAddress.id);
+            const addressId = sanitizedAddress.id || existingAddress?.id || generateShippingAddressId();
+            const nowIso = new Date().toISOString();
+            const nextAddress = {
+                ...sanitizedAddress,
+                id: addressId,
+                createdAt: existingAddress?.createdAt || nowIso,
+                updatedAt: nowIso
+            };
+            const remainingAddresses = existingAddresses.filter((entry) => entry.id !== addressId);
+            const nextAddresses = [nextAddress, ...remainingAddresses].slice(0, 10);
+            const requestedDefaultAddressId = normalizeShippingAddressId(body?.options?.defaultAddressId || currentProfile.defaultShippingAddressId);
+            const makeDefault = body?.options?.makeDefault === true || !requestedDefaultAddressId;
+            const defaultShippingAddressId = makeDefault
+                ? addressId
+                : (nextAddresses.some((entry) => entry.id === requestedDefaultAddressId) ? requestedDefaultAddressId : (nextAddresses[0]?.id || ''));
+
+            await userRef.set({
+                shippingAddresses: nextAddresses,
+                defaultShippingAddressId,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            const savedSnap = await userRef.get();
+            return NextResponse.json({
+                success: true,
+                profile: savedSnap.data(),
+                addressId,
+                defaultShippingAddressId
+            });
         }
 
         if (action === 'getOwnOrders') {
