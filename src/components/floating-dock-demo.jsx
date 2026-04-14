@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { FloatingDock } from '@/components/ui/floating-dock';
 import { auth, db } from '@/lib/firebase';
 import { CATEGORY_GROUPS_COLLECTION, sortCategoryGroupDocs } from '@/lib/category-groups';
+import { createEmptyPromoCodeEntry, findDuplicatePromoCodes } from '@/lib/promo-codes';
 import { DEFAULT_SITE_SETTINGS, normalizeSiteSettings, useSiteSettings } from '@/lib/use-site-settings';
 import { SHIPPING_ZONE_RATE_FIELDS } from '@/lib/shipping-zones';
 import { normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
@@ -354,12 +355,55 @@ export default function FloatingDockDemo({
         }));
     };
 
+    const addPromoCodeEntry = () => {
+        setSettingsForm((currentValue) => ({
+            ...currentValue,
+            promoCodes: [...(currentValue.promoCodes || []), createEmptyPromoCodeEntry()]
+        }));
+    };
+
+    const updatePromoCodeEntryField = (promoId, fieldName, value) => {
+        setSettingsForm((currentValue) => ({
+            ...currentValue,
+            promoCodes: (currentValue.promoCodes || []).map((entry) => entry.id === promoId
+                ? {
+                    ...entry,
+                    [fieldName]: value
+                }
+                : entry)
+        }));
+    };
+
+    const togglePromoCodeEntryActive = (promoId) => {
+        setSettingsForm((currentValue) => ({
+            ...currentValue,
+            promoCodes: (currentValue.promoCodes || []).map((entry) => entry.id === promoId
+                ? {
+                    ...entry,
+                    isActive: !entry.isActive
+                }
+                : entry)
+        }));
+    };
+
+    const removePromoCodeEntry = (promoId) => {
+        setSettingsForm((currentValue) => ({
+            ...currentValue,
+            promoCodes: (currentValue.promoCodes || []).filter((entry) => entry.id !== promoId)
+        }));
+    };
+
     const handleSaveSettings = async (event) => {
         event.preventDefault();
         setIsSavingSettings(true);
         setSettingsFeedback(null);
 
         try {
+            const duplicatePromoCodes = findDuplicatePromoCodes(settingsForm.promoCodes);
+            if (duplicatePromoCodes.length > 0) {
+                throw new Error(`Duplicate promo codes are not allowed: ${duplicatePromoCodes.join(', ')}`);
+            }
+
             const payload = normalizeSiteSettings(settingsForm);
             await setDoc(doc(db, 'settings', 'contact'), payload, { merge: true });
             setSettingsFeedback({
@@ -956,41 +1000,98 @@ export default function FloatingDockDemo({
                                     </div>
                                 </div>
 
-                                <label className="space-y-2">
-                                    <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Promo Code</span>
-                                    <input
-                                        type="text"
-                                        value={settingsForm.promoCode}
-                                        onChange={(event) => updateSettingsField('promoCode', event.target.value)}
-                                        placeholder="SAVE10"
-                                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold uppercase text-white outline-none transition-colors placeholder:text-slate-500 focus:border-brandGold/50"
-                                    />
-                                </label>
+                                <div className="space-y-3 md:col-span-2">
+                                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                        <div>
+                                            <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Promo Codes</span>
+                                            <p className="mt-2 text-sm leading-7 text-slate-400">
+                                                Add more than one promo code, choose each discount type and value, then activate or deactivate each code independently.
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={addPromoCodeEntry}
+                                            className="inline-flex items-center justify-center rounded-2xl border border-brandGold/25 bg-brandGold/10 px-4 py-3 text-sm font-black text-brandGold transition-colors hover:bg-brandGold/20"
+                                        >
+                                            Add Promo Code
+                                        </button>
+                                    </div>
 
-                                <label className="space-y-2">
-                                    <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Promo Discount Type</span>
-                                    <select
-                                        value={settingsForm.promoDiscountType}
-                                        onChange={(event) => updateSettingsField('promoDiscountType', event.target.value)}
-                                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white outline-none transition-colors focus:border-brandGold/50"
-                                    >
-                                        <option value="percentage" className="bg-slate-900 text-white">Percentage %</option>
-                                        <option value="fixed" className="bg-slate-900 text-white">Fixed EGP</option>
-                                    </select>
-                                </label>
+                                    {(settingsForm.promoCodes || []).length > 0 ? (
+                                        <div className="space-y-4">
+                                            {(settingsForm.promoCodes || []).map((promoEntry, index) => (
+                                                <div key={promoEntry.id} className="rounded-[1.4rem] border border-white/10 bg-white/[0.03] p-4">
+                                                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                                        <div>
+                                                            <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Promo #{index + 1}</p>
+                                                            <p className="mt-1 text-sm font-semibold text-slate-400">
+                                                                {promoEntry.isActive ? 'Active in checkout right now.' : 'Inactive and ignored by checkout.'}
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => togglePromoCodeEntryActive(promoEntry.id)}
+                                                                className={`inline-flex items-center justify-center rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.18em] transition-colors ${promoEntry.isActive ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/15' : 'border-amber-500/25 bg-amber-500/10 text-amber-300 hover:bg-amber-500/15'}`}
+                                                            >
+                                                                {promoEntry.isActive ? 'Deactivate' : 'Activate'}
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removePromoCodeEntry(promoEntry.id)}
+                                                                className="inline-flex items-center justify-center rounded-full border border-rose-500/25 bg-rose-500/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-rose-300 transition-colors hover:bg-rose-500/15"
+                                                            >
+                                                                Remove
+                                                            </button>
+                                                        </div>
+                                                    </div>
 
-                                <label className="space-y-2">
-                                    <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Promo Discount Value</span>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        value={settingsForm.promoDiscountValue}
-                                        onChange={(event) => updateSettingsField('promoDiscountValue', event.target.value)}
-                                        placeholder="0"
-                                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white outline-none transition-colors placeholder:text-slate-500 focus:border-brandGold/50"
-                                    />
-                                </label>
+                                                    <div className="mt-4 grid gap-4 md:grid-cols-3">
+                                                        <label className="space-y-2">
+                                                            <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Promo Code</span>
+                                                            <input
+                                                                type="text"
+                                                                value={promoEntry.code}
+                                                                onChange={(event) => updatePromoCodeEntryField(promoEntry.id, 'code', event.target.value)}
+                                                                placeholder="SAVE10"
+                                                                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold uppercase text-white outline-none transition-colors placeholder:text-slate-500 focus:border-brandGold/50"
+                                                            />
+                                                        </label>
+
+                                                        <label className="space-y-2">
+                                                            <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Discount Type</span>
+                                                            <select
+                                                                value={promoEntry.discountType}
+                                                                onChange={(event) => updatePromoCodeEntryField(promoEntry.id, 'discountType', event.target.value)}
+                                                                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white outline-none transition-colors focus:border-brandGold/50"
+                                                            >
+                                                                <option value="percentage" className="bg-slate-900 text-white">Percentage %</option>
+                                                                <option value="fixed" className="bg-slate-900 text-white">Fixed EGP</option>
+                                                            </select>
+                                                        </label>
+
+                                                        <label className="space-y-2">
+                                                            <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Discount Value</span>
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                step="0.01"
+                                                                value={promoEntry.discountValue}
+                                                                onChange={(event) => updatePromoCodeEntryField(promoEntry.id, 'discountValue', event.target.value)}
+                                                                placeholder="0"
+                                                                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white outline-none transition-colors placeholder:text-slate-500 focus:border-brandGold/50"
+                                                            />
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="rounded-[1.4rem] border border-dashed border-white/10 bg-white/[0.03] px-4 py-5 text-sm font-semibold text-slate-400">
+                                            No promo codes yet. Add the first code from here.
+                                        </div>
+                                    )}
+                                </div>
 
                                 <label className="space-y-2 md:col-span-2">
                                     <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Calling Phone Number(s)</span>

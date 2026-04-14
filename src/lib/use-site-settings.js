@@ -3,6 +3,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import {
+    buildLegacyPromoSettingsFromPromoCodes,
+    getActivePromoCodes,
+    normalizePromoCodes
+} from '@/lib/promo-codes';
 import { DEFAULT_BOSTA_DELIVERY_RATES, normalizeShippingRates } from '@/lib/shipping-zones';
 
 export const DEFAULT_SITE_SETTINGS = Object.freeze({
@@ -10,6 +15,7 @@ export const DEFAULT_SITE_SETTINGS = Object.freeze({
     priceIncrease: '0',
     shipping: '0',
     shippingRates: Object.freeze({ ...DEFAULT_BOSTA_DELIVERY_RATES }),
+    promoCodes: Object.freeze([]),
     promoCode: '',
     promoDiscountType: 'percentage',
     promoDiscountValue: '0',
@@ -26,10 +32,6 @@ function normalizeText(value, fallback = '') {
 
 export function sanitizePhoneNumber(value) {
     return String(value ?? '').replace(/[^\d]/g, '');
-}
-
-function normalizePromoDiscountType(value) {
-    return String(value ?? '').trim().toLowerCase() === 'fixed' ? 'fixed' : 'percentage';
 }
 
 export function getPrimaryPhoneNumber(value) {
@@ -55,14 +57,22 @@ export function getPhoneNumbers(value) {
 }
 
 export function normalizeSiteSettings(settings = {}) {
+    const promoCodes = normalizePromoCodes(settings.promoCodes, {
+        promoCode: settings.promoCode || DEFAULT_SITE_SETTINGS.promoCode,
+        promoDiscountType: settings.promoDiscountType || DEFAULT_SITE_SETTINGS.promoDiscountType,
+        promoDiscountValue: settings.promoDiscountValue || DEFAULT_SITE_SETTINGS.promoDiscountValue
+    });
+    const legacyPromoSettings = buildLegacyPromoSettingsFromPromoCodes(promoCodes);
+
     return {
         whatsapp: sanitizePhoneNumber(settings.whatsapp || DEFAULT_SITE_SETTINGS.whatsapp) || DEFAULT_SITE_SETTINGS.whatsapp,
         priceIncrease: normalizeText(settings.priceIncrease, DEFAULT_SITE_SETTINGS.priceIncrease),
         shipping: normalizeText(settings.shipping, DEFAULT_SITE_SETTINGS.shipping),
         shippingRates: normalizeShippingRates(settings.shippingRates || DEFAULT_SITE_SETTINGS.shippingRates),
-        promoCode: normalizeText(settings.promoCode, DEFAULT_SITE_SETTINGS.promoCode),
-        promoDiscountType: normalizePromoDiscountType(settings.promoDiscountType || DEFAULT_SITE_SETTINGS.promoDiscountType),
-        promoDiscountValue: normalizeText(settings.promoDiscountValue, DEFAULT_SITE_SETTINGS.promoDiscountValue),
+        promoCodes,
+        promoCode: legacyPromoSettings.promoCode,
+        promoDiscountType: legacyPromoSettings.promoDiscountType,
+        promoDiscountValue: legacyPromoSettings.promoDiscountValue,
         phone: normalizeText(settings.phone, DEFAULT_SITE_SETTINGS.phone),
         facebook: normalizeText(settings.facebook, DEFAULT_SITE_SETTINGS.facebook),
         whatsappChannel: normalizeText(settings.whatsappChannel, DEFAULT_SITE_SETTINGS.whatsappChannel),
@@ -103,6 +113,13 @@ export function useSiteSettings() {
     const derivedSettings = useMemo(() => {
         const primaryPhone = getPrimaryPhoneNumber(siteSettings.phone);
         const phoneNumbers = getPhoneNumbers(siteSettings.phone);
+        const promoCodes = normalizePromoCodes(siteSettings.promoCodes, {
+            promoCode: siteSettings.promoCode,
+            promoDiscountType: siteSettings.promoDiscountType,
+            promoDiscountValue: siteSettings.promoDiscountValue
+        });
+        const activePromoCodes = getActivePromoCodes(promoCodes);
+        const primaryPromoCode = activePromoCodes[0] || promoCodes[0] || null;
 
         return {
             whatsappNumber: sanitizePhoneNumber(siteSettings.whatsapp),
@@ -117,9 +134,11 @@ export function useSiteSettings() {
             priceIncrease: siteSettings.priceIncrease,
             shippingPrice: siteSettings.shipping,
             shippingRates: normalizeShippingRates(siteSettings.shippingRates),
-            promoCode: siteSettings.promoCode,
-            promoDiscountType: normalizePromoDiscountType(siteSettings.promoDiscountType),
-            promoDiscountValue: siteSettings.promoDiscountValue
+            promoCodes,
+            activePromoCodes,
+            promoCode: primaryPromoCode?.code || '',
+            promoDiscountType: primaryPromoCode?.discountType || DEFAULT_SITE_SETTINGS.promoDiscountType,
+            promoDiscountValue: primaryPromoCode?.discountValue || DEFAULT_SITE_SETTINGS.promoDiscountValue
         };
     }, [siteSettings]);
 

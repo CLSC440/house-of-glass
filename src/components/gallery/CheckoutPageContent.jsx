@@ -6,6 +6,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useGallery } from '@/contexts/GalleryContext';
+import { calculatePromoDiscountAmount, findPromoCodeByInput, normalizePromoCodeLookupValue } from '@/lib/promo-codes';
 import { useSiteSettings } from '@/lib/use-site-settings';
 import { upsertCurrentUserProfile } from '@/lib/account-api';
 import { GOVERNORATE_OPTIONS, getShippingPricingDetails } from '@/lib/shipping-zones';
@@ -28,50 +29,12 @@ function normalizeDeliveryMethod(value) {
     return String(value || '').trim().toLowerCase() === 'shipping' ? 'shipping' : 'pickup';
 }
 
-function normalizePromoCode(value) {
-    return String(value || '').trim().toLowerCase();
-}
-
-function normalizePromoDiscountType(value) {
-    return String(value || '').trim().toLowerCase() === 'fixed' ? 'fixed' : 'percentage';
-}
-
-function getConfiguredPromoSettings(derivedSettings) {
-    const code = String(derivedSettings?.promoCode || '').trim();
-    const discountType = normalizePromoDiscountType(derivedSettings?.promoDiscountType);
-    const rawValue = parseAmount(derivedSettings?.promoDiscountValue);
-    const discountValue = discountType === 'percentage'
-        ? Math.min(rawValue, 100)
-        : rawValue;
-
-    return {
-        code,
-        normalizedCode: normalizePromoCode(code),
-        discountType,
-        discountValue
-    };
-}
-
-function calculatePromoDiscountAmount(subtotal, promoSettings, isApplied) {
-    const safeSubtotal = parseAmount(subtotal);
-
-    if (!isApplied || !promoSettings.normalizedCode || promoSettings.discountValue <= 0 || safeSubtotal <= 0) {
-        return 0;
-    }
-
-    if (promoSettings.discountType === 'percentage') {
-        return Math.min(safeSubtotal, (safeSubtotal * promoSettings.discountValue) / 100);
-    }
-
-    return Math.min(safeSubtotal, promoSettings.discountValue);
-}
-
 function formatPromoDiscountLabel(promoSettings) {
     if (promoSettings.discountType === 'percentage') {
-        return `${promoSettings.discountValue}%`;
+        return `${promoSettings.numericDiscountValue ?? promoSettings.discountValue}%`;
     }
 
-    return formatCurrency(promoSettings.discountValue);
+    return formatCurrency(promoSettings.numericDiscountValue ?? promoSettings.discountValue);
 }
 
 function buildCustomerSnapshot(currentUser, profileData, fallbackRole) {
@@ -334,9 +297,10 @@ export default function CheckoutPageContent({ checkoutType }) {
     const hasSavedShippingAddress = hasDetailedShippingAddress(shippingAddressFields);
     const productCount = items.length;
     const customerPhoneValue = getCustomerPhoneValue(customerInfo);
-    const promoSettings = useMemo(() => getConfiguredPromoSettings(derivedSettings), [derivedSettings]);
-    const isPromoApplied = promoSettings.normalizedCode && normalizePromoCode(appliedPromoCode) === promoSettings.normalizedCode;
-    const discountAmount = calculatePromoDiscountAmount(subtotal, promoSettings, isPromoApplied);
+    const activePromoCodes = useMemo(() => derivedSettings?.activePromoCodes || [], [derivedSettings?.activePromoCodes]);
+    const appliedPromoSettings = useMemo(() => findPromoCodeByInput(activePromoCodes, appliedPromoCode), [activePromoCodes, appliedPromoCode]);
+    const isPromoApplied = Boolean(appliedPromoSettings);
+    const discountAmount = calculatePromoDiscountAmount(subtotal, appliedPromoSettings);
     const finalTotal = Math.max(0, subtotal - discountAmount + shippingAmount);
     const totalDisplayValue = isShippingSelected && !selectedShippingGovernorate ? 'اختر المحافظة' : formatCurrency(finalTotal);
     const shippingDisplayValue = isShippingSelected
@@ -345,7 +309,7 @@ export default function CheckoutPageContent({ checkoutType }) {
     const loginTarget = `/login?redirect=checkout${isWholesale ? '&type=wholesale' : ''}`;
     const signupTarget = `/signup?redirect=checkout${isWholesale ? '&type=wholesale' : ''}`;
     const isMobileSubmitting = isSubmitting && !orderConfirmation;
-    const shouldNudgePromoApplyButton = Boolean(normalizePromoCode(promoCodeInput)) && Boolean(promoSettings.normalizedCode) && !isPromoApplied;
+    const shouldNudgePromoApplyButton = Boolean(normalizePromoCodeLookupValue(promoCodeInput)) && activePromoCodes.length > 0 && !isPromoApplied;
     const selectedDeliveryCardClasses = 'border-brandGold/30 bg-[linear-gradient(135deg,rgba(212,175,55,0.14),rgba(255,255,255,0.96))] text-brandBlue shadow-[0_18px_45px_rgba(212,175,55,0.12)] dark:border-brandGold/24 dark:bg-[linear-gradient(135deg,rgba(212,175,55,0.14),rgba(15,23,42,0.9))] dark:text-white';
     const selectedDeliveryEyebrowClasses = 'text-brandBlue/60 dark:text-brandGold/75';
     const selectedDeliveryMutedTextClasses = 'text-brandBlue/78 dark:text-slate-200';
@@ -398,26 +362,20 @@ export default function CheckoutPageContent({ checkoutType }) {
     }, [userRole]);
 
     useEffect(() => {
-        if (!promoSettings.normalizedCode) {
-            setAppliedPromoCode('');
-            setPromoFeedback(null);
-            return;
-        }
-
-        if (appliedPromoCode && normalizePromoCode(appliedPromoCode) !== promoSettings.normalizedCode) {
+        if (appliedPromoCode && !findPromoCodeByInput(activePromoCodes, appliedPromoCode)) {
             setAppliedPromoCode('');
             setPromoFeedback(null);
         }
-    }, [appliedPromoCode, promoSettings.normalizedCode]);
+    }, [activePromoCodes, appliedPromoCode]);
 
     const handleApplyPromoCode = () => {
-        if (!promoSettings.normalizedCode) {
+        if (!activePromoCodes.length) {
             setAppliedPromoCode('');
             setPromoFeedback({ type: 'error', message: 'لا يوجد Promo Code مفعّل حالياً.' });
             return;
         }
 
-        const normalizedInput = normalizePromoCode(promoCodeInput);
+        const normalizedInput = normalizePromoCodeLookupValue(promoCodeInput);
 
         if (!normalizedInput) {
             setAppliedPromoCode('');
@@ -425,17 +383,19 @@ export default function CheckoutPageContent({ checkoutType }) {
             return;
         }
 
-        if (normalizedInput !== promoSettings.normalizedCode) {
+        const matchedPromoCode = findPromoCodeByInput(activePromoCodes, normalizedInput);
+
+        if (!matchedPromoCode) {
             setAppliedPromoCode('');
-            setPromoFeedback({ type: 'error', message: 'الـ Promo Code غير صحيح.' });
+            setPromoFeedback({ type: 'error', message: 'الـ Promo Code غير صحيح أو غير مفعّل.' });
             return;
         }
 
-        setAppliedPromoCode(promoSettings.code);
-        setPromoCodeInput(promoSettings.code);
+        setAppliedPromoCode(matchedPromoCode.code);
+        setPromoCodeInput(matchedPromoCode.code);
         setPromoFeedback({
             type: 'success',
-            message: `تم تطبيق خصم ${formatPromoDiscountLabel(promoSettings)} على الطلب.`
+            message: `تم تطبيق خصم ${formatPromoDiscountLabel(matchedPromoCode)} على الطلب.`
         });
     };
 
@@ -498,9 +458,9 @@ export default function CheckoutPageContent({ checkoutType }) {
             shippingAmount,
             discountAmount,
             totalPrice: finalTotal,
-            promoCode: isPromoApplied ? promoSettings.code : '',
-            promoDiscountType: isPromoApplied ? promoSettings.discountType : '',
-            promoDiscountValue: isPromoApplied ? promoSettings.discountValue : 0,
+            promoCode: isPromoApplied ? appliedPromoSettings.code : '',
+            promoDiscountType: isPromoApplied ? appliedPromoSettings.discountType : '',
+            promoDiscountValue: isPromoApplied ? appliedPromoSettings.numericDiscountValue : 0,
             deliveryMethod: normalizedDeliveryMethod,
             shippingAddress: isShippingSelected ? shippingAddress.trim() : '',
             shippingGovernorate: isShippingSelected ? selectedShippingGovernorate : '',
@@ -1098,7 +1058,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                                     <p className="block w-full text-right text-[9px] font-black uppercase leading-none tracking-[0.32em] text-brandGold">Promo Code</p>
                                     <p className="mt-1 block w-full text-right text-base font-extrabold leading-tight text-brandBlue dark:text-white">كود الخصم</p>
                                     <p className="mt-2 block w-full text-right text-[0.95rem] font-bold leading-7 text-slate-500 dark:text-slate-300">
-                                        {promoSettings.normalizedCode ? 'اكتب البرومو كود واضغط تطبيق عشان الخصم ينزل على الطلب.' : 'لا يوجد Promo Code مفعّل حالياً من لوحة الإدارة.'}
+                                        {activePromoCodes.length > 0 ? 'اكتب أي Promo Code مفعّل واضغط تطبيق عشان الخصم ينزل على الطلب.' : 'لا يوجد Promo Code مفعّل حالياً من لوحة الإدارة.'}
                                     </p>
                                 </div>
                                 {isPromoApplied ? (
@@ -1118,13 +1078,13 @@ export default function CheckoutPageContent({ checkoutType }) {
                                         setPromoFeedback(null);
                                     }}
                                     placeholder="اكتب الـ Promo Code"
-                                    disabled={!promoSettings.normalizedCode}
+                                    disabled={!activePromoCodes.length}
                                     className="min-w-0 flex-1 rounded-2xl border border-brandGold/20 bg-white px-4 py-3 text-sm font-black uppercase text-brandBlue outline-none transition-colors placeholder:text-slate-400 focus:border-brandGold dark:bg-gray-900 dark:text-white"
                                 />
                                 <button
                                     type="button"
                                     onClick={handleApplyPromoCode}
-                                    disabled={!promoSettings.normalizedCode}
+                                    disabled={!activePromoCodes.length}
                                     className={`inline-flex items-center justify-center rounded-2xl border border-brandBlue bg-brandBlue px-5 py-3 text-sm font-black text-white transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50 ${shouldNudgePromoApplyButton ? 'promo-apply-attention' : ''}`}
                                 >
                                     تطبيق الكود
