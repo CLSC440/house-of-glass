@@ -510,16 +510,14 @@ function OrderSuccessPopup({ isWholesale, orderConfirmation, onTrackOrder, onClo
     );
 }
 
-function MobileCheckoutSubmittingOverlay({ isWholesale }) {
+function CheckoutSubmittingOverlay({ isWholesale }) {
     return (
-        <div className="md:hidden">
-            <BrandLoadingScreen
-                title={isWholesale ? 'Processing wholesale order' : 'Processing your order'}
-                message={isWholesale ? 'جاري إرسال طلب الجملة الآن، برجاء الانتظار لحظة حتى يتم تأكيده وعرض تفاصيله.' : 'جاري إرسال طلبك الآن، برجاء الانتظار لحظة حتى يتم تأكيده وعرض تفاصيله.'}
-                fixed
-                showProgressBar
-            />
-        </div>
+        <BrandLoadingScreen
+            title={isWholesale ? 'Processing wholesale order' : 'Processing your order'}
+            message={isWholesale ? 'جاري إرسال طلب الجملة الآن، برجاء الانتظار لحظة حتى يتم تأكيده وعرض تفاصيله.' : 'جاري إرسال طلبك الآن، برجاء الانتظار لحظة حتى يتم تأكيده وعرض تفاصيله.'}
+            fixed
+            showProgressBar
+        />
     );
 }
 
@@ -652,7 +650,7 @@ export default function CheckoutPageContent({ checkoutType }) {
         : formatCurrency(0);
     const loginTarget = `/login?redirect=checkout${isWholesale ? '&type=wholesale' : ''}`;
     const signupTarget = `/signup?redirect=checkout${isWholesale ? '&type=wholesale' : ''}`;
-    const isMobileSubmitting = isSubmitting && !orderConfirmation;
+    const isCheckoutSubmitting = isSubmitting && !orderConfirmation;
     const shouldNudgePromoApplyButton = Boolean(normalizePromoCodeLookupValue(promoCodeInput)) && activePromoCodes.length > 0 && !isPromoApplied;
     const selectedDeliveryCardClasses = 'border-brandGold/30 bg-[linear-gradient(135deg,rgba(212,175,55,0.14),rgba(255,255,255,0.96))] text-brandBlue shadow-[0_18px_45px_rgba(212,175,55,0.12)] dark:border-brandGold/24 dark:bg-[linear-gradient(135deg,rgba(212,175,55,0.14),rgba(15,23,42,0.9))] dark:text-white';
     const selectedDeliveryEyebrowClasses = 'text-brandBlue/60 dark:text-brandGold/75';
@@ -2020,7 +2018,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                             className={`mt-6 flex w-full items-center justify-center gap-3 rounded-2xl border px-5 py-4 text-sm font-black uppercase tracking-[0.18em] shadow-lg transition-all hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50 ${isWholesale ? 'border-brandGold bg-brandGold text-brandBlue shadow-brandGold/20' : 'border-brandGold bg-brandBlue text-white shadow-brandBlue/20'}`}
                         >
                             <span>{isSubmitting ? 'Processing...' : (auth.currentUser ? 'Confirm Order | تأكيد الطلب' : 'Login To Confirm | سجل الدخول أولاً')}</span>
-                            <i className="fa-solid fa-check"></i>
+                            <i className={`fa-solid ${isSubmitting ? 'fa-spinner fa-spin' : 'fa-check'}`}></i>
                         </button>
 
                         <Link href="/" className="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-brandGold/20 px-5 py-3 text-sm font-black text-brandBlue transition-colors hover:bg-brandGold/10 dark:text-brandGold">
@@ -2105,7 +2103,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                     onCloseToHome={handleCloseOrderConfirmation}
                 />
             ) : null}
-            {isMobileSubmitting ? <MobileCheckoutSubmittingOverlay isWholesale={isWholesale} /> : null}
+            {isCheckoutSubmitting ? <CheckoutSubmittingOverlay isWholesale={isWholesale} /> : null}
         </section>
     );
 }

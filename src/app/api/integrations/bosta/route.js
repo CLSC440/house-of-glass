@@ -24,10 +24,16 @@ function canCreateBostaShipment(order = {}) {
     return deliveryMethod === 'shipping' && status !== 'pending' && status !== 'cancelled';
 }
 
+function removeUndefinedFields(payload = {}) {
+    return Object.fromEntries(
+        Object.entries(payload).filter(([, value]) => value !== undefined)
+    );
+}
+
 function buildBostaSyncPayload({ status, message, requester, result, districtHint = '' }) {
     const nowIso = new Date().toISOString();
 
-    return {
+    return removeUndefinedFields({
         status,
         message,
         updatedAt: nowIso,
@@ -48,7 +54,7 @@ function buildBostaSyncPayload({ status, message, requester, result, districtHin
         districtId: result?.districtId || undefined,
         districtName: result?.districtName || undefined,
         zoneId: result?.zoneId || undefined
-    };
+    });
 }
 
 export async function POST(request) {
