@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -318,6 +318,108 @@ function buildSavedShippingAddressSummary(address = {}) {
     ].filter(Boolean).join(' | ');
 }
 
+const CHECKOUT_DRAFT_STORAGE_KEY_PREFIX = 'hog_checkout_draft_';
+
+function getCheckoutDraftStorageKey(checkoutType) {
+    return `${CHECKOUT_DRAFT_STORAGE_KEY_PREFIX}${normalizeCheckoutType(checkoutType)}`;
+}
+
+function normalizeExpandedDeliverySection(value) {
+    const normalizedValue = String(value || '').trim().toLowerCase();
+    return normalizedValue === 'shipping' || normalizedValue === 'pickup' ? normalizedValue : null;
+}
+
+function normalizeCheckoutDraftShippingAddressFields(rawFields = {}) {
+    return buildSavedShippingAddressPayload({
+        ...createEmptyShippingAddressFields(),
+        ...(rawFields && typeof rawFields === 'object' ? rawFields : {})
+    });
+}
+
+function hasAnyShippingAddressFieldValue(fields = {}) {
+    return Object.values(normalizeCheckoutDraftShippingAddressFields(fields)).some((value) => String(value || '').trim());
+}
+
+function normalizeCheckoutDraft(rawDraft = null) {
+    if (!rawDraft || typeof rawDraft !== 'object') {
+        return null;
+    }
+
+    return {
+        deliveryMethod: normalizeDeliveryMethod(rawDraft.deliveryMethod),
+        expandedDeliverySection: normalizeExpandedDeliverySection(rawDraft.expandedDeliverySection),
+        isShippingAddressFormOpen: Boolean(rawDraft.isShippingAddressFormOpen),
+        selectedShippingAddressId: String(rawDraft.selectedShippingAddressId || '').trim(),
+        makeShippingAddressDefault: Boolean(rawDraft.makeShippingAddressDefault),
+        shippingAddressFields: normalizeCheckoutDraftShippingAddressFields(rawDraft.shippingAddressFields)
+    };
+}
+
+function hasMeaningfulCheckoutDraft(draft) {
+    const normalizedDraft = normalizeCheckoutDraft(draft);
+
+    if (!normalizedDraft) {
+        return false;
+    }
+
+    return Boolean(
+        normalizedDraft.deliveryMethod === 'shipping'
+        || normalizedDraft.expandedDeliverySection
+        || normalizedDraft.isShippingAddressFormOpen
+        || normalizedDraft.selectedShippingAddressId
+        || normalizedDraft.makeShippingAddressDefault
+        || hasAnyShippingAddressFieldValue(normalizedDraft.shippingAddressFields)
+    );
+}
+
+function readCheckoutDraft(checkoutType) {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    const storageKey = getCheckoutDraftStorageKey(checkoutType);
+
+    try {
+        const rawValue = window.sessionStorage.getItem(storageKey);
+        if (!rawValue) {
+            return null;
+        }
+
+        return normalizeCheckoutDraft(JSON.parse(rawValue));
+    } catch (error) {
+        console.error('Failed to read checkout draft:', error);
+        window.sessionStorage.removeItem(storageKey);
+        return null;
+    }
+}
+
+function writeCheckoutDraft(checkoutType, draft) {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    const storageKey = getCheckoutDraftStorageKey(checkoutType);
+    const normalizedDraft = normalizeCheckoutDraft(draft);
+
+    if (!hasMeaningfulCheckoutDraft(normalizedDraft)) {
+        window.sessionStorage.removeItem(storageKey);
+        return;
+    }
+
+    window.sessionStorage.setItem(storageKey, JSON.stringify({
+        ...normalizedDraft,
+        updatedAt: Date.now()
+    }));
+}
+
+function clearCheckoutDraft(checkoutType) {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    window.sessionStorage.removeItem(getCheckoutDraftStorageKey(checkoutType));
+}
+
 function OrderSuccessPopup({ isWholesale, orderConfirmation, onTrackOrder, onCloseToHome }) {
     if (!orderConfirmation) {
         return null;
@@ -472,6 +574,7 @@ export default function CheckoutPageContent({ checkoutType }) {
     const [phonePromptError, setPhonePromptError] = useState('');
     const [isSavingPhone, setIsSavingPhone] = useState(false);
     const [orderConfirmation, setOrderConfirmation] = useState(null);
+    const [isCheckoutDraftHydrated, setIsCheckoutDraftHydrated] = useState(false);
     const [shouldScrollToShippingAddress, setShouldScrollToShippingAddress] = useState(false);
     const shippingAddressSectionRef = useRef(null);
     const shippingAddressFieldRefs = useRef({});
@@ -559,24 +662,56 @@ export default function CheckoutPageContent({ checkoutType }) {
     const selectedDeliveryDividerClasses = 'border-brandGold/16 dark:border-brandGold/10';
     const selectedDeliveryActionClasses = 'border-brandGold/22 bg-brandGold/8 text-brandBlue hover:bg-brandGold/12 dark:border-brandGold/18 dark:bg-brandGold/14 dark:text-brandGold';
 
+    const persistCheckoutDraftNow = useCallback(() => {
+        writeCheckoutDraft(normalizedCheckoutType, {
+            deliveryMethod,
+            expandedDeliverySection,
+            isShippingAddressFormOpen,
+            selectedShippingAddressId,
+            makeShippingAddressDefault,
+            shippingAddressFields
+        });
+    }, [
+        deliveryMethod,
+        expandedDeliverySection,
+        isShippingAddressFormOpen,
+        makeShippingAddressDefault,
+        normalizedCheckoutType,
+        selectedShippingAddressId,
+        shippingAddressFields
+    ]);
+
     useEffect(() => {
         let isMounted = true;
+        setIsCheckoutDraftHydrated(false);
 
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             if (!isMounted) {
                 return;
             }
 
+            const checkoutDraft = readCheckoutDraft(normalizedCheckoutType);
+            const draftFields = checkoutDraft?.shippingAddressFields || createEmptyShippingAddressFields();
+            const hasDraftShippingAddress = hasAnyShippingAddressFieldValue(draftFields);
+            const restoredDeliveryMethod = checkoutDraft?.deliveryMethod || 'pickup';
+            const restoredExpandedDeliverySection = normalizeExpandedDeliverySection(checkoutDraft?.expandedDeliverySection)
+                || ((restoredDeliveryMethod === 'shipping' || hasDraftShippingAddress) ? 'shipping' : null);
+            const restoredIsShippingAddressFormOpen = Boolean(checkoutDraft?.isShippingAddressFormOpen || hasDraftShippingAddress);
+
             if (!currentUser) {
                 setCustomerInfo(null);
                 setSavedShippingAddresses([]);
                 setSelectedShippingAddressId('');
                 setDefaultShippingAddressId('');
-                setMakeShippingAddressDefault(false);
+                setMakeShippingAddressDefault(checkoutDraft ? checkoutDraft.makeShippingAddressDefault : false);
                 setDistrictOptions([]);
                 setDistrictOptionsError('');
-                setShippingAddressFields(createEmptyShippingAddressFields());
+                setDeliveryMethod(restoredDeliveryMethod);
+                setExpandedDeliverySection(restoredExpandedDeliverySection);
+                setIsShippingAddressFormOpen(restoredIsShippingAddressFormOpen);
+                setShippingAddressFields(hasDraftShippingAddress ? draftFields : createEmptyShippingAddressFields());
                 setIsCustomerLoading(false);
+                setIsCheckoutDraftHydrated(true);
                 return;
             }
 
@@ -590,6 +725,9 @@ export default function CheckoutPageContent({ checkoutType }) {
                 const defaultShippingAddress = nextSavedShippingAddresses.find((address) => address.id === preferredDefaultShippingAddressId)
                     || nextSavedShippingAddresses[0]
                     || null;
+                const draftSelectedShippingAddressId = String(checkoutDraft?.selectedShippingAddressId || '').trim();
+                const draftSelectedShippingAddress = nextSavedShippingAddresses.find((address) => address.id === draftSelectedShippingAddressId) || null;
+                const restoredSelectedShippingAddress = draftSelectedShippingAddress || defaultShippingAddress || null;
 
                 if (!isMounted) {
                     return;
@@ -598,11 +736,16 @@ export default function CheckoutPageContent({ checkoutType }) {
                 setCustomerInfo(buildCustomerSnapshot(currentUser, profileData, userRole));
                 setSavedShippingAddresses(nextSavedShippingAddresses);
                 setDefaultShippingAddressId(defaultShippingAddress?.id || '');
-                setSelectedShippingAddressId(defaultShippingAddress?.id || '');
-                setMakeShippingAddressDefault(Boolean(defaultShippingAddress?.id));
-                setShippingAddressFields(defaultShippingAddress
-                    ? createShippingAddressFieldsFromSavedAddress(defaultShippingAddress)
-                    : createEmptyShippingAddressFields());
+                setSelectedShippingAddressId(draftSelectedShippingAddress?.id || (hasDraftShippingAddress ? '' : defaultShippingAddress?.id || ''));
+                setMakeShippingAddressDefault(checkoutDraft ? checkoutDraft.makeShippingAddressDefault : Boolean(defaultShippingAddress?.id));
+                setDeliveryMethod(restoredDeliveryMethod);
+                setExpandedDeliverySection(restoredExpandedDeliverySection);
+                setIsShippingAddressFormOpen(restoredIsShippingAddressFormOpen);
+                setShippingAddressFields(hasDraftShippingAddress
+                    ? draftFields
+                    : restoredSelectedShippingAddress
+                        ? createShippingAddressFieldsFromSavedAddress(restoredSelectedShippingAddress)
+                        : createEmptyShippingAddressFields());
             } catch (error) {
                 console.error('Failed to load checkout customer profile:', error);
                 if (isMounted) {
@@ -610,12 +753,16 @@ export default function CheckoutPageContent({ checkoutType }) {
                     setSavedShippingAddresses([]);
                     setSelectedShippingAddressId('');
                     setDefaultShippingAddressId('');
-                    setMakeShippingAddressDefault(false);
-                    setShippingAddressFields(createEmptyShippingAddressFields());
+                    setMakeShippingAddressDefault(checkoutDraft ? checkoutDraft.makeShippingAddressDefault : false);
+                    setDeliveryMethod(restoredDeliveryMethod);
+                    setExpandedDeliverySection(restoredExpandedDeliverySection);
+                    setIsShippingAddressFormOpen(restoredIsShippingAddressFormOpen);
+                    setShippingAddressFields(hasDraftShippingAddress ? draftFields : createEmptyShippingAddressFields());
                 }
             } finally {
                 if (isMounted) {
                     setIsCustomerLoading(false);
+                    setIsCheckoutDraftHydrated(true);
                 }
             }
         });
@@ -624,7 +771,15 @@ export default function CheckoutPageContent({ checkoutType }) {
             isMounted = false;
             unsubscribe();
         };
-    }, [userRole]);
+    }, [normalizedCheckoutType, userRole]);
+
+    useEffect(() => {
+        if (!isCheckoutDraftHydrated) {
+            return;
+        }
+
+        persistCheckoutDraftNow();
+    }, [isCheckoutDraftHydrated, persistCheckoutDraftNow]);
 
     useEffect(() => {
         if (appliedPromoCode && !findPromoCodeByInput(activePromoCodes, appliedPromoCode)) {
@@ -1023,11 +1178,13 @@ export default function CheckoutPageContent({ checkoutType }) {
         });
 
         if (result.requiresAuth) {
+            persistCheckoutDraftNow();
             router.push(loginTarget);
             return;
         }
 
         if (result.ok) {
+            clearCheckoutDraft(normalizedCheckoutType);
             setOrderConfirmation({
                 orderNumber: String(result.websiteOrderRef || result.orderId || '').trim() || 'WEB-ORDER',
                 totalPrice: parseAmount(result.totalPrice ?? finalTotal),
@@ -1044,6 +1201,7 @@ export default function CheckoutPageContent({ checkoutType }) {
         if (!currentUser) {
             closePhonePrompt();
             showToast('سجل الدخول أولاً لتأكيد الطلب.', 'error');
+            persistCheckoutDraftNow();
             router.push(loginTarget);
             return;
         }
@@ -1090,6 +1248,7 @@ export default function CheckoutPageContent({ checkoutType }) {
     const handleConfirmOrder = async () => {
         if (!auth.currentUser) {
             showToast('سجل الدخول أولاً لتأكيد الطلب.', 'error');
+            persistCheckoutDraftNow();
             router.push(loginTarget);
             return;
         }
@@ -1725,10 +1884,10 @@ export default function CheckoutPageContent({ checkoutType }) {
                                     لازم تسجل الدخول أو تنشئ حساب قبل تأكيد الطلب. السلة محفوظة عندك، وبعد تسجيل الدخول هترجع لنفس صفحة الـ checkout.
                                 </p>
                                 <div className="grid gap-3 sm:grid-cols-2">
-                                    <Link href={loginTarget} className="inline-flex items-center justify-center rounded-2xl border border-brandBlue bg-brandBlue px-4 py-3 text-sm font-black text-white transition-transform hover:scale-[1.01]">
+                                    <Link href={loginTarget} onClick={persistCheckoutDraftNow} className="inline-flex items-center justify-center rounded-2xl border border-brandBlue bg-brandBlue px-4 py-3 text-sm font-black text-white transition-transform hover:scale-[1.01]">
                                         تسجيل الدخول
                                     </Link>
-                                    <Link href={signupTarget} className="inline-flex items-center justify-center rounded-2xl border border-brandGold/35 px-4 py-3 text-sm font-black text-brandBlue transition-colors hover:bg-brandGold/10 dark:text-brandGold">
+                                    <Link href={signupTarget} onClick={persistCheckoutDraftNow} className="inline-flex items-center justify-center rounded-2xl border border-brandGold/35 px-4 py-3 text-sm font-black text-brandBlue transition-colors hover:bg-brandGold/10 dark:text-brandGold">
                                         إنشاء حساب
                                     </Link>
                                 </div>
