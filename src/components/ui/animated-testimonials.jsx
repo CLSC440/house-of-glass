@@ -16,6 +16,8 @@ export const AnimatedTestimonials = ({
   onActiveImageClick = null,
   containerClassName = "",
   mediaFrameClassName = "",
+  mediaViewportClassName = "",
+  imageButtonClassName = "",
   imageClassName = "object-cover object-center",
   contentClassName = "",
   showCount = false
@@ -168,7 +170,7 @@ export const AnimatedTestimonials = ({
               </div>
             ) : null}
 
-            <div className="relative h-[20rem] w-full sm:h-[24rem] md:h-[28rem]">
+            <div className={`relative h-[20rem] w-full sm:h-[24rem] md:h-[28rem] ${mediaViewportClassName}`}>
             <AnimatePresence>
               {testimonials.map((testimonial, index) => (
                 <motion.div
@@ -205,7 +207,7 @@ export const AnimatedTestimonials = ({
                     onClick={handleImageClick}
                     onTouchStart={handleTouchStart}
                     onTouchEnd={handleTouchEnd}
-                    className="h-full w-full overflow-hidden rounded-[1.6rem] border border-white/50 bg-white/80 p-2 shadow-[0_18px_50px_rgba(148,163,184,0.16)] backdrop-blur-sm focus:outline-none active:scale-[0.99] dark:border-white/10 dark:bg-white/[0.04]"
+                    className={`h-full w-full overflow-hidden rounded-[1.6rem] border border-white/50 bg-white/80 p-2 shadow-[0_18px_50px_rgba(148,163,184,0.16)] backdrop-blur-sm focus:outline-none active:scale-[0.99] dark:border-white/10 dark:bg-white/[0.04] ${imageButtonClassName}`}
                     aria-label={`Open ${testimonial.name} image fullscreen`}>
                     <img
                       src={testimonial.src}

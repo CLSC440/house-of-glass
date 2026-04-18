@@ -2871,8 +2871,11 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                                         {renderVariantGallerySection()}
                                     </div>
                                 )}
-                                containerClassName="max-w-none px-4 py-6 md:px-8 md:py-8"
-                                imageClassName="h-full w-full rounded-[1.2rem] object-contain object-center"
+                                containerClassName="max-w-none px-2 py-4 md:px-8 md:py-8"
+                                mediaFrameClassName="rounded-[2.2rem] p-1.5 sm:p-2"
+                                mediaViewportClassName="h-[26rem] sm:h-[30rem] md:h-[28rem]"
+                                imageButtonClassName="rounded-[1.85rem] p-1 sm:p-1.5"
+                                imageClassName="h-full w-full rounded-[1.55rem] object-contain object-center"
                                 showCount
                                 renderExtra={(idx, setActiveIndex) => (
                                     <div dir="rtl">
