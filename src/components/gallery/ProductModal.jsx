@@ -2552,16 +2552,16 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
 
     if (hasVariants) {
         return (
-            <div key={selectedProduct.id || selectedProduct.code || selectedProduct.name} className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto p-4 sm:items-center sm:p-6" dir="rtl">
+            <div key={selectedProduct.id || selectedProduct.code || selectedProduct.name} className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto p-4 sm:items-center sm:p-6 md:overflow-hidden" dir="rtl">
                 <div
                     className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
                     onClick={closeModal}
                 ></div>
 
-                <div className="relative my-auto hidden w-full max-w-5xl flex-col rounded-[2rem] bg-white shadow-2xl transition-all dark:bg-darkCard md:flex md:max-h-[94vh] md:overflow-hidden md:rounded-3xl">
+                <div className="relative my-auto hidden w-full max-w-5xl flex-col rounded-[2rem] bg-white shadow-2xl transition-all dark:bg-darkCard md:flex md:max-h-[94vh] md:overflow-x-hidden md:overflow-y-auto md:rounded-3xl">
                     {renderModalActionButtons()}
 
-                    <div className="md:flex md:min-h-0 md:flex-1 md:flex-row">
+                    <div className="md:flex md:flex-row">
                         <div className="relative flex w-full flex-col border-b border-slate-200/70 bg-gradient-to-b from-slate-100 via-white to-slate-100 dark:border-white/10 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 md:w-3/5 md:border-b-0 md:border-l">
                             <div className="relative flex h-[26rem] shrink-0 items-center justify-center overflow-hidden px-6 pb-24 pt-16 md:h-full md:min-h-0 md:pb-6">
                             {activeVariantImages.length > 0 ? (
@@ -2681,7 +2681,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                             </div>
                         </div>
 
-                        <div className="custom-scrollbar flex w-full flex-col p-6 md:min-h-0 md:w-2/5 md:overflow-y-auto md:p-8">
+                        <div className="flex w-full flex-col p-6 md:w-2/5 md:p-8">
                         <div className="mb-2">
                             {metadata.length > 0 ? (
                                 <div className="mb-3 flex flex-wrap gap-2">
@@ -2820,7 +2820,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                         </div>
                     </div>
 
-                    <div className="hidden max-h-[25rem] shrink-0 overflow-y-auto border-t border-slate-200/70 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-slate-950/45 md:block">
+                    <div className="hidden shrink-0 border-t border-slate-200/70 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-slate-950/45 md:block">
                         {renderRelatedProductsSection()}
                     </div>
                 </div>
@@ -2897,16 +2897,16 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
     }
 
     return (
-        <div key={selectedProduct.id || selectedProduct.code || selectedProduct.name} className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-6" dir="rtl">
+        <div key={selectedProduct.id || selectedProduct.code || selectedProduct.name} className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-6 md:overflow-hidden" dir="rtl">
             <div 
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
                 onClick={closeModal}
             ></div>
             
-            <div className="relative my-auto flex w-full max-w-5xl flex-col rounded-[2rem] bg-white shadow-2xl transition-all dark:bg-darkCard md:max-h-[94vh] md:overflow-hidden md:rounded-3xl">
+            <div className="relative my-auto flex w-full max-w-5xl flex-col rounded-[2rem] bg-white shadow-2xl transition-all dark:bg-darkCard md:max-h-[94vh] md:overflow-x-hidden md:overflow-y-auto md:rounded-3xl">
                 {renderModalActionButtons()}
 
-                <div className="flex flex-col md:min-h-0 md:flex-1 md:flex-row">
+                <div className="flex flex-col md:flex-row">
                 {/* Media Section */}
                 <div className="relative flex w-full flex-col border-b border-slate-200/70 bg-gradient-to-b from-slate-100 via-white to-slate-100 dark:border-white/10 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 md:w-3/5 md:border-b-0 md:border-l">
                     <div className="relative flex h-[82svh] min-h-[36rem] max-h-[52rem] shrink-0 items-center justify-center overflow-hidden px-1 pb-2 pt-10 sm:h-[84svh] md:h-full md:min-h-0 md:max-h-none md:px-6 md:pb-6">
@@ -3008,7 +3008,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                 </div>
 
                 {/* Info Section */}
-                <div className="custom-scrollbar flex w-full flex-col p-5 pb-28 md:min-h-0 md:w-2/5 md:overflow-y-auto md:p-8">
+                <div className="flex w-full flex-col p-5 pb-28 md:w-2/5 md:p-8">
                     <div className="mb-2">
                         {metadata.length > 0 && (
                             <div className="mb-3 flex flex-wrap gap-2">
@@ -3154,7 +3154,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                 </div>
                 </div>
 
-                <div className="hidden max-h-[25rem] shrink-0 overflow-y-auto border-t border-slate-200/70 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-slate-950/45 md:block">
+                <div className="hidden shrink-0 border-t border-slate-200/70 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-slate-950/45 md:block">
                     {renderRelatedProductsSection()}
                 </div>
 
