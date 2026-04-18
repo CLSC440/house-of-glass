@@ -2563,7 +2563,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
 
                     <div className="md:flex md:min-h-0 md:flex-1 md:flex-row">
                         <div className="relative flex w-full flex-col border-b border-slate-200/70 bg-gradient-to-b from-slate-100 via-white to-slate-100 dark:border-white/10 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 md:w-3/5 md:border-b-0 md:border-l">
-                            <div className="relative flex h-[26rem] shrink-0 items-center justify-center overflow-hidden px-6 pb-24 pt-16 md:h-full md:min-h-[34rem] md:pb-6">
+                            <div className="relative flex h-[26rem] shrink-0 items-center justify-center overflow-hidden px-6 pb-24 pt-16 md:h-full md:min-h-0 md:pb-6">
                             {activeVariantImages.length > 0 ? (
                                 <div className="pointer-events-none absolute left-6 top-6 z-20 flex items-center gap-2">
                                     {hasMultipleVariants ? (
@@ -2909,7 +2909,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                 <div className="flex flex-col md:min-h-0 md:flex-1 md:flex-row">
                 {/* Media Section */}
                 <div className="relative flex w-full flex-col border-b border-slate-200/70 bg-gradient-to-b from-slate-100 via-white to-slate-100 dark:border-white/10 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 md:w-3/5 md:border-b-0 md:border-l">
-                    <div className="relative flex h-[82svh] min-h-[36rem] max-h-[52rem] shrink-0 items-center justify-center overflow-hidden px-1 pb-2 pt-10 sm:h-[84svh] md:h-full md:min-h-[34rem] md:px-6 md:pb-6">
+                    <div className="relative flex h-[82svh] min-h-[36rem] max-h-[52rem] shrink-0 items-center justify-center overflow-hidden px-1 pb-2 pt-10 sm:h-[84svh] md:h-full md:min-h-0 md:max-h-none md:px-6 md:pb-6">
                         {images.length > 1 ? (
                             <div className="pointer-events-none absolute left-4 top-4 z-20 flex items-center gap-2 md:left-6 md:top-6">
                                 <span className="rounded-full border border-white/60 bg-white/75 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-700 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-slate-950/70 dark:text-white/75">
