@@ -10,6 +10,7 @@ import BrandLoadingScreen from '@/components/layout/BrandLoadingScreen';
 import useCheckoutNavigation from '@/lib/use-checkout-navigation';
 
 const LIVE_INDICATOR_DURATION_MS = 8000;
+const RELATED_PRODUCTS_LIMIT = 8;
 
 function parsePrice(value) {
     const numericValue = Number(value);
@@ -18,6 +19,44 @@ function parsePrice(value) {
 
 function formatPriceLabel(value) {
     return `${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م`;
+}
+
+function hashSeedValue(value) {
+    return Array.from(String(value || '')).reduce((hash, character) => {
+        return ((hash << 5) - hash + character.charCodeAt(0)) >>> 0;
+    }, 0);
+}
+
+function normalizeComparisonValue(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function resolveNormalizedCategoryName(value) {
+    return normalizeComparisonValue(value);
+}
+
+function resolveRelatedProductIdentity(product = {}) {
+    return normalizeComparisonValue(
+        product?.id
+        || getProductShareCode(product)
+        || product?.title
+        || product?.name
+    );
+}
+
+function getSeededProductOrder(products = [], seed = '') {
+    return [...products].sort((leftProduct, rightProduct) => {
+        const leftIdentity = resolveRelatedProductIdentity(leftProduct);
+        const rightIdentity = resolveRelatedProductIdentity(rightProduct);
+        const leftHash = hashSeedValue(`${seed}-${leftIdentity}`);
+        const rightHash = hashSeedValue(`${seed}-${rightIdentity}`);
+
+        if (leftHash !== rightHash) {
+            return leftHash - rightHash;
+        }
+
+        return leftIdentity.localeCompare(rightIdentity);
+    });
 }
 
 function normalizeShareCode(value) {
@@ -889,7 +928,7 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, onRemo
 }
 
 export default function ProductModal() {
-    const { selectedProduct, setSelectedProduct, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, dcSyncedAt, refreshDcCatalog, allProducts, getProductStockLimit, getProductStockStatus, cartItems, cartCount, cartSubtotal, removeFromCart, updateCartQuantity } = useGallery();
+    const { selectedProduct, setSelectedProduct, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, dcSyncedAt, refreshDcCatalog, allProducts, getProductStockLimit, getProductStockStatus, cartItems, cartCount, cartSubtotal, removeFromCart, updateCartQuantity, showToast } = useGallery();
     const { derivedSettings } = useSiteSettings();
     const pathname = usePathname();
     const router = useRouter();
@@ -1040,6 +1079,7 @@ export default function ProductModal() {
                 <ProductModalContent
                     key={selectedProduct.id || selectedProduct.code || selectedProduct.name}
                     selectedProduct={selectedProduct}
+                    allProducts={allProducts}
                     closeModal={closeModal}
                     addToCart={addToCart}
                     addToWholesaleCart={addToWholesaleCart}
@@ -1053,6 +1093,8 @@ export default function ProductModal() {
                     cartCount={cartCount}
                     cartSubtotal={cartSubtotal}
                     updateCartQuantity={updateCartQuantity}
+                    onSelectRelatedProduct={setSelectedProduct}
+                    showToast={showToast}
                     setRetailOrderSheet={setRetailOrderSheet}
                 />
             ) : null}
@@ -1079,7 +1121,7 @@ export default function ProductModal() {
     );
 }
 
-function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, dcSyncedAt, getProductStockLimit, getProductStockStatus, cartItems, cartCount, cartSubtotal, updateCartQuantity, setRetailOrderSheet }) {
+function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCart, addToWholesaleCart, isWholesaleCustomer, userRole, dcLiveUpdateAt, dcSyncedAt, getProductStockLimit, getProductStockStatus, cartItems, cartCount, cartSubtotal, updateCartQuantity, onSelectRelatedProduct, showToast, setRetailOrderSheet }) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [quantity, setQuantity] = useState(1);
     const [wholesaleQuantity, setWholesaleQuantity] = useState(1);
@@ -1142,6 +1184,8 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
     
     const fallbackDesc = selectedProduct.desc || selectedProduct.description || '';
     const productDisplayName = selectedProduct.title || selectedProduct.name || '';
+    const productShareCode = getProductShareCode(selectedProduct);
+    const productShareTitle = resolveModalProductTitle(selectedProduct, productDisplayName);
 
     const splitBilingualLabel = (value) => {
         const normalizedValue = String(value || '').trim();
@@ -1461,6 +1505,38 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
         : normalizedStockStatus === 'low_stock'
             ? 'fa-solid fa-exclamation'
             : 'fa-solid fa-check';
+    const selectedProductIdentity = resolveRelatedProductIdentity(selectedProduct);
+    const normalizedSelectedCategory = resolveNormalizedCategoryName(selectedProduct?.category);
+    const { sameCategoryProducts, randomProducts } = useMemo(() => {
+        const catalogProducts = Array.isArray(allProducts)
+            ? allProducts.filter((product) => product && !product.isHidden)
+            : [];
+        const filteredCatalog = catalogProducts.filter((product) => {
+            const candidateIdentity = resolveRelatedProductIdentity(product);
+            return product !== selectedProduct && candidateIdentity && candidateIdentity !== selectedProductIdentity;
+        });
+
+        const sameCategoryCandidates = normalizedSelectedCategory
+            ? filteredCatalog.filter((product) => resolveNormalizedCategoryName(product?.category) === normalizedSelectedCategory)
+            : [];
+        const sameCategoryProducts = getSeededProductOrder(
+            sameCategoryCandidates,
+            `${selectedProductIdentity}-same-category`
+        ).slice(0, RELATED_PRODUCTS_LIMIT);
+        const excludedProductIds = new Set([
+            selectedProductIdentity,
+            ...sameCategoryProducts.map((product) => resolveRelatedProductIdentity(product))
+        ]);
+        const randomProducts = getSeededProductOrder(
+            filteredCatalog.filter((product) => !excludedProductIds.has(resolveRelatedProductIdentity(product))),
+            `${selectedProductIdentity}-random-products`
+        ).slice(0, RELATED_PRODUCTS_LIMIT);
+
+        return {
+            sameCategoryProducts,
+            randomProducts
+        };
+    }, [allProducts, normalizedSelectedCategory, selectedProduct, selectedProductIdentity]);
 
     useEffect(() => {
         if (retailStockLimit !== null) {
@@ -1546,6 +1622,342 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                             <img src={imgUrl} alt={`صورة فرعية ${i + 1}`} className="h-full w-full object-cover" />
                         </button>
                     ))}
+                </div>
+            </div>
+        );
+    };
+
+    const renderMobileAnimatedVariantSelectorSection = (activeIndex, setActiveIndex) => (
+        <div className="rounded-[1.7rem] border border-slate-200/70 bg-white/88 p-4 shadow-[0_20px_50px_rgba(148,163,184,0.12)] backdrop-blur-sm dark:border-white/8 dark:bg-white/[0.04] md:p-5">
+            <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-white/45">Choose Variant | اختر الشكل</p>
+            <div className="flex flex-wrap gap-2">
+                {selectedProduct.variants.map((variantEntry, idx) => {
+                    const availability = resolveStockStatus(variantEntry, 'retail') === 'out_of_stock'
+                        || resolveStockLimit(variantEntry, 'retail') === 0
+                        ? 'out'
+                        : 'available';
+
+                    return (
+                        <button
+                            key={idx}
+                            onClick={() => setActiveIndex(idx)}
+                            className={`inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2 text-xs font-bold transition-all ${
+                                activeIndex === idx
+                                    ? 'scale-105 border-brandGold bg-brandGold text-brandBlue shadow-lg shadow-brandGold/25'
+                                    : 'border-gray-200 bg-white/5 text-gray-600 hover:border-brandGold/50 dark:border-neutral-700 dark:bg-neutral-800/50 dark:text-gray-300'
+                            }`}
+                        >
+                            <span className={`h-2.5 w-2.5 rounded-full ${availability === 'available' ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)]' : 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.55)]'}`}></span>
+                            <span>{variantEntry.name || variantEntry.label || `موديل ${idx + 1}`}</span>
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
+
+    const renderDesktopVariantSelectorSection = () => (
+        <div className="rounded-[1.7rem] border border-slate-200/70 bg-white/88 p-4 shadow-[0_20px_50px_rgba(148,163,184,0.12)] backdrop-blur-sm dark:border-white/8 dark:bg-white/[0.04] md:p-5">
+            <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-white/45">Choose Variant | اختر الشكل</p>
+            <div className="flex flex-wrap gap-2">
+                {selectedProduct.variants.map((variantEntry, idx) => {
+                    const availability = resolveStockStatus(variantEntry, 'retail') === 'out_of_stock'
+                        || resolveStockLimit(variantEntry, 'retail') === 0
+                        ? 'out'
+                        : 'available';
+
+                    return (
+                        <button
+                            key={idx}
+                            onClick={() => handleActiveVariantChange(idx)}
+                            className={`inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2 text-xs font-bold transition-all ${
+                                activeVariantIndex === idx
+                                    ? 'scale-105 border-brandGold bg-brandGold text-brandBlue shadow-lg shadow-brandGold/25'
+                                    : 'border-gray-200 bg-white/5 text-gray-600 hover:border-brandGold/50 dark:border-neutral-700 dark:bg-neutral-800/50 dark:text-gray-300'
+                            }`}
+                        >
+                            <span className={`h-2.5 w-2.5 rounded-full ${availability === 'available' ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)]' : 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.55)]'}`}></span>
+                            <span>{variantEntry.name || variantEntry.label || `موديل ${idx + 1}`}</span>
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
+
+    const handleShareProduct = async () => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const relativeShareUrl = buildProductModalUrl(
+            window.location.pathname,
+            window.location.search,
+            productShareCode,
+            window.location.hash
+        );
+        const shareUrl = `${window.location.origin}${relativeShareUrl}`;
+
+        try {
+            if (navigator.share) {
+                await navigator.share({
+                    title: productShareTitle || 'House Of Glass Product',
+                    text: `Check this product: ${productShareTitle || 'House Of Glass Product'}`,
+                    url: shareUrl
+                });
+                return;
+            }
+
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(shareUrl);
+                showToast?.('تم نسخ رابط المنتج بنجاح.');
+                return;
+            }
+
+            window.prompt('Copy this product link:', shareUrl);
+        } catch (error) {
+            if (error?.name === 'AbortError') {
+                return;
+            }
+
+            console.error('Failed to share product:', error);
+            showToast?.('تعذر مشاركة المنتج حالياً.', 'error');
+        }
+    };
+
+    const renderModalActionButtons = () => (
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+            <button
+                type="button"
+                onClick={handleShareProduct}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/50 bg-white/55 text-gray-800 shadow-sm backdrop-blur-md transition-all hover:bg-white/90 dark:border-white/10 dark:bg-white/10 dark:text-white"
+                aria-label="Share product"
+                title="Share product"
+            >
+                <i className="fa-solid fa-share-nodes"></i>
+            </button>
+            <button
+                type="button"
+                onClick={closeModal}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/50 bg-white/55 text-gray-800 shadow-sm backdrop-blur-md transition-all hover:bg-white/90 dark:border-white/10 dark:bg-white/10 dark:text-white"
+                aria-label="Close product details"
+                title="Close"
+            >
+                <i className="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+    );
+
+    const handleRelatedProductSelect = (product) => {
+        const nextIdentity = resolveRelatedProductIdentity(product);
+        if (!nextIdentity || nextIdentity === selectedProductIdentity) {
+            return;
+        }
+
+        setShowMobileVariantPicker(false);
+        setShowMobileRetailQuantityBar(false);
+        onSelectRelatedProduct?.(product);
+    };
+
+    const renderRelatedProductCard = (product, compact = false) => {
+        const productTitle = resolveModalProductTitle(product, 'Product');
+        const productImage = resolveModalProductImage(product);
+        const productCodeLabel = String(getProductShareCode(product) || '').trim();
+        const variantsCount = Array.isArray(product?.variants) ? product.variants.length : 0;
+        const firstVariant = Array.isArray(product?.variants) && product.variants.length > 0 ? product.variants[0] : null;
+        const productRetailPrice = parsePrice(
+            product?.price
+            || product?.retailPrice
+            || product?.retail_price
+            || firstVariant?.price
+            || firstVariant?.retailPrice
+            || firstVariant?.retail_price
+        );
+        const productWholesalePrice = parsePrice(
+            product?.wholesalePrice
+            || product?.wholesale_price
+            || product?.cartonPrice
+            || product?.wholesaleCartonPrice
+            || product?.priceWholesale
+            || product?.bulkPrice
+            || product?.bulk_price
+            || firstVariant?.wholesalePrice
+            || firstVariant?.wholesale_price
+            || firstVariant?.cartonPrice
+            || firstVariant?.wholesaleCartonPrice
+            || firstVariant?.priceWholesale
+            || firstVariant?.bulkPrice
+            || firstVariant?.bulk_price
+        );
+        const productDiscountValue = parsePrice(
+            product?.discountAmount
+            || product?.discount_amount
+            || product?.discount
+            || product?.discountValue
+            || firstVariant?.discountAmount
+            || firstVariant?.discount_amount
+            || firstVariant?.discount
+            || firstVariant?.discountValue
+        );
+        const productExplicitNetPrice = parsePrice(
+            product?.netPrice
+            || product?.net_price
+            || product?.net
+            || firstVariant?.netPrice
+            || firstVariant?.net_price
+            || firstVariant?.net
+        );
+        const productNetPrice = productExplicitNetPrice > 0 ? productExplicitNetPrice : Math.max(0, productRetailPrice - productDiscountValue);
+        const productDisplayPrice = isStrictWholesaleUser
+            ? productNetPrice
+            : getGlobalRetailDisplayPrice(productRetailPrice, productModalRetailIncreasePercentage, userRole);
+        const productStockOrderType = isStrictWholesaleUser ? 'wholesale' : 'retail';
+        const productStockStatus = resolveStockStatus(product, productStockOrderType);
+        const productStockLimit = resolveStockLimit(product, productStockOrderType);
+        const isProductOutOfStock = productStockStatus === 'out_of_stock' || productStockLimit === 0;
+        const productStatusLabel = isProductOutOfStock
+            ? 'Out | غير متوفر'
+            : productStockStatus === 'low_stock'
+                ? 'Low | محدود'
+                : 'In Stock | متوفر';
+        const productStatusClasses = isProductOutOfStock
+            ? 'border-rose-500/20 bg-rose-500/10 text-rose-600 dark:text-rose-300'
+            : productStockStatus === 'low_stock'
+                ? 'border-amber-400/25 bg-amber-400/15 text-amber-700 dark:text-amber-200'
+                : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300';
+        const cardWidthClass = compact ? 'w-[172px] sm:w-[188px]' : 'w-[210px] md:w-[228px]';
+        const cardImageHeightClass = compact ? 'h-32 sm:h-36' : 'h-36 md:h-40';
+
+        return (
+            <button
+                key={resolveRelatedProductIdentity(product)}
+                type="button"
+                onClick={() => handleRelatedProductSelect(product)}
+                className={`${cardWidthClass} group flex-none rounded-[1.6rem] border border-slate-200/70 bg-white/90 p-3 text-left shadow-[0_18px_45px_rgba(148,163,184,0.14)] transition-all duration-300 hover:-translate-y-1 hover:border-brandGold/45 hover:shadow-[0_24px_55px_rgba(212,175,55,0.18)] dark:border-white/10 dark:bg-white/[0.04] dark:shadow-[0_18px_50px_rgba(2,6,23,0.28)]`}
+            >
+                <div className={`relative mb-3 overflow-hidden rounded-[1.2rem] bg-slate-100 dark:bg-slate-950/70 ${cardImageHeightClass}`}>
+                    <img
+                        src={productImage}
+                        alt={productTitle}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        loading="lazy"
+                    />
+
+                    {variantsCount > 1 ? (
+                        <span className="absolute left-3 top-3 rounded-full border border-white/60 bg-white/85 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-brandBlue shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-slate-950/75 dark:text-white">
+                            {variantsCount} موديلات
+                        </span>
+                    ) : null}
+
+                    <span className={`absolute bottom-3 right-3 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] backdrop-blur-sm ${productStatusClasses}`}>
+                        {productStatusLabel}
+                    </span>
+                </div>
+
+                <div className="space-y-2" dir="rtl">
+                    <h4 className="line-clamp-2 text-sm font-black leading-6 text-brandBlue dark:text-white" dir="auto">
+                        {productTitle}
+                    </h4>
+
+                    {product.category ? (
+                        <p className="line-clamp-1 text-[11px] font-bold text-slate-500 dark:text-white/55" dir="auto">
+                            {product.category}
+                        </p>
+                    ) : null}
+
+                    <div className="flex items-end justify-between gap-3" dir="ltr">
+                        <div className="min-w-0">
+                            <p className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-white/40">Price | السعر</p>
+                            <p className="mt-1 line-clamp-1 text-sm font-black text-brandGold dark:text-brandGold">
+                                {productDisplayPrice > 0 ? formatPriceLabel(productDisplayPrice) : 'اسألنا'}
+                            </p>
+                            {isStrictWholesaleUser && productWholesalePrice > 0 ? (
+                                <p className="mt-1 text-[10px] font-bold text-slate-500 dark:text-white/55">
+                                    Wholesale: {formatPriceLabel(productWholesalePrice)}
+                                </p>
+                            ) : null}
+                        </div>
+
+                        {productCodeLabel ? (
+                            <span className="max-w-[6.5rem] truncate rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-500 dark:border-white/10 dark:bg-white/[0.05] dark:text-white/55">
+                                {productCodeLabel}
+                            </span>
+                        ) : null}
+                    </div>
+                </div>
+            </button>
+        );
+    };
+
+    const renderRelatedProductsRow = ({ eyebrow, title, badge, products, emptyMessage, compact = false }) => (
+        <section className="space-y-3">
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-brandGold/80">{eyebrow}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <h3 className="text-lg font-black text-brandBlue dark:text-white md:text-[1.35rem]">{title}</h3>
+                        {badge ? (
+                            <span className="rounded-full border border-brandGold/20 bg-brandGold/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-brandGold">
+                                {badge}
+                            </span>
+                        ) : null}
+                    </div>
+                </div>
+
+                {products.length > 0 ? (
+                    <span className="rounded-full border border-slate-200 bg-white/75 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/45">
+                        {products.length} items
+                    </span>
+                ) : null}
+            </div>
+
+            {products.length > 0 ? (
+                <div className="flex gap-3 overflow-x-auto hide-scroll pb-2">
+                    {products.map((product) => renderRelatedProductCard(product, compact))}
+                </div>
+            ) : (
+                <div className="rounded-[1.4rem] border border-dashed border-slate-300/80 bg-white/70 p-4 text-sm font-medium text-slate-500 dark:border-white/10 dark:bg-white/[0.03] dark:text-white/55">
+                    {emptyMessage}
+                </div>
+            )}
+        </section>
+    );
+
+    const renderRelatedProductsSection = ({ compact = false, className = '' } = {}) => {
+        if (sameCategoryProducts.length === 0 && randomProducts.length === 0) {
+            return null;
+        }
+
+        return (
+            <div className={`rounded-[1.9rem] border border-slate-200/70 bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.12),transparent_38%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] p-4 shadow-[0_22px_60px_rgba(148,163,184,0.12)] dark:border-white/10 dark:bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.14),transparent_34%),linear-gradient(180deg,rgba(15,23,42,0.96),rgba(2,6,23,0.96))] dark:shadow-[0_22px_60px_rgba(2,6,23,0.34)] md:p-5 ${className}`}>
+                <div className="mb-5 flex items-center justify-between gap-3">
+                    <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-brandGold/80">More To Explore</p>
+                        <h2 className="mt-2 text-[1.2rem] font-black text-brandBlue dark:text-white md:text-[1.45rem]">منتجات ممكن تعجبك</h2>
+                    </div>
+                    <span className="rounded-full border border-brandGold/20 bg-brandGold/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-brandGold">
+                        2 rows
+                    </span>
+                </div>
+
+                <div className="space-y-6">
+                    {renderRelatedProductsRow({
+                        eyebrow: 'Same Category',
+                        title: 'من نفس التصنيف',
+                        badge: selectedProduct.category || null,
+                        products: sameCategoryProducts,
+                        emptyMessage: 'لا يوجد منتجات إضافية من نفس التصنيف حالياً.',
+                        compact
+                    })}
+
+                    {renderRelatedProductsRow({
+                        eyebrow: 'Random Products',
+                        title: 'منتجات عشوائية',
+                        badge: null,
+                        products: randomProducts,
+                        emptyMessage: 'لا يوجد منتجات عشوائية إضافية حالياً.',
+                        compact
+                    })}
                 </div>
             </div>
         );
@@ -2044,29 +2456,6 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
 
         return (
             <div className="mt-2 space-y-5 md:mt-4 md:space-y-6">
-                <div className="rounded-[1.7rem] border border-slate-200/70 bg-white/88 p-4 shadow-[0_20px_50px_rgba(148,163,184,0.12)] backdrop-blur-sm dark:border-white/8 dark:bg-white/[0.04] md:p-5">
-                   <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-white/45">Choose Variant | اختر الشكل</p>
-                   <div className="flex flex-wrap gap-2">
-                       {selectedProduct.variants.map((v, idx) => {
-                           const availability = getVariantAvailability(v);
-                           return (
-                               <button
-                                   key={idx}
-                                   onClick={() => setActiveIndex(idx)}
-                                   className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all border-2 ${
-                                       activeIndex === idx
-                                           ? 'bg-brandGold text-brandBlue border-brandGold shadow-lg shadow-brandGold/25 scale-105'
-                                           : 'bg-white/5 dark:bg-neutral-800/50 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-neutral-700 hover:border-brandGold/50'
-                                   }`}
-                               >
-                                   <span className={`h-2.5 w-2.5 rounded-full ${availability === 'available' ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)]' : 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.55)]'}`}></span>
-                                   <span>{v.name || v.label || `موديل ${idx + 1}`}</span>
-                               </button>
-                           );
-                       })}
-                   </div>
-                </div>
-
                 <div className="hidden md:block">
                     {renderVariantGallerySection()}
                 </div>
@@ -2169,16 +2558,12 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                     onClick={closeModal}
                 ></div>
 
-                <div className="relative my-auto hidden w-full max-w-5xl flex-col rounded-[2rem] bg-white shadow-2xl transition-all dark:bg-darkCard md:flex md:max-h-[94vh] md:flex-row md:overflow-hidden md:rounded-3xl">
-                    <button
-                        onClick={closeModal}
-                        className="absolute top-4 right-4 z-50 flex h-10 w-10 items-center justify-center rounded-full border border-white/50 bg-white/55 text-gray-800 shadow-sm backdrop-blur-md transition-all hover:bg-white/90 dark:border-white/10 dark:bg-white/10 dark:text-white"
-                    >
-                        <i className="fa-solid fa-xmark"></i>
-                    </button>
+                <div className="relative my-auto hidden w-full max-w-5xl flex-col rounded-[2rem] bg-white shadow-2xl transition-all dark:bg-darkCard md:flex md:max-h-[94vh] md:overflow-hidden md:rounded-3xl">
+                    {renderModalActionButtons()}
 
-                    <div className="relative flex w-full flex-col border-b border-slate-200/70 bg-gradient-to-b from-slate-100 via-white to-slate-100 dark:border-white/10 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 md:w-3/5 md:border-b-0 md:border-l">
-                        <div className="relative flex h-[26rem] shrink-0 items-center justify-center overflow-hidden px-6 pb-24 pt-16 md:h-full md:min-h-[34rem] md:pb-6">
+                    <div className="md:flex md:min-h-0 md:flex-1 md:flex-row">
+                        <div className="relative flex w-full flex-col border-b border-slate-200/70 bg-gradient-to-b from-slate-100 via-white to-slate-100 dark:border-white/10 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 md:w-3/5 md:border-b-0 md:border-l">
+                            <div className="relative flex h-[26rem] shrink-0 items-center justify-center overflow-hidden px-6 pb-24 pt-16 md:h-full md:min-h-[34rem] md:pb-6">
                             {activeVariantImages.length > 0 ? (
                                 <div className="pointer-events-none absolute left-6 top-6 z-20 flex items-center gap-2">
                                     {hasMultipleVariants ? (
@@ -2267,32 +2652,36 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                                     </button>
                                 </>
                             ) : null}
+                            </div>
+
+                            {activeVariantImages.length > 1 ? (
+                                <div className="bg-slate-100/80 p-3 dark:bg-slate-950/70">
+                                    <div className="flex gap-2 overflow-x-auto hide-scroll rounded-2xl border border-white/65 bg-white/80 p-2 shadow-[0_12px_40px_rgba(15,23,42,0.14)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/72 md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+                                        {activeVariantImages.map((imgUrl, idx) => (
+                                            <button
+                                                type="button"
+                                                key={idx}
+                                                onClick={() => setSubImageIndex(idx)}
+                                                aria-label={`View variant media ${idx + 1}`}
+                                                className={`relative h-20 w-20 flex-none overflow-hidden rounded-[1rem] border-2 transition-all ${
+                                                    idx === safeSubImageIndex
+                                                        ? 'border-brandGold opacity-100 shadow-[0_10px_25px_rgba(212,175,55,0.28)]'
+                                                        : 'border-transparent opacity-65 hover:opacity-100'
+                                                }`}
+                                            >
+                                                <img src={imgUrl} className="h-full w-full object-cover" />
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            <div className="px-4 pb-4 md:px-6 md:pb-5">
+                                {renderDesktopVariantSelectorSection()}
+                            </div>
                         </div>
 
-                        {activeVariantImages.length > 1 ? (
-                            <div className="bg-slate-100/80 p-3 dark:bg-slate-950/70">
-                                <div className="flex gap-2 overflow-x-auto hide-scroll rounded-2xl border border-white/65 bg-white/80 p-2 shadow-[0_12px_40px_rgba(15,23,42,0.14)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/72 md:border-0 md:bg-transparent md:p-0 md:shadow-none">
-                                    {activeVariantImages.map((imgUrl, idx) => (
-                                        <button
-                                            type="button"
-                                            key={idx}
-                                            onClick={() => setSubImageIndex(idx)}
-                                            aria-label={`View variant media ${idx + 1}`}
-                                            className={`relative h-20 w-20 flex-none overflow-hidden rounded-[1rem] border-2 transition-all ${
-                                                idx === safeSubImageIndex
-                                                    ? 'border-brandGold opacity-100 shadow-[0_10px_25px_rgba(212,175,55,0.28)]'
-                                                    : 'border-transparent opacity-65 hover:opacity-100'
-                                            }`}
-                                        >
-                                            <img src={imgUrl} className="h-full w-full object-cover" />
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        ) : null}
-                    </div>
-
-                    <div className="custom-scrollbar flex w-full flex-col p-6 md:min-h-0 md:w-2/5 md:overflow-y-auto md:p-8">
+                        <div className="custom-scrollbar flex w-full flex-col p-6 md:min-h-0 md:w-2/5 md:overflow-y-auto md:p-8">
                         <div className="mb-2">
                             {metadata.length > 0 ? (
                                 <div className="mb-3 flex flex-wrap gap-2">
@@ -2328,33 +2717,6 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                                 {activeVariantCode ? (
                                     <p className="mt-2 text-xs font-medium text-slate-500 dark:text-white/55">Code: {activeVariantCode}</p>
                                 ) : null}
-                            </div>
-
-                            <div className="rounded-[1.7rem] border border-slate-200/70 bg-white/88 p-4 shadow-[0_20px_50px_rgba(148,163,184,0.12)] backdrop-blur-sm dark:border-white/8 dark:bg-white/[0.04] md:p-5">
-                                <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-white/45">Choose Variant | اختر الشكل</p>
-                                <div className="flex flex-wrap gap-2">
-                                    {selectedProduct.variants.map((variantEntry, idx) => {
-                                        const availability = resolveStockStatus(variantEntry, 'retail') === 'out_of_stock'
-                                            || resolveStockLimit(variantEntry, 'retail') === 0
-                                            ? 'out'
-                                            : 'available';
-
-                                        return (
-                                            <button
-                                                key={idx}
-                                                onClick={() => handleActiveVariantChange(idx)}
-                                                className={`inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2 text-xs font-bold transition-all ${
-                                                    activeVariantIndex === idx
-                                                        ? 'scale-105 border-brandGold bg-brandGold text-brandBlue shadow-lg shadow-brandGold/25'
-                                                        : 'border-gray-200 bg-white/5 text-gray-600 hover:border-brandGold/50 dark:border-neutral-700 dark:bg-neutral-800/50 dark:text-gray-300'
-                                                }`}
-                                            >
-                                                <span className={`h-2.5 w-2.5 rounded-full ${availability === 'available' ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)]' : 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.55)]'}`}></span>
-                                                <span>{variantEntry.name || variantEntry.label || `موديل ${idx + 1}`}</span>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
                             </div>
 
                             {renderVariantGallerySection()}
@@ -2455,17 +2817,16 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                                 ) : null}
                             </div>
                         </div>
+                        </div>
+                    </div>
+
+                    <div className="hidden max-h-[25rem] shrink-0 overflow-y-auto border-t border-slate-200/70 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-slate-950/45 md:block">
+                        {renderRelatedProductsSection()}
                     </div>
                 </div>
 
                 <div className="relative my-auto w-full max-w-6xl rounded-[2rem] border border-slate-200/70 bg-white shadow-2xl transition-all dark:border-white/10 dark:bg-darkCard md:hidden sm:max-h-[92vh] sm:overflow-hidden">
-                    
-                    <button
-                        onClick={closeModal}
-                        className="absolute top-4 right-4 z-50 flex h-10 w-10 items-center justify-center rounded-full border border-white/50 bg-white/55 text-gray-800 shadow-sm backdrop-blur-md transition-all hover:bg-white/90 dark:border-white/10 dark:bg-white/10 dark:text-white"
-                    >
-                        <i className="fa-solid fa-xmark"></i>
-                    </button>
+                    {renderModalActionButtons()}
 
                     <div className="hide-scroll flex w-full flex-col pb-28 sm:h-full sm:overflow-y-auto sm:pb-32">
                         <div className="px-4 pt-5 md:px-8 md:pt-8">
@@ -2504,8 +2865,9 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                                 activeIndex={activeVariantIndex}
                                 onActiveChange={handleActiveVariantChange}
                                 onActiveImageClick={() => openLightbox(activeVariantImages, subImageIndex, activeVariant?.name || activeVariant?.label || selectedProduct.title || selectedProduct.name || '')}
-                                renderMobileBeforeContent={() => (
-                                    <div dir="rtl">
+                                renderMobileBeforeContent={(idx, setActiveIndex) => (
+                                    <div dir="rtl" className="space-y-4">
+                                        {renderMobileAnimatedVariantSelectorSection(idx, setActiveIndex)}
                                         {renderVariantGallerySection()}
                                     </div>
                                 )}
@@ -2518,6 +2880,10 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                                     </div>
                                 )}
                             />
+                        </div>
+
+                        <div className="px-4 pb-4 md:px-8">
+                            {renderRelatedProductsSection({ compact: true })}
                         </div>
                     </div>
                     {renderMobileVariantPicker()}
@@ -2534,16 +2900,10 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                 onClick={closeModal}
             ></div>
             
-            <div className="relative my-auto flex w-full max-w-5xl flex-col rounded-[2rem] bg-white shadow-2xl transition-all dark:bg-darkCard md:max-h-[94vh] md:flex-row md:overflow-hidden md:rounded-3xl">
-                
-                {/* Close button */}
-                <button 
-                    onClick={closeModal}
-                    className="absolute top-4 right-4 z-50 flex h-10 w-10 items-center justify-center rounded-full border border-white/50 bg-white/55 text-gray-800 shadow-sm backdrop-blur-md transition-all hover:bg-white/90 dark:border-white/10 dark:bg-white/10 dark:text-white"
-                >
-                    <i className="fa-solid fa-xmark"></i>
-                </button>
+            <div className="relative my-auto flex w-full max-w-5xl flex-col rounded-[2rem] bg-white shadow-2xl transition-all dark:bg-darkCard md:max-h-[94vh] md:overflow-hidden md:rounded-3xl">
+                {renderModalActionButtons()}
 
+                <div className="flex flex-col md:min-h-0 md:flex-1 md:flex-row">
                 {/* Media Section */}
                 <div className="relative flex w-full flex-col border-b border-slate-200/70 bg-gradient-to-b from-slate-100 via-white to-slate-100 dark:border-white/10 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 md:w-3/5 md:border-b-0 md:border-l">
                     <div className="relative flex h-[23rem] shrink-0 items-center justify-center overflow-hidden px-4 pb-24 pt-16 sm:h-[26rem] md:h-full md:min-h-[34rem] md:px-6 md:pb-6">
@@ -2783,7 +3143,16 @@ function ProductModalContent({ selectedProduct, closeModal, addToCart, addToWhol
                             <i className="fa-brands fa-whatsapp text-xl"></i>
                             اسأل عبر واتساب
                         </a>
+
+                        <div className="md:hidden">
+                            {renderRelatedProductsSection({ compact: true, className: 'mt-3' })}
+                        </div>
                     </div>
+                </div>
+                </div>
+
+                <div className="hidden max-h-[25rem] shrink-0 overflow-y-auto border-t border-slate-200/70 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-slate-950/45 md:block">
+                    {renderRelatedProductsSection()}
                 </div>
 
             </div>

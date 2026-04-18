@@ -28,8 +28,15 @@ function isStandaloneMode() {
     return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 }
 
+function isLocalDevelopmentHost() {
+    if (typeof window === 'undefined') return false;
+
+    return ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+}
+
 function canUseNativePush() {
     return typeof window !== 'undefined'
+        && !isLocalDevelopmentHost()
         && 'Notification' in window
         && 'serviceWorker' in navigator
         && 'PushManager' in window;

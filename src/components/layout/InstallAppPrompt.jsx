@@ -27,6 +27,12 @@ function isRunningStandalone() {
     return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 }
 
+function isLocalDevelopmentHost() {
+    if (typeof window === 'undefined') return false;
+
+    return ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+}
+
 export default function InstallAppPrompt() {
     const [deferredPrompt, setDeferredPrompt] = useState(null);
     const [isPromptVisible, setIsPromptVisible] = useState(false);
@@ -38,6 +44,15 @@ export default function InstallAppPrompt() {
 
     useEffect(() => {
         if (!('serviceWorker' in navigator)) {
+            return undefined;
+        }
+
+        if (isLocalDevelopmentHost()) {
+            navigator.serviceWorker.getRegistrations()
+                .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+                .catch((error) => {
+                    console.error('Failed to unregister service workers on localhost:', error);
+                });
             return undefined;
         }
 
