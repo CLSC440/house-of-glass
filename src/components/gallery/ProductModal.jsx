@@ -2909,7 +2909,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                 <div className="flex flex-col md:min-h-0 md:flex-1 md:flex-row">
                 {/* Media Section */}
                 <div className="relative flex w-full flex-col border-b border-slate-200/70 bg-gradient-to-b from-slate-100 via-white to-slate-100 dark:border-white/10 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 md:w-3/5 md:border-b-0 md:border-l">
-                    <div className="relative flex h-[25rem] shrink-0 items-center justify-center overflow-hidden px-2 pb-24 pt-14 sm:h-[29rem] md:h-full md:min-h-[34rem] md:px-6 md:pb-6">
+                    <div className="relative flex h-[82svh] min-h-[36rem] max-h-[52rem] shrink-0 items-center justify-center overflow-hidden px-1 pb-2 pt-10 sm:h-[84svh] md:h-full md:min-h-[34rem] md:px-6 md:pb-6">
                         {images.length > 1 ? (
                             <div className="pointer-events-none absolute left-4 top-4 z-20 flex items-center gap-2 md:left-6 md:top-6">
                                 <span className="rounded-full border border-white/60 bg-white/75 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-700 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-slate-950/70 dark:text-white/75">
@@ -2942,7 +2942,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                                     <img 
                                         src={currentMedia.url || currentMedia} 
                                         alt={selectedProduct.title || selectedProduct.name}
-                                        className="h-full w-full rounded-[1.7rem] object-contain object-top cursor-zoom-in md:rounded-[1.45rem]"
+                                        className="h-full w-full rounded-[1.7rem] object-contain object-center cursor-zoom-in md:rounded-[1.45rem] md:object-top"
                                     />
                                 </button>
                             )
@@ -2979,7 +2979,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                     
                     {/* Thumbnails */}
                     {images.length > 1 && (
-                        <div className="absolute bottom-4 left-4 right-4 z-20 md:static md:bottom-auto md:left-auto md:right-auto md:bg-slate-100/80 md:p-3 dark:md:bg-slate-950/70">
+                        <div className="relative z-20 px-1 pb-3 pt-3 md:static md:bottom-auto md:left-auto md:right-auto md:bg-slate-100/80 md:p-3 dark:md:bg-slate-950/70">
                             <div className="flex gap-2 overflow-x-auto hide-scroll rounded-[1.5rem] border border-white/65 bg-white/80 p-2 shadow-[0_12px_40px_rgba(15,23,42,0.14)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/72 md:rounded-2xl md:border-0 md:bg-transparent md:p-0 md:shadow-none">
                             {images.map((img, idx) => (
                                 <button 
