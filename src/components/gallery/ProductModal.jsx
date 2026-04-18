@@ -2909,7 +2909,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                 <div className="flex flex-col md:min-h-0 md:flex-1 md:flex-row">
                 {/* Media Section */}
                 <div className="relative flex w-full flex-col border-b border-slate-200/70 bg-gradient-to-b from-slate-100 via-white to-slate-100 dark:border-white/10 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 md:w-3/5 md:border-b-0 md:border-l">
-                    <div className="relative flex h-[23rem] shrink-0 items-center justify-center overflow-hidden px-4 pb-24 pt-16 sm:h-[26rem] md:h-full md:min-h-[34rem] md:px-6 md:pb-6">
+                    <div className="relative flex h-[25rem] shrink-0 items-center justify-center overflow-hidden px-2 pb-24 pt-14 sm:h-[29rem] md:h-full md:min-h-[34rem] md:px-6 md:pb-6">
                         {images.length > 1 ? (
                             <div className="pointer-events-none absolute left-4 top-4 z-20 flex items-center gap-2 md:left-6 md:top-6">
                                 <span className="rounded-full border border-white/60 bg-white/75 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-700 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-slate-950/70 dark:text-white/75">
@@ -2930,19 +2930,19 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                                     controls 
                                     autoPlay 
                                     loop 
-                                    className="relative z-10 h-full w-full rounded-[1.75rem] border border-white/40 bg-white/75 object-contain p-3 shadow-[0_24px_80px_rgba(148,163,184,0.16)] backdrop-blur-sm dark:border-white/10 dark:bg-white/[0.04]"
+                                    className="relative z-10 h-full w-full rounded-[1.9rem] border border-white/40 bg-white/75 object-contain p-1.5 shadow-[0_24px_80px_rgba(148,163,184,0.16)] backdrop-blur-sm dark:border-white/10 dark:bg-white/[0.04] md:rounded-[1.75rem] md:p-3"
                                 />
                             ) : (
                                 <button
                                     type="button"
                                     onClick={() => openLightbox(images, safeImageIndex, selectedProduct.title || selectedProduct.name || '')}
-                                    className="relative z-10 flex h-full w-full items-center justify-center rounded-[1.9rem] border border-white/45 bg-white/80 p-3 shadow-[0_24px_80px_rgba(148,163,184,0.16)] backdrop-blur-sm focus:outline-none dark:border-white/10 dark:bg-white/[0.04]"
+                                    className="relative z-10 flex h-full w-full items-center justify-center rounded-[2.05rem] border border-white/45 bg-white/80 p-1.5 shadow-[0_24px_80px_rgba(148,163,184,0.16)] backdrop-blur-sm focus:outline-none dark:border-white/10 dark:bg-white/[0.04] md:rounded-[1.9rem] md:p-3"
                                     aria-label="Open product image fullscreen"
                                 >
                                     <img 
                                         src={currentMedia.url || currentMedia} 
                                         alt={selectedProduct.title || selectedProduct.name}
-                                        className="h-full w-full rounded-[1.45rem] object-contain object-top cursor-zoom-in"
+                                        className="h-full w-full rounded-[1.7rem] object-contain object-top cursor-zoom-in md:rounded-[1.45rem]"
                                     />
                                 </button>
                             )
