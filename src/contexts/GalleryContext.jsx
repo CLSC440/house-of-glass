@@ -1063,19 +1063,22 @@ export function GalleryProvider({ children }) {
 
         const params = new URLSearchParams(window.location.search);
         const rawCategoryParam = params.get('category') || 'All';
-        const categoriesParam = resolveCategoryNamesFromQueryValues(params.getAll('categories'), categories);
-        const categoryGroupsParam = resolveCategoryGroupIdsFromQueryValues(params.getAll('categoryGroups'), categoryGroups);
+        const rawCategoriesParams = params.getAll('categories');
+        const rawCategoryGroupsParams = params.getAll('categoryGroups');
         const brandsParam = params.getAll('brands').map(normalizeFilterValue).filter(Boolean);
         const originsParam = params.getAll('origins').map(normalizeFilterValue).filter(Boolean);
         const searchParam = normalizeFilterValue(params.get('search'));
         const stockParam = params.get('stock') === 'in-stock';
         const needsCategoryLookup = /^\d+$/.test(normalizeFilterValue(rawCategoryParam));
-        const needsCategoryGroupsLookup = params.getAll('categoryGroups').some((value) => /^\d+$/.test(normalizeFilterValue(value)) || String(value || '').includes(','));
+        const needsCategoriesLookup = parseQueryListValues(rawCategoriesParams).some((value) => /^\d+$/.test(normalizeFilterValue(value)));
+        const needsCategoryGroupsLookup = rawCategoryGroupsParams.some((value) => /^\d+$/.test(normalizeFilterValue(value)) || String(value || '').includes(','));
 
-        if ((needsCategoryLookup && categories.length === 0) || (needsCategoryGroupsLookup && categoryGroups.length === 0)) {
+        if (((needsCategoryLookup || needsCategoriesLookup) && categories.length === 0) || (needsCategoryGroupsLookup && categoryGroups.length === 0)) {
             return;
         }
 
+        const categoriesParam = resolveCategoryNamesFromQueryValues(rawCategoriesParams, categories);
+        const categoryGroupsParam = resolveCategoryGroupIdsFromQueryValues(rawCategoryGroupsParams, categoryGroups);
         const categoryParam = resolveCategoryNameFromQueryValue(rawCategoryParam, categories);
 
         if (searchParam) setSearchQuery(searchParam);
