@@ -1752,13 +1752,16 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
             return;
         }
 
-        const relativeShareUrl = buildProductModalUrl(
-            window.location.pathname,
-            window.location.search,
-            productShareCode,
-            window.location.hash
-        );
-        const shareUrl = `${window.location.origin}${relativeShareUrl}`;
+        const sharedProductId = String(selectedProduct?.id || '').trim();
+        const sharePath = sharedProductId
+            ? `/product/${encodeURIComponent(sharedProductId)}`
+            : buildProductModalUrl(
+                window.location.pathname,
+                window.location.search,
+                productShareCode,
+                window.location.hash
+            );
+        const shareUrl = `${window.location.origin}${sharePath}`;
 
         try {
             if (navigator.share) {

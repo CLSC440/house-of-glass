@@ -2,12 +2,14 @@ import { Cairo, Almarai } from 'next/font/google'
 import Script from 'next/script'
 import InstallAppPrompt from '@/components/layout/InstallAppPrompt'
 import NotificationPermissionPrompt from '@/components/layout/NotificationPermissionPrompt'
+import { getSiteOrigin } from '@/lib/site-origin'
 import './globals.css'
 
 const cairo = Cairo({ subsets: ['latin', 'arabic'], variable: '--font-cairo' })
 const almarai = Almarai({ subsets: ['arabic'], weight: ['300', '400', '700', '800'], variable: '--font-almarai' })
 
 export const metadata = {
+  metadataBase: new URL(getSiteOrigin()),
   title: 'House Of Glass | Gallery',
   applicationName: 'House Of Glass',
   description: 'Static Gallery with Serverless API',
