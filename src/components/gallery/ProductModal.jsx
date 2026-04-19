@@ -363,6 +363,271 @@ function ProductDetailCard({ iconClassName, iconWrapperClassName, label, value, 
     );
 }
 
+function getLoopedCarouselIndex(index, itemCount) {
+    if (itemCount <= 0) {
+        return 0;
+    }
+
+    return ((index % itemCount) + itemCount) % itemCount;
+}
+
+function SwipeableLoopCarousel({
+    itemCount = 0,
+    activeIndex = 0,
+    onIndexChange,
+    renderSlide,
+    onActiveSlideClick,
+    activeSlideAriaLabel = 'Open image',
+    className = '',
+    viewportClassName = '',
+    trackClassName = '',
+    slideClassName = ''
+}) {
+    const viewportRef = useRef(null);
+    const pointerIdRef = useRef(null);
+    const gestureAxisRef = useRef('');
+    const dragStartXRef = useRef(0);
+    const dragStartYRef = useRef(0);
+    const dragOffsetRef = useRef(0);
+    const settleTimeoutRef = useRef(null);
+    const suppressClickRef = useRef(false);
+    const [dragOffset, setDragOffset] = useState(0);
+    const [isDragging, setIsDragging] = useState(false);
+    const [isResetting, setIsResetting] = useState(false);
+
+    const hasMultipleItems = itemCount > 1;
+    const safeActiveIndex = itemCount > 0 ? Math.min(Math.max(activeIndex, 0), itemCount - 1) : 0;
+    const slideIndices = useMemo(() => {
+        if (itemCount <= 0) {
+            return [];
+        }
+
+        if (!hasMultipleItems) {
+            return [safeActiveIndex];
+        }
+
+        return [
+            getLoopedCarouselIndex(safeActiveIndex - 1, itemCount),
+            safeActiveIndex,
+            getLoopedCarouselIndex(safeActiveIndex + 1, itemCount)
+        ];
+    }, [hasMultipleItems, itemCount, safeActiveIndex]);
+
+    const clearSettleTimeout = () => {
+        if (typeof window === 'undefined' || !settleTimeoutRef.current) {
+            return;
+        }
+
+        window.clearTimeout(settleTimeoutRef.current);
+        settleTimeoutRef.current = null;
+    };
+
+    useEffect(() => {
+        return () => {
+            clearSettleTimeout();
+        };
+    }, []);
+
+    const finishResetPosition = () => {
+        if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+            window.requestAnimationFrame(() => {
+                setIsResetting(false);
+            });
+            return;
+        }
+
+        setIsResetting(false);
+    };
+
+    const settleToDirection = (direction) => {
+        if (!hasMultipleItems || typeof onIndexChange !== 'function') {
+            setIsDragging(false);
+            setDragOffset(0);
+            return;
+        }
+
+        const viewportWidth = viewportRef.current?.offsetWidth || 0;
+        const targetOffset = direction > 0 ? -(viewportWidth || 0) : (viewportWidth || 0);
+
+        clearSettleTimeout();
+        setIsDragging(false);
+        setDragOffset(targetOffset);
+
+        if (typeof window === 'undefined') {
+            onIndexChange(getLoopedCarouselIndex(safeActiveIndex + direction, itemCount));
+            setDragOffset(0);
+            return;
+        }
+
+        settleTimeoutRef.current = window.setTimeout(() => {
+            setIsResetting(true);
+            onIndexChange(getLoopedCarouselIndex(safeActiveIndex + direction, itemCount));
+            dragOffsetRef.current = 0;
+            setDragOffset(0);
+            finishResetPosition();
+            settleTimeoutRef.current = null;
+        }, 240);
+    };
+
+    const releasePointer = (event) => {
+        try {
+            event.currentTarget.releasePointerCapture?.(event.pointerId);
+        } catch (_error) {
+            // Ignore capture release failures from browsers that already released it.
+        }
+
+        pointerIdRef.current = null;
+        gestureAxisRef.current = '';
+    };
+
+    const handlePointerDown = (event) => {
+        if (!hasMultipleItems || isResetting || typeof onIndexChange !== 'function') {
+            return;
+        }
+
+        if (event.pointerType === 'mouse' && event.button !== 0) {
+            return;
+        }
+
+        pointerIdRef.current = event.pointerId;
+        gestureAxisRef.current = '';
+        dragStartXRef.current = event.clientX;
+        dragStartYRef.current = event.clientY;
+        dragOffsetRef.current = 0;
+        suppressClickRef.current = false;
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+    };
+
+    const handlePointerMove = (event) => {
+        if (pointerIdRef.current !== event.pointerId) {
+            return;
+        }
+
+        const deltaX = event.clientX - dragStartXRef.current;
+        const deltaY = event.clientY - dragStartYRef.current;
+
+        if (!gestureAxisRef.current) {
+            if (Math.abs(deltaX) < 6 && Math.abs(deltaY) < 6) {
+                return;
+            }
+
+            gestureAxisRef.current = Math.abs(deltaX) > Math.abs(deltaY) ? 'x' : 'y';
+        }
+
+        if (gestureAxisRef.current !== 'x') {
+            return;
+        }
+
+        event.preventDefault();
+        dragOffsetRef.current = deltaX;
+        if (!isDragging) {
+            setIsDragging(true);
+        }
+
+        if (Math.abs(deltaX) > 10) {
+            suppressClickRef.current = true;
+        }
+
+        setDragOffset(deltaX);
+    };
+
+    const handlePointerEnd = (event) => {
+        if (pointerIdRef.current !== event.pointerId) {
+            return;
+        }
+
+        const dragAxis = gestureAxisRef.current;
+        const horizontalOffset = dragOffsetRef.current;
+        releasePointer(event);
+
+        if (dragAxis !== 'x') {
+            return;
+        }
+
+        const viewportWidth = viewportRef.current?.offsetWidth || 0;
+        const settleThreshold = Math.max(48, Math.min(110, viewportWidth * 0.18 || 72));
+
+        dragOffsetRef.current = 0;
+        if (Math.abs(horizontalOffset) >= settleThreshold) {
+            settleToDirection(horizontalOffset < 0 ? 1 : -1);
+            return;
+        }
+
+        setIsDragging(false);
+        setDragOffset(0);
+    };
+
+    const handleSlideClick = (itemIndex, isActive) => (event) => {
+        if (suppressClickRef.current) {
+            suppressClickRef.current = false;
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+        }
+
+        if (isActive) {
+            onActiveSlideClick?.(itemIndex);
+            return;
+        }
+
+        if (typeof onIndexChange === 'function') {
+            onIndexChange(itemIndex);
+        }
+    };
+
+    if (slideIndices.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className={`relative h-full w-full ${className}`}>
+            <div
+                ref={viewportRef}
+                className={`h-full w-full overflow-hidden ${viewportClassName}`}
+                style={{ touchAction: hasMultipleItems ? 'pan-y pinch-zoom' : 'auto' }}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerEnd}
+                onPointerCancel={handlePointerEnd}
+            >
+                <div
+                    className={`flex h-full will-change-transform ${trackClassName}`}
+                    style={{
+                        width: hasMultipleItems ? '300%' : '100%',
+                        transform: hasMultipleItems
+                            ? `translate3d(calc(-33.333333% + ${dragOffset}px), 0, 0)`
+                            : 'translate3d(0, 0, 0)',
+                        transition: isDragging || isResetting ? 'none' : 'transform 280ms cubic-bezier(0.22, 1, 0.36, 1)'
+                    }}
+                >
+                    {slideIndices.map((itemIndex, slotIndex) => {
+                        const isActive = !hasMultipleItems || slotIndex === 1;
+                        const isInteractive = isActive ? typeof onActiveSlideClick === 'function' : typeof onIndexChange === 'function';
+
+                        return (
+                            <div
+                                key={`${itemIndex}-${slotIndex}-${safeActiveIndex}`}
+                                className={`h-full shrink-0 ${slideClassName}`}
+                                style={{ width: hasMultipleItems ? '33.333333%' : '100%' }}
+                            >
+                                <button
+                                    type="button"
+                                    onClick={handleSlideClick(itemIndex, isActive)}
+                                    disabled={!isInteractive}
+                                    aria-label={isActive ? activeSlideAriaLabel : `View image ${itemIndex + 1}`}
+                                    className={`h-full w-full ${isInteractive ? '' : 'cursor-default'}`}
+                                >
+                                    {renderSlide(itemIndex, { isActive })}
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function buildWholesaleAvailabilityCaption({ isStrictWholesaleUser, retailStockLimit, wholesaleStockLimit, fallbackCaption }) {
     if (!isStrictWholesaleUser) {
         return fallbackCaption;
@@ -1490,6 +1755,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
     const activeVariantCode = String(activeVariant?.code || activeVariant?.barcode || '').trim();
     const activeVariantDescription = activeVariant?.desc || activeVariant?.description || fallbackDesc;
     const currentVariantImage = activeVariantImages[safeSubImageIndex] || '';
+    const canSwipeMainGallery = images.length > 1 && images.every((entry) => (entry?.type || 'image') !== 'video');
     const activePricingSource = hasVariants ? (activeVariant || selectedProduct) : selectedProduct;
     const retailPriceValue = parsePrice(
         activePricingSource?.price
@@ -1632,6 +1898,13 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
         setLightboxState((currentValue) => ({ ...currentValue, isOpen: false }));
     };
 
+    const handleLightboxIndexChange = (nextIndex) => {
+        setLightboxState((currentValue) => ({
+            ...currentValue,
+            index: nextIndex
+        }));
+    };
+
     const stepLightbox = (direction) => {
         setLightboxState((currentValue) => {
             const count = currentValue.images.length;
@@ -1662,6 +1935,15 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
             index: safeIndex,
             title
         });
+    };
+
+    const handleVariantGalleryIndexChange = (nextIndex) => {
+        if (hasMultipleVariants) {
+            handleActiveVariantChange(nextIndex);
+            return;
+        }
+
+        setSubImageIndex(nextIndex);
     };
 
     const renderVariantGallerySection = () => {
@@ -2660,18 +2942,38 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                             ) : null}
 
                             {currentVariantImage ? (
-                                <button
-                                    type="button"
-                                    onClick={() => openLightbox(activeVariantImages, safeSubImageIndex, activeVariantDisplayName)}
-                                    className="relative z-10 flex h-full w-full items-center justify-center rounded-[1.9rem] border border-white/45 bg-white/80 p-3 shadow-[0_24px_80px_rgba(148,163,184,0.16)] backdrop-blur-sm focus:outline-none dark:border-white/10 dark:bg-white/[0.04]"
-                                    aria-label="Open variant image fullscreen"
-                                >
-                                    <img
-                                        src={currentVariantImage}
-                                        alt={activeVariantDisplayName}
-                                        className="h-full w-full rounded-[1.45rem] object-contain object-top cursor-zoom-in"
+                                <div className="relative z-10 h-full w-full">
+                                    <SwipeableLoopCarousel
+                                        itemCount={hasMultipleVariants ? selectedProduct.variants.length : activeVariantImages.length}
+                                        activeIndex={hasMultipleVariants ? activeVariantIndex : safeSubImageIndex}
+                                        onIndexChange={handleVariantGalleryIndexChange}
+                                        onActiveSlideClick={() => openLightbox(activeVariantImages, safeSubImageIndex, activeVariantDisplayName)}
+                                        activeSlideAriaLabel="Open variant image fullscreen"
+                                        trackClassName="items-center"
+                                        slideClassName="flex items-center justify-center"
+                                        renderSlide={(itemIndex, { isActive }) => {
+                                            const slideImage = hasMultipleVariants
+                                                ? (itemIndex === activeVariantIndex
+                                                    ? currentVariantImage
+                                                    : (getVariantAllImages(selectedProduct.variants[itemIndex])[0] || currentVariantImage || '/logo.png'))
+                                                : (activeVariantImages[itemIndex] || '/logo.png');
+                                            const slideTitle = hasMultipleVariants
+                                                ? (selectedProduct.variants[itemIndex]?.name || selectedProduct.variants[itemIndex]?.label || `موديل ${itemIndex + 1}`)
+                                                : activeVariantDisplayName;
+
+                                            return (
+                                                <div className={`flex h-full w-full items-center justify-center rounded-[1.9rem] border border-white/45 bg-white/80 p-3 shadow-[0_24px_80px_rgba(148,163,184,0.16)] backdrop-blur-sm dark:border-white/10 dark:bg-white/[0.04] ${isActive ? 'cursor-zoom-in' : 'cursor-grab active:cursor-grabbing'}`}>
+                                                    <img
+                                                        src={slideImage}
+                                                        alt={slideTitle}
+                                                        draggable={false}
+                                                        className="h-full w-full rounded-[1.45rem] object-contain object-top"
+                                                    />
+                                                </div>
+                                            );
+                                        }}
                                     />
-                                </button>
+                                </div>
                             ) : (
                                 <div className="relative z-10 flex h-full w-full items-center justify-center rounded-[1.9rem] border border-dashed border-slate-300 bg-white/75 text-gray-400 dark:border-white/10 dark:bg-white/[0.04]">
                                     <i className="fa-regular fa-image text-6xl"></i>
@@ -3001,7 +3303,34 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                         ) : null}
 
                         {currentMedia ? (
-                            currentMedia.type === 'video' ? (
+                            canSwipeMainGallery ? (
+                                <div className="relative z-10 h-full w-full">
+                                    <SwipeableLoopCarousel
+                                        itemCount={images.length}
+                                        activeIndex={safeImageIndex}
+                                        onIndexChange={setCurrentImageIndex}
+                                        onActiveSlideClick={(itemIndex) => openLightbox(images, itemIndex, selectedProduct.title || selectedProduct.name || '')}
+                                        activeSlideAriaLabel="Open product image fullscreen"
+                                        trackClassName="items-center"
+                                        slideClassName="flex items-center justify-center"
+                                        renderSlide={(itemIndex, { isActive }) => {
+                                            const mediaEntry = images[itemIndex];
+                                            const mediaUrl = mediaEntry?.url || mediaEntry;
+
+                                            return (
+                                                <div className={`flex h-full w-full items-center justify-center rounded-[2.05rem] border border-white/45 bg-white/80 p-1.5 shadow-[0_24px_80px_rgba(148,163,184,0.16)] backdrop-blur-sm dark:border-white/10 dark:bg-white/[0.04] md:rounded-[1.9rem] md:p-3 ${isActive ? 'cursor-zoom-in' : 'cursor-grab active:cursor-grabbing'}`}>
+                                                    <img
+                                                        src={mediaUrl}
+                                                        alt={selectedProduct.title || selectedProduct.name}
+                                                        draggable={false}
+                                                        className="h-full w-full rounded-[1.7rem] object-contain object-center md:rounded-[1.45rem] md:object-top"
+                                                    />
+                                                </div>
+                                            );
+                                        }}
+                                    />
+                                </div>
+                            ) : currentMedia.type === 'video' ? (
                                 <video 
                                     src={currentMedia.url} 
                                     controls 
@@ -3272,11 +3601,33 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                         ) : null}
 
                         <div className="flex max-h-full w-full flex-col items-center justify-center gap-4 px-12 md:px-20">
-                            <img
-                                src={lightboxState.images[lightboxState.index]}
-                                alt={lightboxState.title || 'Fullscreen product image'}
-                                className="max-h-[78vh] w-auto max-w-full rounded-2xl object-contain shadow-[0_20px_80px_rgba(0,0,0,0.55)]"
-                            />
+                            {lightboxState.images.length > 1 ? (
+                                <SwipeableLoopCarousel
+                                    itemCount={lightboxState.images.length}
+                                    activeIndex={lightboxState.index}
+                                    onIndexChange={handleLightboxIndexChange}
+                                    className="w-full"
+                                    viewportClassName="w-full"
+                                    trackClassName="items-center"
+                                    slideClassName="flex items-center justify-center px-2 md:px-3"
+                                    renderSlide={(itemIndex) => (
+                                        <div className="flex h-full w-full items-center justify-center">
+                                            <img
+                                                src={lightboxState.images[itemIndex]}
+                                                alt={lightboxState.title || 'Fullscreen product image'}
+                                                draggable={false}
+                                                className="max-h-[78vh] w-auto max-w-full rounded-2xl object-contain shadow-[0_20px_80px_rgba(0,0,0,0.55)]"
+                                            />
+                                        </div>
+                                    )}
+                                />
+                            ) : (
+                                <img
+                                    src={lightboxState.images[lightboxState.index]}
+                                    alt={lightboxState.title || 'Fullscreen product image'}
+                                    className="max-h-[78vh] w-auto max-w-full rounded-2xl object-contain shadow-[0_20px_80px_rgba(0,0,0,0.55)]"
+                                />
+                            )}
 
                             {lightboxState.title ? (
                                 <div className="text-center text-white/90">
