@@ -3167,7 +3167,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                         <div
                             ref={addPackSectionRef}
                             tabIndex={-1}
-                            className={`rounded-[1.4rem] border border-green-500/20 bg-green-500/5 p-4 transition-[box-shadow,border-color,transform] duration-300 focus:outline-none dark:bg-green-500/10 ${isAddPackSectionHighlighted ? 'border-brandGold/65 shadow-[0_0_0_3px_rgba(212,175,55,0.22),0_24px_60px_rgba(15,23,42,0.18)] -translate-y-1' : ''}`}
+                            className={`rounded-[1.4rem] border border-green-500/20 bg-green-500/5 p-4 transition-[box-shadow,border-color,transform,background-color] duration-300 focus:outline-none dark:bg-green-500/10 ${isAddPackSectionHighlighted ? 'relative z-10 border-brandGold/75 bg-[linear-gradient(135deg,rgba(21,128,61,0.2),rgba(5,46,22,0.92))] shadow-[0_0_0_9999px_rgba(2,6,23,0.46),0_0_0_3px_rgba(212,175,55,0.34),0_0_40px_rgba(212,175,55,0.28),0_28px_70px_rgba(15,23,42,0.4)] -translate-y-1' : ''}`}
                         >
                             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-green-600">Add Pack | عبوة / علبة</p>
                             <p className="mt-1 mb-3 text-xs text-gray-500 dark:text-gray-400">الكمية هنا محسوبة بالعبوة أو العلبة، وليس بالكرتونة.</p>
