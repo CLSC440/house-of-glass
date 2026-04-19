@@ -583,6 +583,7 @@ function SwipeableLoopCarousel({
         <div className={`relative h-full w-full ${className}`}>
             <div
                 ref={viewportRef}
+                dir="ltr"
                 className={`h-full w-full overflow-hidden ${viewportClassName}`}
                 style={{ touchAction: hasMultipleItems ? 'pan-y pinch-zoom' : 'auto' }}
                 onPointerDown={handlePointerDown}
