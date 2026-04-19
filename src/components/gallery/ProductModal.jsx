@@ -1127,6 +1127,11 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
     const [wholesaleQuantity, setWholesaleQuantity] = useState(1);
     const [showMobileVariantPicker, setShowMobileVariantPicker] = useState(false);
     const [showMobileRetailQuantityBar, setShowMobileRetailQuantityBar] = useState(false);
+    const [isMobileRetailAddBarHidden, setIsMobileRetailAddBarHidden] = useState(false);
+    const [isAddPackSectionHighlighted, setIsAddPackSectionHighlighted] = useState(false);
+    const modalScrollContainerRef = useRef(null);
+    const addPackSectionRef = useRef(null);
+    const addPackHighlightTimeoutRef = useRef(null);
     const { siteSettings, derivedSettings } = useSiteSettings();
     const [showLiveIndicator, setShowLiveIndicator] = useState(false);
     const [lightboxState, setLightboxState] = useState({ isOpen: false, images: [], index: 0, title: '' });
@@ -1181,6 +1186,14 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [lightboxState.isOpen]);
+
+    useEffect(() => {
+        return () => {
+            if (addPackHighlightTimeoutRef.current) {
+                window.clearTimeout(addPackHighlightTimeoutRef.current);
+            }
+        };
+    }, []);
     
     const fallbackDesc = selectedProduct.desc || selectedProduct.description || '';
     const productDisplayName = selectedProduct.title || selectedProduct.name || '';
@@ -1349,6 +1362,55 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
 
     const handleAddToWholesaleCart = () => {
         addToWholesaleCart(selectedProduct, wholesaleQuantity);
+    };
+
+    const scrollToAddPackSection = () => {
+        setShowMobileRetailQuantityBar(false);
+        setIsMobileRetailAddBarHidden(true);
+
+        const addPackSection = addPackSectionRef.current;
+        if (!addPackSection) {
+            return;
+        }
+
+        const focusAddPackSection = () => {
+            addPackSection.focus({ preventScroll: true });
+            setIsAddPackSectionHighlighted(true);
+
+            if (addPackHighlightTimeoutRef.current) {
+                window.clearTimeout(addPackHighlightTimeoutRef.current);
+            }
+
+            addPackHighlightTimeoutRef.current = window.setTimeout(() => {
+                setIsAddPackSectionHighlighted(false);
+            }, 1800);
+        };
+
+        if (typeof window === 'undefined' || window.innerWidth >= 768) {
+            addPackSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            window.setTimeout(focusAddPackSection, 360);
+            return;
+        }
+
+        const scrollContainer = modalScrollContainerRef.current;
+        if (!scrollContainer) {
+            addPackSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            window.setTimeout(focusAddPackSection, 360);
+            return;
+        }
+
+        const containerRect = scrollContainer.getBoundingClientRect();
+        const sectionRect = addPackSection.getBoundingClientRect();
+        const currentScrollTop = scrollContainer.scrollTop;
+        const preferredTopOffset = Math.min(Math.max(containerRect.height * 0.24, 190), 240);
+        const targetTop = currentScrollTop + (sectionRect.top - containerRect.top) - preferredTopOffset;
+
+        scrollContainer.scrollTo({
+            top: Math.max(0, targetTop),
+            behavior: 'smooth'
+        });
+
+        window.setTimeout(focusAddPackSection, 360);
     };
 
     const hasVariants = Array.isArray(selectedProduct.variants) && selectedProduct.variants.length > 0;
@@ -2140,6 +2202,10 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
             return null;
         }
 
+        if (isMobileRetailAddBarHidden) {
+            return null;
+        }
+
         if (showMobileRetailQuantityBar) {
             return (
                 <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[140] px-3 pb-[max(0.85rem,env(safe-area-inset-bottom))] md:hidden">
@@ -2188,7 +2254,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                 <div className="mx-auto w-full max-w-3xl">
                     <button
                         type="button"
-                        onClick={() => setShowMobileRetailQuantityBar(true)}
+                        onClick={scrollToAddPackSection}
                         disabled={retailOutOfStock}
                         className="attention-vibrate pointer-events-auto w-full rounded-full bg-[linear-gradient(135deg,#f59e0b,#f97316)] px-5 py-4 text-sm font-black tracking-[0.04em] text-white shadow-[0_22px_55px_rgba(249,115,22,0.3)] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
                     >
@@ -2563,7 +2629,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
 
                     <div className="md:flex md:flex-row">
                         <div className="relative flex w-full flex-col border-b border-slate-200/70 bg-gradient-to-b from-slate-100 via-white to-slate-100 dark:border-white/10 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 md:w-3/5 md:border-b-0 md:border-l">
-                            <div className="relative flex h-[26rem] shrink-0 items-center justify-center overflow-hidden px-6 pb-24 pt-16 md:h-full md:min-h-0 md:pb-6">
+                            <div className="relative flex h-[26rem] shrink-0 items-center justify-center overflow-hidden px-6 pb-24 pt-16 md:h-[31rem] md:min-h-0 md:pb-6 lg:h-[35rem]">
                             {activeVariantImages.length > 0 ? (
                                 <div className="pointer-events-none absolute left-6 top-6 z-20 flex items-center gap-2">
                                     {hasMultipleVariants ? (
@@ -2897,7 +2963,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
     }
 
     return (
-        <div key={selectedProduct.id || selectedProduct.code || selectedProduct.name} className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-6 md:overflow-hidden" dir="rtl">
+        <div ref={modalScrollContainerRef} key={selectedProduct.id || selectedProduct.code || selectedProduct.name} className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-6 md:overflow-hidden" dir="rtl">
             <div 
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
                 onClick={closeModal}
@@ -2909,7 +2975,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                 <div className="flex flex-col md:flex-row">
                 {/* Media Section */}
                 <div className="relative flex w-full flex-col border-b border-slate-200/70 bg-gradient-to-b from-slate-100 via-white to-slate-100 dark:border-white/10 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 md:w-3/5 md:border-b-0 md:border-l">
-                    <div className="relative flex h-[82svh] min-h-[36rem] max-h-[52rem] shrink-0 items-center justify-center overflow-hidden px-1 pb-2 pt-10 sm:h-[84svh] md:h-full md:min-h-0 md:max-h-none md:px-6 md:pb-6">
+                    <div className="relative flex h-[82svh] min-h-[36rem] max-h-[52rem] shrink-0 items-center justify-center overflow-hidden px-1 pb-2 pt-10 sm:h-[84svh] md:h-[31rem] md:min-h-0 md:max-h-none md:px-6 md:pb-6 lg:h-[35rem]">
                         {images.length > 1 ? (
                             <div className="pointer-events-none absolute left-4 top-4 z-20 flex items-center gap-2 md:left-6 md:top-6">
                                 <span className="rounded-full border border-white/60 bg-white/75 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-700 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-slate-950/70 dark:text-white/75">
@@ -3098,7 +3164,11 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                             onAdd: handleAddToWholesaleCart
                         }) : null}
 
-                        <div className="rounded-[1.4rem] border border-green-500/20 bg-green-500/5 p-4 dark:bg-green-500/10">
+                        <div
+                            ref={addPackSectionRef}
+                            tabIndex={-1}
+                            className={`rounded-[1.4rem] border border-green-500/20 bg-green-500/5 p-4 transition-[box-shadow,border-color,transform] duration-300 focus:outline-none dark:bg-green-500/10 ${isAddPackSectionHighlighted ? 'border-brandGold/65 shadow-[0_0_0_3px_rgba(212,175,55,0.22),0_24px_60px_rgba(15,23,42,0.18)] -translate-y-1' : ''}`}
+                        >
                             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-green-600">Add Pack | عبوة / علبة</p>
                             <p className="mt-1 mb-3 text-xs text-gray-500 dark:text-gray-400">الكمية هنا محسوبة بالعبوة أو العلبة، وليس بالكرتونة.</p>
                             <div className="flex flex-col items-stretch gap-2 sm:flex-row">
