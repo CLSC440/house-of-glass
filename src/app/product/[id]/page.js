@@ -1,8 +1,30 @@
 import ProductShareRedirect from './ProductShareRedirect';
 import { getSharedProductById } from '@/lib/server/product-share';
 
-export async function generateMetadata({ params }) {
+function resolveSingleSearchParam(value) {
+    if (Array.isArray(value)) {
+        return String(value[0] || '').trim();
+    }
+
+    return String(value || '').trim();
+}
+
+function buildSharePreviewPath(basePath = '', shareCacheKey = '') {
+    const normalizedBasePath = String(basePath || '').trim() || '/';
+    const normalizedShareCacheKey = resolveSingleSearchParam(shareCacheKey);
+
+    if (!normalizedShareCacheKey) {
+        return normalizedBasePath;
+    }
+
+    const params = new URLSearchParams();
+    params.set('wa_share', normalizedShareCacheKey);
+    return `${normalizedBasePath}?${params.toString()}`;
+}
+
+export async function generateMetadata({ params, searchParams }) {
     const { id } = await params;
+    const resolvedSearchParams = await searchParams;
     const sharedProduct = await getSharedProductById(id);
 
     if (!sharedProduct) {
@@ -12,16 +34,18 @@ export async function generateMetadata({ params }) {
         };
     }
 
+    const previewSharePath = buildSharePreviewPath(sharedProduct.sharePath, resolvedSearchParams?.wa_share);
+
     return {
         title: `${sharedProduct.title} | House Of Glass`,
         description: sharedProduct.description,
         alternates: {
-            canonical: sharedProduct.targetPath
+            canonical: sharedProduct.sharePath
         },
         openGraph: {
             title: sharedProduct.title,
             description: sharedProduct.description,
-            url: sharedProduct.sharePath,
+            url: previewSharePath,
             siteName: 'House Of Glass',
             type: 'website'
         },

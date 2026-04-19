@@ -1753,8 +1753,9 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
         }
 
         const sharedProductId = String(selectedProduct?.id || '').trim();
+        const shareCacheKey = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
         const sharePath = sharedProductId
-            ? `/product/${encodeURIComponent(sharedProductId)}`
+            ? `/product/${encodeURIComponent(sharedProductId)}?wa_share=${encodeURIComponent(shareCacheKey)}`
             : buildProductModalUrl(
                 window.location.pathname,
                 window.location.search,
@@ -1766,8 +1767,6 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
         try {
             if (navigator.share) {
                 await navigator.share({
-                    title: productShareTitle || 'House Of Glass Product',
-                    text: `Check this product: ${productShareTitle || 'House Of Glass Product'}`,
                     url: shareUrl
                 });
                 return;
