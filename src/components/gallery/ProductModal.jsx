@@ -2125,6 +2125,15 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
         closeModal();
     };
 
+    const handleMobileVariantPrimaryAction = () => {
+        if (hasAnyVariantInCart) {
+            handleMobileVariantAddToCart();
+            return;
+        }
+
+        setShowMobileVariantPicker(true);
+    };
+
     const handleMobileRetailViewCart = () => {
         const confirmation = handleRetailAddWithConfirmation(selectedProduct, quantity, {
             unitPrice: primaryDisplayPrice,
@@ -2426,7 +2435,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                     {!showMobileVariantPicker && !mobileVariantCheckoutItem ? (
                         <button
                             type="button"
-                            onClick={() => setShowMobileVariantPicker(true)}
+                            onClick={handleMobileVariantPrimaryAction}
                             className="attention-vibrate pointer-events-auto w-full rounded-full bg-[linear-gradient(135deg,#f59e0b,#f97316)] px-5 py-4 text-sm font-black tracking-[0.04em] text-white shadow-[0_22px_55px_rgba(249,115,22,0.3)] transition-transform hover:-translate-y-0.5"
                         >
                             {hasAnyVariantInCart ? 'Add to cart | اضف للعربة' : 'Select an option | اختر الشكل / اللون'}
