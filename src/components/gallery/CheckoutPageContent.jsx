@@ -535,6 +535,12 @@ function getSideUpLivePricingFallbackMessage(payload = {}) {
     return 'تعذر تحميل السعر المباشر من SideUp حالياً، لذلك تم استخدام السعر الاحتياطي.';
 }
 
+function getShippingExtraFeesAmount(rate = null) {
+    const codFees = Number(rate?.codFees);
+    const paymentFees = Number(rate?.paymentFees);
+    return (Number.isFinite(codFees) ? codFees : 0) + (Number.isFinite(paymentFees) ? paymentFees : 0);
+}
+
 export default function CheckoutPageContent({ checkoutType }) {
     const router = useRouter();
     const normalizedCheckoutType = normalizeCheckoutType(checkoutType);
@@ -625,11 +631,15 @@ export default function CheckoutPageContent({ checkoutType }) {
                 zoneLabel: resolvedZoneLabel,
                 source: 'disabled',
                 courierName: '',
+                vatAmount: 0,
+                extraFeesAmount: 0,
                 livePricingError: ''
             };
         }
 
         const liveAmount = Number(liveShippingRate?.amount);
+        const liveVatAmount = Number(liveShippingRate?.vatAmount);
+        const liveExtraFeesAmount = getShippingExtraFeesAmount(liveShippingRate);
         if (Number.isFinite(liveAmount) && liveAmount >= 0) {
             return {
                 ...fallbackShippingPricingDetails,
@@ -637,6 +647,8 @@ export default function CheckoutPageContent({ checkoutType }) {
                 zoneLabel: resolvedZoneLabel,
                 source: 'live',
                 courierName: String(liveShippingRate?.courierName || '').trim(),
+                vatAmount: Number.isFinite(liveVatAmount) && liveVatAmount > 0 ? liveVatAmount : 0,
+                extraFeesAmount: liveExtraFeesAmount > 0 ? liveExtraFeesAmount : 0,
                 livePricingError: ''
             };
         }
@@ -646,6 +658,8 @@ export default function CheckoutPageContent({ checkoutType }) {
             zoneLabel: resolvedZoneLabel,
             source: 'fallback',
             courierName: '',
+            vatAmount: 0,
+            extraFeesAmount: 0,
             livePricingError: liveShippingRateError
         };
     }, [fallbackShippingPricingDetails, isShippingSelected, liveShippingRate, liveShippingRateError, selectedShippingZoneName]);
@@ -1005,7 +1019,10 @@ export default function CheckoutPageContent({ checkoutType }) {
 
                 setLiveShippingRate({
                     amount: Number(payload?.amount) || 0,
-                    courierName: String(payload?.courierName || '').trim()
+                    courierName: String(payload?.courierName || '').trim(),
+                    vatAmount: Number(payload?.cheapestQuote?.vat) || 0,
+                    codFees: Number(payload?.cheapestQuote?.codFees) || 0,
+                    paymentFees: Number(payload?.cheapestQuote?.paymentFees) || 0
                 });
             } catch (error) {
                 if (abortController.signal.aborted || isCancelled) {
@@ -1489,11 +1506,6 @@ export default function CheckoutPageContent({ checkoutType }) {
                                                 : `رسوم الشحن الحالية: ${formatCurrency(shippingAmount)}`)
                                             : 'اختر المحافظة ثم المنطقة لحساب سعر الشحن تلقائياً.'}
                                     </p>
-                                    {selectedShippingGovernorate && shippingPricingDetails.zoneLabel ? (
-                                        <p className={`mt-2 text-xs font-black ${isShippingSelected ? selectedDeliveryEyebrowClasses : 'text-brandGold'}`}>
-                                            {shippingPricingDetails.zoneLabel}
-                                        </p>
-                                    ) : null}
                                     {shippingPricingDetails.source === 'live' && shippingPricingDetails.courierName ? (
                                         <p className={`mt-2 text-xs font-black ${isShippingSelected ? selectedDeliveryEyebrowClasses : 'text-brandGold'}`}>
                                             أقل سعر متاح حالياً عبر {shippingPricingDetails.courierName}
@@ -1731,12 +1743,19 @@ export default function CheckoutPageContent({ checkoutType }) {
                                                     تم اختيار المنطقة من بيانات SideUp بنجاح.
                                                 </p>
                                             ) : null}
-                                            <p className={`mt-2 text-sm font-bold leading-7 ${isShippingSelected ? selectedDeliveryMutedTextClasses : 'text-slate-500 dark:text-slate-300'}`}>
-                                                {shippingPricingDetails.zoneLabel ? `منطقة التسعير: ${shippingPricingDetails.zoneLabel}` : 'سيتم استخدام سعر الشحن الاحتياطي.'}
-                                            </p>
                                             <p className="mt-2 text-sm font-black text-emerald-600 dark:text-brandGold">
                                                 {shippingPricingDetails.source === 'live' ? 'سعر الشحن المباشر من SideUp' : 'سعر الشحن المتوقع'}: {formatCurrency(shippingAmount)}
                                             </p>
+                                            {shippingPricingDetails.source === 'live' && shippingPricingDetails.courierName ? (
+                                                <p className="mt-2 text-xs font-black text-emerald-600 dark:text-brandGold">
+                                                    تم سحب السعر الأقل من شركة الشحن: {shippingPricingDetails.courierName}
+                                                </p>
+                                            ) : null}
+                                            {shippingPricingDetails.source === 'live' ? (
+                                                <p className="mt-2 text-xs font-black text-emerald-600 dark:text-brandGold">
+                                                    السعر المعروض هو الإجمالي النهائي من SideUp بعد الضريبة{shippingPricingDetails.vatAmount > 0 ? `، ويشمل VAT بقيمة ${formatCurrency(shippingPricingDetails.vatAmount)}` : ''}{shippingPricingDetails.extraFeesAmount > 0 ? ` ورسوم إضافية بقيمة ${formatCurrency(shippingPricingDetails.extraFeesAmount)}` : ''}.
+                                                </p>
+                                            ) : null}
                                             {shippingPricingDetails.source === 'fallback' && shippingPricingDetails.livePricingError ? (
                                                 <p className="mt-2 text-xs font-black text-amber-600 dark:text-amber-300">
                                                     {shippingPricingDetails.livePricingError}
