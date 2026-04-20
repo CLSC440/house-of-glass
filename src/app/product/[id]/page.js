@@ -47,14 +47,12 @@ export async function generateMetadata({ params, searchParams }) {
             description: sharedProduct.description,
             url: previewSharePath,
             siteName: 'House Of Glass',
-            images: [sharedProduct.imageUrl],
             type: 'website'
         },
         twitter: {
             card: 'summary_large_image',
             title: sharedProduct.title,
-            description: sharedProduct.description,
-            images: [sharedProduct.imageUrl]
+            description: sharedProduct.description
         }
     };
 }
