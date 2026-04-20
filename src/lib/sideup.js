@@ -423,7 +423,8 @@ async function getSideUpServiceToken(config = getSideUpConfig()) {
         method: 'POST',
         headers: {
             Accept: 'application/json',
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'x-tenant': config.tenant
         },
         body: JSON.stringify({
             grant_type: 'password',
