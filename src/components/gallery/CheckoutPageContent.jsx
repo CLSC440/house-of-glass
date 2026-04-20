@@ -541,6 +541,30 @@ function getShippingExtraFeesAmount(rate = null) {
     return (Number.isFinite(codFees) ? codFees : 0) + (Number.isFinite(paymentFees) ? paymentFees : 0);
 }
 
+function getGovernoratePricingZoneOption(options = [], selectedZoneId = '') {
+    if (String(selectedZoneId || '').trim()) {
+        return null;
+    }
+
+    const normalizedOptions = (Array.isArray(options) ? options : [])
+        .map((option) => ({
+            zoneId: String(option?.zoneId || '').trim(),
+            zoneName: String(option?.zoneName || '').trim()
+        }))
+        .filter((option) => option.zoneId);
+
+    const uniqueZoneIds = Array.from(new Set(normalizedOptions.map((option) => option.zoneId)));
+    if (uniqueZoneIds.length !== 1) {
+        return null;
+    }
+
+    const matchedOption = normalizedOptions.find((option) => option.zoneId === uniqueZoneIds[0]) || normalizedOptions[0];
+    return {
+        zoneId: matchedOption?.zoneId || '',
+        zoneName: matchedOption?.zoneName || ''
+    };
+}
+
 export default function CheckoutPageContent({ checkoutType }) {
     const router = useRouter();
     const normalizedCheckoutType = normalizeCheckoutType(checkoutType);
@@ -615,21 +639,48 @@ export default function CheckoutPageContent({ checkoutType }) {
     const isShippingExpanded = expandedDeliverySection === 'shipping';
     const configuredShippingAmount = parseAmount(derivedSettings?.shippingPrice);
     const selectedShippingGovernorate = String(shippingAddressFields.governorate || '').trim();
-    const selectedShippingZoneName = String(shippingAddressFields.zoneName || '').trim();
+    const selectedShippingDistrictId = String(shippingAddressFields.districtId || '').trim();
+    const selectedShippingZoneId = String(shippingAddressFields.zoneId || '').trim();
     const fallbackShippingPricingDetails = useMemo(() => getShippingPricingDetails({
         governorate: selectedShippingGovernorate,
         shippingRates: derivedSettings?.shippingRates,
         fallbackAmount: configuredShippingAmount
     }), [configuredShippingAmount, derivedSettings?.shippingRates, selectedShippingGovernorate]);
+    const governoratePricingZoneOption = useMemo(
+        () => getGovernoratePricingZoneOption(districtOptions, selectedShippingZoneId),
+        [districtOptions, selectedShippingZoneId]
+    );
+    const effectiveShippingZoneId = selectedShippingZoneId || governoratePricingZoneOption?.zoneId || '';
     const shippingPricingDetails = useMemo(() => {
-        const resolvedZoneLabel = selectedShippingZoneName || fallbackShippingPricingDetails.zoneLabel;
-
         if (!isShippingSelected) {
             return {
                 ...fallbackShippingPricingDetails,
                 amount: 0,
-                zoneLabel: resolvedZoneLabel,
                 source: 'disabled',
+                courierName: '',
+                vatAmount: 0,
+                extraFeesAmount: 0,
+                livePricingError: ''
+            };
+        }
+
+        if (!effectiveShippingZoneId) {
+            return {
+                ...fallbackShippingPricingDetails,
+                amount: 0,
+                source: 'pending',
+                courierName: '',
+                vatAmount: 0,
+                extraFeesAmount: 0,
+                livePricingError: ''
+            };
+        }
+
+        if (isLoadingLiveShippingRate || (!liveShippingRate && !liveShippingRateError)) {
+            return {
+                ...fallbackShippingPricingDetails,
+                amount: 0,
+                source: 'loading',
                 courierName: '',
                 vatAmount: 0,
                 extraFeesAmount: 0,
@@ -644,7 +695,6 @@ export default function CheckoutPageContent({ checkoutType }) {
             return {
                 ...fallbackShippingPricingDetails,
                 amount: liveAmount,
-                zoneLabel: resolvedZoneLabel,
                 source: 'live',
                 courierName: String(liveShippingRate?.courierName || '').trim(),
                 vatAmount: Number.isFinite(liveVatAmount) && liveVatAmount > 0 ? liveVatAmount : 0,
@@ -655,14 +705,13 @@ export default function CheckoutPageContent({ checkoutType }) {
 
         return {
             ...fallbackShippingPricingDetails,
-            zoneLabel: resolvedZoneLabel,
             source: 'fallback',
             courierName: '',
             vatAmount: 0,
             extraFeesAmount: 0,
             livePricingError: liveShippingRateError
         };
-    }, [fallbackShippingPricingDetails, isShippingSelected, liveShippingRate, liveShippingRateError, selectedShippingZoneName]);
+    }, [effectiveShippingZoneId, fallbackShippingPricingDetails, isLoadingLiveShippingRate, isShippingSelected, liveShippingRate, liveShippingRateError]);
     const shippingAmount = isShippingSelected ? shippingPricingDetails.amount : 0;
     const shippingAddress = useMemo(() => buildShippingAddressFromFields(shippingAddressFields), [shippingAddressFields]);
     const hasSavedShippingAddress = hasDetailedShippingAddress(shippingAddressFields);
@@ -711,9 +760,23 @@ export default function CheckoutPageContent({ checkoutType }) {
     const isPromoApplied = Boolean(appliedPromoSettings);
     const discountAmount = appliedPromoApplicationDetails.amount;
     const finalTotal = Math.max(0, subtotal - discountAmount + shippingAmount);
-    const totalDisplayValue = isShippingSelected && !selectedShippingGovernorate ? 'اختر المحافظة' : formatCurrency(finalTotal);
+    const totalDisplayValue = !isShippingSelected
+        ? formatCurrency(finalTotal)
+        : !selectedShippingGovernorate
+            ? 'اختر المحافظة'
+            : (isLoadingDistrictOptions || shippingPricingDetails.source === 'loading')
+                ? 'جاري حساب الشحن'
+                : shippingPricingDetails.source === 'pending'
+                    ? 'اختر المنطقة'
+                    : formatCurrency(finalTotal);
     const shippingDisplayValue = isShippingSelected
-        ? (selectedShippingGovernorate ? formatCurrency(shippingAmount) : 'اختر المحافظة')
+        ? (!selectedShippingGovernorate
+            ? 'اختر المحافظة'
+            : (isLoadingDistrictOptions || shippingPricingDetails.source === 'loading')
+                ? 'جاري حساب الشحن'
+                : shippingPricingDetails.source === 'pending'
+                    ? 'اختر المنطقة'
+                    : formatCurrency(shippingAmount))
         : formatCurrency(0);
     const loginTarget = `/login?redirect=checkout${isWholesale ? '&type=wholesale' : ''}`;
     const signupTarget = `/signup?redirect=checkout${isWholesale ? '&type=wholesale' : ''}`;
@@ -985,10 +1048,7 @@ export default function CheckoutPageContent({ checkoutType }) {
     }, [shippingAddressFields.governorate]);
 
     useEffect(() => {
-        const selectedZoneId = String(shippingAddressFields.zoneId || '').trim();
-        const selectedAreaId = String(shippingAddressFields.districtId || '').trim();
-
-        if (!isShippingSelected || !selectedZoneId) {
+        if (!isShippingSelected || !effectiveShippingZoneId) {
             setLiveShippingRate(null);
             setLiveShippingRateError('');
             setIsLoadingLiveShippingRate(false);
@@ -1003,7 +1063,17 @@ export default function CheckoutPageContent({ checkoutType }) {
             setLiveShippingRateError('');
 
             try {
-                const response = await fetch(`/api/integrations/sideup/pricing?zoneId=${encodeURIComponent(selectedZoneId)}&areaId=${encodeURIComponent(selectedAreaId)}&paymentMethod=PREPAID&codAmount=0`, {
+                const searchParams = new URLSearchParams({
+                    zoneId: String(effectiveShippingZoneId),
+                    paymentMethod: 'PREPAID',
+                    codAmount: '0'
+                });
+
+                if (selectedShippingDistrictId) {
+                    searchParams.set('areaId', selectedShippingDistrictId);
+                }
+
+                const response = await fetch(`/api/integrations/sideup/pricing?${searchParams.toString()}`, {
                     cache: 'no-store',
                     signal: abortController.signal
                 });
@@ -1044,7 +1114,7 @@ export default function CheckoutPageContent({ checkoutType }) {
             isCancelled = true;
             abortController.abort();
         };
-    }, [isShippingSelected, shippingAddressFields.districtId, shippingAddressFields.zoneId]);
+    }, [effectiveShippingZoneId, isShippingSelected, selectedShippingDistrictId]);
 
     useEffect(() => {
         const handlePointerDownOutsideDistrictAutocomplete = (event) => {
@@ -1501,10 +1571,12 @@ export default function CheckoutPageContent({ checkoutType }) {
                                     <p className="mt-2 text-base font-black">شحن الطلب إلى عنواني</p>
                                     <p className={`mt-2 text-sm font-bold leading-7 ${isShippingSelected ? selectedDeliveryMutedTextClasses : 'text-slate-500 dark:text-slate-300'}`}>
                                         {selectedShippingGovernorate
-                                            ? (isLoadingLiveShippingRate && shippingAddressFields.zoneId
-                                                ? 'جاري تحديث سعر الشحن من SideUp...'
-                                                : `رسوم الشحن الحالية: ${formatCurrency(shippingAmount)}`)
-                                            : 'اختر المحافظة ثم المنطقة لحساب سعر الشحن تلقائياً.'}
+                                            ? (isLoadingDistrictOptions || shippingPricingDetails.source === 'loading'
+                                                ? 'جاري حساب سعر الشحن من SideUp...'
+                                                : shippingPricingDetails.source === 'pending'
+                                                    ? 'اختر المنطقة لاستكمال سعر الشحن.'
+                                                    : `الشحن: ${formatCurrency(shippingAmount)}`)
+                                            : 'اختر المحافظة لحساب سعر الشحن تلقائياً.'}
                                     </p>
                                     {shippingPricingDetails.source === 'live' && shippingPricingDetails.courierName ? (
                                         <p className={`mt-2 text-xs font-black ${isShippingSelected ? selectedDeliveryEyebrowClasses : 'text-brandGold'}`}>
@@ -1743,9 +1815,21 @@ export default function CheckoutPageContent({ checkoutType }) {
                                                     تم اختيار المنطقة من بيانات SideUp بنجاح.
                                                 </p>
                                             ) : null}
-                                            <p className="mt-2 text-sm font-black text-emerald-600 dark:text-brandGold">
-                                                {shippingPricingDetails.source === 'live' ? 'سعر الشحن المباشر من SideUp' : 'سعر الشحن المتوقع'}: {formatCurrency(shippingAmount)}
-                                            </p>
+                                            {shippingPricingDetails.source === 'live' || shippingPricingDetails.source === 'fallback' ? (
+                                                <p className="mt-2 text-sm font-black text-emerald-600 dark:text-brandGold">
+                                                    الشحن: {formatCurrency(shippingAmount)}
+                                                </p>
+                                            ) : null}
+                                            {shippingPricingDetails.source === 'loading' ? (
+                                                <p className="mt-2 text-xs font-black text-emerald-600 dark:text-brandGold">
+                                                    جاري حساب سعر الشحن من SideUp...
+                                                </p>
+                                            ) : null}
+                                            {shippingPricingDetails.source === 'pending' ? (
+                                                <p className="mt-2 text-xs font-black text-emerald-600 dark:text-brandGold">
+                                                    اختر المنطقة لاستكمال تحديد سعر الشحن.
+                                                </p>
+                                            ) : null}
                                             {shippingPricingDetails.source === 'live' && shippingPricingDetails.courierName ? (
                                                 <p className="mt-2 text-xs font-black text-emerald-600 dark:text-brandGold">
                                                     تم سحب السعر الأقل من شركة الشحن: {shippingPricingDetails.courierName}
