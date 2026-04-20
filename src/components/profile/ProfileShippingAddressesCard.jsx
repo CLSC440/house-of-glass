@@ -156,6 +156,8 @@ export default function ProfileShippingAddressesCard({ currentUser, profileData,
     const [addressMessage, setAddressMessage] = useState({ type: '', text: '' });
     const [isSavingAddress, setIsSavingAddress] = useState(false);
     const [deletingAddressId, setDeletingAddressId] = useState('');
+    const [isGovernorateMenuOpen, setIsGovernorateMenuOpen] = useState(false);
+    const governorateDropdownRef = useRef(null);
     const districtAutocompleteRef = useRef(null);
 
     useEffect(() => {
@@ -262,14 +264,18 @@ export default function ProfileShippingAddressesCard({ currentUser, profileData,
     }, [shippingAddressFields.governorate]);
 
     useEffect(() => {
-        const handlePointerDownOutsideDistrictAutocomplete = (event) => {
+        const handlePointerDownOutsideDropdowns = (event) => {
             if (!districtAutocompleteRef.current?.contains(event.target)) {
                 setIsDistrictSuggestionsOpen(false);
             }
+
+            if (!governorateDropdownRef.current?.contains(event.target)) {
+                setIsGovernorateMenuOpen(false);
+            }
         };
 
-        document.addEventListener('mousedown', handlePointerDownOutsideDistrictAutocomplete);
-        return () => document.removeEventListener('mousedown', handlePointerDownOutsideDistrictAutocomplete);
+        document.addEventListener('mousedown', handlePointerDownOutsideDropdowns);
+        return () => document.removeEventListener('mousedown', handlePointerDownOutsideDropdowns);
     }, []);
 
     const selectedDistrictOptionId = useMemo(() => {
@@ -305,6 +311,10 @@ export default function ProfileShippingAddressesCard({ currentUser, profileData,
         savedShippingAddresses.find((address) => address.id === defaultShippingAddressId) || savedShippingAddresses[0] || null
     ), [defaultShippingAddressId, savedShippingAddresses]);
 
+    const selectedGovernorateOption = useMemo(() => (
+        GOVERNORATE_OPTIONS.find((option) => option.value === shippingAddressFields.governorate) || null
+    ), [shippingAddressFields.governorate]);
+
     const hasReachedAddressLimit = savedShippingAddresses.length >= MAX_SAVED_SHIPPING_ADDRESSES;
 
     const handleShippingAddressFieldChange = (fieldKey, value) => {
@@ -327,6 +337,7 @@ export default function ProfileShippingAddressesCard({ currentUser, profileData,
             setDistrictOptions([]);
             setDistrictOptionsError('');
             setIsDistrictSuggestionsOpen(false);
+            setIsGovernorateMenuOpen(false);
         }
 
         if (addressMessage.text) {
@@ -641,12 +652,38 @@ export default function ProfileShippingAddressesCard({ currentUser, profileData,
 
                         <label className="block text-right sm:col-span-2">
                             <span className="mb-1.5 block text-xs font-black uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">المحافظة</span>
-                            <select value={shippingAddressFields.governorate} onChange={(event) => handleShippingAddressFieldChange('governorate', event.target.value)} className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-right text-sm font-medium text-brandBlue outline-none transition-colors focus:border-brandGold dark:border-gray-700 dark:bg-gray-900/30 dark:text-white">
-                                <option value="">اختر المحافظة</option>
-                                {GOVERNORATE_OPTIONS.map((option) => (
-                                    <option key={option.value} value={option.value}>{option.label}</option>
-                                ))}
-                            </select>
+                            <div ref={governorateDropdownRef} className="relative">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsGovernorateMenuOpen((currentValue) => !currentValue)}
+                                    className="flex w-full items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-3 text-right text-sm font-medium text-brandBlue outline-none transition-colors hover:border-brandGold focus:border-brandGold dark:border-gray-700 dark:bg-gray-900/30 dark:text-white"
+                                >
+                                    <i className={`fa-solid ${isGovernorateMenuOpen ? 'fa-chevron-up' : 'fa-chevron-down'} text-xs text-brandGold`}></i>
+                                    <span className={selectedGovernorateOption ? '' : 'text-slate-400'}>
+                                        {selectedGovernorateOption?.label || 'اختر المحافظة'}
+                                    </span>
+                                </button>
+
+                                {isGovernorateMenuOpen ? (
+                                    <div className="custom-scroll absolute inset-x-0 top-full z-[90] mt-2 max-h-64 overflow-y-auto rounded-[1rem] border border-brandGold/20 bg-[#11192b] py-2 shadow-[0_20px_45px_rgba(6,11,23,0.35)]">
+                                        {GOVERNORATE_OPTIONS.map((option) => {
+                                            const isSelectedGovernorate = option.value === shippingAddressFields.governorate;
+
+                                            return (
+                                                <button
+                                                    key={option.value}
+                                                    type="button"
+                                                    onClick={() => handleShippingAddressFieldChange('governorate', option.value)}
+                                                    className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-right text-sm font-bold transition-colors ${isSelectedGovernorate ? 'bg-brandGold/12 text-brandGold' : 'text-white hover:bg-white/5'}`}
+                                                >
+                                                    {isSelectedGovernorate ? <i className="fa-solid fa-check text-[11px]"></i> : <span className="h-4 w-4"></span>}
+                                                    <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                ) : null}
+                            </div>
                         </label>
 
                         <label className="block text-right sm:col-span-2">

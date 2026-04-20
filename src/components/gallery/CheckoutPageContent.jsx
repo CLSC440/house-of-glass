@@ -619,6 +619,7 @@ export default function CheckoutPageContent({ checkoutType }) {
     const [phonePromptError, setPhonePromptError] = useState('');
     const [isSavingPhone, setIsSavingPhone] = useState(false);
     const [orderConfirmation, setOrderConfirmation] = useState(null);
+    const [isCheckoutProcessing, setIsCheckoutProcessing] = useState(false);
     const [isCheckoutDraftHydrated, setIsCheckoutDraftHydrated] = useState(false);
     const [shouldScrollToShippingAddress, setShouldScrollToShippingAddress] = useState(false);
     const shippingAddressSectionRef = useRef(null);
@@ -780,7 +781,8 @@ export default function CheckoutPageContent({ checkoutType }) {
         : formatCurrency(0);
     const loginTarget = `/login?redirect=checkout${isWholesale ? '&type=wholesale' : ''}`;
     const signupTarget = `/signup?redirect=checkout${isWholesale ? '&type=wholesale' : ''}`;
-    const isCheckoutSubmitting = isSubmitting && !orderConfirmation;
+    const isCheckoutBusy = isCheckoutProcessing || isSubmitting;
+    const isCheckoutSubmitting = isCheckoutBusy && !orderConfirmation;
     const shouldNudgePromoApplyButton = Boolean(normalizePromoCodeLookupValue(promoCodeInput)) && activePromoCodes.length > 0 && !isPromoApplied;
     const selectedDeliveryCardClasses = 'border-brandGold/30 bg-[linear-gradient(135deg,rgba(212,175,55,0.14),rgba(255,255,255,0.96))] text-brandBlue shadow-[0_18px_45px_rgba(212,175,55,0.12)] dark:border-brandGold/24 dark:bg-[linear-gradient(135deg,rgba(212,175,55,0.14),rgba(15,23,42,0.9))] dark:text-white';
     const selectedDeliveryEyebrowClasses = 'text-brandBlue/60 dark:text-brandGold/75';
@@ -1414,6 +1416,7 @@ export default function CheckoutPageContent({ checkoutType }) {
         }
 
         setIsSavingPhone(true);
+        setIsCheckoutProcessing(true);
         setPhonePromptError('');
 
         try {
@@ -1443,6 +1446,7 @@ export default function CheckoutPageContent({ checkoutType }) {
             setPhonePromptError(errorMessage);
         } finally {
             setIsSavingPhone(false);
+            setIsCheckoutProcessing(false);
         }
     };
 
@@ -1484,25 +1488,34 @@ export default function CheckoutPageContent({ checkoutType }) {
 
         let persistedShippingAddressId = String(selectedShippingAddressId || '').trim();
 
-        if (isShippingSelected) {
-            try {
-                const persistResult = await persistShippingAddressSelection(auth.currentUser);
-                persistedShippingAddressId = persistResult.addressId || persistedShippingAddressId;
-            } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : 'تعذر حفظ عنوان الشحن حالياً. حاول مرة أخرى.';
-                setExpandedDeliverySection('shipping');
-                setIsShippingAddressFormOpen(true);
-                setShippingAddressError(errorMessage);
-                showToast(errorMessage, 'error');
-                return;
-            }
-        }
+        setIsCheckoutProcessing(true);
 
-        await finalizeOrderConfirmation({
-            shippingAddressIdOverride: persistedShippingAddressId,
-            shippingRecipientNameOverride: getEffectiveShippingRecipientName(shippingAddressFields, customerInfo),
-            shippingRecipientPhoneOverride: effectiveShippingRecipientPhone
-        });
+        try {
+            if (isShippingSelected) {
+                try {
+                    const persistResult = await persistShippingAddressSelection(auth.currentUser);
+                    persistedShippingAddressId = persistResult.addressId || persistedShippingAddressId;
+                } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : 'تعذر حفظ عنوان الشحن حالياً. حاول مرة أخرى.';
+                    setExpandedDeliverySection('shipping');
+                    setIsShippingAddressFormOpen(true);
+                    setShippingAddressError(errorMessage);
+                    showToast(errorMessage, 'error');
+                    return;
+                }
+            }
+
+            await finalizeOrderConfirmation({
+                shippingAddressIdOverride: persistedShippingAddressId,
+                shippingRecipientNameOverride: getEffectiveShippingRecipientName(shippingAddressFields, customerInfo),
+                shippingRecipientPhoneOverride: effectiveShippingRecipientPhone
+            });
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'تعذر تأكيد الطلب حالياً. حاول مرة أخرى.';
+            showToast(errorMessage, 'error');
+        } finally {
+            setIsCheckoutProcessing(false);
+        }
     };
 
     const deliveryMethodSection = (
@@ -2242,11 +2255,11 @@ export default function CheckoutPageContent({ checkoutType }) {
                         <button
                             type="button"
                             onClick={handleConfirmOrder}
-                            disabled={isSubmitting}
+                            disabled={isCheckoutSubmitting}
                             className={`mt-6 flex w-full items-center justify-center gap-3 rounded-2xl border px-5 py-4 text-sm font-black uppercase tracking-[0.18em] shadow-lg transition-all hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50 ${isWholesale ? 'border-brandGold bg-brandGold text-brandBlue shadow-brandGold/20' : 'border-brandGold bg-brandBlue text-white shadow-brandBlue/20'}`}
                         >
-                            <span>{isSubmitting ? 'Processing...' : (auth.currentUser ? 'Confirm Order | تأكيد الطلب' : 'Login To Confirm | سجل الدخول أولاً')}</span>
-                            <i className={`fa-solid ${isSubmitting ? 'fa-spinner fa-spin' : 'fa-check'}`}></i>
+                            <span>{isCheckoutSubmitting ? 'Processing...' : (auth.currentUser ? 'Confirm Order | تأكيد الطلب' : 'Login To Confirm | سجل الدخول أولاً')}</span>
+                            <i className={`fa-solid ${isCheckoutSubmitting ? 'fa-spinner fa-spin' : 'fa-check'}`}></i>
                         </button>
 
                         <Link href="/" className="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-brandGold/20 px-5 py-3 text-sm font-black text-brandBlue transition-colors hover:bg-brandGold/10 dark:text-brandGold">

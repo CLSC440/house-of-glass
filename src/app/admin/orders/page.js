@@ -73,6 +73,11 @@ function getOrderDiscountAmount(order) {
     return Number.isFinite(normalized) ? normalized : 0;
 }
 
+function getOrderShippingAmount(order) {
+    const normalized = Number(order.shippingAmount ?? order.shipping_amount ?? 0);
+    return Number.isFinite(normalized) ? normalized : 0;
+}
+
 function getItemUnitPrice(item, orderType) {
     const rawPrice = orderType === 'wholesale'
         ? item.wholesalePrice || item.wholesale_price || item.cartonPrice || item.bulkPrice || item.price
@@ -1115,6 +1120,7 @@ export default function AdminOrders() {
                                                                         <InfoPill label="Date" value={parseTimestamp(getOrderDateValue(order))} />
                                                                         <InfoPill label="Promo Code" value={getOrderPromoCode(order) || 'Not used'} />
                                                                         <InfoPill label="Discount Applied" value={`${getOrderDiscountAmount(order).toLocaleString()} ج.م`} />
+                                                                        <InfoPill label="Shipping Cost" value={`${getOrderShippingAmount(order).toLocaleString()} ج.م`} />
                                                                         <InfoPill label="Total" value={`${amount.toLocaleString()} ج.م`} />
                                                                         <InfoPill label="DC Sync" value={dcSyncState.label} />
                                                                         <InfoPill label="SideUp Sync" value={sideupSyncState.label} />
