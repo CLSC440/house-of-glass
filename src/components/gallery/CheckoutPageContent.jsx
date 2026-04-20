@@ -168,6 +168,7 @@ function createEmptyShippingAddressFields() {
         cityId: '',
         cityName: '',
         zoneId: '',
+        zoneName: '',
         streetName: '',
         houseNumber: '',
         floorNumber: '',
@@ -187,6 +188,7 @@ function normalizeSavedShippingAddress(rawAddress = {}) {
         cityId: String(rawAddress?.cityId || '').trim(),
         cityName: String(rawAddress?.cityName || '').trim(),
         zoneId: String(rawAddress?.zoneId || '').trim(),
+        zoneName: String(rawAddress?.zoneName || '').trim(),
         streetName: String(rawAddress?.streetName || '').trim(),
         houseNumber: String(rawAddress?.houseNumber || '').trim(),
         floorNumber: String(rawAddress?.floorNumber || '').trim(),
@@ -218,6 +220,7 @@ function createShippingAddressFieldsFromSavedAddress(address = {}) {
         cityId: normalizedAddress.cityId,
         cityName: normalizedAddress.cityName,
         zoneId: normalizedAddress.zoneId,
+        zoneName: normalizedAddress.zoneName,
         streetName: normalizedAddress.streetName,
         houseNumber: normalizedAddress.houseNumber,
         floorNumber: normalizedAddress.floorNumber,
@@ -245,7 +248,7 @@ function getShippingAddressValidation(fields) {
 
     if (!String(fields?.districtId || '').trim()) {
         return {
-            errorMessage: 'اكتب جزء من اسم الحي / المنطقة ثم اختَر النتيجة المناسبة من اقتراحات Bosta قبل تأكيد الطلب.',
+            errorMessage: 'اكتب جزء من اسم الحي / المنطقة ثم اختَر النتيجة المناسبة من اقتراحات SideUp قبل تأكيد الطلب.',
             missingFieldKey: 'district'
         };
     }
@@ -299,6 +302,7 @@ function buildSavedShippingAddressPayload(fields) {
         cityId: String(fields?.cityId || '').trim(),
         cityName: String(fields?.cityName || '').trim(),
         zoneId: String(fields?.zoneId || '').trim(),
+        zoneName: String(fields?.zoneName || '').trim(),
         streetName: String(fields?.streetName || '').trim(),
         houseNumber: String(fields?.houseNumber || '').trim(),
         floorNumber: String(fields?.floorNumber || '').trim(),
@@ -566,6 +570,9 @@ export default function CheckoutPageContent({ checkoutType }) {
     const [isLoadingDistrictOptions, setIsLoadingDistrictOptions] = useState(false);
     const [districtOptionsError, setDistrictOptionsError] = useState('');
     const [isDistrictSuggestionsOpen, setIsDistrictSuggestionsOpen] = useState(false);
+    const [liveShippingRate, setLiveShippingRate] = useState(null);
+    const [isLoadingLiveShippingRate, setIsLoadingLiveShippingRate] = useState(false);
+    const [liveShippingRateError, setLiveShippingRateError] = useState('');
     const [shippingAddressError, setShippingAddressError] = useState('');
     const [isPhonePromptOpen, setIsPhonePromptOpen] = useState(false);
     const [phonePromptValue, setPhonePromptValue] = useState('');
@@ -592,11 +599,48 @@ export default function CheckoutPageContent({ checkoutType }) {
     const isShippingExpanded = expandedDeliverySection === 'shipping';
     const configuredShippingAmount = parseAmount(derivedSettings?.shippingPrice);
     const selectedShippingGovernorate = String(shippingAddressFields.governorate || '').trim();
-    const shippingPricingDetails = useMemo(() => getShippingPricingDetails({
+    const selectedShippingZoneName = String(shippingAddressFields.zoneName || '').trim();
+    const fallbackShippingPricingDetails = useMemo(() => getShippingPricingDetails({
         governorate: selectedShippingGovernorate,
         shippingRates: derivedSettings?.shippingRates,
         fallbackAmount: configuredShippingAmount
     }), [configuredShippingAmount, derivedSettings?.shippingRates, selectedShippingGovernorate]);
+    const shippingPricingDetails = useMemo(() => {
+        const resolvedZoneLabel = selectedShippingZoneName
+            ? `SideUp Zone | ${selectedShippingZoneName}`
+            : fallbackShippingPricingDetails.zoneLabel;
+
+        if (!isShippingSelected) {
+            return {
+                ...fallbackShippingPricingDetails,
+                amount: 0,
+                zoneLabel: resolvedZoneLabel,
+                source: 'disabled',
+                courierName: '',
+                livePricingError: ''
+            };
+        }
+
+        const liveAmount = Number(liveShippingRate?.amount);
+        if (Number.isFinite(liveAmount) && liveAmount >= 0) {
+            return {
+                ...fallbackShippingPricingDetails,
+                amount: liveAmount,
+                zoneLabel: resolvedZoneLabel,
+                source: 'live',
+                courierName: String(liveShippingRate?.courierName || '').trim(),
+                livePricingError: ''
+            };
+        }
+
+        return {
+            ...fallbackShippingPricingDetails,
+            zoneLabel: resolvedZoneLabel,
+            source: 'fallback',
+            courierName: '',
+            livePricingError: liveShippingRateError
+        };
+    }, [fallbackShippingPricingDetails, isShippingSelected, liveShippingRate, liveShippingRateError, selectedShippingZoneName]);
     const shippingAmount = isShippingSelected ? shippingPricingDetails.amount : 0;
     const shippingAddress = useMemo(() => buildShippingAddressFromFields(shippingAddressFields), [shippingAddressFields]);
     const hasSavedShippingAddress = hasDetailedShippingAddress(shippingAddressFields);
@@ -610,8 +654,8 @@ export default function CheckoutPageContent({ checkoutType }) {
         const currentDistrictId = String(shippingAddressFields.districtId || '').trim();
         const currentDistrictName = String(shippingAddressFields.district || '').trim();
         return districtOptions.find((option) => (
-            (currentDistrictId && String(option?.districtId || '').trim() === currentDistrictId)
-            || (currentDistrictName && String(option?.districtName || '').trim() === currentDistrictName)
+            (currentDistrictId && String(option?.areaId || option?.districtId || '').trim() === currentDistrictId)
+            || (currentDistrictName && String(option?.areaName || option?.districtName || '').trim() === currentDistrictName)
         ))?.optionId || '';
     }, [districtOptions, shippingAddressFields.district, shippingAddressFields.districtId]);
     const filteredDistrictOptions = useMemo(() => {
@@ -624,6 +668,7 @@ export default function CheckoutPageContent({ checkoutType }) {
             .filter((option) => {
                 const searchableValues = [
                     option?.label,
+                    option?.areaName,
                     option?.districtName,
                     option?.zoneName
                 ].map(normalizeDistrictLookupValue).filter(Boolean);
@@ -854,21 +899,21 @@ export default function CheckoutPageContent({ checkoutType }) {
             setDistrictOptionsError('');
 
             try {
-                const response = await fetch(`/api/integrations/bosta/districts?governorate=${encodeURIComponent(selectedGovernorate)}`, {
+                const response = await fetch(`/api/integrations/sideup/locations?governorate=${encodeURIComponent(selectedGovernorate)}`, {
                     cache: 'no-store',
                     signal: abortController.signal
                 });
                 const payload = await response.json().catch(() => ({}));
 
                 if (!response.ok || payload?.ok === false) {
-                    throw new Error(payload?.error || 'تعذر تحميل الأحياء / المناطق من Bosta حالياً.');
+                    throw new Error(payload?.error || 'تعذر تحميل الأحياء / المناطق من SideUp حالياً.');
                 }
 
                 if (isCancelled) {
                     return;
                 }
 
-                const nextDistrictOptions = Array.isArray(payload?.districts) ? payload.districts : [];
+                const nextDistrictOptions = Array.isArray(payload?.areas) ? payload.areas : [];
                 const cityId = String(payload?.city?.id || '').trim();
                 const cityName = String(payload?.city?.name || '').trim();
 
@@ -881,17 +926,18 @@ export default function CheckoutPageContent({ checkoutType }) {
                     const currentDistrictId = String(current.districtId || '').trim();
                     const currentDistrictName = String(current.district || '').trim();
                     const matchedDistrict = nextDistrictOptions.find((option) => (
-                        (currentDistrictId && String(option?.districtId || '').trim() === currentDistrictId)
-                        || (currentDistrictName && String(option?.districtName || '').trim() === currentDistrictName)
+                        (currentDistrictId && String(option?.areaId || option?.districtId || '').trim() === currentDistrictId)
+                        || (currentDistrictName && String(option?.areaName || option?.districtName || '').trim() === currentDistrictName)
                     ));
 
                     return {
                         ...current,
-                        cityId,
-                        cityName,
-                        district: matchedDistrict ? String(matchedDistrict.districtName || matchedDistrict.label || '').trim() : '',
-                        districtId: matchedDistrict ? String(matchedDistrict.districtId || '').trim() : '',
-                        zoneId: matchedDistrict ? String(matchedDistrict.zoneId || '').trim() : ''
+                        cityId: matchedDistrict ? String(matchedDistrict.cityId || cityId || '').trim() : cityId,
+                        cityName: matchedDistrict ? String(matchedDistrict.cityName || cityName || '').trim() : cityName,
+                        district: matchedDistrict ? String(matchedDistrict.areaName || matchedDistrict.label || '').trim() : '',
+                        districtId: matchedDistrict ? String(matchedDistrict.areaId || '').trim() : '',
+                        zoneId: matchedDistrict ? String(matchedDistrict.zoneId || '').trim() : '',
+                        zoneName: matchedDistrict ? String(matchedDistrict.zoneName || '').trim() : ''
                     };
                 });
             } catch (error) {
@@ -915,6 +961,65 @@ export default function CheckoutPageContent({ checkoutType }) {
             abortController.abort();
         };
     }, [shippingAddressFields.governorate]);
+
+    useEffect(() => {
+        const selectedZoneId = String(shippingAddressFields.zoneId || '').trim();
+        const selectedAreaId = String(shippingAddressFields.districtId || '').trim();
+
+        if (!isShippingSelected || !selectedZoneId) {
+            setLiveShippingRate(null);
+            setLiveShippingRateError('');
+            setIsLoadingLiveShippingRate(false);
+            return undefined;
+        }
+
+        const abortController = new AbortController();
+        let isCancelled = false;
+
+        const loadLiveShippingRate = async () => {
+            setIsLoadingLiveShippingRate(true);
+            setLiveShippingRateError('');
+
+            try {
+                const response = await fetch(`/api/integrations/sideup/pricing?zoneId=${encodeURIComponent(selectedZoneId)}&areaId=${encodeURIComponent(selectedAreaId)}&paymentMethod=PREPAID&codAmount=0`, {
+                    cache: 'no-store',
+                    signal: abortController.signal
+                });
+                const payload = await response.json().catch(() => ({}));
+
+                if (!response.ok || payload?.ok === false) {
+                    throw new Error(payload?.error || 'تعذر تحميل سعر الشحن المباشر من SideUp حالياً.');
+                }
+
+                if (isCancelled) {
+                    return;
+                }
+
+                setLiveShippingRate({
+                    amount: Number(payload?.amount) || 0,
+                    courierName: String(payload?.courierName || '').trim()
+                });
+            } catch (error) {
+                if (abortController.signal.aborted || isCancelled) {
+                    return;
+                }
+
+                setLiveShippingRate(null);
+                setLiveShippingRateError(error instanceof Error ? error.message : 'تعذر تحميل سعر الشحن المباشر حالياً.');
+            } finally {
+                if (!isCancelled) {
+                    setIsLoadingLiveShippingRate(false);
+                }
+            }
+        };
+
+        loadLiveShippingRate();
+
+        return () => {
+            isCancelled = true;
+            abortController.abort();
+        };
+    }, [isShippingSelected, shippingAddressFields.districtId, shippingAddressFields.zoneId]);
 
     useEffect(() => {
         const handlePointerDownOutsideDistrictAutocomplete = (event) => {
@@ -1003,7 +1108,8 @@ export default function CheckoutPageContent({ checkoutType }) {
                     districtId: '',
                     cityId: '',
                     cityName: '',
-                    zoneId: ''
+                    zoneId: '',
+                    zoneName: ''
                 }
                 : {})
         }));
@@ -1024,7 +1130,8 @@ export default function CheckoutPageContent({ checkoutType }) {
             ...current,
             district: value,
             districtId: '',
-            zoneId: ''
+            zoneId: '',
+            zoneName: ''
         }));
         setIsDistrictSuggestionsOpen(true);
 
@@ -1042,11 +1149,12 @@ export default function CheckoutPageContent({ checkoutType }) {
 
         setShippingAddressFields((current) => ({
             ...current,
-            district: String(nextDistrict?.districtName || '').trim(),
-            districtId: String(nextDistrict?.districtId || '').trim(),
+            district: String(nextDistrict?.areaName || nextDistrict?.districtName || '').trim(),
+            districtId: String(nextDistrict?.areaId || nextDistrict?.districtId || '').trim(),
             cityId: String(nextDistrict?.cityId || current.cityId || '').trim(),
             cityName: String(nextDistrict?.cityName || current.cityName || '').trim(),
-            zoneId: String(nextDistrict?.zoneId || '').trim()
+            zoneId: String(nextDistrict?.zoneId || '').trim(),
+            zoneName: String(nextDistrict?.zoneName || '').trim()
         }));
         setIsDistrictSuggestionsOpen(false);
 
@@ -1163,12 +1271,12 @@ export default function CheckoutPageContent({ checkoutType }) {
             deliveryMethod: normalizedDeliveryMethod,
             shippingAddress: isShippingSelected ? shippingAddress.trim() : '',
             shippingGovernorate: isShippingSelected ? selectedShippingGovernorate : '',
-            shippingZone: isShippingSelected ? shippingPricingDetails.zoneKey : '',
+            shippingZone: isShippingSelected ? String(shippingAddressFields.zoneName || '').trim() : '',
             shippingDistrict: isShippingSelected ? String(shippingAddressFields.district || '').trim() : '',
             shippingDistrictId: isShippingSelected ? String(shippingAddressFields.districtId || '').trim() : '',
             shippingCityId: isShippingSelected ? String(shippingAddressFields.cityId || '').trim() : '',
             shippingCityName: isShippingSelected ? String(shippingAddressFields.cityName || '').trim() : '',
-            shippingBostaZoneId: isShippingSelected ? String(shippingAddressFields.zoneId || '').trim() : '',
+            shippingZoneId: isShippingSelected ? String(shippingAddressFields.zoneId || '').trim() : '',
             shippingRecipientName: isShippingSelected ? effectiveShippingRecipientName : '',
             shippingRecipientPhone: isShippingSelected ? effectiveShippingRecipientPhone : '',
             shippingAddressId: isShippingSelected ? String(shippingAddressIdOverride || selectedShippingAddressId || '').trim() : '',
@@ -1368,12 +1476,19 @@ export default function CheckoutPageContent({ checkoutType }) {
                                     <p className="mt-2 text-base font-black">شحن الطلب إلى عنواني</p>
                                     <p className={`mt-2 text-sm font-bold leading-7 ${isShippingSelected ? selectedDeliveryMutedTextClasses : 'text-slate-500 dark:text-slate-300'}`}>
                                         {selectedShippingGovernorate
-                                            ? `رسوم الشحن الحالية: ${formatCurrency(shippingAmount)}`
-                                            : 'اختر المحافظة لحساب سعر الشحن تلقائياً.'}
+                                            ? (isLoadingLiveShippingRate && shippingAddressFields.zoneId
+                                                ? 'جاري تحديث سعر الشحن من SideUp...'
+                                                : `رسوم الشحن الحالية: ${formatCurrency(shippingAmount)}`)
+                                            : 'اختر المحافظة ثم المنطقة لحساب سعر الشحن تلقائياً.'}
                                     </p>
                                     {selectedShippingGovernorate && shippingPricingDetails.zoneLabel ? (
                                         <p className={`mt-2 text-xs font-black ${isShippingSelected ? selectedDeliveryEyebrowClasses : 'text-brandGold'}`}>
                                             {shippingPricingDetails.zoneLabel}
+                                        </p>
+                                    ) : null}
+                                    {shippingPricingDetails.source === 'live' && shippingPricingDetails.courierName ? (
+                                        <p className={`mt-2 text-xs font-black ${isShippingSelected ? selectedDeliveryEyebrowClasses : 'text-brandGold'}`}>
+                                            أقل سعر متاح حالياً عبر {shippingPricingDetails.courierName}
                                         </p>
                                     ) : null}
                                     {selectedShippingAddressId ? (
@@ -1475,7 +1590,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                                     <span className="leading-none">{isShippingAddressFormOpen ? 'إخفاء العنوان' : selectedShippingAddressId ? 'تعديل العنوان المختار' : hasSavedShippingAddress ? 'تعديل العنوان' : 'إضافة عنوان'}</span>
                                 </button>
                                 <p className={`text-sm font-bold leading-7 ${isShippingSelected ? selectedDeliveryMutedTextClasses : 'text-slate-500 dark:text-slate-300'}`}>
-                                    {selectedShippingAddressId ? 'يمكنك استخدام العنوان المختار كما هو أو تعديله قبل تأكيد الطلب.' : hasSavedShippingAddress ? 'سيُحفظ هذا العنوان مع الطلب ويمكن جعله الافتراضي للحساب.' : 'أضف بيانات العنوان بشكل منظم حتى يظهر الشحن للإدارة وبوستا بوضوح.'}
+                                    {selectedShippingAddressId ? 'يمكنك استخدام العنوان المختار كما هو أو تعديله قبل تأكيد الطلب.' : hasSavedShippingAddress ? 'سيُحفظ هذا العنوان مع الطلب ويمكن جعله الافتراضي للحساب.' : 'أضف بيانات العنوان بشكل منظم حتى يصل الطلب للإدارة وSideUp بدون تخمين.'}
                                 </p>
                             </div>
 
@@ -1531,7 +1646,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                                                             placeholder={!selectedShippingGovernorate
                                                                 ? 'اختر المحافظة أولاً'
                                                                 : isLoadingDistrictOptions
-                                                                    ? 'جاري تحميل المناطق من Bosta...'
+                                                                    ? 'جاري تحميل المناطق من SideUp...'
                                                                     : districtOptions.length > 0
                                                                         ? 'ابدأ اكتب الحي / المنطقة'
                                                                         : 'لا توجد مناطق متاحة حالياً'}
@@ -1605,15 +1720,20 @@ export default function CheckoutPageContent({ checkoutType }) {
                                             ) : null}
                                             {shippingAddressFields.districtId ? (
                                                 <p className="mt-2 text-xs font-black text-emerald-600 dark:text-brandGold">
-                                                    تم اختيار المنطقة من بيانات Bosta بنجاح.
+                                                    تم اختيار المنطقة من بيانات SideUp بنجاح.
                                                 </p>
                                             ) : null}
                                             <p className={`mt-2 text-sm font-bold leading-7 ${isShippingSelected ? selectedDeliveryMutedTextClasses : 'text-slate-500 dark:text-slate-300'}`}>
-                                                {shippingPricingDetails.zoneLabel ? `منطقة التسعير: ${shippingPricingDetails.zoneLabel}` : 'سيتم استخدام سعر الشحن الافتراضي.'}
+                                                {shippingPricingDetails.zoneLabel ? `منطقة التسعير: ${shippingPricingDetails.zoneLabel}` : 'سيتم استخدام سعر الشحن الاحتياطي.'}
                                             </p>
                                             <p className="mt-2 text-sm font-black text-emerald-600 dark:text-brandGold">
-                                                سعر الشحن المتوقع: {formatCurrency(shippingAmount)}
+                                                {shippingPricingDetails.source === 'live' ? 'سعر الشحن المباشر من SideUp' : 'سعر الشحن المتوقع'}: {formatCurrency(shippingAmount)}
                                             </p>
+                                            {shippingPricingDetails.source === 'fallback' && shippingPricingDetails.livePricingError ? (
+                                                <p className="mt-2 text-xs font-black text-amber-600 dark:text-amber-300">
+                                                    تعذر تحميل السعر المباشر من SideUp حالياً، فتم استخدام السعر الاحتياطي.
+                                                </p>
+                                            ) : null}
                                         </div>
                                     ) : null}
 
@@ -1625,7 +1745,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                                         <p className="mt-3 text-sm font-extrabold text-red-200 dark:text-red-500">{shippingAddressError}</p>
                                     ) : (
                                         <p className={`mt-3 text-sm font-bold leading-7 ${isShippingSelected ? selectedDeliveryMutedTextClasses : 'text-slate-500 dark:text-slate-300'}`}>
-                                            سيتم حفظ هذا العنوان في حسابك، واستخدام الحي / المنطقة المختارة مباشرة مع Bosta بدل التخمين من النص الحر.
+                                            سيتم حفظ هذا العنوان في حسابك، واستخدام الحي / المنطقة المختارة مباشرة مع SideUp بدل التخمين من النص الحر.
                                         </p>
                                     )}
                                 </div>

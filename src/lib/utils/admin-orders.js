@@ -147,61 +147,6 @@ function getOrderDeliveryMethod(order = {}) {
         : 'pickup';
 }
 
-export function getOrderBostaSyncState(order = {}) {
-    const deliveryMethod = getOrderDeliveryMethod(order);
-    const syncStatus = String(order.bostaSync?.status || '').trim().toLowerCase();
-    const trackingNumber = String(order.bostaSync?.trackingNumber || '').trim();
-    const stateLabel = String(order.bostaSync?.stateLabel || '').trim();
-
-    if (deliveryMethod !== 'shipping') {
-        return {
-            label: 'Pickup Only',
-            tone: 'pickup',
-            message: 'This order does not need a shipping shipment',
-            trackingNumber: '',
-            stateLabel: ''
-        };
-    }
-
-    if (syncStatus === 'success' || trackingNumber) {
-        return {
-            label: 'Bosta Sent',
-            tone: 'success',
-            message: order.bostaSync?.message || 'Shipment created successfully on Bosta',
-            trackingNumber,
-            stateLabel
-        };
-    }
-
-    if (syncStatus === 'sending') {
-        return {
-            label: 'Bosta Sending',
-            tone: 'sending',
-            message: order.bostaSync?.message || 'Shipment is being created on Bosta',
-            trackingNumber: '',
-            stateLabel
-        };
-    }
-
-    if (syncStatus === 'failed') {
-        return {
-            label: 'Bosta Failed',
-            tone: 'failed',
-            message: order.bostaSync?.message || 'Shipment creation failed on Bosta',
-            trackingNumber,
-            stateLabel
-        };
-    }
-
-    return {
-        label: 'Bosta Not Sent',
-        tone: 'idle',
-        message: 'Shipment has not been sent to Bosta yet',
-        trackingNumber: '',
-        stateLabel
-    };
-}
-
 export function getOrderSideUpSyncState(order = {}) {
     const deliveryMethod = getOrderDeliveryMethod(order);
     const syncStatus = String(order.sideupSync?.status || '').trim().toLowerCase();
@@ -255,23 +200,6 @@ export function getOrderSideUpSyncState(order = {}) {
         shipmentCode: '',
         areaName
     };
-}
-
-export function canSendOrderToBosta(order = {}) {
-    const deliveryMethod = getOrderDeliveryMethod(order);
-    const orderStatus = normalizeOrderStatus(order.status);
-    const bostaSyncStatus = String(order.bostaSync?.status || '').trim().toLowerCase();
-    const trackingNumber = String(order.bostaSync?.trackingNumber || '').trim();
-
-    if (deliveryMethod !== 'shipping') {
-        return false;
-    }
-
-    if (orderStatus === 'pending' || orderStatus === 'cancelled') {
-        return false;
-    }
-
-    return bostaSyncStatus !== 'sending' && bostaSyncStatus !== 'success' && !trackingNumber;
 }
 
 export function canPreviewOrderForSideUp(order = {}) {

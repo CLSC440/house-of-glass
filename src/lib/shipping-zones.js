@@ -48,7 +48,7 @@ export const SHIPPING_ZONE_LABELS = Object.freeze(
     }), {})
 );
 
-export const DEFAULT_BOSTA_DELIVERY_RATES = Object.freeze({
+export const DEFAULT_SIDEUP_FALLBACK_DELIVERY_RATES = Object.freeze({
     cairo: '97',
     alex: '102',
     deltaCanal: '110',
@@ -91,10 +91,10 @@ const GOVERNORATE_ZONE_LOOKUP = new Map(
 
 export function normalizeShippingRates(shippingRates = {}) {
     return {
-        cairo: normalizeText(shippingRates.cairo, DEFAULT_BOSTA_DELIVERY_RATES.cairo),
-        alex: normalizeText(shippingRates.alex, DEFAULT_BOSTA_DELIVERY_RATES.alex),
-        deltaCanal: normalizeText(shippingRates.deltaCanal, DEFAULT_BOSTA_DELIVERY_RATES.deltaCanal),
-        upperRedSea: normalizeText(shippingRates.upperRedSea, DEFAULT_BOSTA_DELIVERY_RATES.upperRedSea)
+        cairo: normalizeText(shippingRates.cairo, DEFAULT_SIDEUP_FALLBACK_DELIVERY_RATES.cairo),
+        alex: normalizeText(shippingRates.alex, DEFAULT_SIDEUP_FALLBACK_DELIVERY_RATES.alex),
+        deltaCanal: normalizeText(shippingRates.deltaCanal, DEFAULT_SIDEUP_FALLBACK_DELIVERY_RATES.deltaCanal),
+        upperRedSea: normalizeText(shippingRates.upperRedSea, DEFAULT_SIDEUP_FALLBACK_DELIVERY_RATES.upperRedSea)
     };
 }
 
@@ -103,7 +103,7 @@ export function getShippingZoneForGovernorate(governorate) {
     return normalizedGovernorate ? (GOVERNORATE_ZONE_LOOKUP.get(normalizedGovernorate) || '') : '';
 }
 
-export function getShippingPricingDetails({ governorate = '', shippingRates = DEFAULT_BOSTA_DELIVERY_RATES, fallbackAmount = 0 } = {}) {
+export function getShippingPricingDetails({ governorate = '', shippingRates = DEFAULT_SIDEUP_FALLBACK_DELIVERY_RATES, fallbackAmount = 0 } = {}) {
     const normalizedGovernorate = normalizeText(governorate);
     const zoneKey = getShippingZoneForGovernorate(normalizedGovernorate);
     const normalizedRates = normalizeShippingRates(shippingRates);

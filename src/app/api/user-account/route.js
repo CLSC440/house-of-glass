@@ -133,7 +133,8 @@ function sanitizeSavedShippingAddress(rawAddress = {}) {
         cityId: normalizeString(rawAddress.cityId, 80),
         cityName: normalizeString(rawAddress.cityName, 120),
         districtId: normalizeString(rawAddress.districtId, 80),
-        zoneId: normalizeString(rawAddress.zoneId, 80)
+        zoneId: normalizeString(rawAddress.zoneId, 80),
+        zoneName: normalizeString(rawAddress.zoneName, 120)
     };
 }
 

@@ -6,7 +6,7 @@ import { addDoc, collection, query, onSnapshot, doc, updateDoc, deleteDoc, serve
 import { auth, db } from '@/lib/firebase';
 import { useGallery } from '@/contexts/GalleryContext';
 import { parseTimestamp } from '@/lib/utils/format';
-import { canCreateOrderForSideUp, canPreviewOrderForSideUp, canSendOrderInvoice, canSendOrderToBosta, getOrderAmount, getOrderBostaSyncState, getOrderCustomerName, getOrderCustomerPhone, getOrderDateValue, getOrderExternalRef, getOrderDcSyncState, getOrderSideUpSyncState } from '@/lib/utils/admin-orders';
+import { canCreateOrderForSideUp, canPreviewOrderForSideUp, canSendOrderInvoice, getOrderAmount, getOrderCustomerName, getOrderCustomerPhone, getOrderDateValue, getOrderExternalRef, getOrderDcSyncState, getOrderSideUpSyncState } from '@/lib/utils/admin-orders';
 import { ORDER_STATUS_OPTIONS, appendOrderStatusHistory, getAllowedOrderStatusTransitions, getOrderStatusHistory, getOrderStatusMeta, normalizeOrderStatus } from '@/lib/utils/order-status';
 import { buildOrderStatusNotification } from '@/lib/utils/notifications';
 
@@ -295,16 +295,6 @@ function getInvoiceButtonLabel({ isSyncing, canSendInvoice, dcSyncState, normali
     return 'Unavailable';
 }
 
-function getBostaButtonLabel({ isSending, canSendBosta, bostaSyncState, normalizedStatus, deliveryMethod }) {
-    if (isSending || bostaSyncState.tone === 'sending') return 'Sending';
-    if (canSendBosta) return bostaSyncState.tone === 'failed' ? 'Retry Bosta' : 'Send to Bosta';
-    if (bostaSyncState.tone === 'success') return 'Bosta Sent';
-    if (deliveryMethod !== 'shipping') return 'Pickup Only';
-    if (normalizedStatus === 'pending') return 'Review First';
-    if (normalizedStatus === 'cancelled') return 'Cancelled';
-    return 'Unavailable';
-}
-
 function getSideUpButtonLabel({ isPreviewing, canPreviewSideUp, sideupSyncState, normalizedStatus, deliveryMethod }) {
     if (isPreviewing) return 'Previewing';
     if (canPreviewSideUp) return sideupSyncState.tone === 'success' ? 'Preview Again' : 'Preview SideUp';
@@ -379,7 +369,6 @@ export default function AdminOrders() {
     const [loading, setLoading] = useState(true);
     const [expandedOrderId, setExpandedOrderId] = useState(null);
     const [syncingOrderId, setSyncingOrderId] = useState(null);
-    const [syncingBostaOrderId, setSyncingBostaOrderId] = useState(null);
     const [previewingSideUpOrderId, setPreviewingSideUpOrderId] = useState(null);
     const [creatingSideUpOrderId, setCreatingSideUpOrderId] = useState(null);
     const [openStatusMenuId, setOpenStatusMenuId] = useState(null);
@@ -536,54 +525,6 @@ export default function AdminOrders() {
             alert(error.message || 'Failed to sync invoice');
         } finally {
             setSyncingOrderId(null);
-        }
-    };
-
-    const handleSendToBosta = async (orderId) => {
-        const currentUser = auth.currentUser;
-        if (!currentUser) {
-            alert('Authentication is required.');
-            return;
-        }
-
-        setSyncingBostaOrderId(orderId);
-        try {
-            const token = await currentUser.getIdToken();
-            let districtHint = '';
-
-            while (true) {
-                const response = await fetch('/api/integrations/bosta', {
-                    method: 'POST',
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        orderId,
-                        districtHint
-                    })
-                });
-
-                const payload = await response.json().catch(() => ({}));
-                if (response.ok) {
-                    break;
-                }
-
-                if (payload?.code === 'district_match_required' && !districtHint) {
-                    const hintedDistrict = window.prompt('Bosta needs the area or district. Enter the الحي / المنطقة for this address, then retry.', '');
-                    if (hintedDistrict && hintedDistrict.trim()) {
-                        districtHint = hintedDistrict.trim();
-                        continue;
-                    }
-                }
-
-                throw new Error(payload?.error || payload?.message || 'Failed to create shipment on Bosta');
-            }
-        } catch (error) {
-            console.error('Bosta shipment creation failed:', error);
-            alert(error.message || 'Failed to create shipment on Bosta');
-        } finally {
-            setSyncingBostaOrderId(null);
         }
     };
 
@@ -964,7 +905,6 @@ export default function AdminOrders() {
                                     }));
                                     const hasStatusTransitions = statusActionOptions.length > 0;
                                     const isSyncing = syncingOrderId === order.id;
-                                    const isBostaSyncing = syncingBostaOrderId === order.id;
                                     const isSideUpCreating = creatingSideUpOrderId === order.id;
                                     const orderTypeLabel = order.orderType === 'wholesale' ? 'Wholesale Order' : 'Retail Order';
                                     let displayOrder = order;
@@ -975,16 +915,6 @@ export default function AdminOrders() {
                                                 ...(displayOrder.dcSync || {}),
                                                 status: 'sending',
                                                 message: 'Sending invoice to DC...'
-                                            }
-                                        };
-                                    }
-                                    if (isBostaSyncing) {
-                                        displayOrder = {
-                                            ...displayOrder,
-                                            bostaSync: {
-                                                ...(displayOrder.bostaSync || {}),
-                                                status: 'sending',
-                                                message: 'Creating shipment on Bosta...'
                                             }
                                         };
                                     }
@@ -1007,19 +937,10 @@ export default function AdminOrders() {
                                         normalizedStatus
                                     });
                                     const deliveryMethodValue = getOrderDeliveryMethodValue(order);
-                                    const bostaSyncState = getOrderBostaSyncState(displayOrder);
-                                    const canSendBosta = canSendOrderToBosta(displayOrder);
                                     const sideupSyncState = getOrderSideUpSyncState(displayOrder);
                                     const canPreviewSideUp = canPreviewOrderForSideUp(displayOrder);
                                     const canCreateSideUp = canCreateOrderForSideUp(displayOrder);
                                     const isSideUpPreviewing = previewingSideUpOrderId === order.id;
-                                    const bostaButtonLabel = getBostaButtonLabel({
-                                        isSending: isBostaSyncing,
-                                        canSendBosta,
-                                        bostaSyncState,
-                                        normalizedStatus,
-                                        deliveryMethod: deliveryMethodValue
-                                    });
                                     const sideupButtonLabel = getSideUpButtonLabel({
                                         isPreviewing: isSideUpPreviewing,
                                         canPreviewSideUp,
@@ -1044,7 +965,6 @@ export default function AdminOrders() {
                                                         <div className="flex flex-wrap gap-1.5">
                                                             <span className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] ${order.orderType === 'wholesale' ? 'bg-brandGold/10 text-brandGold' : 'bg-green-500/10 text-green-400'}`}>{orderTypeLabel}</span>
                                                             <span className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] ${dcSyncState.tone === 'success' ? 'bg-emerald-500/10 text-emerald-400' : dcSyncState.tone === 'sending' ? 'bg-blue-500/10 text-blue-400' : dcSyncState.tone === 'failed' ? 'bg-red-500/10 text-red-400' : 'bg-slate-500/10 text-slate-400'}`}>{dcSyncState.label}</span>
-                                                            <span className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] ${bostaSyncState.tone === 'success' ? 'bg-amber-500/10 text-amber-300' : bostaSyncState.tone === 'sending' ? 'bg-sky-500/10 text-sky-300' : bostaSyncState.tone === 'failed' ? 'bg-rose-500/10 text-rose-300' : bostaSyncState.tone === 'pickup' ? 'bg-slate-500/10 text-slate-400' : 'bg-white/10 text-slate-300'}`}>{bostaSyncState.label}</span>
                                                             <span className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] ${sideupSyncState.tone === 'success' ? 'bg-cyan-500/10 text-cyan-300' : sideupSyncState.tone === 'sending' ? 'bg-sky-500/10 text-sky-300' : sideupSyncState.tone === 'failed' ? 'bg-rose-500/10 text-rose-300' : sideupSyncState.tone === 'pickup' ? 'bg-slate-500/10 text-slate-400' : 'bg-white/10 text-slate-300'}`}>{sideupSyncState.label}</span>
                                                         </div>
                                                     </div>
@@ -1130,15 +1050,6 @@ export default function AdminOrders() {
                                                         </button>
                                                         <button
                                                             type="button"
-                                                            onClick={() => handleSendToBosta(order.id)}
-                                                            disabled={isBostaSyncing || !canSendBosta}
-                                                            className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-black uppercase tracking-[0.16em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${canSendBosta ? 'border-amber-500/25 bg-amber-500/10 text-amber-300 hover:bg-amber-500 hover:text-[#11192b]' : 'border-white/10 bg-white/5 text-slate-500'}`}
-                                                        >
-                                                            <i className={`fa-solid ${isBostaSyncing ? 'fa-spinner fa-spin' : canSendBosta ? 'fa-truck-fast' : 'fa-ban'}`}></i>
-                                                            {bostaButtonLabel}
-                                                        </button>
-                                                        <button
-                                                            type="button"
                                                             onClick={() => handlePreviewSideUp(order.id)}
                                                             disabled={isSideUpPreviewing || isSideUpCreating || !canPreviewSideUp}
                                                             className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-black uppercase tracking-[0.16em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${canPreviewSideUp ? 'border-cyan-500/25 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500 hover:text-[#11192b]' : 'border-white/10 bg-white/5 text-slate-500'}`}
@@ -1206,9 +1117,6 @@ export default function AdminOrders() {
                                                                         <InfoPill label="Discount Applied" value={`${getOrderDiscountAmount(order).toLocaleString()} ج.م`} />
                                                                         <InfoPill label="Total" value={`${amount.toLocaleString()} ج.م`} />
                                                                         <InfoPill label="DC Sync" value={dcSyncState.label} />
-                                                                        <InfoPill label="Bosta Sync" value={bostaSyncState.label} />
-                                                                        <InfoPill label="Tracking Number" value={bostaSyncState.trackingNumber || 'Not assigned'} />
-                                                                        <InfoPill label="Bosta State" value={bostaSyncState.stateLabel || 'Not available'} />
                                                                         <InfoPill label="SideUp Sync" value={sideupSyncState.label} />
                                                                         <InfoPill label="SideUp Shipment" value={sideupSyncState.shipmentCode || 'Not assigned'} />
                                                                         <InfoPill label="SideUp Area" value={sideupSyncState.areaName || 'Not resolved'} />
@@ -1218,20 +1126,9 @@ export default function AdminOrders() {
                                                                             <span className="font-black">DC Invoice ID:</span> {order.dcSync.dcInvoiceId}
                                                                         </div>
                                                                     ) : null}
-                                                                    {displayOrder.bostaSync?.trackingNumber ? (
-                                                                        <div className="mt-3 rounded-xl border border-amber-500/15 bg-amber-500/5 px-3 py-3 text-sm text-amber-200">
-                                                                            <span className="font-black">Bosta Tracking:</span> {displayOrder.bostaSync.trackingNumber}
-                                                                            {displayOrder.bostaSync?.stateLabel ? ` | ${displayOrder.bostaSync.stateLabel}` : ''}
-                                                                        </div>
-                                                                    ) : null}
                                                                     {displayOrder.dcSync?.message ? (
                                                                         <div className="mt-3 rounded-xl border border-white/8 bg-[#18223a] px-3 py-3 text-sm text-slate-300">
                                                                             <span className="font-black text-slate-400">Sync Message:</span> {displayOrder.dcSync.message}
-                                                                        </div>
-                                                                    ) : null}
-                                                                    {displayOrder.bostaSync?.message ? (
-                                                                        <div className="mt-3 rounded-xl border border-white/8 bg-[#18223a] px-3 py-3 text-sm text-slate-300">
-                                                                            <span className="font-black text-slate-400">Bosta Message:</span> {displayOrder.bostaSync.message}
                                                                         </div>
                                                                     ) : null}
                                                                 </div>

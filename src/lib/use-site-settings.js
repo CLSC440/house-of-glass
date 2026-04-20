@@ -8,13 +8,13 @@ import {
     getActivePromoCodes,
     normalizePromoCodes
 } from '@/lib/promo-codes';
-import { DEFAULT_BOSTA_DELIVERY_RATES, normalizeShippingRates } from '@/lib/shipping-zones';
+import { DEFAULT_SIDEUP_FALLBACK_DELIVERY_RATES, normalizeShippingRates } from '@/lib/shipping-zones';
 
 export const DEFAULT_SITE_SETTINGS = Object.freeze({
     whatsapp: '201026600350',
     priceIncrease: '0',
     shipping: '0',
-    shippingRates: Object.freeze({ ...DEFAULT_BOSTA_DELIVERY_RATES }),
+    shippingRates: Object.freeze({ ...DEFAULT_SIDEUP_FALLBACK_DELIVERY_RATES }),
     promoCodes: Object.freeze([]),
     promoCode: '',
     promoDiscountType: 'percentage',

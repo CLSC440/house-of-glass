@@ -1010,9 +1010,9 @@ export default function FloatingDockDemo({
 
                                 <div className="space-y-3 md:col-span-2">
                                     <div>
-                                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Bosta Delivery Rates | Small &amp; Medium</span>
+                                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">SideUp Fallback Rates | Small &amp; Medium</span>
                                         <p className="mt-2 text-sm leading-7 text-slate-400">
-                                            These public Bosta zone rates are used by checkout to calculate shipping automatically after the customer selects a governorate.
+                                            These fallback zone rates are used only when live SideUp pricing is temporarily unavailable during checkout.
                                         </p>
                                     </div>
                                     <div className="grid gap-4 md:grid-cols-2">

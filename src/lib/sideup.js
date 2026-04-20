@@ -1,13 +1,20 @@
 import { getOrderAmount, getOrderCustomerName, getOrderCustomerPhone, getOrderExternalRef } from '@/lib/utils/admin-orders';
 
 const DEFAULT_SIDEUP_BASE_URL = 'https://portal.eg.sideup.co/api/merchants';
+const DEFAULT_SIDEUP_PRICING_BASE_URL = 'https://pricing-service.sideup.co/api';
+const DEFAULT_SIDEUP_IDENTITY_BASE_URL = 'https://identity-service.sideup.co';
 const DEFAULT_SIDEUP_TENANT = 'eg';
+const DEFAULT_SIDEUP_SERVICE_CLIENT_ID = '1';
+const DEFAULT_SIDEUP_SERVICE_CLIENT_SECRET = 'grZghAFrwCexTkMmuF7NtHDYluaza4atyk0pjbm7';
 const DEFAULT_PAYLOAD_STRATEGY = 'postman-first';
+const DEFAULT_SIDEUP_PRICING_WEIGHT_KG = 1;
+const DEFAULT_SIDEUP_PRICING_PAYMENT_METHOD = 'PREPAID';
 const LOOKUP_CACHE_TTL_MS = 10 * 60 * 1000;
 const AUTH_TOKEN_SKEW_MS = 60 * 1000;
 
 const publicLookupCache = new Map();
 let cachedAuthToken = null;
+let cachedServiceToken = null;
 
 const GOVERNORATE_ALIAS_GROUPS = Object.freeze([
     ['القاهرة', 'cairo', 'greater cairo', 'cairo giza'],
@@ -61,6 +68,20 @@ function removeUndefinedFields(payload = {}) {
     return Object.fromEntries(
         Object.entries(payload).filter(([, value]) => value !== undefined)
     );
+}
+
+function getFiniteNumber(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function getPositiveNumber(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function normalizeSideUpLabel(value) {
+    return String(value ?? '').replace(/^eg_(cities|areas)\./i, '').trim();
 }
 
 function normalizeLookupValue(value) {
@@ -220,16 +241,31 @@ function getSideUpBaseUrl() {
     return String(process.env.SIDEUP_BASE_URL || DEFAULT_SIDEUP_BASE_URL).trim().replace(/\/+$/, '');
 }
 
+function getSideUpPricingBaseUrl() {
+    return String(process.env.SIDEUP_PRICING_BASE_URL || DEFAULT_SIDEUP_PRICING_BASE_URL).trim().replace(/\/+$/, '');
+}
+
+function getSideUpIdentityBaseUrl() {
+    return String(process.env.SIDEUP_IDENTITY_BASE_URL || DEFAULT_SIDEUP_IDENTITY_BASE_URL).trim().replace(/\/+$/, '');
+}
+
 function getSideUpConfig() {
     return {
         baseUrl: getSideUpBaseUrl(),
+        pricingBaseUrl: getSideUpPricingBaseUrl(),
+        identityBaseUrl: getSideUpIdentityBaseUrl(),
         tenant: String(process.env.SIDEUP_TENANT || DEFAULT_SIDEUP_TENANT).trim() || DEFAULT_SIDEUP_TENANT,
         apiToken: String(process.env.SIDEUP_API_TOKEN || '').trim(),
         email: String(process.env.SIDEUP_EMAIL || '').trim(),
         password: String(process.env.SIDEUP_PASSWORD || '').trim(),
+        serviceClientId: String(process.env.SIDEUP_SERVICE_CLIENT_ID || DEFAULT_SIDEUP_SERVICE_CLIENT_ID).trim() || DEFAULT_SIDEUP_SERVICE_CLIENT_ID,
+        serviceClientSecret: String(process.env.SIDEUP_SERVICE_CLIENT_SECRET || DEFAULT_SIDEUP_SERVICE_CLIENT_SECRET).trim() || DEFAULT_SIDEUP_SERVICE_CLIENT_SECRET,
         courierName: String(process.env.SIDEUP_COURIER_NAME || '').trim(),
         courierId: Number(process.env.SIDEUP_COURIER_ID),
         pickupLocationId: Number(process.env.SIDEUP_PICKUP_LOCATION_ID),
+        pricingWeightKg: Number(process.env.SIDEUP_PRICING_WEIGHT_KG || DEFAULT_SIDEUP_PRICING_WEIGHT_KG),
+        pricingPaymentMethod: String(process.env.SIDEUP_PRICING_PAYMENT_METHOD || DEFAULT_SIDEUP_PRICING_PAYMENT_METHOD).trim().toUpperCase() || DEFAULT_SIDEUP_PRICING_PAYMENT_METHOD,
+        pricingCodAmount: Number(process.env.SIDEUP_PRICING_COD_AMOUNT || 0),
         payloadStrategy: String(process.env.SIDEUP_ORDER_PAYLOAD_STRATEGY || DEFAULT_PAYLOAD_STRATEGY).trim().toLowerCase() || DEFAULT_PAYLOAD_STRATEGY
     };
 }
@@ -237,6 +273,11 @@ function getSideUpConfig() {
 export function hasSideUpCreateCredentials() {
     const config = getSideUpConfig();
     return Boolean(config.apiToken || (config.email && config.password));
+}
+
+export function hasSideUpPricingCredentials() {
+    const config = getSideUpConfig();
+    return Boolean(config.email && config.password && config.serviceClientId && config.serviceClientSecret);
 }
 
 async function readCachedLookup(cacheKey, loader, ttlMs = LOOKUP_CACHE_TTL_MS) {
@@ -358,6 +399,232 @@ async function getSideUpAccessToken(config = getSideUpConfig()) {
     return token;
 }
 
+async function getSideUpServiceToken(config = getSideUpConfig()) {
+    if (cachedServiceToken && cachedServiceToken.expiresAt > Date.now()) {
+        return cachedServiceToken.token;
+    }
+
+    if (!config.email || !config.password || !config.serviceClientId || !config.serviceClientSecret) {
+        throw createError(500, 'SideUp pricing credentials are not configured on the server', 'sideup_pricing_config_missing');
+    }
+
+    const response = await fetch(`${config.identityBaseUrl}/oauth/token`, {
+        method: 'POST',
+        headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            grant_type: 'password',
+            scope: '*',
+            client_id: config.serviceClientId,
+            client_secret: config.serviceClientSecret,
+            username: config.email,
+            password: config.password,
+            role: 'merchant'
+        }),
+        cache: 'no-store'
+    });
+
+    const rawBody = await response.text();
+    const contentType = response.headers.get('content-type') || '';
+    const payload = contentType.includes('application/json')
+        ? JSON.parse(rawBody || '{}')
+        : { message: rawBody };
+
+    if (!response.ok) {
+        throw createError(
+            response.status,
+            extractErrorMessage(payload, `SideUp pricing auth failed with status ${response.status}`),
+            'sideup_pricing_auth_failed',
+            payload
+        );
+    }
+
+    const token = String(payload?.access_token || '').trim();
+    const expiresInSeconds = Number(payload?.expires_in || 3600);
+
+    if (!token) {
+        throw createError(500, 'SideUp pricing auth succeeded without returning a service token', 'sideup_service_token_missing');
+    }
+
+    cachedServiceToken = {
+        token,
+        expiresAt: Date.now() + Math.max(0, (Number.isFinite(expiresInSeconds) ? expiresInSeconds : 3600) * 1000 - AUTH_TOKEN_SKEW_MS)
+    };
+
+    return token;
+}
+
+async function sideupPricingFetch(path, { headers = {} } = {}) {
+    const config = getSideUpConfig();
+    const serviceToken = await getSideUpServiceToken(config);
+    const response = await fetch(`${config.pricingBaseUrl}${path}`, {
+        method: 'GET',
+        headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'x-tenant': config.tenant,
+            Authorization: `Bearer ${serviceToken}`,
+            ...headers
+        },
+        cache: 'no-store'
+    });
+
+    const rawBody = await response.text();
+    const contentType = response.headers.get('content-type') || '';
+    const payload = contentType.includes('application/json')
+        ? JSON.parse(rawBody || '{}')
+        : { message: rawBody };
+
+    if (!response.ok) {
+        throw createError(
+            response.status,
+            extractErrorMessage(payload, `SideUp pricing request failed with status ${response.status}`),
+            'sideup_pricing_request_failed',
+            payload
+        );
+    }
+
+    return payload;
+}
+
+function getOrderStoredSideUpLocation(order = {}) {
+    return removeUndefinedFields({
+        cityId: getPositiveNumber(order.shippingCityId || order.customerInfo?.shippingCityId || order.customer?.shippingCityId),
+        cityName: normalizeSideUpLabel(order.shippingCityName || order.customerInfo?.shippingCityName || order.customer?.shippingCityName),
+        areaId: getPositiveNumber(order.shippingDistrictId || order.customerInfo?.shippingDistrictId || order.customer?.shippingDistrictId),
+        areaName: normalizeSideUpLabel(order.shippingDistrict || order.customerInfo?.shippingDistrict || order.customer?.shippingDistrict || order.shippingRecipient?.district),
+        zoneId: getPositiveNumber(order.shippingZoneId || order.customerInfo?.shippingZoneId || order.customer?.shippingZoneId || order.sideupSync?.zoneId),
+        zoneName: normalizeSideUpLabel(order.shippingZoneName || order.customerInfo?.shippingZoneName || order.customer?.shippingZoneName || order.shippingZone || order.customerInfo?.shippingZone || order.customer?.shippingZone || order.sideupSync?.zoneName)
+    });
+}
+
+async function findSideUpCityById(cityId) {
+    const normalizedCityId = getPositiveNumber(cityId);
+    if (!normalizedCityId) {
+        return null;
+    }
+
+    const cities = await listSideUpCities();
+    return cities.find((city) => Number(city?.id) === normalizedCityId) || null;
+}
+
+async function findSideUpAreaById({ areaId, zoneId } = {}) {
+    const normalizedAreaId = getPositiveNumber(areaId);
+    if (!normalizedAreaId) {
+        return null;
+    }
+
+    const zones = await listSideUpZones();
+    const prioritizedZones = getPositiveNumber(zoneId)
+        ? zones.filter((zone) => Number(zone?.id) === Number(zoneId))
+        : zones;
+    const fallbackZones = getPositiveNumber(zoneId)
+        ? zones.filter((zone) => Number(zone?.id) !== Number(zoneId))
+        : [];
+
+    for (const zone of [...prioritizedZones, ...fallbackZones]) {
+        const areas = await listSideUpAreasByZone(zone.id);
+        const matchedArea = areas.find((area) => Number(area?.id) === normalizedAreaId);
+        if (matchedArea) {
+            return {
+                ...matchedArea,
+                sideupZoneId: Number(matchedArea?.pivot?.zone_id || zone.id),
+                sideupZoneName: String(zone?.name || '').trim()
+            };
+        }
+    }
+
+    return null;
+}
+
+async function resolveStoredSideUpLocation(order = {}) {
+    const storedLocation = getOrderStoredSideUpLocation(order);
+    if (!storedLocation.areaId) {
+        return null;
+    }
+
+    const area = await findSideUpAreaById({
+        areaId: storedLocation.areaId,
+        zoneId: storedLocation.zoneId
+    });
+
+    if (!area) {
+        return null;
+    }
+
+    let city = null;
+    if (storedLocation.cityId) {
+        city = await findSideUpCityById(storedLocation.cityId);
+    }
+
+    if (!city && getPositiveNumber(area?.city_id)) {
+        city = await findSideUpCityById(area.city_id);
+    }
+
+    return {
+        city: city || removeUndefinedFields({
+            id: storedLocation.cityId,
+            name: storedLocation.cityName || undefined
+        }),
+        area: {
+            ...area,
+            sideupZoneId: getPositiveNumber(area?.sideupZoneId || storedLocation.zoneId),
+            sideupZoneName: String(area?.sideupZoneName || storedLocation.zoneName || '').trim() || undefined
+        }
+    };
+}
+
+function normalizeSideUpAreaOption(area = {}, city = {}) {
+    const cityName = normalizeSideUpLabel(city?.name || area?.city?.name || area?.city_name || '');
+    const areaName = normalizeSideUpLabel(area?.name || area?.name_ar || '');
+    const zoneName = normalizeSideUpLabel(area?.sideupZoneName || area?.zone?.name || '');
+
+    return removeUndefinedFields({
+        optionId: String(area?.id || '').trim() || undefined,
+        areaId: getPositiveNumber(area?.id),
+        areaName: areaName || undefined,
+        cityId: getPositiveNumber(city?.id || area?.city_id),
+        cityName: cityName || undefined,
+        zoneId: getPositiveNumber(area?.sideupZoneId || area?.pivot?.zone_id),
+        zoneName: zoneName || undefined,
+        label: areaName ? (zoneName ? `${areaName} (${zoneName})` : areaName) : undefined
+    });
+}
+
+function normalizeSideUpPickupAddress(rawAddress = {}) {
+    return removeUndefinedFields({
+        pickupAddress: String(rawAddress?.pickup_address || '').trim() || undefined,
+        phone: String(rawAddress?.phone || '').trim() || undefined,
+        pickupAreaId: getPositiveNumber(rawAddress?.pickup_area_id),
+        pickupCityId: getPositiveNumber(rawAddress?.pickup_city_id),
+        pickupZoneId: getPositiveNumber(rawAddress?.pickup_zone_id)
+    });
+}
+
+function normalizeSideUpPricingQuote(entry = {}) {
+    return removeUndefinedFields({
+        courierId: getPositiveNumber(entry?.id),
+        courierName: String(entry?.name || '').trim() || undefined,
+        deliveryTime: String(entry?.delivery_time || '').replace(/^"|"$/g, '').trim() || undefined,
+        deliveryFees: getFiniteNumber(entry?.delivery_fees),
+        totalDue: getFiniteNumber(entry?.total_due),
+        vat: getFiniteNumber(entry?.summary?.vat),
+        codFees: getFiniteNumber(entry?.summary?.cod_fees),
+        paymentFees: getFiniteNumber(entry?.summary?.payment_fees),
+        weightLimit: getFiniteNumber(entry?.weight_limit),
+        blocked: entry?.blocked === true,
+        toZoneId: getPositiveNumber(entry?.to_zone_id)
+    });
+}
+
+function compareSideUpPricingQuotes(left = {}, right = {}) {
+    const leftAmount = Number.isFinite(left?.totalDue) ? left.totalDue : (Number.isFinite(left?.deliveryFees) ? left.deliveryFees : Number.POSITIVE_INFINITY);
+    const rightAmount = Number.isFinite(right?.totalDue) ? right.totalDue : (Number.isFinite(right?.deliveryFees) ? right.deliveryFees : Number.POSITIVE_INFINITY);
+    return leftAmount - rightAmount || String(left?.courierName || '').localeCompare(String(right?.courierName || ''));
+}
+
 export async function listSideUpCities() {
     return readCachedLookup('sideup:cities', async () => {
         const payload = await sideupFetch('/city');
@@ -458,6 +725,104 @@ export async function listSideUpAreasForCity(city) {
     return Array.from(uniqueAreas.values());
 }
 
+export async function listSideUpLocationOptionsForGovernorate(governorate) {
+    const city = await resolveSideUpCity(governorate);
+    const areas = await listSideUpAreasForCity(city);
+
+    return {
+        city: {
+            id: getPositiveNumber(city?.id),
+            name: normalizeSideUpLabel(city?.name || city?.name_ar || '') || undefined
+        },
+        areas: areas
+            .map((area) => normalizeSideUpAreaOption(area, city))
+            .filter((area) => area.areaId && area.zoneId && area.areaName)
+            .sort((left, right) => String(left.areaName || '').localeCompare(String(right.areaName || '')))
+    };
+}
+
+export async function listSideUpPickupAddresses() {
+    return readCachedLookup('sideup:pickup-addresses', async () => {
+        const payload = await sideupFetch('/myaddressess', { auth: 'required' });
+        const rawAddresses = Array.isArray(payload?.data)
+            ? payload.data
+            : (payload?.data && typeof payload.data === 'object' ? Object.values(payload.data) : []);
+
+        return rawAddresses
+            .map((address) => normalizeSideUpPickupAddress(address))
+            .filter((address) => address.pickupZoneId && address.pickupAreaId);
+    });
+}
+
+export async function getSideUpDefaultPickupAddress() {
+    const addresses = await listSideUpPickupAddresses();
+    const pickupAddress = addresses[0] || null;
+
+    if (!pickupAddress?.pickupZoneId) {
+        throw createError(500, 'SideUp pickup address is not configured for live pricing', 'sideup_pickup_address_missing');
+    }
+
+    return pickupAddress;
+}
+
+export async function getSideUpCheapestShippingRate({ destinationZoneId, destinationAreaId, weightKg, paymentMethod, codAmount } = {}) {
+    const config = getSideUpConfig();
+    const pickupAddress = await getSideUpDefaultPickupAddress();
+    const resolvedDestinationZoneId = getPositiveNumber(destinationZoneId);
+    const resolvedDestinationAreaId = getPositiveNumber(destinationAreaId);
+
+    if (!resolvedDestinationZoneId) {
+        throw createError(400, 'A valid SideUp destination zone id is required for pricing', 'sideup_pricing_zone_required');
+    }
+
+    const effectiveWeight = Number.isFinite(Number(weightKg)) && Number(weightKg) > 0
+        ? Number(weightKg)
+        : (Number.isFinite(config.pricingWeightKg) && config.pricingWeightKg > 0 ? config.pricingWeightKg : DEFAULT_SIDEUP_PRICING_WEIGHT_KG);
+    const effectivePaymentMethod = String(paymentMethod || config.pricingPaymentMethod || DEFAULT_SIDEUP_PRICING_PAYMENT_METHOD).trim().toUpperCase() || DEFAULT_SIDEUP_PRICING_PAYMENT_METHOD;
+    const effectiveCodAmount = effectivePaymentMethod === 'PREPAID'
+        ? 0
+        : Math.max(0, Number.isFinite(Number(codAmount)) ? Number(codAmount) : (Number.isFinite(config.pricingCodAmount) ? config.pricingCodAmount : 0));
+
+    const searchParams = new URLSearchParams({
+        from_zone: String(pickupAddress.pickupZoneId),
+        to_zone: String(resolvedDestinationZoneId),
+        drop_area_id: String(resolvedDestinationAreaId || 0),
+        weight: String(effectiveWeight),
+        cod: String(effectiveCodAmount),
+        payment_method: effectivePaymentMethod,
+        include_blocked_couriers: '1'
+    });
+
+    const payload = await sideupPricingFetch(`/domestic-prices?${searchParams.toString()}`);
+    const quotes = Array.isArray(payload?.data)
+        ? payload.data.map((entry) => normalizeSideUpPricingQuote(entry)).filter((entry) => entry.courierId && (Number.isFinite(entry.totalDue) || Number.isFinite(entry.deliveryFees)))
+        : [];
+
+    if (quotes.length === 0) {
+        throw createError(409, 'SideUp did not return any courier prices for this destination', 'sideup_pricing_unavailable');
+    }
+
+    const rankedQuotes = [...quotes].sort(compareSideUpPricingQuotes);
+    const cheapestQuote = rankedQuotes[0];
+    const amount = Number.isFinite(cheapestQuote?.totalDue)
+        ? cheapestQuote.totalDue
+        : (Number.isFinite(cheapestQuote?.deliveryFees) ? cheapestQuote.deliveryFees : 0);
+
+    return {
+        amount,
+        courierName: cheapestQuote?.courierName || '',
+        pickupZoneId: pickupAddress.pickupZoneId,
+        pickupAreaId: pickupAddress.pickupAreaId,
+        destinationZoneId: resolvedDestinationZoneId,
+        destinationAreaId: resolvedDestinationAreaId,
+        weightKg: effectiveWeight,
+        paymentMethod: effectivePaymentMethod,
+        codAmount: effectiveCodAmount,
+        cheapestQuote,
+        quotes: rankedQuotes
+    };
+}
+
 function buildAreaQueryValues({ areaHint = '', districtName = '', address = '' } = {}) {
     const addressSegments = String(address || '')
         .split(/[|,،]/)
@@ -511,15 +876,15 @@ function buildPreviewLocation({ city, area }) {
     return {
         city: {
             id: Number(city?.id || 0) || undefined,
-            name: String(city?.name || '').replace(/^eg_cities\./i, '') || undefined
+            name: normalizeSideUpLabel(city?.name || city?.name_ar || '') || undefined
         },
         area: {
             id: Number(area?.id || 0) || undefined,
-            name: String(area?.name || '').trim() || undefined
+            name: normalizeSideUpLabel(area?.name || area?.name_ar || '') || undefined
         },
         zone: {
             id: Number(area?.sideupZoneId || area?.pivot?.zone_id || 0) || undefined,
-            name: String(area?.sideupZoneName || '').trim() || undefined
+            name: normalizeSideUpLabel(area?.sideupZoneName || area?.zone?.name || '') || undefined
         }
     };
 }
@@ -616,29 +981,36 @@ export async function buildSideUpOrderPreview(order = {}, { areaHint = '' } = {}
     const governorate = getOrderGovernorate(order);
     const districtName = getOrderDistrict(order);
     const shippingAddress = getOrderShippingAddress(order);
-
-    if (!governorate) {
-        throw createError(400, 'This order is missing a governorate for SideUp', 'sideup_governorate_required');
-    }
+    const storedLocation = await resolveStoredSideUpLocation(order);
 
     if (!shippingAddress) {
         throw createError(400, 'This order is missing a shipping address for SideUp', 'sideup_address_required');
     }
 
-    const city = await resolveSideUpCity(governorate);
-    const area = await resolveSideUpArea({
-        city,
-        areaHint,
-        districtName,
-        address: shippingAddress
-    });
+    let city = storedLocation?.city || null;
+    let area = storedLocation?.area || null;
 
-    const preview = {
+    if (!city || !area) {
+        if (!governorate) {
+            throw createError(400, 'This order is missing a governorate for SideUp', 'sideup_governorate_required');
+        }
+
+        city = await resolveSideUpCity(governorate);
+        area = await resolveSideUpArea({
+            city,
+            areaHint,
+            districtName,
+            address: shippingAddress
+        });
+    }
+
+    const preview = removeUndefinedFields({
         governorate,
         districtName,
         areaHint: areaHint || undefined,
+        locationSource: storedLocation ? 'stored' : 'lookup',
         location: buildPreviewLocation({ city, area })
-    };
+    });
 
     return {
         ...preview,

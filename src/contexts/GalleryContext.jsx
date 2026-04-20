@@ -1748,7 +1748,7 @@ export function GalleryProvider({ children }) {
         }
     };
 
-    const buildOrderPayload = ({ currentUser, profileData, items, subtotalAmount, shippingAmount, discountAmount, totalPrice, itemCount, orderType, promoCode, promoDiscountType, promoDiscountValue, deliveryMethod, shippingAddress, shippingGovernorate, shippingZone, shippingDistrict, shippingDistrictId, shippingCityId, shippingCityName, shippingBostaZoneId, shippingRecipientName, shippingRecipientPhone, shippingAddressId }) => {
+    const buildOrderPayload = ({ currentUser, profileData, items, subtotalAmount, shippingAmount, discountAmount, totalPrice, itemCount, orderType, promoCode, promoDiscountType, promoDiscountValue, deliveryMethod, shippingAddress, shippingGovernorate, shippingZone, shippingDistrict, shippingDistrictId, shippingCityId, shippingCityName, shippingZoneId, shippingRecipientName, shippingRecipientPhone, shippingAddressId }) => {
         const customerName = profileData.name
             || [profileData.firstName, profileData.lastName].filter(Boolean).join(' ')
             || currentUser.displayName
@@ -1769,7 +1769,7 @@ export function GalleryProvider({ children }) {
         const normalizedShippingDistrictId = normalizedDeliveryMethod === 'shipping' ? String(shippingDistrictId || '').trim() : '';
         const normalizedShippingCityId = normalizedDeliveryMethod === 'shipping' ? String(shippingCityId || '').trim() : '';
         const normalizedShippingCityName = normalizedDeliveryMethod === 'shipping' ? String(shippingCityName || '').trim() : '';
-        const normalizedShippingBostaZoneId = normalizedDeliveryMethod === 'shipping' ? String(shippingBostaZoneId || '').trim() : '';
+        const normalizedShippingZoneId = normalizedDeliveryMethod === 'shipping' ? String(shippingZoneId || '').trim() : '';
         const normalizedShippingAddressId = normalizedDeliveryMethod === 'shipping' ? String(shippingAddressId || '').trim() : '';
         const normalizedShippingRecipientName = normalizedDeliveryMethod === 'shipping'
             ? (String(shippingRecipientName || '').trim() || customerName)
@@ -1793,7 +1793,7 @@ export function GalleryProvider({ children }) {
                 shippingDistrictId: normalizedShippingDistrictId,
                 shippingCityId: normalizedShippingCityId,
                 shippingCityName: normalizedShippingCityName,
-                shippingBostaZoneId: normalizedShippingBostaZoneId
+                shippingZoneId: normalizedShippingZoneId
             },
             customerInfo: {
                 uid: currentUser.uid,
@@ -1809,7 +1809,7 @@ export function GalleryProvider({ children }) {
                 shippingDistrictId: normalizedShippingDistrictId,
                 shippingCityId: normalizedShippingCityId,
                 shippingCityName: normalizedShippingCityName,
-                shippingBostaZoneId: normalizedShippingBostaZoneId
+                shippingZoneId: normalizedShippingZoneId
             },
             items,
             subtotalAmount,
@@ -1825,7 +1825,7 @@ export function GalleryProvider({ children }) {
             shippingDistrictId: normalizedShippingDistrictId,
             shippingCityId: normalizedShippingCityId,
             shippingCityName: normalizedShippingCityName,
-            shippingBostaZoneId: normalizedShippingBostaZoneId,
+            shippingZoneId: normalizedShippingZoneId,
             shippingAddressId: normalizedShippingAddressId,
             shippingRecipient: {
                 name: normalizedShippingRecipientName,
@@ -1933,7 +1933,7 @@ export function GalleryProvider({ children }) {
                 shippingDistrictId: options.shippingDistrictId,
                 shippingCityId: options.shippingCityId,
                 shippingCityName: options.shippingCityName,
-                shippingBostaZoneId: options.shippingBostaZoneId,
+                shippingZoneId: options.shippingZoneId,
                 shippingRecipientName: options.shippingRecipientName,
                 shippingRecipientPhone: options.shippingRecipientPhone,
                 shippingAddressId: options.shippingAddressId
@@ -2022,7 +2022,7 @@ export function GalleryProvider({ children }) {
                 shippingDistrictId: options.shippingDistrictId,
                 shippingCityId: options.shippingCityId,
                 shippingCityName: options.shippingCityName,
-                shippingBostaZoneId: options.shippingBostaZoneId,
+                shippingZoneId: options.shippingZoneId,
                 shippingRecipientName: options.shippingRecipientName,
                 shippingRecipientPhone: options.shippingRecipientPhone,
                 shippingAddressId: options.shippingAddressId
