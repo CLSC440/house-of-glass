@@ -113,6 +113,58 @@ function toAbsoluteUrl(value = '') {
     return toAbsoluteSiteUrl(normalizedValue.startsWith('/') ? normalizedValue : `/${normalizedValue}`);
 }
 
+function isImageKitUrl(value = '') {
+    const normalizedValue = normalizeText(value);
+
+    if (!normalizedValue) {
+        return false;
+    }
+
+    try {
+        return /(^|\.)ik\.imagekit\.io$/i.test(new URL(normalizedValue).hostname);
+    } catch (_error) {
+        return false;
+    }
+}
+
+function appendImageKitTransformation(imageUrl = '', transformation = '') {
+    const normalizedImageUrl = normalizeText(imageUrl);
+    const normalizedTransformation = normalizeText(transformation);
+
+    if (!normalizedImageUrl || !normalizedTransformation || !isImageKitUrl(normalizedImageUrl)) {
+        return normalizedImageUrl;
+    }
+
+    try {
+        const parsedUrl = new URL(normalizedImageUrl);
+        const existingTransform = normalizeText(parsedUrl.searchParams.get('tr'));
+        parsedUrl.searchParams.set('tr', existingTransform ? `${existingTransform}:${normalizedTransformation}` : normalizedTransformation);
+        return parsedUrl.toString();
+    } catch (_error) {
+        return normalizedImageUrl;
+    }
+}
+
+function buildProductSocialImage(imageUrl = '') {
+    const normalizedImageUrl = normalizeText(imageUrl);
+
+    if (!normalizedImageUrl || !isImageKitUrl(normalizedImageUrl)) {
+        return normalizedImageUrl;
+    }
+
+    const encodedLogoUrl = Buffer.from(toAbsoluteSiteUrl('/logo.png')).toString('base64');
+    const logoOverlayTransform = [
+        'l-image',
+        `ie-${encodedLogoUrl}`,
+        'w-bw_mul_0.15',
+        'lx-bw_mul_0.035',
+        'ly-bh_mul_0.035',
+        'l-end'
+    ].join(',');
+
+    return appendImageKitTransformation(normalizedImageUrl, logoOverlayTransform);
+}
+
 export const getSharedProductById = cache(async (productId) => {
     const normalizedProductId = normalizeText(productId);
 
@@ -145,6 +197,7 @@ export const getSharedProductById = cache(async (productId) => {
             category: resolveProductCategory(product),
             description: buildProductDescription(product),
             imageUrl: resolveProductImage(product),
+            socialImageUrl: buildProductSocialImage(resolveProductImage(product)),
             siteOrigin: getSiteOrigin()
         };
     } catch (error) {

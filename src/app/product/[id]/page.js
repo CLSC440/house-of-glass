@@ -35,6 +35,7 @@ export async function generateMetadata({ params, searchParams }) {
     }
 
     const previewSharePath = buildSharePreviewPath(sharedProduct.sharePath, resolvedSearchParams?.wa_share);
+    const socialImageUrl = sharedProduct.socialImageUrl || sharedProduct.imageUrl;
 
     return {
         title: `${sharedProduct.title} | House Of Glass`,
@@ -47,14 +48,14 @@ export async function generateMetadata({ params, searchParams }) {
             description: sharedProduct.description,
             url: previewSharePath,
             siteName: 'House Of Glass',
-            images: [sharedProduct.imageUrl],
+            images: [socialImageUrl],
             type: 'website'
         },
         twitter: {
             card: 'summary_large_image',
             title: sharedProduct.title,
             description: sharedProduct.description,
-            images: [sharedProduct.imageUrl]
+            images: [socialImageUrl]
         }
     };
 }
