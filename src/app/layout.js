@@ -15,7 +15,9 @@ export const metadata = {
   description: 'Static Gallery with Serverless API',
   manifest: '/manifest.webmanifest',
   icons: {
-    shortcut: '/favicon.ico'
+    icon: '/icon.png',
+    shortcut: '/favicon.ico',
+    apple: '/apple-icon.png'
   },
   appleWebApp: {
     capable: true,
