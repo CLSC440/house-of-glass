@@ -90,42 +90,42 @@ export default async function Image({ params }) {
                         <div
                             style={{
                                 position: 'absolute',
-                                top: '18px',
-                                left: '18px',
+                                top: '24px',
+                                left: '24px',
                                 display: 'flex',
                                 alignItems: 'center',
-                                padding: '8px 14px 8px 10px',
+                                padding: '16px 24px 16px 16px',
                                 borderRadius: '999px',
-                                background: 'rgba(11, 16, 32, 0.9)',
-                                border: '1px solid rgba(248, 214, 122, 0.28)',
+                                background: 'rgba(11, 16, 32, 0.92)',
+                                border: '1px solid rgba(248, 214, 122, 0.32)',
                                 color: '#f8fafc',
-                                boxShadow: '0 12px 28px rgba(15, 23, 42, 0.16)'
+                                boxShadow: '0 18px 40px rgba(15, 23, 42, 0.24)'
                             }}
                         >
                             <img
                                 src={logoDataUri}
                                 alt="House Of Glass"
                                 style={{
-                                    width: '48px',
-                                    height: '48px',
+                                    width: '92px',
+                                    height: '92px',
                                     objectFit: 'contain',
                                     borderRadius: '999px',
-                                    background: 'rgba(255, 255, 255, 0.1)'
+                                    background: 'rgba(255, 255, 255, 0.12)'
                                 }}
                             />
                             <div
                                 style={{
                                     display: 'flex',
                                     flexDirection: 'column',
-                                    marginLeft: '10px'
+                                    marginLeft: '16px'
                                 }}
                             >
                                 <div
                                     style={{
                                         display: 'flex',
-                                        fontSize: '11px',
+                                        fontSize: '14px',
                                         fontWeight: 700,
-                                        letterSpacing: '0.16em',
+                                        letterSpacing: '0.18em',
                                         color: '#f8d67a'
                                     }}
                                 >
@@ -134,9 +134,9 @@ export default async function Image({ params }) {
                                 <div
                                     style={{
                                         display: 'flex',
-                                        marginTop: '4px',
-                                        fontSize: '16px',
-                                        fontWeight: 600,
+                                        marginTop: '6px',
+                                        fontSize: '24px',
+                                        fontWeight: 700,
                                         color: '#f8fafc'
                                     }}
                                 >
