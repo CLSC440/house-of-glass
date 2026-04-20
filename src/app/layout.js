@@ -14,6 +14,9 @@ export const metadata = {
   applicationName: 'House Of Glass',
   description: 'Static Gallery with Serverless API',
   manifest: '/manifest.webmanifest',
+  icons: {
+    shortcut: '/favicon.ico'
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
