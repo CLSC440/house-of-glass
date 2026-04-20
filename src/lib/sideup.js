@@ -1,4 +1,5 @@
 import { getOrderAmount, getOrderCustomerName, getOrderCustomerPhone, getOrderExternalRef } from '@/lib/utils/admin-orders';
+import { getTranslatedSideUpAreaName, getTranslatedSideUpCityName, getTranslatedSideUpZoneName } from '@/lib/sideup-translations';
 
 const DEFAULT_SIDEUP_BASE_URL = 'https://portal.eg.sideup.co/api/merchants';
 const DEFAULT_SIDEUP_PRICING_BASE_URL = 'https://pricing-service.sideup.co/api';
@@ -577,9 +578,12 @@ async function resolveStoredSideUpLocation(order = {}) {
 }
 
 function normalizeSideUpAreaOption(area = {}, city = {}) {
-    const cityName = normalizeSideUpLabel(city?.name || area?.city?.name || area?.city_name || '');
-    const areaName = normalizeSideUpLabel(area?.name || area?.name_ar || '');
-    const zoneName = normalizeSideUpLabel(area?.sideupZoneName || area?.zone?.name || '');
+    const rawCityName = city?.name || area?.city?.name || area?.city_name || '';
+    const rawAreaName = area?.name || area?.name_ar || '';
+    const rawZoneName = area?.sideupZoneName || area?.zone?.name || '';
+    const cityName = getTranslatedSideUpCityName(rawCityName) || normalizeSideUpLabel(rawCityName);
+    const areaName = getTranslatedSideUpAreaName(rawAreaName) || normalizeSideUpLabel(rawAreaName);
+    const zoneName = getTranslatedSideUpZoneName(rawZoneName) || normalizeSideUpLabel(rawZoneName);
 
     return removeUndefinedFields({
         optionId: String(area?.id || '').trim() || undefined,
@@ -589,7 +593,7 @@ function normalizeSideUpAreaOption(area = {}, city = {}) {
         cityName: cityName || undefined,
         zoneId: getPositiveNumber(area?.sideupZoneId || area?.pivot?.zone_id),
         zoneName: zoneName || undefined,
-        label: areaName ? (zoneName ? `${areaName} (${zoneName})` : areaName) : undefined
+        label: areaName ? (zoneName ? `${areaName} - ${zoneName}` : areaName) : undefined
     });
 }
 
@@ -728,11 +732,12 @@ export async function listSideUpAreasForCity(city) {
 export async function listSideUpLocationOptionsForGovernorate(governorate) {
     const city = await resolveSideUpCity(governorate);
     const areas = await listSideUpAreasForCity(city);
+    const cityName = getTranslatedSideUpCityName(city?.name || city?.name_ar || '') || normalizeSideUpLabel(city?.name || city?.name_ar || '');
 
     return {
         city: {
             id: getPositiveNumber(city?.id),
-            name: normalizeSideUpLabel(city?.name || city?.name_ar || '') || undefined
+            name: cityName || undefined
         },
         areas: areas
             .map((area) => normalizeSideUpAreaOption(area, city))
@@ -873,18 +878,22 @@ export async function resolveSideUpArea({ city, areaHint = '', districtName = ''
 }
 
 function buildPreviewLocation({ city, area }) {
+    const rawCityName = city?.name || city?.name_ar || '';
+    const rawAreaName = area?.name || area?.name_ar || '';
+    const rawZoneName = area?.sideupZoneName || area?.zone?.name || '';
+
     return {
         city: {
             id: Number(city?.id || 0) || undefined,
-            name: normalizeSideUpLabel(city?.name || city?.name_ar || '') || undefined
+            name: getTranslatedSideUpCityName(rawCityName) || normalizeSideUpLabel(rawCityName) || undefined
         },
         area: {
             id: Number(area?.id || 0) || undefined,
-            name: normalizeSideUpLabel(area?.name || area?.name_ar || '') || undefined
+            name: getTranslatedSideUpAreaName(rawAreaName) || normalizeSideUpLabel(rawAreaName) || undefined
         },
         zone: {
             id: Number(area?.sideupZoneId || area?.pivot?.zone_id || 0) || undefined,
-            name: normalizeSideUpLabel(area?.sideupZoneName || area?.zone?.name || '') || undefined
+            name: getTranslatedSideUpZoneName(rawZoneName) || normalizeSideUpLabel(rawZoneName) || undefined
         }
     };
 }
