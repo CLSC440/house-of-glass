@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { saveCurrentUserShippingAddress } from '@/lib/account-api';
+import { deleteCurrentUserShippingAddress, saveCurrentUserShippingAddress } from '@/lib/account-api';
 import { GOVERNORATE_OPTIONS } from '@/lib/shipping-zones';
+
+const MAX_SAVED_SHIPPING_ADDRESSES = 3;
 
 function normalizeDistrictLookupValue(value) {
     return String(value || '')
@@ -153,6 +155,7 @@ export default function ProfileShippingAddressesCard({ currentUser, profileData,
     const [isDistrictSuggestionsOpen, setIsDistrictSuggestionsOpen] = useState(false);
     const [addressMessage, setAddressMessage] = useState({ type: '', text: '' });
     const [isSavingAddress, setIsSavingAddress] = useState(false);
+    const [deletingAddressId, setDeletingAddressId] = useState('');
     const districtAutocompleteRef = useRef(null);
 
     useEffect(() => {
@@ -302,6 +305,8 @@ export default function ProfileShippingAddressesCard({ currentUser, profileData,
         savedShippingAddresses.find((address) => address.id === defaultShippingAddressId) || savedShippingAddresses[0] || null
     ), [defaultShippingAddressId, savedShippingAddresses]);
 
+    const hasReachedAddressLimit = savedShippingAddresses.length >= MAX_SAVED_SHIPPING_ADDRESSES;
+
     const handleShippingAddressFieldChange = (fieldKey, value) => {
         setShippingAddressFields((current) => ({
             ...current,
@@ -380,6 +385,12 @@ export default function ProfileShippingAddressesCard({ currentUser, profileData,
     };
 
     const handleAddNewAddress = () => {
+        if (savedShippingAddresses.length >= MAX_SAVED_SHIPPING_ADDRESSES) {
+            setAddressMessage({ type: 'error', text: `يمكنك حفظ ${MAX_SAVED_SHIPPING_ADDRESSES} عناوين شحن كحد أقصى. احذف عنوانًا أولاً أو عدّل عنوانًا موجودًا.` });
+            setIsCardExpanded(true);
+            return;
+        }
+
         setSelectedShippingAddressId('');
         setMakeShippingAddressDefault(savedShippingAddresses.length === 0 || !defaultShippingAddressId);
         setShippingAddressFields(createEmptyShippingAddressFields());
@@ -389,6 +400,44 @@ export default function ProfileShippingAddressesCard({ currentUser, profileData,
         setAddressMessage({ type: '', text: '' });
         setIsCardExpanded(true);
         setIsAddressFormOpen(true);
+    };
+
+    const handleDeleteAddress = async (addressId) => {
+        if (!currentUser) {
+            setAddressMessage({ type: 'error', text: 'سجّل الدخول أولاً لإدارة العناوين.' });
+            return;
+        }
+
+        if (typeof window !== 'undefined' && !window.confirm('هل تريد حذف هذا العنوان من حسابك؟')) {
+            return;
+        }
+
+        setDeletingAddressId(addressId);
+        setAddressMessage({ type: '', text: '' });
+
+        try {
+            const response = await deleteCurrentUserShippingAddress(currentUser, addressId);
+            const nextProfile = response?.profile || {};
+            const nextSavedShippingAddresses = normalizeSavedShippingAddresses(nextProfile.shippingAddresses);
+            const nextDefaultShippingAddressId = String(response?.defaultShippingAddressId || nextProfile.defaultShippingAddressId || '').trim();
+            const nextSelectedAddress = nextSavedShippingAddresses.find((address) => address.id === nextDefaultShippingAddressId) || nextSavedShippingAddresses[0] || null;
+
+            setSavedShippingAddresses(nextSavedShippingAddresses);
+            setDefaultShippingAddressId(nextDefaultShippingAddressId);
+            setSelectedShippingAddressId(nextSelectedAddress?.id || '');
+            setMakeShippingAddressDefault(Boolean(nextSelectedAddress?.id && nextSelectedAddress.id === nextDefaultShippingAddressId));
+            setShippingAddressFields(nextSelectedAddress ? createShippingAddressFieldsFromSavedAddress(nextSelectedAddress) : createEmptyShippingAddressFields());
+            setDistrictOptions([]);
+            setDistrictOptionsError('');
+            setIsDistrictSuggestionsOpen(false);
+            setIsAddressFormOpen(nextSavedShippingAddresses.length === 0);
+            setAddressMessage({ type: 'success', text: 'تم حذف العنوان من حسابك.' });
+            onProfileUpdate?.(nextProfile);
+        } catch (error) {
+            setAddressMessage({ type: 'error', text: error instanceof Error ? error.message : 'تعذر حذف العنوان حالياً.' });
+        } finally {
+            setDeletingAddressId('');
+        }
     };
 
     const handleSelectSavedAddress = (addressId) => {
@@ -416,6 +465,11 @@ export default function ProfileShippingAddressesCard({ currentUser, profileData,
         const validationError = getShippingAddressValidation(shippingAddressFields);
         if (validationError) {
             setAddressMessage({ type: 'error', text: validationError });
+            return;
+        }
+
+        if (!selectedShippingAddressId && savedShippingAddresses.length >= MAX_SAVED_SHIPPING_ADDRESSES) {
+            setAddressMessage({ type: 'error', text: `يمكنك حفظ ${MAX_SAVED_SHIPPING_ADDRESSES} عناوين شحن كحد أقصى. احذف عنوانًا أولاً أو عدّل عنوانًا موجودًا.` });
             return;
         }
 
@@ -466,7 +520,7 @@ export default function ProfileShippingAddressesCard({ currentUser, profileData,
                     <i className={`fa-solid ${isCardExpanded ? 'fa-chevron-up' : 'fa-chevron-down'} text-sm text-brandGold transition-transform`}></i>
                 </button>
                 <span className={`inline-flex rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${savedShippingAddresses.length > 0 ? 'bg-brandGold/10 text-brandGold' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300'}`}>
-                    {savedShippingAddresses.length > 0 ? `${savedShippingAddresses.length} Saved` : 'Ready'}
+                    {savedShippingAddresses.length > 0 ? `${savedShippingAddresses.length} / ${MAX_SAVED_SHIPPING_ADDRESSES} Saved` : 'Ready'}
                 </span>
             </div>
 
@@ -485,13 +539,31 @@ export default function ProfileShippingAddressesCard({ currentUser, profileData,
                                 const isSelectedAddress = address.id === selectedShippingAddressId;
 
                                 return (
-                                    <button
+                                    <div
                                         key={address.id}
-                                        type="button"
-                                        onClick={() => handleSelectSavedAddress(address.id)}
                                         className={`w-full rounded-[1.4rem] border px-4 py-4 text-right transition-colors ${isSelectedAddress ? 'border-brandGold/35 bg-brandGold/10 text-brandBlue dark:text-white' : 'border-gray-200 bg-gray-50/80 text-brandBlue hover:border-brandGold/25 hover:bg-brandGold/5 dark:border-gray-700 dark:bg-gray-800/30 dark:text-gray-100'}`}
                                     >
                                         <div className="flex items-start justify-between gap-3">
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeleteAddress(address.id)}
+                                                    disabled={isSavingAddress || deletingAddressId === address.id}
+                                                    aria-label="Delete address"
+                                                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-500 transition-colors hover:bg-red-500 hover:text-white disabled:cursor-wait disabled:opacity-60 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-300"
+                                                >
+                                                    <i className={`fa-solid ${deletingAddressId === address.id ? 'fa-spinner fa-spin' : 'fa-trash-can'} text-sm`}></i>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSelectSavedAddress(address.id)}
+                                                    disabled={isSavingAddress || deletingAddressId === address.id}
+                                                    aria-label="Edit address"
+                                                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-brandGold/20 bg-brandGold/10 text-brandGold transition-colors hover:bg-brandGold hover:text-white disabled:cursor-wait disabled:opacity-60"
+                                                >
+                                                    <i className="fa-solid fa-pen-to-square text-sm"></i>
+                                                </button>
+                                            </div>
                                             <div className="min-w-0 flex-1 text-right">
                                                 <div className="flex flex-wrap justify-end gap-2">
                                                     {isDefaultAddress ? (
@@ -511,7 +583,7 @@ export default function ProfileShippingAddressesCard({ currentUser, profileData,
                                                 <i className={`fa-solid fa-check text-[10px] ${isSelectedAddress ? 'opacity-100' : 'opacity-0'}`}></i>
                                             </span>
                                         </div>
-                                    </button>
+                                    </div>
                                 );
                             })}
                         </div>
@@ -526,15 +598,25 @@ export default function ProfileShippingAddressesCard({ currentUser, profileData,
                     )}
 
                     <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <p className="text-sm font-bold leading-7 text-gray-500 dark:text-gray-400">
-                            {savedShippingAddresses.length > 0 ? 'يمكنك تعديل أي عنوان محفوظ أو إضافة عنوان جديد لاستخدامه لاحقًا في الطلبات.' : 'أضف عنوانًا جديدًا الآن ليظهر لك مباشرة وقت الشحن.'}
-                        </p>
+                        {hasReachedAddressLimit ? (
+                            <p className="text-sm font-bold leading-7 text-amber-600 dark:text-amber-300">
+                                وصلت للحد الأقصى: {MAX_SAVED_SHIPPING_ADDRESSES} عناوين محفوظة.
+                            </p>
+                        ) : <span className="hidden sm:block"></span>}
                         <button
                             type="button"
-                            onClick={() => setIsAddressFormOpen((currentValue) => currentValue ? false : true)}
+                            onClick={() => {
+                                if (isAddressFormOpen) {
+                                    setIsAddressFormOpen(false);
+                                    setAddressMessage({ type: '', text: '' });
+                                    return;
+                                }
+
+                                handleAddNewAddress();
+                            }}
                             className="inline-flex items-center justify-center rounded-full border border-brandGold/20 bg-brandGold/5 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-brandGold transition-colors hover:bg-brandGold hover:text-white"
                         >
-                            {isAddressFormOpen ? 'Hide Form' : savedShippingAddresses.length > 0 ? 'Add Address' : 'Create Address'}
+                            {isAddressFormOpen ? 'Hide Form' : 'Add Address'}
                         </button>
                     </div>
 

@@ -57,6 +57,15 @@ export async function saveCurrentUserShippingAddress(currentUser, address = {}, 
     return callAccountApi('upsertShippingAddress', { address, options }, idToken);
 }
 
+export async function deleteCurrentUserShippingAddress(currentUser, addressId) {
+    if (!currentUser) {
+        throw new Error('Authentication required');
+    }
+
+    const idToken = await currentUser.getIdToken();
+    return callAccountApi('deleteShippingAddress', { addressId }, idToken);
+}
+
 export async function deleteOwnAccount(currentUser, options = {}) {
     if (!currentUser) {
         throw new Error('Authentication required');

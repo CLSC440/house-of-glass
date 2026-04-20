@@ -7,6 +7,7 @@ const { admin, getDb, verifyRequestUser } = require('../../../api/_firebaseAdmin
 
 const ALLOWED_ROLES = new Set(['customer', 'cst_wholesale', 'moderator', 'admin']);
 const RECENT_AUTH_MAX_AGE_SECONDS = 5 * 60;
+const MAX_SAVED_SHIPPING_ADDRESSES = 3;
 
 function createError(status, message) {
     const error = new Error(message);
@@ -158,7 +159,7 @@ function normalizeSavedShippingAddresses(rawAddresses = []) {
             }
         })
         .filter(Boolean)
-        .slice(0, 10);
+        .slice(0, MAX_SAVED_SHIPPING_ADDRESSES);
 }
 
 function makeDirectoryId(type, value) {
@@ -439,6 +440,11 @@ export async function POST(request) {
             const existingAddresses = normalizeSavedShippingAddresses(currentProfile.shippingAddresses);
             const sanitizedAddress = sanitizeSavedShippingAddress(body?.address || {});
             const existingAddress = existingAddresses.find((entry) => entry.id === sanitizedAddress.id);
+
+            if (!existingAddress && existingAddresses.length >= MAX_SAVED_SHIPPING_ADDRESSES) {
+                throw createError(400, `يمكنك حفظ ${MAX_SAVED_SHIPPING_ADDRESSES} عناوين شحن كحد أقصى. احذف عنوانًا أولاً أو عدّل عنوانًا موجودًا.`);
+            }
+
             const addressId = sanitizedAddress.id || existingAddress?.id || generateShippingAddressId();
             const nowIso = new Date().toISOString();
             const nextAddress = {
@@ -448,7 +454,7 @@ export async function POST(request) {
                 updatedAt: nowIso
             };
             const remainingAddresses = existingAddresses.filter((entry) => entry.id !== addressId);
-            const nextAddresses = [nextAddress, ...remainingAddresses].slice(0, 10);
+            const nextAddresses = [nextAddress, ...remainingAddresses].slice(0, MAX_SAVED_SHIPPING_ADDRESSES);
             const requestedDefaultAddressId = normalizeShippingAddressId(body?.options?.defaultAddressId || currentProfile.defaultShippingAddressId);
             const makeDefault = body?.options?.makeDefault === true || !requestedDefaultAddressId;
             const defaultShippingAddressId = makeDefault
@@ -466,6 +472,45 @@ export async function POST(request) {
                 success: true,
                 profile: savedSnap.data(),
                 addressId,
+                defaultShippingAddressId
+            });
+        }
+
+        if (action === 'deleteShippingAddress') {
+            const tokenData = await verifyUserFromRequest(request);
+            const userRef = db.collection('users').doc(tokenData.uid);
+            const currentSnap = await userRef.get();
+            const currentProfile = currentSnap.exists ? currentSnap.data() : {};
+            const existingAddresses = normalizeSavedShippingAddresses(currentProfile.shippingAddresses);
+            const addressId = normalizeShippingAddressId(body?.addressId);
+
+            if (!addressId) {
+                throw createError(400, 'Address id is required before deleting the shipping address.');
+            }
+
+            if (!existingAddresses.some((entry) => entry.id === addressId)) {
+                throw createError(404, 'Shipping address was not found.');
+            }
+
+            const nextAddresses = existingAddresses.filter((entry) => entry.id !== addressId);
+            const requestedDefaultAddressId = normalizeShippingAddressId(currentProfile.defaultShippingAddressId);
+            const defaultShippingAddressId = requestedDefaultAddressId
+                && requestedDefaultAddressId !== addressId
+                && nextAddresses.some((entry) => entry.id === requestedDefaultAddressId)
+                ? requestedDefaultAddressId
+                : (nextAddresses[0]?.id || '');
+
+            await userRef.set({
+                shippingAddresses: nextAddresses,
+                defaultShippingAddressId,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            const savedSnap = await userRef.get();
+            return NextResponse.json({
+                success: true,
+                profile: savedSnap.data(),
+                deletedAddressId: addressId,
                 defaultShippingAddressId
             });
         }
