@@ -1835,11 +1835,6 @@ export default function CheckoutPageContent({ checkoutType }) {
                                                     تم سحب السعر الأقل من شركة الشحن: {shippingPricingDetails.courierName}
                                                 </p>
                                             ) : null}
-                                            {shippingPricingDetails.source === 'live' ? (
-                                                <p className="mt-2 text-xs font-black text-emerald-600 dark:text-brandGold">
-                                                    السعر المعروض هو الإجمالي النهائي من SideUp بعد الضريبة{shippingPricingDetails.vatAmount > 0 ? `، ويشمل VAT بقيمة ${formatCurrency(shippingPricingDetails.vatAmount)}` : ''}{shippingPricingDetails.extraFeesAmount > 0 ? ` ورسوم إضافية بقيمة ${formatCurrency(shippingPricingDetails.extraFeesAmount)}` : ''}.
-                                                </p>
-                                            ) : null}
                                             {shippingPricingDetails.source === 'fallback' && shippingPricingDetails.livePricingError ? (
                                                 <p className="mt-2 text-xs font-black text-amber-600 dark:text-amber-300">
                                                     {shippingPricingDetails.livePricingError}
