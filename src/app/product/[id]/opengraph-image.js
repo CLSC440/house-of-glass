@@ -71,7 +71,7 @@ export default async function Image({ params }) {
                         width: '100%',
                         height: '100%',
                         display: 'flex',
-                        padding: '30px',
+                        padding: '18px',
                         zIndex: '1'
                     }}
                 >
@@ -82,10 +82,10 @@ export default async function Image({ params }) {
                             display: 'flex',
                             position: 'relative',
                             overflow: 'hidden',
-                            borderRadius: '30px',
+                            borderRadius: '24px',
                             border: '1px solid rgba(15, 23, 42, 0.08)',
                             background: '#ffffff',
-                            boxShadow: '0 30px 70px rgba(15, 23, 42, 0.12)'
+                            boxShadow: '0 24px 54px rgba(15, 23, 42, 0.12)'
                         }}
                     >
                         <img
@@ -94,7 +94,8 @@ export default async function Image({ params }) {
                             style={{
                                 width: '100%',
                                 height: '100%',
-                                objectFit: 'contain',
+                                objectFit: 'cover',
+                                objectPosition: 'center center',
                                 background: '#ffffff'
                             }}
                         />
@@ -102,25 +103,36 @@ export default async function Image({ params }) {
                         <div
                             style={{
                                 position: 'absolute',
-                                top: '28px',
-                                left: '28px',
+                                inset: '0',
+                                display: 'flex',
+                                background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.04) 0%, transparent 24%, transparent 76%, rgba(15, 23, 42, 0.05) 100%)'
+                            }}
+                        />
+
+                        <div
+                            style={{
+                                position: 'absolute',
+                                top: '20px',
+                                left: '20px',
                                 display: 'flex',
                                 alignItems: 'center',
-                                padding: '14px 18px',
-                                borderRadius: '999px',
-                                background: 'rgba(11, 16, 32, 0.92)',
+                                padding: '12px 18px 12px 12px',
+                                borderRadius: '24px',
+                                background: 'linear-gradient(135deg, rgba(11, 16, 32, 0.96), rgba(30, 41, 59, 0.92))',
+                                border: '1px solid rgba(248, 214, 122, 0.34)',
                                 color: '#f8fafc',
-                                boxShadow: '0 18px 36px rgba(15, 23, 42, 0.18)'
+                                boxShadow: '0 18px 36px rgba(15, 23, 42, 0.22)'
                             }}
                         >
                             <img
                                 src={logoDataUri}
                                 alt="House Of Glass"
                                 style={{
-                                    width: '72px',
-                                    height: '72px',
+                                    width: '86px',
+                                    height: '86px',
                                     objectFit: 'contain',
-                                    borderRadius: '999px'
+                                    borderRadius: '999px',
+                                    background: 'rgba(255, 255, 255, 0.08)'
                                 }}
                             />
                             <div
@@ -133,9 +145,9 @@ export default async function Image({ params }) {
                                 <div
                                     style={{
                                         display: 'flex',
-                                        fontSize: '15px',
-                                        fontWeight: 600,
-                                        letterSpacing: '0.24em',
+                                        fontSize: '17px',
+                                        fontWeight: 700,
+                                        letterSpacing: '0.2em',
                                         color: '#f8d67a'
                                     }}
                                 >
@@ -145,8 +157,8 @@ export default async function Image({ params }) {
                                     style={{
                                         display: 'flex',
                                         marginTop: '8px',
-                                        fontSize: '22px',
-                                        fontWeight: 700,
+                                        fontSize: '24px',
+                                        fontWeight: 600,
                                         color: '#f8fafc'
                                     }}
                                 >
@@ -158,14 +170,14 @@ export default async function Image({ params }) {
                         <div
                             style={{
                                 position: 'absolute',
-                                right: '28px',
-                                bottom: '28px',
+                                right: '20px',
+                                bottom: '20px',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 padding: '14px 20px',
-                                borderRadius: '18px',
-                                background: 'rgba(11, 16, 32, 0.82)',
+                                borderRadius: '20px',
+                                background: 'rgba(11, 16, 32, 0.86)',
                                 color: '#f8fafc',
                                 boxShadow: '0 18px 36px rgba(15, 23, 42, 0.22)'
                             }}
