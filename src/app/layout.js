@@ -18,11 +18,7 @@ export const metadata = {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'House Of Glass'
-  },
-  icons: {
-    icon: '/favicon.svg?v=2',
-    apple: '/logo.png',
-  },
+  }
 }
 
 export const viewport = {
