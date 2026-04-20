@@ -6,7 +6,7 @@ import { addDoc, collection, query, onSnapshot, doc, updateDoc, deleteDoc, serve
 import { auth, db } from '@/lib/firebase';
 import { useGallery } from '@/contexts/GalleryContext';
 import { parseTimestamp } from '@/lib/utils/format';
-import { canSendOrderInvoice, canSendOrderToBosta, getOrderAmount, getOrderBostaSyncState, getOrderCustomerName, getOrderCustomerPhone, getOrderDateValue, getOrderExternalRef, getOrderDcSyncState } from '@/lib/utils/admin-orders';
+import { canCreateOrderForSideUp, canPreviewOrderForSideUp, canSendOrderInvoice, canSendOrderToBosta, getOrderAmount, getOrderBostaSyncState, getOrderCustomerName, getOrderCustomerPhone, getOrderDateValue, getOrderExternalRef, getOrderDcSyncState, getOrderSideUpSyncState } from '@/lib/utils/admin-orders';
 import { ORDER_STATUS_OPTIONS, appendOrderStatusHistory, getAllowedOrderStatusTransitions, getOrderStatusHistory, getOrderStatusMeta, normalizeOrderStatus } from '@/lib/utils/order-status';
 import { buildOrderStatusNotification } from '@/lib/utils/notifications';
 
@@ -305,6 +305,73 @@ function getBostaButtonLabel({ isSending, canSendBosta, bostaSyncState, normaliz
     return 'Unavailable';
 }
 
+function getSideUpButtonLabel({ isPreviewing, canPreviewSideUp, sideupSyncState, normalizedStatus, deliveryMethod }) {
+    if (isPreviewing) return 'Previewing';
+    if (canPreviewSideUp) return sideupSyncState.tone === 'success' ? 'Preview Again' : 'Preview SideUp';
+    if (deliveryMethod !== 'shipping') return 'Pickup Only';
+    if (normalizedStatus === 'pending') return 'Review First';
+    if (normalizedStatus === 'cancelled') return 'Cancelled';
+    return 'Unavailable';
+}
+
+function getSideUpCreateButtonLabel({ isCreating, canCreateSideUp, sideupSyncState, normalizedStatus, deliveryMethod }) {
+    if (isCreating || sideupSyncState.tone === 'sending') return 'Sending';
+    if (canCreateSideUp) return sideupSyncState.tone === 'failed' ? 'Retry SideUp' : 'Send to SideUp';
+    if (sideupSyncState.tone === 'success') return 'SideUp Sent';
+    if (deliveryMethod !== 'shipping') return 'Pickup Only';
+    if (normalizedStatus === 'pending') return 'Review First';
+    if (normalizedStatus === 'cancelled') return 'Cancelled';
+    return 'Unavailable';
+}
+
+function buildSideUpPreviewMessage(payload = {}) {
+    const cityName = payload?.location?.city?.name || 'Unknown';
+    const areaName = payload?.location?.area?.name || 'Unknown';
+    const zoneName = payload?.location?.zone?.name || 'Unknown';
+    const shipmentCode = payload?.shipmentCode || payload?.payloads?.postman?.shipment_code || 'Not set';
+    const createModeLine = payload?.createReady
+        ? 'Server create mode is configured when you want to go live.'
+        : 'Server is preview-only until SideUp credentials are added.';
+
+    return [
+        'SideUp preview is ready.',
+        `City: ${cityName}`,
+        `Area: ${areaName}`,
+        `Zone: ${zoneName}`,
+        `Shipment Code: ${shipmentCode}`,
+        createModeLine
+    ].join('\n');
+}
+
+function buildSideUpCreateConfirmationMessage(payload = {}) {
+    const cityName = payload?.location?.city?.name || 'Unknown';
+    const areaName = payload?.location?.area?.name || 'Unknown';
+    const zoneName = payload?.location?.zone?.name || 'Unknown';
+    const shipmentCode = payload?.shipmentCode || payload?.payloads?.postman?.shipment_code || 'Not set';
+
+    return [
+        'Create a real SideUp test order now?',
+        `City: ${cityName}`,
+        `Area: ${areaName}`,
+        `Zone: ${zoneName}`,
+        `Shipment Code: ${shipmentCode}`,
+        'Press OK to send this order to SideUp for real.'
+    ].join('\n');
+}
+
+function buildSideUpCreateSuccessMessage(payload = {}, previewPayload = {}) {
+    const shipmentCode = payload?.shipmentCode || previewPayload?.shipmentCode || previewPayload?.payloads?.postman?.shipment_code || 'Not set';
+    const sideupOrderId = payload?.sideupOrderId || 'Not returned';
+    const payloadFormat = payload?.usedPayloadFormat || 'unknown';
+
+    return [
+        'SideUp test order created successfully.',
+        `Shipment Code: ${shipmentCode}`,
+        `SideUp Order ID: ${sideupOrderId}`,
+        `Payload Format: ${payloadFormat}`
+    ].join('\n');
+}
+
 export default function AdminOrders() {
     const searchParams = useSearchParams();
     const { allProducts } = useGallery();
@@ -313,6 +380,8 @@ export default function AdminOrders() {
     const [expandedOrderId, setExpandedOrderId] = useState(null);
     const [syncingOrderId, setSyncingOrderId] = useState(null);
     const [syncingBostaOrderId, setSyncingBostaOrderId] = useState(null);
+    const [previewingSideUpOrderId, setPreviewingSideUpOrderId] = useState(null);
+    const [creatingSideUpOrderId, setCreatingSideUpOrderId] = useState(null);
     const [openStatusMenuId, setOpenStatusMenuId] = useState(null);
     const [editingOrder, setEditingOrder] = useState(null);
     const [editingForm, setEditingForm] = useState(null);
@@ -515,6 +584,171 @@ export default function AdminOrders() {
             alert(error.message || 'Failed to create shipment on Bosta');
         } finally {
             setSyncingBostaOrderId(null);
+        }
+    };
+
+    const handlePreviewSideUp = async (orderId) => {
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+            alert('Authentication is required.');
+            return;
+        }
+
+        setPreviewingSideUpOrderId(orderId);
+        try {
+            const token = await currentUser.getIdToken();
+            let areaHint = '';
+
+            while (true) {
+                const response = await fetch('/api/integrations/sideup', {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        orderId,
+                        areaHint,
+                        mode: 'preview'
+                    })
+                });
+
+                const payload = await response.json().catch(() => ({}));
+                if (response.ok) {
+                    alert(buildSideUpPreviewMessage(payload));
+                    break;
+                }
+
+                if (payload?.code === 'sideup_area_match_required') {
+                    const availableAreaNames = Array.isArray(payload?.details?.availableAreaNames)
+                        ? payload.details.availableAreaNames.slice(0, 8)
+                        : [];
+                    const suggestionSuffix = availableAreaNames.length > 0
+                        ? `\n\nSuggestions: ${availableAreaNames.join(', ')}`
+                        : '';
+                    const hintedArea = window.prompt(
+                        `SideUp needs the district or area in their naming. Enter the الحي / المنطقة and retry.${suggestionSuffix}`,
+                        areaHint
+                    );
+
+                    if (hintedArea && hintedArea.trim()) {
+                        areaHint = hintedArea.trim();
+                        continue;
+                    }
+                }
+
+                throw new Error(payload?.error || payload?.message || 'Failed to preview SideUp order');
+            }
+        } catch (error) {
+            console.error('SideUp preview failed:', error);
+            alert(error.message || 'Failed to preview SideUp order');
+        } finally {
+            setPreviewingSideUpOrderId(null);
+        }
+    };
+
+    const handleCreateSideUp = async (orderId) => {
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+            alert('Authentication is required.');
+            return;
+        }
+
+        setCreatingSideUpOrderId(orderId);
+        try {
+            const token = await currentUser.getIdToken();
+            let areaHint = '';
+
+            while (true) {
+                const previewResponse = await fetch('/api/integrations/sideup', {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        orderId,
+                        areaHint,
+                        mode: 'preview'
+                    })
+                });
+
+                const previewPayload = await previewResponse.json().catch(() => ({}));
+                if (!previewResponse.ok) {
+                    if (previewPayload?.code === 'sideup_area_match_required') {
+                        const availableAreaNames = Array.isArray(previewPayload?.details?.availableAreaNames)
+                            ? previewPayload.details.availableAreaNames.slice(0, 8)
+                            : [];
+                        const suggestionSuffix = availableAreaNames.length > 0
+                            ? `\n\nSuggestions: ${availableAreaNames.join(', ')}`
+                            : '';
+                        const hintedArea = window.prompt(
+                            `SideUp needs the district or area in their naming. Enter the الحي / المنطقة and retry.${suggestionSuffix}`,
+                            areaHint
+                        );
+
+                        if (hintedArea && hintedArea.trim()) {
+                            areaHint = hintedArea.trim();
+                            continue;
+                        }
+                    }
+
+                    throw new Error(previewPayload?.error || previewPayload?.message || 'Failed to prepare SideUp test order');
+                }
+
+                if (!previewPayload?.createReady) {
+                    throw new Error('SideUp server credentials are missing. Add SIDEUP_EMAIL/SIDEUP_PASSWORD or SIDEUP_API_TOKEN first.');
+                }
+
+                const isConfirmed = window.confirm(buildSideUpCreateConfirmationMessage(previewPayload));
+                if (!isConfirmed) {
+                    return;
+                }
+
+                const createResponse = await fetch('/api/integrations/sideup', {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        orderId,
+                        areaHint,
+                        mode: 'create'
+                    })
+                });
+
+                const createPayload = await createResponse.json().catch(() => ({}));
+                if (createResponse.ok) {
+                    alert(buildSideUpCreateSuccessMessage(createPayload, previewPayload));
+                    break;
+                }
+
+                if (createPayload?.code === 'sideup_area_match_required') {
+                    const availableAreaNames = Array.isArray(createPayload?.details?.availableAreaNames)
+                        ? createPayload.details.availableAreaNames.slice(0, 8)
+                        : [];
+                    const suggestionSuffix = availableAreaNames.length > 0
+                        ? `\n\nSuggestions: ${availableAreaNames.join(', ')}`
+                        : '';
+                    const hintedArea = window.prompt(
+                        `SideUp needs the district or area in their naming. Enter the الحي / المنطقة and retry.${suggestionSuffix}`,
+                        areaHint
+                    );
+
+                    if (hintedArea && hintedArea.trim()) {
+                        areaHint = hintedArea.trim();
+                        continue;
+                    }
+                }
+
+                throw new Error(createPayload?.error || createPayload?.message || 'Failed to create SideUp test order');
+            }
+        } catch (error) {
+            console.error('SideUp order creation failed:', error);
+            alert(error.message || 'Failed to create SideUp test order');
+        } finally {
+            setCreatingSideUpOrderId(null);
         }
     };
 
@@ -731,6 +965,7 @@ export default function AdminOrders() {
                                     const hasStatusTransitions = statusActionOptions.length > 0;
                                     const isSyncing = syncingOrderId === order.id;
                                     const isBostaSyncing = syncingBostaOrderId === order.id;
+                                    const isSideUpCreating = creatingSideUpOrderId === order.id;
                                     const orderTypeLabel = order.orderType === 'wholesale' ? 'Wholesale Order' : 'Retail Order';
                                     let displayOrder = order;
                                     if (isSyncing) {
@@ -753,6 +988,16 @@ export default function AdminOrders() {
                                             }
                                         };
                                     }
+                                    if (isSideUpCreating) {
+                                        displayOrder = {
+                                            ...displayOrder,
+                                            sideupSync: {
+                                                ...(displayOrder.sideupSync || {}),
+                                                status: 'sending',
+                                                message: 'Creating order on SideUp...'
+                                            }
+                                        };
+                                    }
                                     const dcSyncState = getOrderDcSyncState(displayOrder);
                                     const canSendInvoice = canSendOrderInvoice(displayOrder);
                                     const invoiceButtonLabel = getInvoiceButtonLabel({
@@ -764,10 +1009,28 @@ export default function AdminOrders() {
                                     const deliveryMethodValue = getOrderDeliveryMethodValue(order);
                                     const bostaSyncState = getOrderBostaSyncState(displayOrder);
                                     const canSendBosta = canSendOrderToBosta(displayOrder);
+                                    const sideupSyncState = getOrderSideUpSyncState(displayOrder);
+                                    const canPreviewSideUp = canPreviewOrderForSideUp(displayOrder);
+                                    const canCreateSideUp = canCreateOrderForSideUp(displayOrder);
+                                    const isSideUpPreviewing = previewingSideUpOrderId === order.id;
                                     const bostaButtonLabel = getBostaButtonLabel({
                                         isSending: isBostaSyncing,
                                         canSendBosta,
                                         bostaSyncState,
+                                        normalizedStatus,
+                                        deliveryMethod: deliveryMethodValue
+                                    });
+                                    const sideupButtonLabel = getSideUpButtonLabel({
+                                        isPreviewing: isSideUpPreviewing,
+                                        canPreviewSideUp,
+                                        sideupSyncState,
+                                        normalizedStatus,
+                                        deliveryMethod: deliveryMethodValue
+                                    });
+                                    const sideupCreateButtonLabel = getSideUpCreateButtonLabel({
+                                        isCreating: isSideUpCreating,
+                                        canCreateSideUp,
+                                        sideupSyncState,
                                         normalizedStatus,
                                         deliveryMethod: deliveryMethodValue
                                     });
@@ -782,6 +1045,7 @@ export default function AdminOrders() {
                                                             <span className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] ${order.orderType === 'wholesale' ? 'bg-brandGold/10 text-brandGold' : 'bg-green-500/10 text-green-400'}`}>{orderTypeLabel}</span>
                                                             <span className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] ${dcSyncState.tone === 'success' ? 'bg-emerald-500/10 text-emerald-400' : dcSyncState.tone === 'sending' ? 'bg-blue-500/10 text-blue-400' : dcSyncState.tone === 'failed' ? 'bg-red-500/10 text-red-400' : 'bg-slate-500/10 text-slate-400'}`}>{dcSyncState.label}</span>
                                                             <span className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] ${bostaSyncState.tone === 'success' ? 'bg-amber-500/10 text-amber-300' : bostaSyncState.tone === 'sending' ? 'bg-sky-500/10 text-sky-300' : bostaSyncState.tone === 'failed' ? 'bg-rose-500/10 text-rose-300' : bostaSyncState.tone === 'pickup' ? 'bg-slate-500/10 text-slate-400' : 'bg-white/10 text-slate-300'}`}>{bostaSyncState.label}</span>
+                                                            <span className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] ${sideupSyncState.tone === 'success' ? 'bg-cyan-500/10 text-cyan-300' : sideupSyncState.tone === 'sending' ? 'bg-sky-500/10 text-sky-300' : sideupSyncState.tone === 'failed' ? 'bg-rose-500/10 text-rose-300' : sideupSyncState.tone === 'pickup' ? 'bg-slate-500/10 text-slate-400' : 'bg-white/10 text-slate-300'}`}>{sideupSyncState.label}</span>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -875,6 +1139,24 @@ export default function AdminOrders() {
                                                         </button>
                                                         <button
                                                             type="button"
+                                                            onClick={() => handlePreviewSideUp(order.id)}
+                                                            disabled={isSideUpPreviewing || isSideUpCreating || !canPreviewSideUp}
+                                                            className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-black uppercase tracking-[0.16em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${canPreviewSideUp ? 'border-cyan-500/25 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500 hover:text-[#11192b]' : 'border-white/10 bg-white/5 text-slate-500'}`}
+                                                        >
+                                                            <i className={`fa-solid ${isSideUpPreviewing ? 'fa-spinner fa-spin' : canPreviewSideUp ? 'fa-location-dot' : 'fa-ban'}`}></i>
+                                                            {sideupButtonLabel}
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleCreateSideUp(order.id)}
+                                                            disabled={isSideUpCreating || isSideUpPreviewing || !canCreateSideUp}
+                                                            className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-black uppercase tracking-[0.16em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${canCreateSideUp ? 'border-teal-500/25 bg-teal-500/10 text-teal-300 hover:bg-teal-500 hover:text-[#11192b]' : 'border-white/10 bg-white/5 text-slate-500'}`}
+                                                        >
+                                                            <i className={`fa-solid ${isSideUpCreating ? 'fa-spinner fa-spin' : canCreateSideUp ? 'fa-paper-plane' : 'fa-ban'}`}></i>
+                                                            {sideupCreateButtonLabel}
+                                                        </button>
+                                                        <button
+                                                            type="button"
                                                             onClick={() => toggleExpandedOrder(order.id)}
                                                             className="inline-flex items-center gap-2 rounded-xl border border-brandGold/20 bg-brandGold/10 px-3 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-brandGold transition-colors hover:bg-brandGold hover:text-brandBlue"
                                                         >
@@ -927,6 +1209,9 @@ export default function AdminOrders() {
                                                                         <InfoPill label="Bosta Sync" value={bostaSyncState.label} />
                                                                         <InfoPill label="Tracking Number" value={bostaSyncState.trackingNumber || 'Not assigned'} />
                                                                         <InfoPill label="Bosta State" value={bostaSyncState.stateLabel || 'Not available'} />
+                                                                        <InfoPill label="SideUp Sync" value={sideupSyncState.label} />
+                                                                        <InfoPill label="SideUp Shipment" value={sideupSyncState.shipmentCode || 'Not assigned'} />
+                                                                        <InfoPill label="SideUp Area" value={sideupSyncState.areaName || 'Not resolved'} />
                                                                     </div>
                                                                     {order.dcSync?.dcInvoiceId ? (
                                                                         <div className="mt-3 rounded-xl border border-emerald-500/15 bg-emerald-500/5 px-3 py-3 text-sm text-emerald-300">

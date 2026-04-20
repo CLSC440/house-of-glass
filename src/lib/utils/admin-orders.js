@@ -202,6 +202,61 @@ export function getOrderBostaSyncState(order = {}) {
     };
 }
 
+export function getOrderSideUpSyncState(order = {}) {
+    const deliveryMethod = getOrderDeliveryMethod(order);
+    const syncStatus = String(order.sideupSync?.status || '').trim().toLowerCase();
+    const shipmentCode = String(order.sideupSync?.shipmentCode || '').trim();
+    const areaName = String(order.sideupSync?.areaName || '').trim();
+
+    if (deliveryMethod !== 'shipping') {
+        return {
+            label: 'Pickup Only',
+            tone: 'pickup',
+            message: 'This order does not need a shipping shipment',
+            shipmentCode: '',
+            areaName: ''
+        };
+    }
+
+    if (syncStatus === 'success' || shipmentCode) {
+        return {
+            label: 'SideUp Sent',
+            tone: 'success',
+            message: order.sideupSync?.message || 'Order created successfully on SideUp',
+            shipmentCode,
+            areaName
+        };
+    }
+
+    if (syncStatus === 'sending') {
+        return {
+            label: 'SideUp Sending',
+            tone: 'sending',
+            message: order.sideupSync?.message || 'Order is being created on SideUp',
+            shipmentCode: '',
+            areaName
+        };
+    }
+
+    if (syncStatus === 'failed') {
+        return {
+            label: 'SideUp Failed',
+            tone: 'failed',
+            message: order.sideupSync?.message || 'SideUp order creation failed',
+            shipmentCode,
+            areaName
+        };
+    }
+
+    return {
+        label: 'SideUp Not Sent',
+        tone: 'idle',
+        message: 'Order has not been sent to SideUp yet',
+        shipmentCode: '',
+        areaName
+    };
+}
+
 export function canSendOrderToBosta(order = {}) {
     const deliveryMethod = getOrderDeliveryMethod(order);
     const orderStatus = normalizeOrderStatus(order.status);
@@ -217,4 +272,32 @@ export function canSendOrderToBosta(order = {}) {
     }
 
     return bostaSyncStatus !== 'sending' && bostaSyncStatus !== 'success' && !trackingNumber;
+}
+
+export function canPreviewOrderForSideUp(order = {}) {
+    const deliveryMethod = getOrderDeliveryMethod(order);
+    const orderStatus = normalizeOrderStatus(order.status);
+
+    if (deliveryMethod !== 'shipping') {
+        return false;
+    }
+
+    return orderStatus !== 'pending' && orderStatus !== 'cancelled';
+}
+
+export function canCreateOrderForSideUp(order = {}) {
+    const deliveryMethod = getOrderDeliveryMethod(order);
+    const orderStatus = normalizeOrderStatus(order.status);
+    const sideupSyncStatus = String(order.sideupSync?.status || '').trim().toLowerCase();
+    const shipmentCode = String(order.sideupSync?.shipmentCode || '').trim();
+
+    if (deliveryMethod !== 'shipping') {
+        return false;
+    }
+
+    if (orderStatus === 'pending' || orderStatus === 'cancelled') {
+        return false;
+    }
+
+    return sideupSyncStatus !== 'sending' && sideupSyncStatus !== 'success' && !shipmentCode;
 }
