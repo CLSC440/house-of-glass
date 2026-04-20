@@ -1,5 +1,6 @@
 function normalizeSideUpTranslationKey(value) {
     return String(value ?? '')
+        .replace(/^eg_(cities|areas)\./i, '')
         .replace(/&/g, ' and ')
         .replace(/[أإآ]/g, 'ا')
         .replace(/ة/g, 'ه')
@@ -233,6 +234,8 @@ const SIDEUP_AREA_TRANSLATION_OVERRIDES = Object.freeze({
     '6th of october': 'السادس من أكتوبر',
     'new cairo': 'القاهرة الجديدة',
     'new giza': 'نيو جيزة',
+    qalyubia: 'القليوبية',
+    'el obour city': 'مدينة العبور',
     'obour city': 'مدينة العبور',
     'smart village': 'القرية الذكية',
     'new capital': 'العاصمة الإدارية الجديدة'

@@ -16,6 +16,7 @@ const AUTH_TOKEN_SKEW_MS = 60 * 1000;
 const publicLookupCache = new Map();
 let cachedAuthToken = null;
 let cachedServiceToken = null;
+const SIDEUP_ZONE_LABEL_OMISSION_AREA_KEYS = new Set(['qalyubia', 'el obour city', 'obour city', 'shubra el kheima']);
 
 const GOVERNORATE_ALIAS_GROUPS = Object.freeze([
     ['القاهرة', 'cairo', 'greater cairo', 'cairo giza'],
@@ -83,6 +84,15 @@ function getPositiveNumber(value) {
 
 function normalizeSideUpLabel(value) {
     return String(value ?? '').replace(/^eg_(cities|areas)\./i, '').trim();
+}
+
+function shouldOmitSideUpZoneLabel(areaName, zoneName) {
+    const normalizedZoneName = normalizeLookupValue(zoneName);
+    if (normalizedZoneName !== 'delta' && normalizedZoneName !== 'الدلتا') {
+        return false;
+    }
+
+    return buildNormalizedCandidates([areaName]).some((candidate) => SIDEUP_ZONE_LABEL_OMISSION_AREA_KEYS.has(candidate));
 }
 
 function normalizeLookupValue(value) {
@@ -584,6 +594,7 @@ function normalizeSideUpAreaOption(area = {}, city = {}) {
     const cityName = getTranslatedSideUpCityName(rawCityName) || normalizeSideUpLabel(rawCityName);
     const areaName = getTranslatedSideUpAreaName(rawAreaName) || normalizeSideUpLabel(rawAreaName);
     const zoneName = getTranslatedSideUpZoneName(rawZoneName) || normalizeSideUpLabel(rawZoneName);
+    const labelZoneName = shouldOmitSideUpZoneLabel(rawAreaName, zoneName) ? '' : zoneName;
 
     return removeUndefinedFields({
         optionId: String(area?.id || '').trim() || undefined,
@@ -593,7 +604,7 @@ function normalizeSideUpAreaOption(area = {}, city = {}) {
         cityName: cityName || undefined,
         zoneId: getPositiveNumber(area?.sideupZoneId || area?.pivot?.zone_id),
         zoneName: zoneName || undefined,
-        label: areaName ? (zoneName ? `${areaName} - ${zoneName}` : areaName) : undefined
+        label: areaName ? (labelZoneName ? `${areaName} - ${labelZoneName}` : areaName) : undefined
     });
 }
 

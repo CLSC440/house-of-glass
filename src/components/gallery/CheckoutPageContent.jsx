@@ -525,6 +525,16 @@ function CheckoutSubmittingOverlay({ isWholesale }) {
     );
 }
 
+function getSideUpLivePricingFallbackMessage(payload = {}) {
+    const code = String(payload?.code || '').trim();
+
+    if (code === 'sideup_pricing_config_missing') {
+        return 'التسعير المباشر من SideUp غير مفعّل على هذا السيرفر حالياً، لذلك تم استخدام السعر الاحتياطي.';
+    }
+
+    return 'تعذر تحميل السعر المباشر من SideUp حالياً، لذلك تم استخدام السعر الاحتياطي.';
+}
+
 export default function CheckoutPageContent({ checkoutType }) {
     const router = useRouter();
     const normalizedCheckoutType = normalizeCheckoutType(checkoutType);
@@ -606,9 +616,7 @@ export default function CheckoutPageContent({ checkoutType }) {
         fallbackAmount: configuredShippingAmount
     }), [configuredShippingAmount, derivedSettings?.shippingRates, selectedShippingGovernorate]);
     const shippingPricingDetails = useMemo(() => {
-        const resolvedZoneLabel = selectedShippingZoneName
-            ? `SideUp Zone | ${selectedShippingZoneName}`
-            : fallbackShippingPricingDetails.zoneLabel;
+        const resolvedZoneLabel = selectedShippingZoneName || fallbackShippingPricingDetails.zoneLabel;
 
         if (!isShippingSelected) {
             return {
@@ -988,7 +996,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                 const payload = await response.json().catch(() => ({}));
 
                 if (!response.ok || payload?.ok === false) {
-                    throw new Error(payload?.error || 'تعذر تحميل سعر الشحن المباشر من SideUp حالياً.');
+                    throw new Error(getSideUpLivePricingFallbackMessage(payload));
                 }
 
                 if (isCancelled) {
@@ -1005,7 +1013,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                 }
 
                 setLiveShippingRate(null);
-                setLiveShippingRateError(error instanceof Error ? error.message : 'تعذر تحميل سعر الشحن المباشر حالياً.');
+                setLiveShippingRateError(error instanceof Error ? error.message : getSideUpLivePricingFallbackMessage());
             } finally {
                 if (!isCancelled) {
                     setIsLoadingLiveShippingRate(false);
@@ -1731,7 +1739,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                                             </p>
                                             {shippingPricingDetails.source === 'fallback' && shippingPricingDetails.livePricingError ? (
                                                 <p className="mt-2 text-xs font-black text-amber-600 dark:text-amber-300">
-                                                    تعذر تحميل السعر المباشر من SideUp حالياً، فتم استخدام السعر الاحتياطي.
+                                                    {shippingPricingDetails.livePricingError}
                                                 </p>
                                             ) : null}
                                         </div>
