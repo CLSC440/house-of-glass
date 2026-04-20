@@ -1673,17 +1673,19 @@ export default function CheckoutPageContent({ checkoutType }) {
                                 <button
                                     type="button"
                                     onClick={() => {
-                                        setIsShippingAddressFormOpen((current) => !current);
-                                        setShippingAddressError('');
+                                        if (isShippingAddressFormOpen) {
+                                            setIsShippingAddressFormOpen(false);
+                                            setShippingAddressError('');
+                                            return;
+                                        }
+
+                                        handleAddNewShippingAddress();
                                     }}
                                     className={`inline-flex w-fit shrink-0 items-center gap-3 whitespace-nowrap rounded-full border px-5 py-3 text-sm font-black leading-none transition-colors ${isShippingSelected ? selectedDeliveryActionClasses : 'border-brandGold/20 bg-brandGold/5 text-brandBlue hover:bg-brandGold/10 dark:text-brandGold'}`}
                                 >
                                     <span className="text-lg leading-none">{isShippingAddressFormOpen ? '−' : '+'}</span>
-                                    <span className="leading-none">{isShippingAddressFormOpen ? 'إخفاء العنوان' : selectedShippingAddressId ? 'تعديل العنوان المختار' : hasSavedShippingAddress ? 'تعديل العنوان' : 'إضافة عنوان'}</span>
+                                    <span className="leading-none">{isShippingAddressFormOpen ? 'إخفاء العنوان' : 'إضافة عنوان جديد'}</span>
                                 </button>
-                                <p className={`text-sm font-bold leading-7 ${isShippingSelected ? selectedDeliveryMutedTextClasses : 'text-slate-500 dark:text-slate-300'}`}>
-                                    {selectedShippingAddressId ? 'يمكنك استخدام العنوان المختار كما هو أو تعديله قبل تأكيد الطلب.' : hasSavedShippingAddress ? 'سيُحفظ هذا العنوان مع الطلب ويمكن جعله الافتراضي للحساب.' : 'أضف بيانات العنوان بشكل منظم حتى يصل الطلب للإدارة وSideUp بدون تخمين.'}
-                                </p>
                             </div>
 
                             {selectedSavedShippingAddress && !isShippingAddressFormOpen ? (
