@@ -35,23 +35,73 @@ function getItemPrice(item = {}, orderType = 'retail') {
     );
 }
 
-export function getOrderAmount(order = {}) {
-    const directAmount = parseAmount(
-        order.totalPrice
-        || order.total
-        || order.totalAmount
-        || order.total_amount
-        || order.amount
-        || order.grandTotal
-        || order.grand_total
-        || order.subtotal
-    );
-
-    const itemsAmount = Array.isArray(order.items)
+function getOrderItemsSubtotal(order = {}) {
+    return Array.isArray(order.items)
         ? order.items.reduce((sum, item) => sum + (getItemPrice(item, order.orderType) * Number(item.quantity || 1)), 0)
         : 0;
+}
 
-    return directAmount > 0 ? directAmount : itemsAmount;
+function getFirstPositiveAmount(order = {}, keys = []) {
+    for (const key of keys) {
+        const amount = parseAmount(order?.[key]);
+        if (amount > 0) {
+            return amount;
+        }
+    }
+
+    return 0;
+}
+
+export function getOrderDiscountAmount(order = {}) {
+    return getFirstPositiveAmount(order, ['discountAmount', 'discount_amount', 'discount']);
+}
+
+export function getOrderShippingAmount(order = {}) {
+    return getFirstPositiveAmount(order, ['shippingAmount', 'shipping_amount', 'shippingCost', 'shipping_cost', 'shippingFee', 'shipping_fee']);
+}
+
+export function getOrderSubtotalAmount(order = {}) {
+    const storedSubtotal = getFirstPositiveAmount(order, ['subtotalAmount', 'subtotal_amount', 'subtotal']);
+    if (storedSubtotal > 0) {
+        return storedSubtotal;
+    }
+
+    const itemsSubtotal = getOrderItemsSubtotal(order);
+    if (itemsSubtotal > 0) {
+        return itemsSubtotal;
+    }
+
+    const directFinalAmount = getFirstPositiveAmount(order, ['totalPrice', 'total', 'totalAmount', 'total_amount', 'amount', 'grandTotal', 'grand_total']);
+    const inferredSubtotal = directFinalAmount + getOrderDiscountAmount(order) - getOrderShippingAmount(order);
+    return inferredSubtotal > 0 ? inferredSubtotal : 0;
+}
+
+export function getOrderPreDiscountTotalAmount(order = {}) {
+    const subtotalAmount = getOrderSubtotalAmount(order);
+    const shippingAmount = getOrderShippingAmount(order);
+    const calculatedTotal = subtotalAmount + shippingAmount;
+
+    if (calculatedTotal > 0) {
+        return calculatedTotal;
+    }
+
+    const directFinalAmount = getFirstPositiveAmount(order, ['totalPrice', 'total', 'totalAmount', 'total_amount', 'amount', 'grandTotal', 'grand_total']);
+    const inferredTotal = directFinalAmount + getOrderDiscountAmount(order);
+    return inferredTotal > 0 ? inferredTotal : 0;
+}
+
+export function getOrderAmount(order = {}) {
+    const directAmount = getFirstPositiveAmount(order, ['totalPrice', 'total', 'totalAmount', 'total_amount', 'amount', 'grandTotal', 'grand_total']);
+    if (directAmount > 0) {
+        return directAmount;
+    }
+
+    const calculatedAmount = Math.max(0, getOrderPreDiscountTotalAmount(order) - getOrderDiscountAmount(order));
+    if (calculatedAmount > 0) {
+        return calculatedAmount;
+    }
+
+    return getOrderSubtotalAmount(order);
 }
 
 export function getOrderCustomerName(order = {}) {

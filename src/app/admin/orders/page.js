@@ -6,7 +6,7 @@ import { addDoc, collection, query, onSnapshot, doc, updateDoc, deleteDoc, serve
 import { auth, db } from '@/lib/firebase';
 import { useGallery } from '@/contexts/GalleryContext';
 import { parseTimestamp } from '@/lib/utils/format';
-import { canCreateOrderForSideUp, canPreviewOrderForSideUp, canSendOrderInvoice, getOrderAmount, getOrderCustomerName, getOrderCustomerPhone, getOrderDateValue, getOrderExternalRef, getOrderDcSyncState, getOrderSideUpSyncState } from '@/lib/utils/admin-orders';
+import { canCreateOrderForSideUp, canPreviewOrderForSideUp, canSendOrderInvoice, getOrderAmount, getOrderCustomerName, getOrderCustomerPhone, getOrderDateValue, getOrderDiscountAmount, getOrderExternalRef, getOrderDcSyncState, getOrderPreDiscountTotalAmount, getOrderShippingAmount, getOrderSideUpSyncState, getOrderSubtotalAmount } from '@/lib/utils/admin-orders';
 import { ORDER_STATUS_OPTIONS, appendOrderStatusHistory, getAllowedOrderStatusTransitions, getOrderStatusHistory, getOrderStatusMeta, normalizeOrderStatus } from '@/lib/utils/order-status';
 import { buildOrderStatusNotification } from '@/lib/utils/notifications';
 
@@ -66,16 +66,6 @@ function getOrderShippingAddress(order) {
 
 function getOrderPromoCode(order) {
     return String(order.promoCode || order.promo_code || '').trim();
-}
-
-function getOrderDiscountAmount(order) {
-    const normalized = Number(order.discountAmount ?? order.discount_amount ?? 0);
-    return Number.isFinite(normalized) ? normalized : 0;
-}
-
-function getOrderShippingAmount(order) {
-    const normalized = Number(order.shippingAmount ?? order.shipping_amount ?? 0);
-    return Number.isFinite(normalized) ? normalized : 0;
 }
 
 function getItemUnitPrice(item, orderType) {
@@ -898,6 +888,10 @@ export default function AdminOrders() {
                                     const isExpanded = expandedOrderId === order.id;
                                     const isTargetedOrder = targetedOrderId === order.id;
                                     const amount = getOrderAmount(order);
+                                    const subtotalAmount = getOrderSubtotalAmount(order);
+                                    const shippingAmount = getOrderShippingAmount(order);
+                                    const discountAmount = getOrderDiscountAmount(order);
+                                    const preDiscountTotalAmount = getOrderPreDiscountTotalAmount(order);
                                     const items = Array.isArray(order.items) ? order.items : [];
                                     const externalRef = getOrderExternalRef(order);
                                     const normalizedStatus = normalizeOrderStatus(order.status);
@@ -1119,9 +1113,11 @@ export default function AdminOrders() {
                                                                         <InfoPill label="Source" value={order.source || 'Website'} />
                                                                         <InfoPill label="Date" value={parseTimestamp(getOrderDateValue(order))} />
                                                                         <InfoPill label="Promo Code" value={getOrderPromoCode(order) || 'Not used'} />
-                                                                        <InfoPill label="Discount Applied" value={`${getOrderDiscountAmount(order).toLocaleString()} ج.م`} />
-                                                                        <InfoPill label="Shipping Cost" value={`${getOrderShippingAmount(order).toLocaleString()} ج.م`} />
-                                                                        <InfoPill label="Total" value={`${amount.toLocaleString()} ج.م`} />
+                                                                        <InfoPill label="Products Subtotal" value={`${subtotalAmount.toLocaleString()} ج.م`} />
+                                                                        <InfoPill label="Shipping Cost" value={`${shippingAmount.toLocaleString()} ج.م`} />
+                                                                        <InfoPill label="Order Total" value={`${preDiscountTotalAmount.toLocaleString()} ج.م`} />
+                                                                        <InfoPill label="Discount Applied" value={`${discountAmount.toLocaleString()} ج.م`} tone="danger" />
+                                                                        <InfoPill label="Final Total" value={`${amount.toLocaleString()} ج.م`} tone="success" />
                                                                         <InfoPill label="DC Sync" value={dcSyncState.label} />
                                                                         <InfoPill label="SideUp Sync" value={sideupSyncState.label} />
                                                                         <InfoPill label="SideUp Shipment" value={sideupSyncState.shipmentCode || 'Not assigned'} />
@@ -1500,11 +1496,23 @@ function OrderEditModal({
     );
 }
 
-function InfoPill({ label, value }) {
+function InfoPill({ label, value, tone = 'default' }) {
+    const toneClasses = tone === 'danger'
+        ? 'border-rose-500/20 bg-rose-500/8'
+        : tone === 'success'
+            ? 'border-emerald-500/20 bg-emerald-500/8'
+            : 'border-white/8 bg-[#18223a]';
+
+    const valueClasses = tone === 'danger'
+        ? 'text-rose-300'
+        : tone === 'success'
+            ? 'text-emerald-300'
+            : 'text-white';
+
     return (
-        <div className="rounded-xl border border-white/8 bg-[#18223a] px-3 py-2.5">
+        <div className={`rounded-xl border px-3 py-2.5 ${toneClasses}`}>
             <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>
-            <p className="mt-1 text-[13px] font-semibold text-white md:text-sm">{value}</p>
+            <p className={`mt-1 text-[13px] font-semibold md:text-sm ${valueClasses}`}>{value}</p>
         </div>
     );
 }
