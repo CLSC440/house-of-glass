@@ -858,34 +858,34 @@ export default function AdminOrders() {
     if (loading) return <div className="rounded-[1.6rem] border border-white/8 bg-[#161f35] p-8 text-center text-slate-400">Loading orders...</div>;
 
     return (
-        <div className="mx-auto max-w-7xl space-y-6">
-            <div className="rounded-[1.7rem] border border-white/8 bg-[radial-gradient(circle_at_top,rgba(193,155,78,0.12),transparent_34%),linear-gradient(180deg,rgba(22,31,53,0.98),rgba(13,19,34,0.98))] px-6 py-6 shadow-[0_18px_40px_rgba(4,8,20,0.24)]">
-                <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="mx-auto max-w-[1480px] space-y-4 lg:[zoom:0.92] xl:[zoom:0.96] 2xl:[zoom:1]">
+            <div className="rounded-[1.55rem] border border-white/8 bg-[radial-gradient(circle_at_top,rgba(193,155,78,0.12),transparent_34%),linear-gradient(180deg,rgba(22,31,53,0.98),rgba(13,19,34,0.98))] px-5 py-5 shadow-[0_18px_40px_rgba(4,8,20,0.24)]">
+                <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                     <div>
                         <p className="text-[11px] font-black uppercase tracking-[0.28em] text-brandGold/70">Orders Control</p>
-                        <h1 className="mt-2 text-[2rem] font-black text-brandGold">Orders Management</h1>
-                        <p className="mt-2 text-sm text-slate-400">Open any order to inspect customer data, ordered items, pricing, and operational details.</p>
+                        <h1 className="mt-1.5 text-[1.7rem] font-black text-brandGold lg:text-[1.85rem]">Orders Management</h1>
+                        <p className="mt-1.5 text-[13px] text-slate-400 sm:text-sm">Open any order to inspect customer data, ordered items, pricing, and operational details.</p>
                     </div>
 
-                    <Link href="/admin" className="inline-flex items-center justify-center gap-2 self-start rounded-full border border-brandGold/30 bg-brandGold/10 px-4 py-2.5 text-sm font-black text-brandGold transition-colors hover:bg-brandGold hover:text-brandBlue md:self-auto">
+                    <Link href="/admin" className="inline-flex items-center justify-center gap-2 self-start rounded-full border border-brandGold/30 bg-brandGold/10 px-3.5 py-2 text-[13px] font-black text-brandGold transition-colors hover:bg-brandGold hover:text-brandBlue md:self-auto">
                         <i className="fa-solid fa-arrow-left"></i>
                         <span>Back to Admin Page</span>
                     </Link>
                 </div>
             </div>
 
-            <div className="overflow-hidden rounded-[1.7rem] border border-white/8 bg-[#161f35] shadow-[0_18px_40px_rgba(4,8,20,0.24)]">
+            <div className="overflow-hidden rounded-[1.55rem] border border-white/8 bg-[#161f35] shadow-[0_18px_40px_rgba(4,8,20,0.24)]">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="border-b border-white/8 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 md:text-sm">
-                                <th className="p-4">Order ID</th>
-                                <th className="p-4">Date</th>
-                                <th className="p-4">Customer</th>
-                                <th className="p-4">Items</th>
-                                <th className="p-4">Total</th>
-                                <th className="p-4">Status</th>
-                                <th className="p-4 text-right">Actions</th>
+                            <tr className="border-b border-white/8 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400 md:text-xs">
+                                <th className="px-3.5 py-3">Order ID</th>
+                                <th className="px-3.5 py-3">Date</th>
+                                <th className="px-3.5 py-3">Customer</th>
+                                <th className="px-3.5 py-3">Items</th>
+                                <th className="px-3.5 py-3">Total</th>
+                                <th className="px-3.5 py-3">Status</th>
+                                <th className="px-3.5 py-3 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -964,8 +964,8 @@ export default function AdminOrders() {
                                     return (
                                         <Fragment key={order.id}>
                                             <tr id={`order-row-${order.id}`} key={order.id} className={`border-b border-white/5 transition-colors hover:bg-white/[0.03] ${isTargetedOrder ? 'bg-brandGold/10' : ''}`}>
-                                                <td className="p-4">
-                                                    <div className="flex flex-col gap-2">
+                                                <td className="px-3.5 py-3 align-top">
+                                                    <div className="flex flex-col gap-1.5">
                                                         <span className="font-mono text-[11px] font-semibold text-slate-300 md:text-xs">#{externalRef}</span>
                                                         <div className="flex flex-wrap gap-1.5">
                                                             <span className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] ${order.orderType === 'wholesale' ? 'bg-brandGold/10 text-brandGold' : 'bg-green-500/10 text-green-400'}`}>{orderTypeLabel}</span>
@@ -974,23 +974,23 @@ export default function AdminOrders() {
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="p-4 text-xs text-slate-400 md:text-sm">
+                                                <td className="px-3.5 py-3 align-top text-[11px] text-slate-400 md:text-xs">
                                                     {parseTimestamp(getOrderDateValue(order))}
                                                 </td>
-                                                <td className="p-4">
-                                                    <div className="text-sm font-semibold text-white md:text-base">{getOrderCustomerName(order)}</div>
+                                                <td className="px-3.5 py-3 align-top">
+                                                    <div className="text-[13px] font-semibold text-white md:text-sm">{getOrderCustomerName(order)}</div>
                                                     <div className="text-[11px] text-slate-500 md:text-xs">{getOrderCustomerPhone(order)}</div>
                                                     <div className="text-[11px] text-slate-500 md:text-xs">{getCustomerEmail(order)}</div>
                                                 </td>
-                                                <td className="p-4">
-                                                    <div className="text-sm font-medium text-white">
+                                                <td className="px-3.5 py-3 align-top">
+                                                    <div className="text-[13px] font-medium text-white md:text-sm">
                                                         {order.itemCount || items.reduce((sum, item) => sum + Number(item.quantity || 0), 0) || items.length} items
                                                     </div>
                                                 </td>
-                                                <td className="p-4 font-bold text-white">
+                                                <td className="px-3.5 py-3 align-top text-[13px] font-bold text-white md:text-sm">
                                                     {amount.toLocaleString()} ج.م
                                                 </td>
-                                                <td className="p-4">
+                                                <td className="px-3.5 py-3 align-top">
                                                     <div ref={openStatusMenuId === order.id ? statusMenuRef : null} className="relative inline-flex">
                                                         <button
                                                             type="button"
@@ -999,7 +999,7 @@ export default function AdminOrders() {
                                                                 setOpenStatusMenuId((currentValue) => currentValue === order.id ? null : order.id);
                                                             }}
                                                             disabled={!hasStatusTransitions}
-                                                            className={`inline-flex min-w-[160px] items-center justify-between gap-3 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-[0.12em] transition-colors md:text-xs disabled:cursor-not-allowed disabled:opacity-70 ${statusStyle.trigger}`}
+                                                            className={`inline-flex min-w-[144px] items-center justify-between gap-2.5 rounded-full border px-3.5 py-1.5 text-[10px] font-black uppercase tracking-[0.1em] transition-colors md:text-[11px] disabled:cursor-not-allowed disabled:opacity-70 ${statusStyle.trigger}`}
                                                             aria-haspopup="menu"
                                                             aria-expanded={hasStatusTransitions && openStatusMenuId === order.id}
                                                         >
@@ -1011,7 +1011,7 @@ export default function AdminOrders() {
                                                         </button>
 
                                                         {hasStatusTransitions && openStatusMenuId === order.id ? (
-                                                            <div className="absolute left-0 top-[calc(100%+0.55rem)] z-30 min-w-[180px] overflow-hidden rounded-2xl border border-white/10 bg-[#10192d] p-2 shadow-[0_18px_40px_rgba(4,8,20,0.45)] backdrop-blur-xl">
+                                                            <div className="absolute left-0 top-[calc(100%+0.45rem)] z-30 min-w-[170px] overflow-hidden rounded-2xl border border-white/10 bg-[#10192d] p-1.5 shadow-[0_18px_40px_rgba(4,8,20,0.45)] backdrop-blur-xl">
                                                                 {statusActionOptions.map((option) => {
                                                                     const optionStyle = STATUS_STYLES[option.value] || STATUS_STYLES.pending;
 
@@ -1020,7 +1020,7 @@ export default function AdminOrders() {
                                                                             key={option.value}
                                                                             type="button"
                                                                             onClick={() => handleStatusChange(order, option.value)}
-                                                                            className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.12em] text-slate-300 transition-colors md:text-xs ${optionStyle.menu}`}
+                                                                            className={`flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-left text-[10px] font-bold uppercase tracking-[0.1em] text-slate-300 transition-colors md:text-[11px] ${optionStyle.menu}`}
                                                                         >
                                                                             <span className="flex items-center gap-2">
                                                                                 <span className={`h-2.5 w-2.5 rounded-full ${optionStyle.dot}`}></span>
@@ -1034,21 +1034,21 @@ export default function AdminOrders() {
                                                         ) : null}
                                                     </div>
                                                 </td>
-                                                <td className="p-4">
-                                                    <div className="flex items-center justify-end gap-2">
+                                                <td className="px-3.5 py-3 align-top">
+                                                    <div className="grid justify-end gap-1.5 [grid-template-columns:auto_max-content_max-content_max-content_auto]">
                                                         <button
                                                             type="button"
                                                             onClick={() => handleOpenEditOrder(order)}
-                                                            className="flex h-9 w-9 items-center justify-center rounded-xl border border-sky-500/25 bg-sky-500/10 text-sky-300 transition-colors hover:bg-sky-500 hover:text-white"
+                                                            className="col-start-1 row-start-1 flex h-8 w-8 items-center justify-center rounded-lg border border-sky-500/25 bg-sky-500/10 text-sky-300 transition-colors hover:bg-sky-500 hover:text-white"
                                                             title="Edit Order"
                                                         >
-                                                            <i className="fa-solid fa-pen-to-square text-sm"></i>
+                                                            <i className="fa-solid fa-pen-to-square text-[13px]"></i>
                                                         </button>
                                                         <button
                                                             type="button"
                                                             onClick={() => handleSendInvoice(order.id)}
                                                             disabled={isSyncing || !canSendInvoice}
-                                                            className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-black uppercase tracking-[0.16em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${canSendInvoice ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white' : 'border-white/10 bg-white/5 text-slate-500'}`}
+                                                            className={`col-start-2 row-start-1 inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${canSendInvoice ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white' : 'border-white/10 bg-white/5 text-slate-500'}`}
                                                         >
                                                             <i className={`fa-solid ${isSyncing ? 'fa-spinner fa-spin' : canSendInvoice ? 'fa-paper-plane' : 'fa-ban'}`}></i>
                                                             {invoiceButtonLabel}
@@ -1057,7 +1057,7 @@ export default function AdminOrders() {
                                                             type="button"
                                                             onClick={() => handlePreviewSideUp(order.id)}
                                                             disabled={isSideUpPreviewing || isSideUpCreating || !canPreviewSideUp}
-                                                            className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-black uppercase tracking-[0.16em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${canPreviewSideUp ? 'border-cyan-500/25 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500 hover:text-[#11192b]' : 'border-white/10 bg-white/5 text-slate-500'}`}
+                                                            className={`col-start-3 row-start-1 inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${canPreviewSideUp ? 'border-cyan-500/25 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500 hover:text-[#11192b]' : 'border-white/10 bg-white/5 text-slate-500'}`}
                                                         >
                                                             <i className={`fa-solid ${isSideUpPreviewing ? 'fa-spinner fa-spin' : canPreviewSideUp ? 'fa-location-dot' : 'fa-ban'}`}></i>
                                                             {sideupButtonLabel}
@@ -1066,7 +1066,7 @@ export default function AdminOrders() {
                                                             type="button"
                                                             onClick={() => handleCreateSideUp(order.id)}
                                                             disabled={isSideUpCreating || isSideUpPreviewing || !canCreateSideUp}
-                                                            className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-black uppercase tracking-[0.16em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${canCreateSideUp ? 'border-teal-500/25 bg-teal-500/10 text-teal-300 hover:bg-teal-500 hover:text-[#11192b]' : 'border-white/10 bg-white/5 text-slate-500'}`}
+                                                            className={`col-start-2 col-span-2 row-start-2 inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${canCreateSideUp ? 'border-teal-500/25 bg-teal-500/10 text-teal-300 hover:bg-teal-500 hover:text-[#11192b]' : 'border-white/10 bg-white/5 text-slate-500'}`}
                                                         >
                                                             <i className={`fa-solid ${isSideUpCreating ? 'fa-spinner fa-spin' : canCreateSideUp ? 'fa-paper-plane' : 'fa-ban'}`}></i>
                                                             {sideupCreateButtonLabel}
@@ -1074,29 +1074,29 @@ export default function AdminOrders() {
                                                         <button
                                                             type="button"
                                                             onClick={() => toggleExpandedOrder(order.id)}
-                                                            className="inline-flex items-center gap-2 rounded-xl border border-brandGold/20 bg-brandGold/10 px-3 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-brandGold transition-colors hover:bg-brandGold hover:text-brandBlue"
+                                                            className="col-start-4 row-start-2 inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-brandGold/20 bg-brandGold/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-brandGold transition-colors hover:bg-brandGold hover:text-brandBlue"
                                                         >
                                                             {isExpanded ? 'Hide' : 'View'}
                                                             <i className={`fa-solid ${isExpanded ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
                                                         </button>
                                                         <button
                                                             onClick={() => handleDelete(order.id)}
-                                                            className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-500/10 text-red-400 transition-colors hover:bg-red-500 hover:text-white"
+                                                            className="col-start-5 row-start-2 flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/10 text-red-400 transition-colors hover:bg-red-500 hover:text-white"
                                                             title="Delete Order"
                                                         >
-                                                            <i className="fa-solid fa-trash text-sm"></i>
+                                                            <i className="fa-solid fa-trash text-[13px]"></i>
                                                         </button>
                                                     </div>
                                                 </td>
                                             </tr>
                                             {isExpanded && (
                                                 <tr key={`${order.id}-details`} className="border-b border-white/5 bg-[#11192b]">
-                                                    <td colSpan="7" className="p-5 md:p-6">
-                                                        <div className="grid gap-5 xl:grid-cols-[1.1fr_1.6fr]">
-                                                            <div className="space-y-4">
-                                                                <div className="rounded-[1.25rem] border border-white/8 bg-white/[0.03] p-4">
-                                                                    <h3 className="mb-3 text-sm font-black uppercase tracking-[0.18em] text-brandGold">Customer Details</h3>
-                                                                    <div className="space-y-2 text-sm text-slate-300">
+                                                    <td colSpan="7" className="p-4 md:p-5">
+                                                        <div className="grid gap-4 xl:grid-cols-[1.05fr_1.55fr]">
+                                                            <div className="space-y-3.5">
+                                                                <div className="rounded-[1.2rem] border border-white/8 bg-white/[0.03] p-3.5">
+                                                                    <h3 className="mb-2.5 text-[13px] font-black uppercase tracking-[0.16em] text-brandGold">Customer Details</h3>
+                                                                    <div className="space-y-1.5 text-[13px] text-slate-300">
                                                                         <p><span className="text-slate-500">Name:</span> {getOrderCustomerName(order)}</p>
                                                                         <p><span className="text-slate-500">Email:</span> {getCustomerEmail(order)}</p>
                                                                         <p><span className="text-slate-500">Phone:</span> {getOrderCustomerPhone(order) || 'Not provided'}</p>
@@ -1109,9 +1109,9 @@ export default function AdminOrders() {
                                                                     </div>
                                                                 </div>
 
-                                                                <div className="rounded-[1.25rem] border border-white/8 bg-white/[0.03] p-4">
-                                                                    <h3 className="mb-3 text-sm font-black uppercase tracking-[0.18em] text-brandGold">Order Meta</h3>
-                                                                    <div className="grid gap-3 sm:grid-cols-2">
+                                                                <div className="rounded-[1.2rem] border border-white/8 bg-white/[0.03] p-3.5">
+                                                                    <h3 className="mb-2.5 text-[13px] font-black uppercase tracking-[0.16em] text-brandGold">Order Meta</h3>
+                                                                    <div className="grid gap-2.5 sm:grid-cols-2">
                                                                         <InfoPill label="External Order Ref" value={externalRef || 'Not assigned'} />
                                                                         <InfoPill label="Order Type" value={order.orderType || 'retail'} />
                                                                         <InfoPill label="Status" value={statusMeta.label} />
@@ -1140,13 +1140,13 @@ export default function AdminOrders() {
                                                                 </div>
                                                             </div>
 
-                                                            <div className="rounded-[1.25rem] border border-white/8 bg-white/[0.03] p-4">
-                                                                <div className="mb-4 flex items-center justify-between gap-3">
-                                                                    <h3 className="text-sm font-black uppercase tracking-[0.18em] text-brandGold">Ordered Items</h3>
+                                                            <div className="rounded-[1.2rem] border border-white/8 bg-white/[0.03] p-3.5">
+                                                                <div className="mb-3 flex items-center justify-between gap-3">
+                                                                    <h3 className="text-[13px] font-black uppercase tracking-[0.16em] text-brandGold">Ordered Items</h3>
                                                                     <span className="rounded-full bg-white/[0.04] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{items.length} lines</span>
                                                                 </div>
 
-                                                                <div className="space-y-3">
+                                                                <div className="space-y-2.5">
                                                                     {items.length === 0 ? (
                                                                         <div className="rounded-2xl border border-dashed border-white/10 px-4 py-6 text-center text-sm text-slate-500">
                                                                             No items stored for this order.
@@ -1158,14 +1158,14 @@ export default function AdminOrders() {
                                                                             const lineTotal = unitPrice * quantity;
 
                                                                             return (
-                                                                                <div key={`${order.id}-item-${index}`} className="flex gap-4 rounded-[1.15rem] border border-white/8 bg-[#18223a] p-3.5">
-                                                                                    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/8 bg-white">
+                                                                                <div key={`${order.id}-item-${index}`} className="flex gap-3 rounded-[1.05rem] border border-white/8 bg-[#18223a] p-3">
+                                                                                    <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/8 bg-white">
                                                                                         <img src={item.image || item.imageUrl || '/logo.png'} alt={item.title || item.name || 'Order item'} className="h-full w-full object-contain p-1" />
                                                                                     </div>
                                                                                     <div className="min-w-0 flex-1">
-                                                                                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                                                                        <div className="flex flex-col gap-2.5 md:flex-row md:items-start md:justify-between">
                                                                                             <div>
-                                                                                                <p className="text-sm font-bold text-white">{item.title || item.name || 'Unnamed Item'}</p>
+                                                                                                <p className="text-[13px] font-bold text-white md:text-sm">{item.title || item.name || 'Unnamed Item'}</p>
                                                                                                 <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-400">
                                                                                                     <span>Qty: {quantity}</span>
                                                                                                     {item.productCode ? <span>Code: {item.productCode}</span> : null}
@@ -1173,7 +1173,7 @@ export default function AdminOrders() {
                                                                                                 </div>
                                                                                             </div>
                                                                                             <div className="text-left md:text-right">
-                                                                                                <p className="text-sm font-black text-brandGold">{lineTotal.toLocaleString()} ج.م</p>
+                                                                                                <p className="text-[13px] font-black text-brandGold md:text-sm">{lineTotal.toLocaleString()} ج.م</p>
                                                                                                 <p className="text-[11px] text-slate-500">{unitPrice.toLocaleString()} × {quantity}</p>
                                                                                             </div>
                                                                                         </div>
@@ -1502,9 +1502,9 @@ function OrderEditModal({
 
 function InfoPill({ label, value }) {
     return (
-        <div className="rounded-xl border border-white/8 bg-[#18223a] px-3 py-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{label}</p>
-            <p className="mt-1 text-sm font-semibold text-white">{value}</p>
+        <div className="rounded-xl border border-white/8 bg-[#18223a] px-3 py-2.5">
+            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>
+            <p className="mt-1 text-[13px] font-semibold text-white md:text-sm">{value}</p>
         </div>
     );
 }
