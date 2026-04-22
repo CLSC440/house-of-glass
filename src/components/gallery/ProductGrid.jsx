@@ -555,17 +555,21 @@ export default function ProductGrid() {
         };
 
         const pinnedLayoutClasses = pinLayout
-            ? isExpanded
-                ? 'w-[8.75rem] items-end md:w-[9.75rem] md:items-start'
-                : 'w-[3.25rem] items-end md:w-[9.75rem] md:items-start'
-            : 'min-w-[3rem] items-stretch';
+            ? 'w-[3.25rem] items-start'
+            : isExpanded
+                ? 'min-w-[8.75rem] items-stretch md:min-w-[9.75rem]'
+                : 'min-w-[3rem] items-stretch';
+
+        const expandedControlClasses = pinLayout
+            ? 'absolute left-0 top-0 z-30 w-[8rem] md:w-[9.75rem]'
+            : 'w-full';
 
         return (
-            <div dir="ltr" className={`flex flex-col gap-1.5 ${pinnedLayoutClasses}`}>
+            <div dir="ltr" className={`relative flex min-h-[2.75rem] flex-col gap-1.5 md:min-h-[3rem] ${pinnedLayoutClasses} ${pinLayout && isExpanded ? 'z-30' : ''}`}>
                 {quantity > 0 && isExpanded ? (
                     <div
                         dir="ltr"
-                        className={`flex h-10 items-center overflow-hidden rounded-full border shadow-sm md:h-11 ${pinLayout ? 'w-full' : ''} ${toneClasses.shell}`}
+                        className={`flex h-10 items-center overflow-hidden rounded-full border shadow-sm md:h-11 ${expandedControlClasses} ${toneClasses.shell}`}
                         onClick={(event) => {
                             event.preventDefault();
                             event.stopPropagation();
@@ -578,11 +582,11 @@ export default function ProductGrid() {
                             onClick={(event) => handleAction(event, onIncrease)}
                             disabled={isAtStockLimit}
                             aria-label="Increase quantity"
-                            className={`flex h-full w-12 items-center justify-center text-lg font-black transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${toneClasses.action}`}
+                            className={`flex h-full w-10 shrink-0 items-center justify-center text-lg font-black transition-colors disabled:cursor-not-allowed disabled:opacity-35 md:w-12 ${toneClasses.action}`}
                         >
                             <i className="fa-solid fa-plus"></i>
                         </button>
-                        <span className="flex h-full min-w-12 items-center justify-center border-x border-slate-200 px-3 text-lg font-black text-brandBlue dark:border-white/10 dark:text-white">
+                        <span className="flex h-full min-w-0 flex-1 items-center justify-center border-x border-slate-200 px-3 text-lg font-black text-brandBlue dark:border-white/10 dark:text-white">
                             {quantity}
                         </span>
                         {quantity <= 1 ? (
@@ -590,7 +594,7 @@ export default function ProductGrid() {
                                 type="button"
                                 onClick={(event) => handleAction(event, onRemove)}
                                 aria-label="Remove from cart"
-                                className="flex h-full w-12 items-center justify-center text-xl font-black text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-red-400 dark:hover:bg-red-500/10 dark:hover:text-red-300"
+                                className="flex h-full w-10 shrink-0 items-center justify-center text-xl font-black text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-red-400 dark:hover:bg-red-500/10 dark:hover:text-red-300 md:w-12"
                             >
                                 <i className="fa-solid fa-trash-can"></i>
                             </button>
@@ -599,7 +603,7 @@ export default function ProductGrid() {
                                 type="button"
                                 onClick={(event) => handleAction(event, onDecrease)}
                                 aria-label="Decrease quantity"
-                                className={`flex h-full w-12 items-center justify-center text-xl font-black transition-colors ${toneClasses.action}`}
+                                className={`flex h-full w-10 shrink-0 items-center justify-center text-xl font-black transition-colors md:w-12 ${toneClasses.action}`}
                             >
                                 <i className="fa-solid fa-minus"></i>
                             </button>
@@ -611,7 +615,7 @@ export default function ProductGrid() {
                         onClick={(event) => handleAction(event, () => openQuickAddEditor(controlKey))}
                         title={label ? `${label} quantity: ${quantity}` : `Quantity: ${quantity}`}
                         aria-label={label ? `${label} quantity: ${quantity}` : `Quantity: ${quantity}`}
-                        className={`relative flex h-11 w-11 items-center justify-center rounded-[1.1rem] border transition-all duration-300 hover:scale-[1.06] md:h-12 md:w-12 ${pinLayout ? 'self-end md:self-start' : ''} ${toneClasses.collapsedButton}`}
+                        className={`relative flex h-11 w-11 items-center justify-center rounded-[1.1rem] border transition-all duration-300 hover:scale-[1.06] md:h-12 md:w-12 ${pinLayout ? 'self-start' : ''} ${toneClasses.collapsedButton}`}
                         onMouseEnter={() => handleQuickAddHoverEnter(controlKey, quantity)}
                     >
                         {toneClasses.collapsedIconAsset ? (
@@ -629,7 +633,7 @@ export default function ProductGrid() {
                         onClick={(event) => handleAction(event, onAdd)}
                         title={label}
                         aria-label={label}
-                        className={`relative flex h-11 w-11 items-center justify-center text-sm font-black transition-all duration-300 hover:scale-[1.06] md:h-12 md:w-12 ${pinLayout ? 'self-end md:self-start' : ''} ${toneClasses.iconButton}`}
+                        className={`relative flex h-11 w-11 items-center justify-center text-sm font-black transition-all duration-300 hover:scale-[1.06] md:h-12 md:w-12 ${pinLayout ? 'self-start' : ''} ${toneClasses.iconButton}`}
                     >
                         {toneClasses.icon === 'box' ? (
                             <img src="/icons/add-to-cart-wholesale.svg" alt="Add wholesale" className="h-7 w-7 object-contain md:h-8 md:w-8" />
@@ -1008,8 +1012,8 @@ export default function ProductGrid() {
                                 </div>
                             )}
                             
-                            <div className="flex items-center justify-between mt-4" dir="rtl">
-                                <div>
+                            <div className="mt-4 flex flex-row-reverse items-end justify-between gap-3">
+                                <div className="min-w-0 flex-1 text-right" dir="rtl">
                                     <span className="text-gray-400 text-[10px] md:text-xs font-medium mb-1 uppercase tracking-widest block hidden md:block">السعر</span>
                                     {showLiveIndicator ? (
                                         <span className="mb-1 inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-300">
@@ -1030,7 +1034,7 @@ export default function ProductGrid() {
                                             </div>
                                             {shouldShowWholesaleSummary ? (
                                                 <div className="mt-1">
-                                                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-brandGold">Wholesale | سعر الكرتونة</p>
+                                                    <p className="whitespace-nowrap text-[9px] font-black uppercase leading-none tracking-[0.08em] text-brandGold md:text-[10px]">Wholesale | سعر الكرتونة</p>
                                                     <p className="mt-1 text-sm font-black text-brandGold">
                                                         {wholesalePrice > 0 ? `${wholesalePrice.toLocaleString()} ج.م` : 'غير متاح'}
                                                     </p>
@@ -1043,7 +1047,7 @@ export default function ProductGrid() {
                                 </div>
                                 
                                 {shouldShowDualQuickAddControls ? (
-                                    <div className="flex flex-col items-end gap-2 md:items-stretch">
+                                    <div className="flex shrink-0 flex-col items-start gap-2">
                                         {showRetailQuickAddControl ? renderQuickAddControl({
                                             controlKey: retailControlKey,
                                             label: 'Retail | قطاعي',
@@ -1070,17 +1074,19 @@ export default function ProductGrid() {
                                         }) : null}
                                     </div>
                                 ) : (
-                                    showRetailQuickAddControl ? renderQuickAddControl({
-                                        controlKey: retailControlKey,
-                                        label: 'Retail | قطاعي',
-                                        quantity: retailQuickAddQuantity,
-                                        stockLimit: retailQuickAddStockLimit,
-                                        onAdd: () => handleQuickAddControlAction({ controlKey: retailControlKey, callback: () => handleQuickAdd(product, variants), currentQuantity: retailQuickAddQuantity }),
-                                        onIncrease: () => handleQuickAddControlAction({ controlKey: retailControlKey, callback: () => updateCartQuantity(quickAddCartId, retailQuickAddQuantity + 1), currentQuantity: retailQuickAddQuantity }),
-                                        onDecrease: () => handleQuickAddControlAction({ controlKey: retailControlKey, callback: () => updateCartQuantity(quickAddCartId, retailQuickAddQuantity - 1), currentQuantity: retailQuickAddQuantity }),
-                                        onRemove: () => handleQuickAddControlAction({ controlKey: retailControlKey, callback: () => removeFromCart(quickAddCartId), collapseImmediately: true }),
-                                        tone: 'retail'
-                                    }) : null
+                                    <div className="shrink-0">
+                                        {showRetailQuickAddControl ? renderQuickAddControl({
+                                            controlKey: retailControlKey,
+                                            label: 'Retail | قطاعي',
+                                            quantity: retailQuickAddQuantity,
+                                            stockLimit: retailQuickAddStockLimit,
+                                            onAdd: () => handleQuickAddControlAction({ controlKey: retailControlKey, callback: () => handleQuickAdd(product, variants), currentQuantity: retailQuickAddQuantity }),
+                                            onIncrease: () => handleQuickAddControlAction({ controlKey: retailControlKey, callback: () => updateCartQuantity(quickAddCartId, retailQuickAddQuantity + 1), currentQuantity: retailQuickAddQuantity }),
+                                            onDecrease: () => handleQuickAddControlAction({ controlKey: retailControlKey, callback: () => updateCartQuantity(quickAddCartId, retailQuickAddQuantity - 1), currentQuantity: retailQuickAddQuantity }),
+                                            onRemove: () => handleQuickAddControlAction({ controlKey: retailControlKey, callback: () => removeFromCart(quickAddCartId), collapseImmediately: true }),
+                                            tone: 'retail'
+                                        }) : null}
+                                    </div>
                                 )}
                             </div>
                         </div>

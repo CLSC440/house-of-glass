@@ -786,7 +786,7 @@ export default function AdminProducts() {
                                                     </div>
                                                     <div>
                                                         <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Wholesale</p>
-                                                        <p className="mt-1 text-[1rem] font-black text-brandGold md:text-[1.05rem]">{formatCurrency(wholesalePrice)}</p>
+                                                        <p className="mt-1 text-[1rem] font-black text-brandGold md:text-[1.05rem]">{wholesalePrice > 0 ? formatCurrency(wholesalePrice) : 'N/A'}</p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -882,7 +882,7 @@ export default function AdminProducts() {
                                                             <span className="font-black text-emerald-400">{formatCurrency(variantNet)}</span>
                                                             <span className="font-black text-rose-400">{variantDiscount > 0 ? formatCurrency(variantDiscount) : '0.00'}</span>
                                                             <span className="font-black text-white">{formatCurrency(variantRetail)}</span>
-                                                            <span className="font-black text-brandGold">{formatCurrency(variantWholesale)}</span>
+                                                            <span className="font-black text-brandGold">{variantWholesale > 0 ? formatCurrency(variantWholesale) : 'N/A'}</span>
                                                             <div className="flex items-center justify-end gap-1.5">
                                                                 <span className="inline-flex min-w-[58px] items-center justify-center rounded-full border border-blue-500/15 bg-blue-500/8 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-blue-300">
                                                                     {parseNumber(variant?.showroomStock ?? variant?.retailStock)}

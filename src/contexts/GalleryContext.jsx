@@ -185,7 +185,7 @@ function getPreferredRetailPrice(product = {}, dcProduct = {}, dcStock = {}) {
 }
 
 function getPreferredWholesalePrice(product = {}, dcProduct = {}, dcStock = {}) {
-    return getFirstPositivePriceValue([
+    const wholesale = getFirstPositivePriceValue([
         dcProduct?.wholesalePrice,
         dcProduct?.wholesale_price,
         dcProduct?.cartonPrice,
@@ -206,11 +206,9 @@ function getPreferredWholesalePrice(product = {}, dcProduct = {}, dcStock = {}) 
         product?.wholesaleCartonPrice,
         product?.priceWholesale,
         product?.bulkPrice,
-        product?.bulk_price,
-        product?.price,
-        product?.retailPrice,
-        product?.retail_price
+        product?.bulk_price
     ]);
+    return wholesale > 0 ? wholesale : 'N/A';
 }
 
 function mergeProductWithDcData(product, dcProduct, dcStock) {
@@ -245,7 +243,7 @@ function mergeProductWithDcData(product, dcProduct, dcStock) {
             retailPrice,
             retail_price: retailPrice
         } : {}),
-        ...(wholesalePrice > 0 ? {
+        ...(wholesalePrice !== 0 ? {
             wholesalePrice,
             wholesale_price: wholesalePrice,
             cartonPrice: wholesalePrice
