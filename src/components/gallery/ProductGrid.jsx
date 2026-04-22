@@ -866,6 +866,7 @@ export default function ProductGrid() {
 
     const renderProductCard = (product) => {
         const productId = product.id || product.code || product.name;
+        const isFilteredGrid = !shouldUseCategoryRows;
         const stockOrderType = isStrictWholesaleUser ? 'wholesale' : 'retail';
         const stockStatus = getProductStockStatus(product, stockOrderType);
         const topBadgeStockStatus = isStrictWholesaleUser
@@ -905,7 +906,7 @@ export default function ProductGrid() {
         return (
             <div 
                 key={productId}
-                className="group relative mb-4 [perspective:1800px]"
+                className={`group relative [perspective:1800px] ${isFilteredGrid ? 'filtered-product-card mb-0' : 'mb-4'}`}
             >
                 {hasVariants && (
                     <>
@@ -913,10 +914,10 @@ export default function ProductGrid() {
                         <div className="absolute inset-0 top-6 left-6 bg-white/30 dark:bg-darkCard/30 border border-gray-100 dark:border-gray-800 rounded-[2rem] shadow-sm transform -rotate-6 -z-20 transition-transform duration-500 group-hover:-rotate-12"></div>
                     </>
                 )}
-                <div className={`relative min-h-[28rem] sm:min-h-[30rem] md:min-h-[32rem] transition-transform duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
+                <div className={`relative transition-transform duration-700 [transform-style:preserve-3d] ${isFilteredGrid ? 'min-h-[23.5rem] sm:min-h-[26rem] md:min-h-[32rem]' : 'min-h-[28rem] sm:min-h-[30rem] md:min-h-[32rem]'} ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                     <div 
                         onClick={(event) => handleProductCardClick(product, event)}
-                        className={`absolute inset-0 rounded-[2rem] bg-white dark:bg-darkCard p-4 flex flex-col justify-between shadow-sm hover:shadow-2xl hover:shadow-brandGold/10 transition-all duration-500 border border-gray-100 hover:border-brandGold/30 dark:border-gray-800/80 hover:-translate-y-2 cursor-pointer [backface-visibility:hidden]
+                        className={`absolute inset-0 rounded-[2rem] bg-white dark:bg-darkCard flex flex-col justify-between shadow-sm hover:shadow-2xl hover:shadow-brandGold/10 transition-all duration-500 border border-gray-100 hover:border-brandGold/30 dark:border-gray-800/80 hover:-translate-y-2 cursor-pointer [backface-visibility:hidden] ${isFilteredGrid ? 'p-3 sm:p-4' : 'p-4'}
                         ${topBadgeStockStatus === 'out_of_stock' ? 'opacity-80 grayscale-[20%]' : ''}`}
                     >
                         {getStockBadge(topBadgeStockStatus, isHidden, topBadgeRemainingQuantity)}
@@ -946,7 +947,7 @@ export default function ProductGrid() {
                             </button>
                         )}
 
-                        <div className="relative w-full aspect-[2/3] rounded-[1.5rem] overflow-hidden mb-6 bg-gray-50 dark:bg-gray-800/50">
+                        <div className={`relative w-full rounded-[1.5rem] overflow-hidden bg-gray-50 dark:bg-gray-800/50 ${isFilteredGrid ? 'mb-4 aspect-square' : 'mb-6 aspect-[2/3]'}`}>
                             {imageUrl ? (
                                 <img 
                                     src={imageUrl}
@@ -972,8 +973,8 @@ export default function ProductGrid() {
                         </div>
 
                         <div>
-                            <div className="title-container">
-                                <h3 className="title-slide font-bold text-gray-900 dark:text-white text-lg md:text-xl mb-2 leading-tight group-hover:text-brandGold transition-colors" dir="rtl">
+                            <div className={isFilteredGrid ? 'title-container filtered-grid-title-container' : 'title-container'}>
+                                <h3 className={`font-bold text-gray-900 dark:text-white leading-tight group-hover:text-brandGold transition-colors ${isFilteredGrid ? 'title-slide mb-1.5 text-[1.05rem] md:text-[1.15rem]' : 'title-slide mb-2 text-lg md:text-xl'}`} dir="rtl">
                                     {product.title || product.name}
                                 </h3>
                             </div>
@@ -1152,7 +1153,7 @@ export default function ProductGrid() {
 
     if (!shouldUseCategoryRows) {
         return (
-            <div className="grid grid-cols-2 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:gap-10">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4 md:gap-8">
                 {filteredProducts.map((product) => renderProductCard(product))}
             </div>
         );

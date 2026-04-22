@@ -632,6 +632,29 @@
             padding-left: 30px;
         }
 
+        .filtered-product-card .title-container {
+            overflow: visible;
+            white-space: normal;
+            mask-image: none;
+            -webkit-mask-image: none;
+        }
+
+        .filtered-product-card .title-slide {
+            display: -webkit-box;
+            width: 100%;
+            min-height: 2.7rem;
+            overflow: hidden;
+            white-space: normal;
+            text-overflow: unset;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .filtered-product-card.group:hover .title-slide {
+            animation: none;
+            padding-left: 0;
+        }
+
         .product-card-meta-row {
             display: flex;
             align-items: center;
@@ -728,6 +751,52 @@
             background: linear-gradient(135deg, rgba(9, 14, 26, 0.98), rgba(20, 30, 48, 0.96));
             border-color: rgba(212, 175, 55, 0.55);
             box-shadow: 0 14px 28px rgba(2, 6, 23, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 0 22px rgba(212, 175, 55, 0.14);
+        }
+
+        .filtered-product-card .product-card-meta-row {
+            margin-top: 0.65rem;
+            gap: 0.5rem;
+        }
+
+        .filtered-product-card .product-card-label {
+            width: 100%;
+            max-width: none;
+            min-height: 2.55rem;
+            justify-content: center;
+            padding: 0.48rem 0.72rem;
+        }
+
+        .filtered-product-card .product-card-label-content {
+            justify-content: center;
+        }
+
+        .filtered-product-card .product-card-label-part,
+        .filtered-product-card .product-card-label-separator {
+            font-size: 0.6rem;
+        }
+
+        .filtered-product-card .product-card-label-token.is-latin {
+            letter-spacing: 0.08em;
+        }
+
+        .filtered-product-card .product-card-label-token.is-arabic {
+            font-size: 0.68rem;
+        }
+
+        @media (min-width: 640px) {
+            .filtered-product-card .product-card-label {
+                min-height: 2.8rem;
+                padding: 0.56rem 0.82rem;
+            }
+
+            .filtered-product-card .product-card-label-part,
+            .filtered-product-card .product-card-label-separator {
+                font-size: 0.66rem;
+            }
+
+            .filtered-product-card .product-card-label-token.is-arabic {
+                font-size: 0.72rem;
+            }
         }
 
         @media (min-width: 768px) {
