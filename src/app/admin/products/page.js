@@ -460,6 +460,7 @@ const SORT_OPTIONS = [
 
 const ADMIN_DC_FRESHNESS_WINDOW_MS = 15000;
 const ADMIN_DC_SEARCH_REFRESH_DEBOUNCE_MS = 350;
+const ADMIN_DC_SNAPSHOT_SYNC_ROUTE = '/api/dc/snapshot-sync';
 
 function isAdminDcDataFresh(dcSyncedAt) {
     return Date.now() - Number(dcSyncedAt || 0) <= ADMIN_DC_FRESHNESS_WINDOW_MS;
@@ -473,6 +474,32 @@ function shouldRefreshForAdminSearch(value) {
     }
 
     return /^[a-z0-9-]+$/i.test(normalizedValue);
+}
+
+async function persistAdminDcSnapshotBaseline() {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        const error = new Error('Admin sign-in is required to persist the DC snapshot baseline.');
+        error.code = 'admin-auth-required';
+        throw error;
+    }
+
+    const idToken = await currentUser.getIdToken();
+    const response = await fetch(ADMIN_DC_SNAPSHOT_SYNC_ROUTE, {
+        method: 'POST',
+        cache: 'no-store',
+        headers: {
+            Authorization: `Bearer ${idToken}`,
+            'Cache-Control': 'no-cache, no-store, max-age=0'
+        }
+    });
+    const result = await response.json().catch(() => null);
+
+    if (!response.ok || !result?.success) {
+        throw new Error(result?.error || 'Failed to persist the DC snapshot baseline.');
+    }
+
+    return result;
 }
 
 export default function AdminProducts() {
@@ -495,31 +522,6 @@ export default function AdminProducts() {
     const adminDcRefreshInFlightRef = useRef(false);
     const lastSearchRefreshRef = useRef('');
 
-    const persistAdminDcSnapshot = useEffectEvent(async () => {
-        const currentUser = auth.currentUser;
-        if (!currentUser) {
-            return;
-        }
-
-        const idToken = await currentUser.getIdToken();
-        const response = await fetch('/api/dc/snapshot-sync', {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${idToken}`,
-                'Cache-Control': 'no-cache, no-store, max-age=0',
-                Pragma: 'no-cache'
-            },
-            cache: 'no-store'
-        });
-
-        if (response.ok) {
-            return;
-        }
-
-        const payload = await response.json().catch(() => null);
-        throw new Error(payload?.error || 'Failed to persist the latest DC snapshot');
-    });
-
     const refreshAdminDcCatalog = useEffectEvent(async ({ force = false } = {}) => {
         if (!force && isAdminDcDataFresh(dcSyncedAt)) {
             return;
@@ -532,18 +534,13 @@ export default function AdminProducts() {
         adminDcRefreshInFlightRef.current = true;
 
         try {
-            const [catalogRefreshResult, snapshotPersistResult] = await Promise.allSettled([
-                refreshDcCatalog({ forceRefresh: true }),
-                persistAdminDcSnapshot()
-            ]);
-
-            if (catalogRefreshResult.status === 'rejected') {
-                throw catalogRefreshResult.reason;
+            try {
+                await persistAdminDcSnapshotBaseline();
+            } catch (error) {
+                console.error('Failed to persist the admin DC snapshot baseline:', error);
             }
 
-            if (snapshotPersistResult.status === 'rejected') {
-                console.error('Failed to persist admin DC snapshot baseline:', snapshotPersistResult.reason);
-            }
+            await refreshDcCatalog({ forceRefresh: true });
         } finally {
             adminDcRefreshInFlightRef.current = false;
         }
