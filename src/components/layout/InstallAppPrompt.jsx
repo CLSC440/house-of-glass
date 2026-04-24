@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 const DISMISS_KEY = 'hog-install-prompt-dismissed-at';
 const DISMISS_DURATION_MS = 1000 * 60 * 60 * 24 * 3;
+const SERVICE_WORKER_URL = '/sw.js?v=20260424-2';
 
 function isMobileDevice() {
     if (typeof window === 'undefined') return false;
@@ -56,9 +57,11 @@ export default function InstallAppPrompt() {
             return undefined;
         }
 
-        navigator.serviceWorker.register('/sw.js').catch((error) => {
-            console.error('Service worker registration failed:', error);
-        });
+        navigator.serviceWorker.register(SERVICE_WORKER_URL)
+            .then((registration) => registration.update().catch(() => undefined))
+            .catch((error) => {
+                console.error('Service worker registration failed:', error);
+            });
 
         return undefined;
     }, []);

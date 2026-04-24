@@ -1,13 +1,59 @@
-const CACHE_NAME = 'hog-shell-v1';
+const CACHE_NAME = 'hog-shell-v2';
 const APP_SHELL = [
     '/',
     '/manifest.webmanifest',
     '/logo.png',
+    '/favicon.ico',
     '/favicon.svg',
     '/icons/icon-192.png',
     '/icons/icon-512.png',
     '/icons/icon-512-maskable.png'
 ];
+
+const STATIC_ASSET_PATTERN = /\.(?:png|jpg|jpeg|gif|webp|svg|ico|woff2?|ttf)$/i;
+
+function isAppShellAsset(pathname = '') {
+    return APP_SHELL.includes(pathname);
+}
+
+function isNetworkFirstRequest(request, pathname = '') {
+    return request.mode === 'navigate'
+        || pathname.startsWith('/_next/')
+        || ['script', 'style', 'font'].includes(request.destination);
+}
+
+function isCacheableStaticAsset(request, pathname = '') {
+    return isAppShellAsset(pathname)
+        || request.destination === 'image'
+        || STATIC_ASSET_PATTERN.test(pathname);
+}
+
+async function networkFirst(request, fallbackPath = '') {
+    try {
+        const networkResponse = await fetch(request);
+
+        if (networkResponse && networkResponse.ok && (request.mode === 'navigate' || isAppShellAsset(new URL(request.url).pathname))) {
+            const cache = await caches.open(CACHE_NAME);
+            cache.put(request, networkResponse.clone()).catch(() => undefined);
+        }
+
+        return networkResponse;
+    } catch (error) {
+        const cachedResponse = await caches.match(request);
+        if (cachedResponse) {
+            return cachedResponse;
+        }
+
+        if (fallbackPath) {
+            const fallbackResponse = await caches.match(fallbackPath);
+            if (fallbackResponse) {
+                return fallbackResponse;
+            }
+        }
+
+        throw error;
+    }
+}
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
@@ -39,10 +85,17 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    if (event.request.mode === 'navigate') {
-        event.respondWith(
-            fetch(event.request).catch(() => caches.match('/'))
-        );
+    if (requestUrl.pathname.startsWith('/api/')) {
+        return;
+    }
+
+    if (isNetworkFirstRequest(event.request, requestUrl.pathname)) {
+        event.respondWith(networkFirst(event.request, '/'));
+        return;
+    }
+
+    if (!isCacheableStaticAsset(event.request, requestUrl.pathname)) {
+        event.respondWith(fetch(event.request));
         return;
     }
 

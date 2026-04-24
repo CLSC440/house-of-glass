@@ -5,6 +5,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
 const LOGIN_PROMPT_SESSION_KEY = 'hog_prompt_notifications_after_login';
+const SERVICE_WORKER_URL = '/sw.js?v=20260424-2';
 
 function isMobileDevice() {
     if (typeof window === 'undefined') return false;
@@ -56,12 +57,8 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 async function ensureServiceWorkerRegistration() {
-    const existingRegistration = await navigator.serviceWorker.getRegistration('/');
-    if (existingRegistration) {
-        return existingRegistration;
-    }
-
-    await navigator.serviceWorker.register('/sw.js');
+    const registration = await navigator.serviceWorker.register(SERVICE_WORKER_URL);
+    await registration.update().catch(() => undefined);
     return navigator.serviceWorker.ready;
 }
 

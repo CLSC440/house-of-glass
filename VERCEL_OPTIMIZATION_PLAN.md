@@ -135,6 +135,7 @@ Planned actions:
 - 2026-04-24: Added a clean admin freshness repair in `src/app/admin/products/page.js`. The admin products screen now requests a live DC refresh only when the visible page is working with a stale snapshot, and it also forces a debounced live refresh for direct code/barcode searches without changing storefront modal behavior or adding continuous polling.
 - 2026-04-24: Added an admin-only DC snapshot baseline sync route at `src/app/api/dc/snapshot-sync/route.js`. Admin live refreshes now persist the latest matched DC stock and price fields into Firestore before refreshing the local client snapshot, so later page loads start from the updated baseline instead of stale Firestore values.
 - 2026-04-24: Hardened the storefront catalog load path in `src/contexts/GalleryContext.jsx`. The gallery now restores a short-lived cached product catalog from localStorage for faster repeat opens, and if the Firestore realtime subscription stalls or fails it falls back to a one-shot `getDocs` fetch instead of leaving the homepage skeleton loading forever.
+- 2026-04-24: Fixed a production PWA cache issue in `public/sw.js` and the service worker registration flow. The site no longer serves Next.js scripts and route assets with an indefinite cache-first strategy, and registration now targets a versioned `sw.js` URL so devices update off stale bundles faster after deployment.
 
 ## One-Hour Post-Deploy Check
 
