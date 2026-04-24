@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useGallery } from '@/contexts/GalleryContext';
 import AdminProductModal from '@/components/admin/AdminProductModal';
@@ -8,6 +8,9 @@ import { parseTimestamp } from '@/lib/utils/format';
 import { auth, db } from '@/lib/firebase';
 import { deleteImageKitFiles } from '@/lib/imagekit-client';
 import { doc, deleteDoc } from 'firebase/firestore';
+
+const ADMIN_DC_REFRESH_STALE_MS = 15000;
+const ADMIN_DC_REFRESH_COOLDOWN_MS = 15000;
 
 function parseNumber(value) {
     const numericValue = Number(value);
@@ -461,7 +464,9 @@ const SORT_OPTIONS = [
 export default function AdminProducts() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { allProducts, categories, brands, isLoading } = useGallery();
+    const { allProducts, categories, brands, isLoading, dcSyncedAt, refreshDcCatalog } = useGallery();
+    const lastForcedDcRefreshAtRef = useRef(0);
+    const isDcRefreshInFlightRef = useRef(false);
     const [search, setSearch] = useState('');
     const [mediaFilter, setMediaFilter] = useState('all');
     const [viewsFilter, setViewsFilter] = useState('all');
@@ -538,6 +543,49 @@ export default function AdminProducts() {
                 return rightUpdatedAt - leftUpdatedAt;
             });
 }, [allProducts, search, mediaFilter, viewsFilter, brandFilter, originFilter, categoryFilter, sortBy]);
+
+    useEffect(() => {
+        const refreshAdminDcCatalogIfStale = async () => {
+            if (document.visibilityState === 'hidden') {
+                return;
+            }
+
+            const now = Date.now();
+            if (now - Number(dcSyncedAt || 0) <= ADMIN_DC_REFRESH_STALE_MS) {
+                return;
+            }
+
+            if (isDcRefreshInFlightRef.current) {
+                return;
+            }
+
+            if (now - lastForcedDcRefreshAtRef.current <= ADMIN_DC_REFRESH_COOLDOWN_MS) {
+                return;
+            }
+
+            lastForcedDcRefreshAtRef.current = now;
+            isDcRefreshInFlightRef.current = true;
+
+            try {
+                await refreshDcCatalog({ forceRefresh: true });
+            } finally {
+                isDcRefreshInFlightRef.current = false;
+            }
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                void refreshAdminDcCatalogIfStale();
+            }
+        };
+
+        void refreshAdminDcCatalogIfStale();
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [dcSyncedAt, refreshDcCatalog]);
 
     const handleEdit = (product) => {
         setEditingProduct(product);

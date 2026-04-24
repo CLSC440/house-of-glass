@@ -10,6 +10,26 @@ export const dynamic = 'force-dynamic';
 
 const encoder = new TextEncoder();
 
+function isLocalRuntimeHost(hostname = '') {
+    return ['localhost', '127.0.0.1', '::1'].includes(String(hostname || '').trim().toLowerCase());
+}
+
+function shouldServeDcWatchStream(request) {
+    const explicitFlag = String(
+        process.env.ENABLE_DC_WATCH_STREAM || process.env.NEXT_PUBLIC_ENABLE_DC_WATCH_STREAM || ''
+    ).trim().toLowerCase();
+
+    if (explicitFlag === 'true') {
+        return true;
+    }
+
+    if (process.env.NODE_ENV !== 'production') {
+        return true;
+    }
+
+    return isLocalRuntimeHost(request.nextUrl?.hostname || '');
+}
+
 const watcherState = {
     clients: new Set(),
     lastSignature: '',
@@ -134,6 +154,15 @@ function stopWatcher() {
 }
 
 export async function GET(request) {
+    if (!shouldServeDcWatchStream(request)) {
+        return new Response(null, {
+            status: 204,
+            headers: {
+                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate'
+            }
+        });
+    }
+
     const stream = new ReadableStream({
         start(controller) {
             const sendMessage = (payload) => controller.enqueue(payload);

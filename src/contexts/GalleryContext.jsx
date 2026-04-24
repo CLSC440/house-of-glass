@@ -13,6 +13,23 @@ const noop = () => {};
 const DC_WATCH_RECONNECT_DELAY_MS = 5000;
 const DC_FALLBACK_SYNC_INTERVAL_MS = 60000;
 
+function isLocalRuntimeHost(hostname = '') {
+    return ['localhost', '127.0.0.1', '::1'].includes(String(hostname || '').trim().toLowerCase());
+}
+
+function shouldUseDcWatchStream() {
+    if (typeof window === 'undefined' || typeof EventSource === 'undefined') {
+        return false;
+    }
+
+    const explicitFlag = String(process.env.NEXT_PUBLIC_ENABLE_DC_WATCH_STREAM || '').trim().toLowerCase();
+    if (explicitFlag === 'true') {
+        return true;
+    }
+
+    return isLocalRuntimeHost(window.location.hostname);
+}
+
 function parsePrice(value) {
     if (typeof value === 'number' && Number.isFinite(value)) return value;
     if (typeof value !== 'string') return 0;
@@ -801,39 +818,37 @@ export function GalleryProvider({ children }) {
     const retailPriceIncreasePercentage = parsePercentage(derivedSettings?.priceIncrease);
 
     const buildDcRequestUrl = (path, options = {}) => {
-        const query = new URLSearchParams({
-            live: '1',
-            ts: String(Date.now())
-        });
+        const query = new URLSearchParams();
 
         if (options.markLiveUpdate) {
             query.set('watch', '1');
         }
 
-        if (options.forceRefresh) {
+        if (options.forceRefresh || options.markLiveUpdate) {
             query.set('refresh', '1');
+            query.set('ts', String(Date.now()));
         }
 
-        return `${path}?${query.toString()}`;
+        const queryString = query.toString();
+        return queryString ? `${path}?${queryString}` : path;
     };
 
     const syncDcCatalog = async ({ markLiveUpdate = false, forceRefresh = false } = {}) => {
         try {
+            const shouldBypassCache = forceRefresh || markLiveUpdate;
+            const requestOptions = shouldBypassCache
+                ? {
+                    cache: 'no-store',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, max-age=0',
+                        Pragma: 'no-cache'
+                    }
+                }
+                : undefined;
+
             const [productsResponse, stockResponse] = await Promise.allSettled([
-                fetch(buildDcRequestUrl('/api/dc/products', { markLiveUpdate, forceRefresh }), {
-                    cache: 'no-store',
-                    headers: {
-                        'Cache-Control': 'no-cache, no-store, max-age=0',
-                        Pragma: 'no-cache'
-                    }
-                }),
-                fetch(buildDcRequestUrl('/api/dc/stock', { markLiveUpdate, forceRefresh }), {
-                    cache: 'no-store',
-                    headers: {
-                        'Cache-Control': 'no-cache, no-store, max-age=0',
-                        Pragma: 'no-cache'
-                    }
-                })
+                fetch(buildDcRequestUrl('/api/dc/products', { markLiveUpdate, forceRefresh }), requestOptions),
+                fetch(buildDcRequestUrl('/api/dc/stock', { markLiveUpdate, forceRefresh }), requestOptions)
             ]);
 
             let didUpdate = false;
@@ -948,7 +963,7 @@ export function GalleryProvider({ children }) {
         };
 
         const connectWatch = () => {
-            if (isDisposed || typeof window === 'undefined' || typeof EventSource === 'undefined') {
+            if (isDisposed || !shouldUseDcWatchStream()) {
                 startFallbackPolling();
                 return;
             }

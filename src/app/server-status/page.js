@@ -198,12 +198,31 @@ export default function ServerStatusPage() {
     useEffect(() => {
         if (!allowed || !user) return undefined;
 
-        fetchServerStatus(user, true);
+        const refreshIfVisible = (showLoading = false) => {
+            if (document.visibilityState !== 'visible') {
+                return;
+            }
+
+            fetchServerStatus(user, showLoading);
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchServerStatus(user, false);
+            }
+        };
+
+        refreshIfVisible(true);
         const refreshTimer = window.setInterval(() => {
-            fetchServerStatus(user, false);
+            refreshIfVisible(false);
         }, 30000);
 
-        return () => window.clearInterval(refreshTimer);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            window.clearInterval(refreshTimer);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
     }, [allowed, user]);
 
     if (checking && !allowed) {

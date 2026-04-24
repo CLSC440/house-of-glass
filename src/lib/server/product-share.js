@@ -1,9 +1,11 @@
 import { cache } from 'react';
 import { createRequire } from 'module';
+import { unstable_cache } from 'next/cache';
 import { getSiteOrigin, toAbsoluteSiteUrl } from '@/lib/site-origin';
 
 const require = createRequire(import.meta.url);
 const { getDb } = require('../../api/_firebaseAdmin.js');
+const PRODUCT_SHARE_REVALIDATE_SECONDS = 60;
 
 function normalizeText(value = '') {
     return String(value || '').trim();
@@ -165,7 +167,7 @@ function buildProductSocialImage(imageUrl = '') {
     return appendImageKitTransformation(normalizedImageUrl, logoOverlayTransform);
 }
 
-export const getSharedProductById = cache(async (productId) => {
+const getCachedSharedProductById = unstable_cache(async (productId) => {
     const normalizedProductId = normalizeText(productId);
 
     if (!normalizedProductId) {
@@ -204,4 +206,8 @@ export const getSharedProductById = cache(async (productId) => {
         console.error('Failed to load shared product metadata:', error);
         return null;
     }
+}, ['shared-product-by-id'], {
+    revalidate: PRODUCT_SHARE_REVALIDATE_SECONDS
 });
+
+export const getSharedProductById = cache(async (productId) => getCachedSharedProductById(productId));

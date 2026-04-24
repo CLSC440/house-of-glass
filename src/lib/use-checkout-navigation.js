@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
+const CHECKOUT_NAVIGATION_STALL_TIMEOUT_MS = 8000;
+
 function isSameNavigationTarget(href) {
     if (typeof window === 'undefined') {
         return false;
@@ -20,12 +22,12 @@ export default function useCheckoutNavigation() {
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const [pendingCheckoutHref, setPendingCheckoutHref] = useState('');
-    const navigationTimeoutRef = useRef(null);
+    const navigationStallTimeoutRef = useRef(null);
 
     const clearPendingCheckoutNavigation = useCallback(() => {
-        if (typeof window !== 'undefined' && navigationTimeoutRef.current) {
-            window.clearTimeout(navigationTimeoutRef.current);
-            navigationTimeoutRef.current = null;
+        if (typeof window !== 'undefined' && navigationStallTimeoutRef.current) {
+            window.clearTimeout(navigationStallTimeoutRef.current);
+            navigationStallTimeoutRef.current = null;
         }
 
         setPendingCheckoutHref('');
@@ -38,7 +40,9 @@ export default function useCheckoutNavigation() {
             return false;
         }
 
-        setPendingCheckoutHref(targetHref);
+        flushSync(() => {
+            setPendingCheckoutHref(targetHref);
+        });
 
         return true;
     }, [pendingCheckoutHref]);
@@ -50,19 +54,22 @@ export default function useCheckoutNavigation() {
             return;
         }
 
-        navigationTimeoutRef.current = window.setTimeout(() => {
-            navigationTimeoutRef.current = null;
+        if (typeof beforeNavigate === 'function') {
+            beforeNavigate();
+        }
 
-            if (typeof beforeNavigate === 'function') {
-                beforeNavigate();
+        if (typeof window !== 'undefined') {
+            if (navigationStallTimeoutRef.current) {
+                window.clearTimeout(navigationStallTimeoutRef.current);
             }
 
-            flushSync(() => {
+            navigationStallTimeoutRef.current = window.setTimeout(() => {
+                navigationStallTimeoutRef.current = null;
                 clearPendingCheckoutNavigation();
-            });
+            }, CHECKOUT_NAVIGATION_STALL_TIMEOUT_MS);
+        }
 
-            router.push(targetHref);
-        }, 120);
+        router.push(targetHref);
     }, [clearPendingCheckoutNavigation, router, startCheckoutLoading]);
 
     useEffect(() => {
@@ -79,7 +86,7 @@ export default function useCheckoutNavigation() {
     }, [clearPendingCheckoutNavigation, pathname, pendingCheckoutHref, searchParams]);
 
     useEffect(() => {
-        if (!pendingCheckoutHref || typeof window === 'undefined' || navigationTimeoutRef.current) {
+        if (!pendingCheckoutHref || typeof window === 'undefined' || navigationStallTimeoutRef.current) {
             return;
         }
 
@@ -113,9 +120,9 @@ export default function useCheckoutNavigation() {
             window.removeEventListener('popstate', handleHistoryNavigation);
             window.removeEventListener('pageshow', handleHistoryNavigation);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
-            if (navigationTimeoutRef.current) {
-                window.clearTimeout(navigationTimeoutRef.current);
-                navigationTimeoutRef.current = null;
+            if (navigationStallTimeoutRef.current) {
+                window.clearTimeout(navigationStallTimeoutRef.current);
+                navigationStallTimeoutRef.current = null;
             }
         };
     }, [clearPendingCheckoutNavigation]);

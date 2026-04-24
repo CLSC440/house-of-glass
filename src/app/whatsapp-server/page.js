@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useEffectEvent, useMemo, useState } from 'react';
 import { useAdminAccess } from '@/lib/use-admin-access';
 
 const DEFAULT_SERVER_BASE = 'https://whapp.hg-alshour.online';
@@ -430,20 +430,48 @@ export default function WhatsappServerPage() {
         resetPairingCountdown();
     }
 
+    const refreshDashboardIfVisible = useEffectEvent(() => {
+        if (document.visibilityState !== 'visible') {
+            return;
+        }
+
+        refreshDashboard();
+    });
+
+    const refreshLogsIfVisible = useEffectEvent(() => {
+        if (document.visibilityState !== 'visible') {
+            return;
+        }
+
+        refreshLogs();
+    });
+
     useEffect(() => {
         if (!allowed || !serverBase) return undefined;
 
-        refreshDashboard();
-        refreshLogs();
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                refreshDashboardIfVisible();
+            }
+        };
 
-        const dashboardTimer = window.setInterval(refreshDashboard, 15000);
-        return () => window.clearInterval(dashboardTimer);
+        refreshDashboardIfVisible();
+
+        const dashboardTimer = window.setInterval(refreshDashboardIfVisible, 15000);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            window.clearInterval(dashboardTimer);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
     }, [allowed, serverBase]);
 
     useEffect(() => {
         if (!allowed || !serverBase || !isLogsAutoRefreshEnabled) return undefined;
 
-        const logsTimer = window.setInterval(refreshLogs, 5000);
+        refreshLogsIfVisible();
+
+        const logsTimer = window.setInterval(refreshLogsIfVisible, 5000);
         return () => window.clearInterval(logsTimer);
     }, [allowed, serverBase, isLogsAutoRefreshEnabled]);
 
