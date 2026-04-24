@@ -495,6 +495,31 @@ export default function AdminProducts() {
     const adminDcRefreshInFlightRef = useRef(false);
     const lastSearchRefreshRef = useRef('');
 
+    const persistAdminDcSnapshot = useEffectEvent(async () => {
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+            return;
+        }
+
+        const idToken = await currentUser.getIdToken();
+        const response = await fetch('/api/dc/snapshot-sync', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${idToken}`,
+                'Cache-Control': 'no-cache, no-store, max-age=0',
+                Pragma: 'no-cache'
+            },
+            cache: 'no-store'
+        });
+
+        if (response.ok) {
+            return;
+        }
+
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || 'Failed to persist the latest DC snapshot');
+    });
+
     const refreshAdminDcCatalog = useEffectEvent(async ({ force = false } = {}) => {
         if (!force && isAdminDcDataFresh(dcSyncedAt)) {
             return;
@@ -507,7 +532,18 @@ export default function AdminProducts() {
         adminDcRefreshInFlightRef.current = true;
 
         try {
-            await refreshDcCatalog({ forceRefresh: true });
+            const [catalogRefreshResult, snapshotPersistResult] = await Promise.allSettled([
+                refreshDcCatalog({ forceRefresh: true }),
+                persistAdminDcSnapshot()
+            ]);
+
+            if (catalogRefreshResult.status === 'rejected') {
+                throw catalogRefreshResult.reason;
+            }
+
+            if (snapshotPersistResult.status === 'rejected') {
+                console.error('Failed to persist admin DC snapshot baseline:', snapshotPersistResult.reason);
+            }
         } finally {
             adminDcRefreshInFlightRef.current = false;
         }

@@ -133,6 +133,7 @@ Planned actions:
 - 2026-04-23: In the first one-hour post-deploy window, `/product/[id]` shows `4` invocations and `1.55s` Active CPU with `0%` error rate.
 - 2026-04-23: Edge Requests for the first post-deploy hour show `/api/dc/products` at `10` requests with `10%` cached and `/api/dc/stock` at `9` requests with `22.2%` cached, while the storefront shell `/` remains `100%` cached.
 - 2026-04-24: Added a clean admin freshness repair in `src/app/admin/products/page.js`. The admin products screen now requests a live DC refresh only when the visible page is working with a stale snapshot, and it also forces a debounced live refresh for direct code/barcode searches without changing storefront modal behavior or adding continuous polling.
+- 2026-04-24: Added an admin-only Firestore baseline sync route at `src/app/api/dc/snapshot-sync/route.js`. Admin refreshes now persist the latest merged DC price and stock snapshot into the `products` collection so future reloads start from the newest known baseline instead of older Firestore values.
 
 ## One-Hour Post-Deploy Check
 
