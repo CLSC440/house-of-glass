@@ -545,13 +545,13 @@ export default function AdminProducts() {
 }, [allProducts, search, mediaFilter, viewsFilter, brandFilter, originFilter, categoryFilter, sortBy]);
 
     useEffect(() => {
-        const refreshAdminDcCatalogIfStale = async () => {
+        const runAdminDcRefresh = async ({ requireStaleSnapshot }) => {
             if (document.visibilityState === 'hidden') {
                 return;
             }
 
             const now = Date.now();
-            if (now - Number(dcSyncedAt || 0) <= ADMIN_DC_REFRESH_STALE_MS) {
+            if (requireStaleSnapshot && now - Number(dcSyncedAt || 0) <= ADMIN_DC_REFRESH_STALE_MS) {
                 return;
             }
 
@@ -575,11 +575,11 @@ export default function AdminProducts() {
 
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
-                void refreshAdminDcCatalogIfStale();
+                void runAdminDcRefresh({ requireStaleSnapshot: true });
             }
         };
 
-        void refreshAdminDcCatalogIfStale();
+        void runAdminDcRefresh({ requireStaleSnapshot: false });
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
         return () => {

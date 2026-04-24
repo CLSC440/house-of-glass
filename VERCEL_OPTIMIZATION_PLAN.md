@@ -132,7 +132,7 @@ Planned actions:
 - 2026-04-23: In the first one-hour post-deploy window, `/api/dc/stock` shows `10` invocations and `1.73s` Active CPU with `0%` error rate, while `/api/dc/products` shows `10` invocations and `1.55s` Active CPU with `0%` error rate.
 - 2026-04-23: In the first one-hour post-deploy window, `/product/[id]` shows `4` invocations and `1.55s` Active CPU with `0%` error rate.
 - 2026-04-23: Edge Requests for the first post-deploy hour show `/api/dc/products` at `10` requests with `10%` cached and `/api/dc/stock` at `9` requests with `22.2%` cached, while the storefront shell `/` remains `100%` cached.
-- 2026-04-24: Added a limited freshness repair for `src/app/admin/products/page.js`. The admin products screen now forces a live DC refresh only when its local DC snapshot is stale on page entry or when the tab becomes visible again, while preserving the storefront modal behavior and avoiding continuous aggressive polling.
+- 2026-04-24: Adjusted the admin freshness repair in `src/app/admin/products/page.js`. The admin products screen now forces one live DC refresh on every page load/refresh, and still limits visibility-return refreshes to stale snapshots only, preserving the storefront modal behavior without adding continuous aggressive polling.
 
 ## One-Hour Post-Deploy Check
 
