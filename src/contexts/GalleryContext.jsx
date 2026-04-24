@@ -1,6 +1,6 @@
 'use client';
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { addDoc, collection, doc, getDoc, onSnapshot, query, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, onSnapshot, query, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { CART_STORAGE_KEY, WHOLESALE_CART_STORAGE_KEY } from '@/lib/cart-storage';
 import { buildGroupedCategoryFacetEntries, CATEGORY_GROUPS_COLLECTION, sortCategoryGroupDocs } from '@/lib/category-groups';
@@ -12,6 +12,52 @@ import { buildOrderStatusHistoryEntry } from '@/lib/utils/order-status';
 const noop = () => {};
 const DC_WATCH_RECONNECT_DELAY_MS = 5000;
 const DC_FALLBACK_SYNC_INTERVAL_MS = 60000;
+const PRODUCT_CATALOG_CACHE_KEY = 'houseOfGlassProductCatalogCache';
+const PRODUCT_CATALOG_CACHE_MAX_AGE_MS = 30 * 60 * 1000;
+const PRODUCT_CATALOG_FALLBACK_TIMEOUT_MS = 3500;
+
+function readStoredProductCatalog() {
+    if (typeof window === 'undefined') return null;
+
+    try {
+        const rawValue = window.localStorage.getItem(PRODUCT_CATALOG_CACHE_KEY);
+        if (!rawValue) return null;
+
+        const parsedValue = JSON.parse(rawValue);
+        const products = Array.isArray(parsedValue?.products) ? parsedValue.products : null;
+        const storedAt = Number(parsedValue?.storedAt || 0);
+
+        if (!products || products.length === 0 || !Number.isFinite(storedAt)) {
+            window.localStorage.removeItem(PRODUCT_CATALOG_CACHE_KEY);
+            return null;
+        }
+
+        if (Date.now() - storedAt > PRODUCT_CATALOG_CACHE_MAX_AGE_MS) {
+            window.localStorage.removeItem(PRODUCT_CATALOG_CACHE_KEY);
+            return null;
+        }
+
+        return products;
+    } catch (_error) {
+        window.localStorage.removeItem(PRODUCT_CATALOG_CACHE_KEY);
+        return null;
+    }
+}
+
+function writeStoredProductCatalog(products = []) {
+    if (typeof window === 'undefined' || !Array.isArray(products) || products.length === 0) {
+        return;
+    }
+
+    try {
+        window.localStorage.setItem(PRODUCT_CATALOG_CACHE_KEY, JSON.stringify({
+            storedAt: Date.now(),
+            products
+        }));
+    } catch (_error) {
+        // Ignore storage quota issues and keep runtime behavior intact.
+    }
+}
 
 function isLocalRuntimeHost(hostname = '') {
     return ['localhost', '127.0.0.1', '::1'].includes(String(hostname || '').trim().toLowerCase());
@@ -882,6 +928,65 @@ export function GalleryProvider({ children }) {
     };
 
     useEffect(() => {
+        let isDisposed = false;
+        let hasResolvedNetworkProducts = false;
+        let fallbackTimeoutId = null;
+        let fallbackProductsPromise = null;
+
+        const applyFetchedProducts = (fetchedProducts = [], { fromNetwork = false } = {}) => {
+            if (isDisposed) return;
+
+            if (fromNetwork) {
+                hasResolvedNetworkProducts = true;
+            }
+
+            setProducts(fetchedProducts);
+            setIsLoading(false);
+            writeStoredProductCatalog(fetchedProducts);
+
+            if (fallbackTimeoutId) {
+                window.clearTimeout(fallbackTimeoutId);
+                fallbackTimeoutId = null;
+            }
+        };
+
+        const runProductsFallbackFetch = async () => {
+            if (isDisposed || fallbackProductsPromise) {
+                return fallbackProductsPromise;
+            }
+
+            fallbackProductsPromise = getDocs(q)
+                .then((snapshot) => {
+                    const fetchedProducts = snapshot.docs.map((docSnapshot) => ({
+                        id: docSnapshot.id,
+                        ...docSnapshot.data()
+                    }));
+
+                    applyFetchedProducts(fetchedProducts, { fromNetwork: true });
+                    return fetchedProducts;
+                })
+                .catch((error) => {
+                    console.error('Failed to fetch products catalog fallback:', error);
+
+                    if (!isDisposed && !hasResolvedNetworkProducts) {
+                        setIsLoading(false);
+                    }
+
+                    return [];
+                })
+                .finally(() => {
+                    fallbackProductsPromise = null;
+                });
+
+            return fallbackProductsPromise;
+        };
+
+        const cachedProducts = readStoredProductCatalog();
+        if (cachedProducts) {
+            setProducts(cachedProducts);
+            setIsLoading(false);
+        }
+
         // Fetch Categories
         const unsubscribeCategories = onSnapshot(collection(db, 'productCategories'), (snapshot) => {
             const fetchedCats = snapshot.docs.map((doc, idx) => {
@@ -906,16 +1011,30 @@ export function GalleryProvider({ children }) {
 
         // Fetch Products
         const q = query(collection(db, 'products'));
+        fallbackTimeoutId = window.setTimeout(() => {
+            if (!hasResolvedNetworkProducts) {
+                void runProductsFallbackFetch();
+            }
+        }, PRODUCT_CATALOG_FALLBACK_TIMEOUT_MS);
+
         const unsubscribeProducts = onSnapshot(q, (snapshot) => {
-            const fetchedProducts = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
+            const fetchedProducts = snapshot.docs.map((docSnapshot) => ({
+                id: docSnapshot.id,
+                ...docSnapshot.data()
             }));
-            setProducts(fetchedProducts);
-            setIsLoading(false);
+            applyFetchedProducts(fetchedProducts, { fromNetwork: true });
+        }, (error) => {
+            console.error('Failed to subscribe to products catalog:', error);
+            if (!hasResolvedNetworkProducts) {
+                void runProductsFallbackFetch();
+            }
         });
 
         return () => {
+            isDisposed = true;
+            if (fallbackTimeoutId) {
+                window.clearTimeout(fallbackTimeoutId);
+            }
             unsubscribeCategories();
             unsubscribeCategoryGroups();
             unsubscribeBrands();

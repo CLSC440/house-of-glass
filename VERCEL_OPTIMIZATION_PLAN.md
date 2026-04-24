@@ -134,6 +134,7 @@ Planned actions:
 - 2026-04-23: Edge Requests for the first post-deploy hour show `/api/dc/products` at `10` requests with `10%` cached and `/api/dc/stock` at `9` requests with `22.2%` cached, while the storefront shell `/` remains `100%` cached.
 - 2026-04-24: Added a clean admin freshness repair in `src/app/admin/products/page.js`. The admin products screen now requests a live DC refresh only when the visible page is working with a stale snapshot, and it also forces a debounced live refresh for direct code/barcode searches without changing storefront modal behavior or adding continuous polling.
 - 2026-04-24: Added an admin-only DC snapshot baseline sync route at `src/app/api/dc/snapshot-sync/route.js`. Admin live refreshes now persist the latest matched DC stock and price fields into Firestore before refreshing the local client snapshot, so later page loads start from the updated baseline instead of stale Firestore values.
+- 2026-04-24: Hardened the storefront catalog load path in `src/contexts/GalleryContext.jsx`. The gallery now restores a short-lived cached product catalog from localStorage for faster repeat opens, and if the Firestore realtime subscription stalls or fails it falls back to a one-shot `getDocs` fetch instead of leaving the homepage skeleton loading forever.
 
 ## One-Hour Post-Deploy Check
 
