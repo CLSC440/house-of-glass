@@ -2226,37 +2226,28 @@ export default function CheckoutPageContent({ checkoutType }) {
                                         </p>
                                     </div>
 
-                                    <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3 lg:gap-4">
-                                        {shippingPricingDetails.quotes.map((quote, quoteIndex) => {
+                                    <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-[repeat(auto-fit,minmax(220px,1fr))] lg:gap-4">
+                                        {shippingPricingDetails.quotes.map((quote) => {
                                             const isSelectedQuote = String(quote?.courierId || '').trim() === shippingPricingDetails.courierId;
                                             const isRecommendedQuote = String(quote?.courierId || '').trim() === shippingPricingDetails.recommendedCourierId;
-                                            const shouldStretchDesktopCard = shippingPricingDetails.quotes.length % 2 === 1 && quoteIndex === shippingPricingDetails.quotes.length - 1;
 
                                             return (
                                                 <button
                                                     key={quote.courierId}
                                                     type="button"
                                                     onClick={() => handleSelectShippingCourier(quote.courierId)}
-                                                    className={`relative rounded-[1rem] border px-2.5 py-3 text-center transition-colors sm:px-4 sm:py-4 sm:text-right lg:px-5 lg:py-4 ${shouldStretchDesktopCard ? 'lg:col-span-2' : ''} ${isSelectedQuote ? 'border-brandGold/35 bg-brandGold/10 text-brandBlue dark:text-white' : 'border-brandGold/12 bg-white/70 text-brandBlue hover:bg-brandGold/[0.06] dark:bg-gray-900/35 dark:text-slate-200'}`}
+                                                    className={`relative rounded-[1rem] border px-2.5 py-3 text-center transition-colors sm:px-4 sm:py-4 lg:px-4 lg:py-4 ${isSelectedQuote ? 'border-brandGold/35 bg-brandGold/10 text-brandBlue dark:text-white' : 'border-brandGold/12 bg-white/70 text-brandBlue hover:bg-brandGold/[0.06] dark:bg-gray-900/35 dark:text-slate-200'}`}
                                                 >
                                                     <span className={`absolute left-2 top-2 inline-flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full border sm:left-auto sm:right-3 sm:top-3 sm:h-5 sm:w-5 ${isSelectedQuote ? selectedDeliveryCheckClasses : 'border-brandGold/35 bg-transparent text-brandGold/0 dark:border-brandGold/20 dark:text-brandGold/0'}`}>
                                                         <i className={`fa-solid fa-check text-[9px] sm:text-[10px] ${isSelectedQuote ? 'opacity-100' : 'opacity-0'}`}></i>
                                                     </span>
 
-                                                    <div className="flex flex-col items-center gap-2 text-center sm:gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:gap-4 lg:text-right">
-                                                        <div className="order-2 min-w-0 flex-1 lg:order-1 lg:text-right">
-                                                            <p className="mt-2 text-[0.92rem] font-black leading-5 sm:mt-3 sm:text-base lg:mt-0 lg:text-[1.05rem]">{quote.courierName || 'شركة شحن'}</p>
-                                                            <p className="mt-1.5 text-[0.88rem] font-black leading-5 text-emerald-600 dark:text-brandGold sm:mt-2 sm:text-sm lg:text-base">الشحن: {formatCurrency(getSideUpQuoteAmount(quote))}</p>
-                                                            {quote.deliveryTime ? (
-                                                                <p className="mt-1 text-[10px] font-black leading-4 text-slate-500 dark:text-slate-300 sm:mt-2 sm:text-xs sm:leading-6 lg:text-[13px]">المدة: {quote.deliveryTime}</p>
-                                                            ) : null}
-                                                        </div>
-
-                                                        <div className="order-1 flex flex-col items-center gap-2 lg:order-2 lg:min-w-[9.5rem] lg:items-end lg:justify-center">
+                                                    <div className="flex flex-col items-center gap-2 text-center sm:gap-3">
+                                                        <div className="flex flex-col items-center gap-2">
                                                             <div className="flex items-center justify-center">
                                                                 <CourierLogoBadge courierName={quote.courierName} />
                                                             </div>
-                                                            <div className="flex flex-wrap justify-center gap-1 sm:gap-2 lg:max-w-[11rem] lg:justify-end">
+                                                            <div className="flex flex-wrap justify-center gap-1 sm:gap-2">
                                                                 {isRecommendedQuote ? (
                                                                     <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[9px] font-black uppercase tracking-[0.15em] text-emerald-600 dark:text-emerald-300 sm:text-[10px] sm:tracking-[0.18em]">Recommended</span>
                                                                 ) : null}
@@ -2264,6 +2255,14 @@ export default function CheckoutPageContent({ checkoutType }) {
                                                                     <span className="rounded-full bg-brandBlue/10 px-2 py-1 text-[9px] font-black uppercase tracking-[0.15em] text-brandBlue dark:text-brandGold sm:text-[10px] sm:tracking-[0.18em]">Selected</span>
                                                                 ) : null}
                                                             </div>
+                                                        </div>
+
+                                                        <div className="min-w-0">
+                                                            <p className="text-[0.92rem] font-black leading-5 sm:text-base lg:text-[1rem]">{quote.courierName || 'شركة شحن'}</p>
+                                                            <p className="mt-1.5 text-[0.88rem] font-black leading-5 text-emerald-600 dark:text-brandGold sm:text-sm lg:text-[0.98rem]">الشحن: {formatCurrency(getSideUpQuoteAmount(quote))}</p>
+                                                            {quote.deliveryTime ? (
+                                                                <p className="mt-1 text-[10px] font-black leading-4 text-slate-500 dark:text-slate-300 sm:text-xs sm:leading-6 lg:text-[12px]">المدة: {quote.deliveryTime}</p>
+                                                            ) : null}
                                                         </div>
                                                     </div>
                                                 </button>
