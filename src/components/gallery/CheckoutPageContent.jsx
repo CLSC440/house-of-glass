@@ -135,11 +135,11 @@ function CourierLogoBadge({ courierName }) {
 
     if (brandKey === 'aramex') {
         return (
-            <span className={`${baseClasses} border-[#e94e1b]/20 bg-white`} aria-hidden="true">
-                <span className="flex items-center gap-2 text-[#e94e1b]">
-                    <span className="h-[2px] w-4 rounded-full bg-[#e94e1b]"></span>
-                    <span className="text-[0.98rem] font-black italic tracking-[-0.05em] lowercase sm:text-[1.15rem]">aramex</span>
-                    <span className="h-[2px] w-4 rounded-full bg-[#e94e1b]"></span>
+            <span className="inline-flex h-9 min-w-[5rem] items-center justify-center rounded-[1rem] border border-[#e94e1b]/20 bg-white px-2 shadow-[0_12px_28px_rgba(15,23,42,0.08)] sm:h-12 sm:min-w-[7rem] sm:rounded-2xl sm:px-3" aria-hidden="true">
+                <span className="flex items-center gap-1.5 text-[#e94e1b] sm:gap-2">
+                    <span className="h-[2px] w-2.5 rounded-full bg-[#e94e1b] sm:w-4"></span>
+                    <span className="text-[0.82rem] font-black italic tracking-[-0.05em] lowercase sm:text-[1.05rem]">aramex</span>
+                    <span className="h-[2px] w-2.5 rounded-full bg-[#e94e1b] sm:w-4"></span>
                 </span>
             </span>
         );
@@ -157,14 +157,14 @@ function CourierLogoBadge({ courierName }) {
 
     if (brandKey === 'jt') {
         return (
-            <span className={`${baseClasses} border-[#d71920]/20 bg-white`} aria-hidden="true">
-                <span className="flex items-center gap-1.5 text-[#e53d2f] sm:gap-2">
+            <span className="inline-flex h-9 min-w-[5rem] items-center justify-center rounded-[1rem] border border-[#d71920]/20 bg-white px-2 shadow-[0_12px_28px_rgba(15,23,42,0.08)] sm:h-12 sm:min-w-[7rem] sm:rounded-2xl sm:px-3" aria-hidden="true">
+                <span className="flex items-center gap-1 text-[#e53d2f] sm:gap-1.5">
                     <span className="relative inline-flex flex-col items-start leading-none">
-                        <span className="text-[1rem] font-black italic tracking-[-0.08em] sm:text-[1.25rem]">J&amp;T</span>
-                        <span className="absolute -right-3 top-[0.15rem] h-[2px] w-4 rounded-full bg-[#e53d2f]"></span>
-                        <span className="absolute -right-4 top-[0.45rem] h-[2px] w-5 rounded-full bg-[#e53d2f]"></span>
+                        <span className="text-[0.9rem] font-black italic tracking-[-0.08em] sm:text-[1.12rem]">J&amp;T</span>
+                        <span className="absolute -right-2 top-[0.12rem] h-[2px] w-2.5 rounded-full bg-[#e53d2f] sm:-right-3 sm:w-4"></span>
+                        <span className="absolute -right-2.5 top-[0.4rem] h-[2px] w-3 rounded-full bg-[#e53d2f] sm:-right-4 sm:w-5"></span>
                     </span>
-                    <span className="pt-0.5 text-[0.72rem] font-black uppercase tracking-[-0.02em] sm:text-[0.85rem]">Express</span>
+                    <span className="pt-0.5 text-[0.5rem] font-black uppercase tracking-[-0.01em] sm:text-[0.72rem]">Express</span>
                 </span>
             </span>
         );

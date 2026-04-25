@@ -1,5 +1,6 @@
 import { Cairo, Almarai } from 'next/font/google'
 import Script from 'next/script'
+import { Analytics } from '@vercel/analytics/react'
 import InstallAppPrompt from '@/components/layout/InstallAppPrompt'
 import NotificationPermissionPrompt from '@/components/layout/NotificationPermissionPrompt'
 import { getSiteOrigin } from '@/lib/site-origin'
@@ -44,6 +45,7 @@ export default function RootLayout({ children }) {
         <Script src="/i18n.js" strategy="beforeInteractive" />
         <Script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js" strategy="beforeInteractive" />
         {children}
+        <Analytics />
         <InstallAppPrompt />
         <NotificationPermissionPrompt />
       </body>
