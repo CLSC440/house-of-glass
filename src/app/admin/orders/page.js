@@ -1,5 +1,5 @@
 'use client';
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { addDoc, collection, query, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
@@ -411,6 +411,69 @@ function buildSideUpDialogErrorState(title, message) {
     };
 }
 
+const INITIAL_ORDER_FILTERS = Object.freeze({
+    query: '',
+    status: 'all',
+    orderType: 'all',
+    delivery: 'all',
+    dcSync: 'all',
+    sideupSync: 'all'
+});
+
+const ORDER_TYPE_FILTER_OPTIONS = [
+    { value: 'all', label: 'All Types' },
+    { value: 'retail', label: 'Retail' },
+    { value: 'wholesale', label: 'Wholesale' }
+];
+
+const ORDER_DELIVERY_FILTER_OPTIONS = [
+    { value: 'all', label: 'All Delivery' },
+    { value: 'shipping', label: 'Shipping' },
+    { value: 'pickup', label: 'Pickup' }
+];
+
+const ORDER_DC_FILTER_OPTIONS = [
+    { value: 'all', label: 'All DC States' },
+    { value: 'success', label: 'DC Synced' },
+    { value: 'sending', label: 'DC Sending' },
+    { value: 'failed', label: 'DC Failed' },
+    { value: 'idle', label: 'DC Not Sent' }
+];
+
+const ORDER_SIDEUP_FILTER_OPTIONS = [
+    { value: 'all', label: 'All SideUp States' },
+    { value: 'success', label: 'SideUp Sent' },
+    { value: 'sending', label: 'SideUp Sending' },
+    { value: 'failed', label: 'SideUp Failed' },
+    { value: 'idle', label: 'SideUp Not Sent' },
+    { value: 'pickup', label: 'Pickup Only' }
+];
+
+function getOrderTypeValue(order = {}) {
+    return String(order.orderType || '').trim().toLowerCase() === 'wholesale'
+        ? 'wholesale'
+        : 'retail';
+}
+
+function buildOrderSearchIndex(order = {}) {
+    const items = Array.isArray(order.items) ? order.items : [];
+
+    return [
+        order.id,
+        getOrderExternalRef(order),
+        getOrderCustomerName(order),
+        getOrderCustomerPhone(order),
+        getCustomerEmail(order),
+        getCustomerGovernorate(order),
+        getOrderShippingAddress(order),
+        order.websiteOrderRef,
+        order.sideupSync?.shipmentCode,
+        order.sideupSync?.orderStatus,
+        order.sideupSync?.courierName,
+        ...items.flatMap((item) => [item.title, item.name, item.productCode, item.category])
+    ].map(normalizeLookupValue).filter(Boolean).join(' ');
+}
+
 export default function AdminOrders() {
     const searchParams = useSearchParams();
     const { allProducts } = useGallery();
@@ -422,6 +485,7 @@ export default function AdminOrders() {
     const [creatingSideUpOrderId, setCreatingSideUpOrderId] = useState(null);
     const [refreshingSideUpOrderId, setRefreshingSideUpOrderId] = useState(null);
     const [sideUpDialogState, setSideUpDialogState] = useState(null);
+    const [orderFilters, setOrderFilters] = useState(() => ({ ...INITIAL_ORDER_FILTERS }));
     const [openStatusMenuId, setOpenStatusMenuId] = useState(null);
     const [editingOrder, setEditingOrder] = useState(null);
     const [editingForm, setEditingForm] = useState(null);
@@ -430,6 +494,56 @@ export default function AdminOrders() {
     const sideUpDialogResolverRef = useRef(null);
     const catalogEntries = useMemo(() => buildCatalogEntries(allProducts), [allProducts]);
     const targetedOrderId = String(searchParams.get('orderId') || '').trim();
+    const deferredOrderQuery = useDeferredValue(orderFilters.query);
+    const hasPendingQueryUpdate = deferredOrderQuery !== orderFilters.query;
+
+    const filteredOrders = useMemo(() => {
+        const normalizedQuery = normalizeLookupValue(deferredOrderQuery);
+
+        return orders.filter((order) => {
+            const normalizedStatus = normalizeOrderStatus(order.status);
+            const orderTypeValue = getOrderTypeValue(order);
+            const deliveryMethodValue = getOrderDeliveryMethodValue(order);
+            const dcSyncTone = getOrderDcSyncState(order).tone;
+            const sideupSyncTone = getOrderSideUpSyncState(order).tone;
+
+            if (orderFilters.status !== 'all' && normalizedStatus !== orderFilters.status) {
+                return false;
+            }
+
+            if (orderFilters.orderType !== 'all' && orderTypeValue !== orderFilters.orderType) {
+                return false;
+            }
+
+            if (orderFilters.delivery !== 'all' && deliveryMethodValue !== orderFilters.delivery) {
+                return false;
+            }
+
+            if (orderFilters.dcSync !== 'all' && dcSyncTone !== orderFilters.dcSync) {
+                return false;
+            }
+
+            if (orderFilters.sideupSync !== 'all' && sideupSyncTone !== orderFilters.sideupSync) {
+                return false;
+            }
+
+            if (!normalizedQuery) {
+                return true;
+            }
+
+            return buildOrderSearchIndex(order).includes(normalizedQuery);
+        });
+    }, [orders, orderFilters.status, orderFilters.orderType, orderFilters.delivery, orderFilters.dcSync, orderFilters.sideupSync, deferredOrderQuery]);
+
+    const activeOrderFilterCount = useMemo(() => (
+        Object.entries(orderFilters).reduce((count, [key, value]) => {
+            if (key === 'query') {
+                return count + (String(value || '').trim() ? 1 : 0);
+            }
+
+            return count + (value !== 'all' ? 1 : 0);
+        }, 0)
+    ), [orderFilters]);
 
     useEffect(() => {
         const q = query(collection(db, 'orders'));
@@ -520,6 +634,17 @@ export default function AdminOrders() {
             ...feedback
         });
     });
+
+    const updateOrderFilter = (field, value) => {
+        setOrderFilters((currentValue) => ({
+            ...currentValue,
+            [field]: value
+        }));
+    };
+
+    const clearOrderFilters = () => {
+        setOrderFilters({ ...INITIAL_ORDER_FILTERS });
+    };
 
     const handleStatusChange = async (order, newStatus) => {
         try {
@@ -1020,6 +1145,85 @@ export default function AdminOrders() {
             </div>
 
             <div className="overflow-hidden rounded-[1.55rem] border border-white/8 bg-[#161f35] shadow-[0_18px_40px_rgba(4,8,20,0.24)]">
+                <div className="border-b border-white/8 px-4 py-4">
+                    <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+                        <label className="block w-full xl:max-w-[360px]">
+                            <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Search Orders</span>
+                            <div className="relative">
+                                <i className="fa-solid fa-magnifying-glass pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-slate-500"></i>
+                                <input
+                                    type="text"
+                                    value={orderFilters.query}
+                                    onChange={(event) => updateOrderFilter('query', event.target.value)}
+                                    placeholder="Order ID, customer, phone, email, shipment..."
+                                    className="w-full rounded-xl border border-white/10 bg-white/[0.04] py-2.5 pl-9 pr-3 text-sm text-white outline-none transition-colors placeholder:text-slate-500 focus:border-brandGold/35 focus:bg-white/[0.06]"
+                                />
+                            </div>
+                        </label>
+
+                        <div className="grid w-full gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                            <OrderFilterSelect
+                                label="Status"
+                                value={orderFilters.status}
+                                options={[{ value: 'all', label: 'All Statuses' }, ...ORDER_STATUS_OPTIONS]}
+                                onChange={(value) => updateOrderFilter('status', value)}
+                            />
+                            <OrderFilterSelect
+                                label="Type"
+                                value={orderFilters.orderType}
+                                options={ORDER_TYPE_FILTER_OPTIONS}
+                                onChange={(value) => updateOrderFilter('orderType', value)}
+                            />
+                            <OrderFilterSelect
+                                label="Delivery"
+                                value={orderFilters.delivery}
+                                options={ORDER_DELIVERY_FILTER_OPTIONS}
+                                onChange={(value) => updateOrderFilter('delivery', value)}
+                            />
+                            <OrderFilterSelect
+                                label="DC Sync"
+                                value={orderFilters.dcSync}
+                                options={ORDER_DC_FILTER_OPTIONS}
+                                onChange={(value) => updateOrderFilter('dcSync', value)}
+                            />
+                            <OrderFilterSelect
+                                label="SideUp"
+                                value={orderFilters.sideupSync}
+                                options={ORDER_SIDEUP_FILTER_OPTIONS}
+                                onChange={(value) => updateOrderFilter('sideupSync', value)}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+                            <span className="rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 font-semibold text-slate-300">
+                                Showing {filteredOrders.length} of {orders.length} orders
+                            </span>
+                            {activeOrderFilterCount > 0 ? (
+                                <span className="rounded-full border border-brandGold/20 bg-brandGold/10 px-2.5 py-1 font-semibold text-brandGold">
+                                    {activeOrderFilterCount} active filters
+                                </span>
+                            ) : null}
+                            {hasPendingQueryUpdate ? (
+                                <span className="rounded-full border border-cyan-400/20 bg-cyan-500/10 px-2.5 py-1 font-semibold text-cyan-300">
+                                    Updating...
+                                </span>
+                            ) : null}
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={clearOrderFilters}
+                            disabled={activeOrderFilterCount === 0}
+                            className="inline-flex items-center justify-center gap-2 self-start rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-45 sm:self-auto"
+                        >
+                            <i className="fa-solid fa-rotate-left text-[10px]"></i>
+                            Clear Filters
+                        </button>
+                    </div>
+                </div>
+
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
@@ -1034,12 +1238,16 @@ export default function AdminOrders() {
                             </tr>
                         </thead>
                         <tbody>
-                            {orders.length === 0 ? (
+                            {filteredOrders.length === 0 ? (
                                 <tr>
-                                    <td colSpan="7" className="py-12 text-center text-slate-500">No orders found.</td>
+                                    <td colSpan="7" className="px-4 py-12 text-center text-slate-500">
+                                        {orders.length === 0
+                                            ? 'No orders found.'
+                                            : 'No orders match the current filters.'}
+                                    </td>
                                 </tr>
                             ) : (
-                                orders.map((order) => {
+                                filteredOrders.map((order) => {
                                     const isExpanded = expandedOrderId === order.id;
                                     const isTargetedOrder = targetedOrderId === order.id;
                                     const amount = getOrderAmount(order);
@@ -1531,6 +1739,25 @@ function AdminStatusMessageModal({ feedback, onClose, onConfirm }) {
                 </div>
             </div>
         </div>
+    );
+}
+
+function OrderFilterSelect({ label, value, options, onChange }) {
+    return (
+        <label className="block">
+            <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{label}</span>
+            <select
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+                className="w-full rounded-xl border border-white/10 bg-[#10192d] px-3 py-2.5 text-sm font-semibold text-white outline-none transition-colors focus:border-brandGold/35"
+            >
+                {options.map((option) => (
+                    <option key={option.value} value={option.value}>
+                        {option.label}
+                    </option>
+                ))}
+            </select>
+        </label>
     );
 }
 
