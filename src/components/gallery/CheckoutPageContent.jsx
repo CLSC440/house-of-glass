@@ -1202,7 +1202,7 @@ export default function CheckoutPageContent({ checkoutType }) {
     }, [appliedPromoApplicationDetails.isApplicable, appliedPromoApplicationDetails.reason, appliedPromoCode, appliedPromoSettings]);
 
     useEffect(() => {
-        if (!shouldScrollToShippingAddress || !isShippingSelected || !isShippingExpanded || !isShippingAddressFormOpen) {
+        if (!shouldScrollToShippingAddress || !isShippingSelected || !isShippingExpanded) {
             return undefined;
         }
 
@@ -1212,11 +1212,13 @@ export default function CheckoutPageContent({ checkoutType }) {
                 block: 'start'
             });
 
-            const { missingFieldKey } = getShippingAddressValidation(shippingAddressFields);
+            if (isShippingAddressFormOpen) {
+                const { missingFieldKey } = getShippingAddressValidation(shippingAddressFields);
 
-            const targetField = missingFieldKey ? shippingAddressFieldRefs.current[missingFieldKey] : null;
-            if (targetField?.focus) {
-                targetField.focus({ preventScroll: true });
+                const targetField = missingFieldKey ? shippingAddressFieldRefs.current[missingFieldKey] : null;
+                if (targetField?.focus) {
+                    targetField.focus({ preventScroll: true });
+                }
             }
 
             setShouldScrollToShippingAddress(false);
@@ -1481,6 +1483,21 @@ export default function CheckoutPageContent({ checkoutType }) {
 
         setDeliveryMethod(normalizedMethod);
         setShippingAddressError('');
+
+        if (normalizedMethod === 'shipping') {
+            setExpandedDeliverySection('shipping');
+            setShouldScrollToShippingAddress(true);
+
+            if (savedShippingAddresses.length > 0) {
+                setIsShippingAddressFormOpen(false);
+            } else {
+                setIsShippingAddressFormOpen(true);
+                setMakeShippingAddressDefault(savedShippingAddresses.length === 0 || !defaultShippingAddressId);
+            }
+
+            return;
+        }
+
         setExpandedDeliverySection((current) => (current === normalizedMethod ? current : null));
     };
 
@@ -1941,7 +1958,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                     </div>
 
                     {isShippingExpanded ? (
-                        <div className={`border-t px-4 pb-4 pt-4 ${isShippingSelected ? selectedDeliveryDividerClasses : 'border-brandGold/15 dark:border-brandGold/10'}`}>
+                        <div ref={shippingAddressSectionRef} className={`border-t px-4 pb-4 pt-4 scroll-mt-28 ${isShippingSelected ? selectedDeliveryDividerClasses : 'border-brandGold/15 dark:border-brandGold/10'}`}>
                             {savedShippingAddresses.length > 0 ? (
                                 <div className="mb-4 space-y-3 rounded-[1.1rem] border border-brandGold/15 bg-brandGold/[0.04] p-4 dark:bg-brandGold/[0.08]">
                                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -2028,7 +2045,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                             ) : null}
 
                             {isShippingAddressFormOpen ? (
-                                <div ref={shippingAddressSectionRef} className="mt-4 scroll-mt-28">
+                                <div className="mt-4">
                                     <label className={`block text-right text-[11px] font-black uppercase tracking-[0.2em] ${isShippingSelected ? selectedDeliveryEyebrowClasses : 'text-brandGold'}`}>Shipping Address | عنوان الشحن</label>
                                     <div className="mt-3 grid gap-3 sm:grid-cols-2">
                                         {SHIPPING_ADDRESS_FIELDS.map((field) => (
@@ -2209,7 +2226,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                                         </p>
                                     </div>
 
-                                    <div className="mt-4 grid gap-2.5 sm:gap-3 sm:grid-cols-2">
+                                    <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3">
                                         {shippingPricingDetails.quotes.map((quote) => {
                                             const isSelectedQuote = String(quote?.courierId || '').trim() === shippingPricingDetails.courierId;
                                             const isRecommendedQuote = String(quote?.courierId || '').trim() === shippingPricingDetails.recommendedCourierId;
@@ -2219,30 +2236,31 @@ export default function CheckoutPageContent({ checkoutType }) {
                                                     key={quote.courierId}
                                                     type="button"
                                                     onClick={() => handleSelectShippingCourier(quote.courierId)}
-                                                    className={`rounded-[1rem] border px-3 py-3 text-right transition-colors sm:px-4 sm:py-4 ${isSelectedQuote ? 'border-brandGold/35 bg-brandGold/10 text-brandBlue dark:text-white' : 'border-brandGold/12 bg-white/70 text-brandBlue hover:bg-brandGold/[0.06] dark:bg-gray-900/35 dark:text-slate-200'}`}
+                                                    className={`relative rounded-[1rem] border px-2.5 py-3 text-center transition-colors sm:px-4 sm:py-4 sm:text-right ${isSelectedQuote ? 'border-brandGold/35 bg-brandGold/10 text-brandBlue dark:text-white' : 'border-brandGold/12 bg-white/70 text-brandBlue hover:bg-brandGold/[0.06] dark:bg-gray-900/35 dark:text-slate-200'}`}
                                                 >
-                                                    <div className="flex items-start justify-between gap-2.5 sm:gap-3">
-                                                        <div className="min-w-0 flex-1 text-right">
-                                                            <div className="flex items-start justify-between gap-2 sm:gap-3">
+                                                    <span className={`absolute left-2 top-2 inline-flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full border sm:left-auto sm:right-3 sm:top-3 sm:h-5 sm:w-5 ${isSelectedQuote ? selectedDeliveryCheckClasses : 'border-brandGold/35 bg-transparent text-brandGold/0 dark:border-brandGold/20 dark:text-brandGold/0'}`}>
+                                                        <i className={`fa-solid fa-check text-[9px] sm:text-[10px] ${isSelectedQuote ? 'opacity-100' : 'opacity-0'}`}></i>
+                                                    </span>
+
+                                                    <div className="flex flex-col items-center gap-2 text-center sm:items-stretch sm:gap-3 sm:text-right">
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="flex flex-col items-center gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                                                                 <CourierLogoBadge courierName={quote.courierName} />
-                                                                <div className="flex flex-wrap justify-end gap-1.5 sm:gap-2">
+                                                                <div className="flex flex-wrap justify-center gap-1 sm:justify-end sm:gap-2">
                                                                     {isRecommendedQuote ? (
-                                                                        <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">Recommended</span>
+                                                                        <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[9px] font-black uppercase tracking-[0.15em] text-emerald-600 dark:text-emerald-300 sm:text-[10px] sm:tracking-[0.18em]">Recommended</span>
                                                                     ) : null}
                                                                     {isSelectedQuote ? (
-                                                                        <span className="rounded-full bg-brandBlue/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-brandBlue dark:text-brandGold">Selected</span>
+                                                                        <span className="rounded-full bg-brandBlue/10 px-2 py-1 text-[9px] font-black uppercase tracking-[0.15em] text-brandBlue dark:text-brandGold sm:text-[10px] sm:tracking-[0.18em]">Selected</span>
                                                                     ) : null}
                                                                 </div>
                                                             </div>
-                                                            <p className="mt-2 text-[0.95rem] font-black sm:mt-3 sm:text-base">{quote.courierName || 'شركة شحن'}</p>
-                                                            <p className="mt-1.5 text-[0.92rem] font-black text-emerald-600 dark:text-brandGold sm:mt-2 sm:text-sm">الشحن: {formatCurrency(getSideUpQuoteAmount(quote))}</p>
+                                                            <p className="mt-2 text-[0.92rem] font-black leading-5 sm:mt-3 sm:text-base">{quote.courierName || 'شركة شحن'}</p>
+                                                            <p className="mt-1.5 text-[0.88rem] font-black leading-5 text-emerald-600 dark:text-brandGold sm:mt-2 sm:text-sm">الشحن: {formatCurrency(getSideUpQuoteAmount(quote))}</p>
                                                             {quote.deliveryTime ? (
-                                                                <p className="mt-1.5 text-[11px] font-black leading-5 text-slate-500 dark:text-slate-300 sm:mt-2 sm:text-xs sm:leading-6">المدة المتوقعة: {quote.deliveryTime}</p>
+                                                                <p className="mt-1 text-[10px] font-black leading-4 text-slate-500 dark:text-slate-300 sm:mt-2 sm:text-xs sm:leading-6">المدة: {quote.deliveryTime}</p>
                                                             ) : null}
                                                         </div>
-                                                        <span className={`mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${isSelectedQuote ? selectedDeliveryCheckClasses : 'border-brandGold/35 bg-transparent text-brandGold/0 dark:border-brandGold/20 dark:text-brandGold/0'}`}>
-                                                            <i className={`fa-solid fa-check text-[10px] ${isSelectedQuote ? 'opacity-100' : 'opacity-0'}`}></i>
-                                                        </span>
                                                     </div>
                                                 </button>
                                             );
