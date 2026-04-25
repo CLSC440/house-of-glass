@@ -1,6 +1,6 @@
 import { Cairo, Almarai } from 'next/font/google'
 import Script from 'next/script'
-import { Analytics } from '@vercel/analytics/react'
+import { Analytics } from '@vercel/analytics/next'
 import InstallAppPrompt from '@/components/layout/InstallAppPrompt'
 import NotificationPermissionPrompt from '@/components/layout/NotificationPermissionPrompt'
 import { getSiteOrigin } from '@/lib/site-origin'
