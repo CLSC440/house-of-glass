@@ -38,6 +38,122 @@ function isMylerzCourier(value) {
     return String(value || '').trim().toLowerCase().includes('mylerz');
 }
 
+function normalizeSideUpCourierBrandKey(value) {
+    const normalizedValue = String(value || '').trim().toLowerCase();
+
+    if (!normalizedValue) {
+        return 'generic';
+    }
+
+    if (normalizedValue.includes('mylerz')) {
+        return 'mylerz';
+    }
+
+    if (normalizedValue.includes('aramex')) {
+        return 'aramex';
+    }
+
+    if (normalizedValue.includes('fedex')) {
+        return 'fedex';
+    }
+
+    if (normalizedValue.includes('smsa')) {
+        return 'smsa';
+    }
+
+    if (normalizedValue.includes('j&t') || normalizedValue.includes('j and t') || normalizedValue.includes('jnt')) {
+        return 'jt';
+    }
+
+    if (normalizedValue === 'yfs' || normalizedValue.includes('yalla')) {
+        return 'yfs';
+    }
+
+    return 'generic';
+}
+
+function CourierLogoBadge({ courierName }) {
+    const brandKey = normalizeSideUpCourierBrandKey(courierName);
+    const baseClasses = 'inline-flex h-12 min-w-[7.25rem] items-center justify-center rounded-2xl border px-3 shadow-[0_12px_28px_rgba(15,23,42,0.08)]';
+
+    if (brandKey === 'fedex') {
+        return (
+            <span className={`${baseClasses} border-[#4d148c]/20 bg-white`} aria-hidden="true">
+                <span className="text-[1.35rem] font-black tracking-[-0.08em]">
+                    <span className="text-[#4d148c]">Fed</span>
+                    <span className="text-[#ff6600]">Ex</span>
+                </span>
+            </span>
+        );
+    }
+
+    if (brandKey === 'aramex') {
+        return (
+            <span className={`${baseClasses} border-[#e94e1b]/20 bg-white`} aria-hidden="true">
+                <span className="flex items-center gap-2 text-[#e94e1b]">
+                    <span className="h-[2px] w-4 rounded-full bg-[#e94e1b]"></span>
+                    <span className="text-[1.15rem] font-black italic tracking-[-0.05em] lowercase">aramex</span>
+                    <span className="h-[2px] w-4 rounded-full bg-[#e94e1b]"></span>
+                </span>
+            </span>
+        );
+    }
+
+    if (brandKey === 'smsa') {
+        return (
+            <span className={`${baseClasses} border-[#d7282f]/20 bg-white`} aria-hidden="true">
+                <span className="rounded-xl bg-[#d7282f] px-3 py-1 text-[1rem] font-black uppercase tracking-[0.18em] text-white">
+                    SMSA
+                </span>
+            </span>
+        );
+    }
+
+    if (brandKey === 'jt') {
+        return (
+            <span className={`${baseClasses} border-[#d71920]/20 bg-white`} aria-hidden="true">
+                <span className="flex items-center gap-2 text-[#d71920]">
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#d71920] text-[0.8rem] font-black text-white">J</span>
+                    <span className="text-[1.05rem] font-black tracking-[-0.04em]">J&amp;T</span>
+                </span>
+            </span>
+        );
+    }
+
+    if (brandKey === 'mylerz') {
+        return (
+            <span className={`${baseClasses} border-[#ff4f93]/20 bg-white`} aria-hidden="true">
+                <span className="flex items-center gap-2 text-[#ff4f93]">
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#ff4f93]"></span>
+                    <span className="text-[1.1rem] font-black tracking-[-0.05em]">Mylerz</span>
+                </span>
+            </span>
+        );
+    }
+
+    if (brandKey === 'yfs') {
+        return (
+            <span className={`${baseClasses} border-[#111827]/10 bg-white`} aria-hidden="true">
+                <span className="flex items-center gap-2">
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#35b24a] text-[0.8rem] font-black text-white">Y</span>
+                    <span className="text-[1.05rem] font-black tracking-[0.14em] text-[#111827]">YFS</span>
+                </span>
+            </span>
+        );
+    }
+
+    return (
+        <span className={`${baseClasses} border-brandGold/20 bg-white`} aria-hidden="true">
+            <span className="flex items-center gap-2 text-brandBlue">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-brandBlue text-[0.8rem] font-black text-white">
+                    <i className="fa-solid fa-truck-fast text-[0.75rem]"></i>
+                </span>
+                <span className="text-[0.95rem] font-black">Courier</span>
+            </span>
+        </span>
+    );
+}
+
 function getSideUpQuoteAmount(quote = null) {
     const totalDue = Number(quote?.totalDue);
     if (Number.isFinite(totalDue) && totalDue >= 0) {
@@ -2043,15 +2159,18 @@ export default function CheckoutPageContent({ checkoutType }) {
                                                 >
                                                     <div className="flex items-start justify-between gap-3">
                                                         <div className="min-w-0 flex-1 text-right">
-                                                            <div className="flex flex-wrap justify-end gap-2">
-                                                                {isRecommendedQuote ? (
-                                                                    <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">Recommended</span>
-                                                                ) : null}
-                                                                {isSelectedQuote ? (
-                                                                    <span className="rounded-full bg-brandBlue/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-brandBlue dark:text-brandGold">Selected</span>
-                                                                ) : null}
+                                                            <div className="flex items-start justify-between gap-3">
+                                                                <CourierLogoBadge courierName={quote.courierName} />
+                                                                <div className="flex flex-wrap justify-end gap-2">
+                                                                    {isRecommendedQuote ? (
+                                                                        <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">Recommended</span>
+                                                                    ) : null}
+                                                                    {isSelectedQuote ? (
+                                                                        <span className="rounded-full bg-brandBlue/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-brandBlue dark:text-brandGold">Selected</span>
+                                                                    ) : null}
+                                                                </div>
                                                             </div>
-                                                            <p className="mt-2 text-base font-black">{quote.courierName || 'شركة شحن'}</p>
+                                                            <p className="mt-3 text-base font-black">{quote.courierName || 'شركة شحن'}</p>
                                                             <p className="mt-2 text-sm font-black text-emerald-600 dark:text-brandGold">الشحن: {formatCurrency(getSideUpQuoteAmount(quote))}</p>
                                                             {quote.deliveryTime ? (
                                                                 <p className="mt-2 text-xs font-black text-slate-500 dark:text-slate-300">المدة المتوقعة: {quote.deliveryTime}</p>
