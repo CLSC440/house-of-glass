@@ -640,6 +640,7 @@ function normalizeSideUpAreaOption(area = {}, city = {}) {
 
 function normalizeSideUpPickupAddress(rawAddress = {}) {
     return removeUndefinedFields({
+        pickupLocationId: getPositiveNumber(rawAddress?.id || rawAddress?.pickup_location_id || rawAddress?.pickup_id || rawAddress?.address_id),
         pickupAddress: String(rawAddress?.pickup_address || '').trim() || undefined,
         phone: String(rawAddress?.phone || '').trim() || undefined,
         pickupAreaId: getPositiveNumber(rawAddress?.pickup_area_id),
@@ -939,7 +940,34 @@ function buildPreviewLocation({ city, area }) {
     };
 }
 
-function buildPostmanOrderPayload(order = {}, preview = {}, config = getSideUpConfig()) {
+async function buildSideUpCreatePayloadContext(order = {}, preview = {}) {
+    const destinationZoneId = getPositiveNumber(preview?.location?.zone?.id);
+    const destinationAreaId = getPositiveNumber(preview?.location?.area?.id);
+    const amount = formatOrderAmount(order);
+
+    const [pickupAddressResult, pricingResult] = await Promise.allSettled([
+        getSideUpDefaultPickupAddress(),
+        hasSideUpPricingCredentials() && destinationZoneId
+            ? getSideUpCheapestShippingRate({
+                destinationZoneId,
+                destinationAreaId,
+                paymentMethod: 'COD',
+                codAmount: amount
+            })
+            : Promise.resolve(null)
+    ]);
+
+    const pickupAddress = pickupAddressResult.status === 'fulfilled' ? pickupAddressResult.value : null;
+    const pricing = pricingResult.status === 'fulfilled' ? pricingResult.value : null;
+
+    return removeUndefinedFields({
+        pickupLocationId: getPositiveNumber(pickupAddress?.pickupLocationId),
+        courierName: String(pricing?.courierName || '').trim() || undefined,
+        courierId: getPositiveNumber(pricing?.cheapestQuote?.courierId)
+    });
+}
+
+function buildPostmanOrderPayload(order = {}, preview = {}, createContext = {}, config = getSideUpConfig()) {
     const recipientName = getOrderCustomerName(order);
     const recipientPhone = normalizePhoneNumber(getOrderCustomerPhone(order));
     const shippingAddress = getOrderShippingAddress(order);
@@ -953,7 +981,7 @@ function buildPostmanOrderPayload(order = {}, preview = {}, config = getSideUpCo
         shipment_code: getOrderExternalRef(order) || order.id || undefined,
         item_description: buildOrderItemDescription(order),
         total_cash_collection: amount,
-        courier: config.courierName || undefined,
+        courier: String(createContext?.courierName || config.courierName || '').trim() || undefined,
         zero_cash_collection: amount <= 0,
         landmark: getOrderLandmark(order) || undefined,
         notes: order.customerNotes || order.notes || undefined,
@@ -965,13 +993,13 @@ function buildPostmanOrderPayload(order = {}, preview = {}, config = getSideUpCo
     });
 }
 
-function buildSwaggerOrderPayload(order = {}, preview = {}, config = getSideUpConfig()) {
+function buildSwaggerOrderPayload(order = {}, preview = {}, createContext = {}, config = getSideUpConfig()) {
     const recipientName = getOrderCustomerName(order);
     const recipientPhone = normalizePhoneNumber(getOrderCustomerPhone(order));
     const shippingAddress = getOrderShippingAddress(order);
     const amount = formatOrderAmount(order);
-    const courierId = Number.isFinite(config.courierId) ? config.courierId : undefined;
-    const pickupLocationId = Number.isFinite(config.pickupLocationId) ? config.pickupLocationId : undefined;
+    const courierId = getPositiveNumber(createContext?.courierId) || (Number.isFinite(config.courierId) ? config.courierId : undefined);
+    const pickupLocationId = getPositiveNumber(createContext?.pickupLocationId) || (Number.isFinite(config.pickupLocationId) ? config.pickupLocationId : undefined);
 
     return removeUndefinedFields({
         name: recipientName || undefined,
@@ -981,7 +1009,7 @@ function buildSwaggerOrderPayload(order = {}, preview = {}, config = getSideUpCo
         shipment_code: getOrderExternalRef(order) || order.id || undefined,
         item_description: buildOrderItemDescription(order),
         total_cash_collection: amount,
-        courier: config.courierName || undefined,
+        courier: String(createContext?.courierName || config.courierName || '').trim() || undefined,
         zero_cash_collection: amount <= 0,
         landmark: getOrderLandmark(order) || undefined,
         userId: order.userId || undefined,
@@ -1076,12 +1104,13 @@ export async function buildSideUpOrderPreview(order = {}, { areaHint = '' } = {}
         locationSource: storedLocation ? 'stored' : 'lookup',
         location: buildPreviewLocation({ city, area })
     });
+    const createContext = await buildSideUpCreatePayloadContext(order, preview);
 
     return {
         ...preview,
         payloads: {
-            postman: buildPostmanOrderPayload(order, preview),
-            swagger: buildSwaggerOrderPayload(order, preview)
+            postman: buildPostmanOrderPayload(order, preview, createContext),
+            swagger: buildSwaggerOrderPayload(order, preview, createContext)
         }
     };
 }
