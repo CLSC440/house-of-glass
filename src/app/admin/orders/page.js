@@ -64,8 +64,184 @@ function getOrderShippingAddress(order) {
     return order.shippingAddress || order.customerInfo?.shippingAddress || order.customer?.shippingAddress || '';
 }
 
+function normalizeSideUpCourierBrandKey(value) {
+    const normalizedValue = String(value || '').trim().toLowerCase();
+
+    if (!normalizedValue) {
+        return 'generic';
+    }
+
+    if (normalizedValue.includes('mylerz')) {
+        return 'mylerz';
+    }
+
+    if (normalizedValue.includes('aramex')) {
+        return 'aramex';
+    }
+
+    if (normalizedValue.includes('fedex')) {
+        return 'fedex';
+    }
+
+    if (normalizedValue.includes('smsa')) {
+        return 'smsa';
+    }
+
+    if (normalizedValue === 'jt' || normalizedValue === 'j t' || normalizedValue.includes('j&t') || normalizedValue.includes('j and t') || normalizedValue.includes('jnt')) {
+        return 'jt';
+    }
+
+    if (normalizedValue.includes('pdc')) {
+        return 'pdc';
+    }
+
+    if (normalizedValue === 'yfs' || normalizedValue.includes('yalla')) {
+        return 'yfs';
+    }
+
+    return 'generic';
+}
+
+function formatSideUpCourierDisplayName(value) {
+    const brandKey = normalizeSideUpCourierBrandKey(value);
+
+    if (brandKey === 'jt') {
+        return 'J&T Express';
+    }
+
+    if (brandKey === 'pdc') {
+        return 'PDC';
+    }
+
+    if (brandKey === 'fedex') {
+        return 'FedEx';
+    }
+
+    return String(value || '').trim();
+}
+
+function getOrderSelectedShippingCourierName(order) {
+    const rawCourierName = order.shippingCourierName || order.customerInfo?.shippingCourierName || order.customer?.shippingCourierName || '';
+    return formatSideUpCourierDisplayName(rawCourierName);
+}
+
 function getOrderPromoCode(order) {
     return String(order.promoCode || order.promo_code || '').trim();
+}
+
+function CourierLogoBadge({ courierName }) {
+    const brandKey = normalizeSideUpCourierBrandKey(courierName);
+    const baseClasses = 'inline-flex h-9 min-w-[4.75rem] items-center justify-center rounded-xl border px-2 shadow-[0_10px_24px_rgba(15,23,42,0.16)]';
+
+    if (brandKey === 'fedex') {
+        return (
+            <span className={`${baseClasses} border-[#4d148c]/20 bg-white`} aria-hidden="true">
+                <span className="text-[0.95rem] font-black tracking-[-0.08em]">
+                    <span className="text-[#4d148c]">Fed</span>
+                    <span className="text-[#ff6600]">Ex</span>
+                </span>
+            </span>
+        );
+    }
+
+    if (brandKey === 'aramex') {
+        return (
+            <span className="inline-flex h-9 min-w-[4.75rem] items-center justify-center rounded-xl border border-[#e94e1b]/20 bg-white px-2 shadow-[0_10px_24px_rgba(15,23,42,0.16)]" aria-hidden="true">
+                <span className="flex items-center gap-1 text-[#e94e1b]">
+                    <span className="h-[2px] w-2.5 rounded-full bg-[#e94e1b]"></span>
+                    <span className="text-[0.72rem] font-black italic tracking-[-0.05em] lowercase">aramex</span>
+                    <span className="h-[2px] w-2.5 rounded-full bg-[#e94e1b]"></span>
+                </span>
+            </span>
+        );
+    }
+
+    if (brandKey === 'smsa') {
+        return (
+            <span className={`${baseClasses} border-[#d7282f]/20 bg-white`} aria-hidden="true">
+                <span className="rounded-lg bg-[#d7282f] px-2.5 py-1 text-[0.72rem] font-black uppercase tracking-[0.16em] text-white">
+                    SMSA
+                </span>
+            </span>
+        );
+    }
+
+    if (brandKey === 'jt') {
+        return (
+            <span className="inline-flex h-9 min-w-[4.75rem] items-center justify-center rounded-xl border border-[#d71920]/20 bg-white px-2 shadow-[0_10px_24px_rgba(15,23,42,0.16)]" aria-hidden="true">
+                <span className="flex items-center gap-1 text-[#e53d2f]">
+                    <span className="relative inline-flex flex-col items-start leading-none">
+                        <span className="text-[0.8rem] font-black italic tracking-[-0.08em]">J&amp;T</span>
+                        <span className="absolute -right-2 top-[0.12rem] h-[2px] w-2.5 rounded-full bg-[#e53d2f]"></span>
+                        <span className="absolute -right-2.5 top-[0.38rem] h-[2px] w-3 rounded-full bg-[#e53d2f]"></span>
+                    </span>
+                    <span className="pt-0.5 text-[0.44rem] font-black uppercase tracking-[-0.01em]">Express</span>
+                </span>
+            </span>
+        );
+    }
+
+    if (brandKey === 'pdc') {
+        return (
+            <span className={`${baseClasses} border-[#efb000]/20 bg-white`} aria-hidden="true">
+                <span className="flex items-center gap-2">
+                    <span className="relative h-6 w-4 shrink-0">
+                        <span className="absolute right-0 top-0 h-6 w-3 origin-top -skew-x-[18deg] rounded-tl-[90%] rounded-br-[90%] bg-[#57b6d7]"></span>
+                        <span className="absolute bottom-0 left-0 h-4.5 w-3 origin-bottom skew-x-[18deg] rounded-tr-[90%] rounded-bl-[90%] bg-[#efb000]"></span>
+                    </span>
+                    <span className="text-[0.95rem] font-black italic tracking-[-0.08em] text-[#efb000]">PDC</span>
+                </span>
+            </span>
+        );
+    }
+
+    if (brandKey === 'mylerz') {
+        return (
+            <span className={`${baseClasses} border-[#ff4f93]/20 bg-white`} aria-hidden="true">
+                <span className="flex items-center gap-2 text-[#ff4f93]">
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#ff4f93]"></span>
+                    <span className="text-[0.82rem] font-black tracking-[-0.05em]">Mylerz</span>
+                </span>
+            </span>
+        );
+    }
+
+    if (brandKey === 'yfs') {
+        return (
+            <span className={`${baseClasses} border-[#111827]/10 bg-white`} aria-hidden="true">
+                <span className="flex items-center gap-1.5">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#35b24a] text-[0.72rem] font-black text-white">Y</span>
+                    <span className="text-[0.82rem] font-black tracking-[0.14em] text-[#111827]">YFS</span>
+                </span>
+            </span>
+        );
+    }
+
+    return (
+        <span className={`${baseClasses} border-brandGold/20 bg-white`} aria-hidden="true">
+            <span className="flex items-center gap-2 text-brandBlue">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-brandBlue text-[0.72rem] font-black text-white">
+                    <i className="fa-solid fa-truck-fast text-[0.68rem]"></i>
+                </span>
+                <span className="text-[0.78rem] font-black">Courier</span>
+            </span>
+        </span>
+    );
+}
+
+function CourierSummary({ courierName }) {
+    const displayName = formatSideUpCourierDisplayName(courierName);
+
+    if (!displayName) {
+        return null;
+    }
+
+    return (
+        <span className="inline-flex flex-wrap items-center gap-2">
+            <CourierLogoBadge courierName={displayName} />
+            <span className="font-semibold leading-5 text-inherit">{displayName}</span>
+        </span>
+    );
 }
 
 function getItemUnitPrice(item, orderType) {
@@ -324,6 +500,7 @@ function buildSideUpPreviewFeedbackState(payload = {}) {
     const zoneName = payload?.location?.zone?.name || 'Unknown';
     const shipmentCode = payload?.shipmentCode || payload?.payloads?.postman?.shipment_code || 'Not set';
     const serverMode = payload?.createReady ? 'Create mode ready' : 'Preview only';
+    const selectedCourierName = getOrderSelectedShippingCourierName(payload?.order || {});
 
     return {
         tone: 'info',
@@ -335,6 +512,7 @@ function buildSideUpPreviewFeedbackState(payload = {}) {
             { label: 'City', value: cityName },
             { label: 'Area', value: areaName },
             { label: 'Zone', value: zoneName },
+            { label: 'Selected Courier', value: selectedCourierName ? <CourierSummary courierName={selectedCourierName} /> : 'Not selected' },
             { label: 'Shipment Code', value: shipmentCode },
             { label: 'Server Mode', value: serverMode }
         ]
@@ -346,6 +524,7 @@ function buildSideUpCreateConfirmationState(payload = {}) {
     const areaName = payload?.location?.area?.name || 'Unknown';
     const zoneName = payload?.location?.zone?.name || 'Unknown';
     const shipmentCode = payload?.shipmentCode || payload?.payloads?.postman?.shipment_code || 'Not set';
+    const selectedCourierName = getOrderSelectedShippingCourierName(payload?.order || {});
 
     return {
         tone: 'warning',
@@ -358,6 +537,7 @@ function buildSideUpCreateConfirmationState(payload = {}) {
             { label: 'City', value: cityName },
             { label: 'Area', value: areaName },
             { label: 'Zone', value: zoneName },
+            { label: 'Selected Courier', value: selectedCourierName ? <CourierSummary courierName={selectedCourierName} /> : 'Not selected' },
             { label: 'Shipment Code', value: shipmentCode }
         ],
         confirmLabel: 'Send Now',
@@ -394,7 +574,7 @@ function buildSideUpRefreshFeedbackState(payload = {}) {
         details: [
             { label: 'Shipment Code', value: payload?.shipmentCode || 'Not set' },
             { label: 'Current Status', value: payload?.orderStatus || 'Not returned' },
-            { label: 'Courier', value: payload?.courierName || 'Not returned' },
+            { label: 'Courier', value: payload?.courierName ? <CourierSummary courierName={payload.courierName} /> : 'Not returned' },
             { label: 'SideUp Order ID', value: payload?.sideupOrderId || 'Not returned' }
         ]
     };
@@ -466,6 +646,7 @@ function buildOrderSearchIndex(order = {}) {
         getCustomerEmail(order),
         getCustomerGovernorate(order),
         getOrderShippingAddress(order),
+        getOrderSelectedShippingCourierName(order),
         order.websiteOrderRef,
         order.sideupSync?.shipmentCode,
         order.sideupSync?.orderStatus,
@@ -751,6 +932,8 @@ export default function AdminOrders() {
 
     const handlePreviewSideUp = async (orderId) => {
         const currentUser = auth.currentUser;
+        const selectedOrder = orders.find((entry) => entry.id === orderId) || null;
+
         if (!currentUser) {
             openSideUpMessage(buildSideUpDialogErrorState(
                 'Authentication Required',
@@ -780,7 +963,7 @@ export default function AdminOrders() {
 
                 const payload = await response.json().catch(() => ({}));
                 if (response.ok) {
-                    openSideUpMessage(buildSideUpPreviewFeedbackState(payload));
+                    openSideUpMessage(buildSideUpPreviewFeedbackState({ ...payload, order: selectedOrder }));
                     break;
                 }
 
@@ -817,6 +1000,8 @@ export default function AdminOrders() {
 
     const handleCreateSideUp = async (orderId) => {
         const currentUser = auth.currentUser;
+        const selectedOrder = orders.find((entry) => entry.id === orderId) || null;
+
         if (!currentUser) {
             openSideUpMessage(buildSideUpDialogErrorState(
                 'Authentication Required',
@@ -871,7 +1056,7 @@ export default function AdminOrders() {
                     throw new Error('SideUp server credentials are missing. Add SIDEUP_EMAIL/SIDEUP_PASSWORD or SIDEUP_API_TOKEN first.');
                 }
 
-                const isConfirmed = await openSideUpConfirmation(buildSideUpCreateConfirmationState(previewPayload));
+                const isConfirmed = await openSideUpConfirmation(buildSideUpCreateConfirmationState({ ...previewPayload, order: selectedOrder }));
                 if (!isConfirmed) {
                     return;
                 }
@@ -1325,6 +1510,7 @@ export default function AdminOrders() {
                                         sideupSyncState,
                                         deliveryMethod: deliveryMethodValue
                                     });
+                                    const selectedShippingCourierName = getOrderSelectedShippingCourierName(order);
 
                                     return (
                                         <Fragment key={order.id}>
@@ -1495,6 +1681,12 @@ export default function AdminOrders() {
                                                                         <InfoPill label="Promo Code" value={getOrderPromoCode(order) || 'Not used'} />
                                                                         <InfoPill label="Products Subtotal" value={`${subtotalAmount.toLocaleString()} ج.م`} />
                                                                         <InfoPill label="Shipping Cost" value={`${shippingAmount.toLocaleString()} ج.م`} />
+                                                                        {deliveryMethodValue === 'shipping' ? (
+                                                                            <InfoPill
+                                                                                label="Selected Courier"
+                                                                                value={selectedShippingCourierName ? <CourierSummary courierName={selectedShippingCourierName} /> : 'Not selected'}
+                                                                            />
+                                                                        ) : null}
                                                                         <InfoPill label="Order Total" value={`${preDiscountTotalAmount.toLocaleString()} ج.م`} />
                                                                         <InfoPill label="Discount Applied" value={`${discountAmount.toLocaleString()} ج.م`} tone="danger" />
                                                                         <InfoPill label="Final Total" value={`${amount.toLocaleString()} ج.م`} tone="success" />
@@ -1502,7 +1694,7 @@ export default function AdminOrders() {
                                                                         <InfoPill label="SideUp Sync" value={sideupSyncState.label} />
                                                                         <InfoPill label="SideUp Shipment" value={sideupSyncState.shipmentCode || 'Not assigned'} />
                                                                         <InfoPill label="SideUp Status" value={sideupSyncState.orderStatus || 'Not synced'} />
-                                                                        <InfoPill label="SideUp Courier" value={sideupSyncState.courierName || 'Not synced'} />
+                                                                        <InfoPill label="SideUp Courier" value={sideupSyncState.courierName ? <CourierSummary courierName={sideupSyncState.courierName} /> : 'Not synced'} />
                                                                         <InfoPill label="SideUp Area" value={sideupSyncState.areaName || 'Not resolved'} />
                                                                     </div>
                                                                     {order.dcSync?.dcInvoiceId ? (
@@ -1697,7 +1889,7 @@ function AdminStatusMessageModal({ feedback, onClose, onConfirm }) {
                         {feedback.details.map((detail) => (
                             <div key={detail.label} className="rounded-[1.15rem] border border-white/8 bg-white/[0.03] px-4 py-3.5">
                                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{detail.label}</p>
-                                <p className={`mt-2 text-[15px] font-bold leading-6 ${accentClasses.value}`}>{detail.value}</p>
+                                <div className={`mt-2 text-[15px] font-bold leading-6 ${accentClasses.value}`}>{detail.value}</div>
                             </div>
                         ))}
                     </div>
@@ -2059,7 +2251,7 @@ function InfoPill({ label, value, tone = 'default' }) {
     return (
         <div className={`rounded-xl border px-3 py-2.5 ${toneClasses}`}>
             <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>
-            <p className={`mt-1 text-[13px] font-semibold md:text-sm ${valueClasses}`}>{value}</p>
+            <div className={`mt-1 text-[13px] font-semibold md:text-sm ${valueClasses}`}>{value}</div>
         </div>
     );
 }
