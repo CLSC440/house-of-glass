@@ -61,8 +61,12 @@ function normalizeSideUpCourierBrandKey(value) {
         return 'smsa';
     }
 
-    if (normalizedValue.includes('j&t') || normalizedValue.includes('j and t') || normalizedValue.includes('jnt')) {
+    if (normalizedValue === 'jt' || normalizedValue === 'j t' || normalizedValue.includes('j&t') || normalizedValue.includes('j and t') || normalizedValue.includes('jnt')) {
         return 'jt';
+    }
+
+    if (normalizedValue.includes('pdc')) {
+        return 'pdc';
     }
 
     if (normalizedValue === 'yfs' || normalizedValue.includes('yalla')) {
@@ -70,6 +74,24 @@ function normalizeSideUpCourierBrandKey(value) {
     }
 
     return 'generic';
+}
+
+function formatSideUpCourierDisplayName(value) {
+    const brandKey = normalizeSideUpCourierBrandKey(value);
+
+    if (brandKey === 'jt') {
+        return 'J&T Express';
+    }
+
+    if (brandKey === 'pdc') {
+        return 'PDC';
+    }
+
+    if (brandKey === 'fedex') {
+        return 'FedEx';
+    }
+
+    return String(value || '').trim();
 }
 
 function CourierLogoBadge({ courierName }) {
@@ -112,9 +134,27 @@ function CourierLogoBadge({ courierName }) {
     if (brandKey === 'jt') {
         return (
             <span className={`${baseClasses} border-[#d71920]/20 bg-white`} aria-hidden="true">
-                <span className="flex items-center gap-2 text-[#d71920]">
-                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#d71920] text-[0.8rem] font-black text-white">J</span>
-                    <span className="text-[1.05rem] font-black tracking-[-0.04em]">J&amp;T</span>
+                <span className="flex items-center gap-2 text-[#e53d2f]">
+                    <span className="relative inline-flex flex-col items-start leading-none">
+                        <span className="text-[1.25rem] font-black italic tracking-[-0.08em]">J&amp;T</span>
+                        <span className="absolute -right-3 top-[0.15rem] h-[2px] w-4 rounded-full bg-[#e53d2f]"></span>
+                        <span className="absolute -right-4 top-[0.45rem] h-[2px] w-5 rounded-full bg-[#e53d2f]"></span>
+                    </span>
+                    <span className="pt-0.5 text-[0.85rem] font-black uppercase tracking-[-0.02em]">Express</span>
+                </span>
+            </span>
+        );
+    }
+
+    if (brandKey === 'pdc') {
+        return (
+            <span className={`${baseClasses} border-[#efb000]/20 bg-white`} aria-hidden="true">
+                <span className="flex items-center gap-2.5">
+                    <span className="relative h-8 w-6 shrink-0">
+                        <span className="absolute right-0 top-0 h-8 w-4 origin-top -skew-x-[18deg] rounded-tl-[90%] rounded-br-[90%] bg-[#57b6d7]"></span>
+                        <span className="absolute bottom-0 left-0 h-6 w-4 origin-bottom skew-x-[18deg] rounded-tr-[90%] rounded-bl-[90%] bg-[#efb000]"></span>
+                    </span>
+                    <span className="text-[1.3rem] font-black italic tracking-[-0.08em] text-[#efb000]">PDC</span>
                 </span>
             </span>
         );
@@ -172,7 +212,7 @@ function normalizeSideUpLivePricingQuote(rawQuote = {}) {
 
     return {
         courierId,
-        courierName: String(rawQuote?.courierName || rawQuote?.name || '').trim(),
+        courierName: formatSideUpCourierDisplayName(rawQuote?.courierName || rawQuote?.name || ''),
         deliveryTime: String(rawQuote?.deliveryTime || rawQuote?.delivery_time || '').trim(),
         totalDue: getSideUpQuoteAmount({ totalDue: rawQuote?.totalDue }),
         deliveryFees: getSideUpQuoteAmount({ deliveryFees: rawQuote?.deliveryFees }),
