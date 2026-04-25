@@ -207,7 +207,22 @@ function getOrderLandmark(order = {}) {
 }
 
 function normalizePhoneNumber(value) {
-    return String(value ?? '').replace(/[^\d+]/g, '').trim();
+    const trimmed = String(value ?? '').trim();
+    const digits = trimmed.replace(/\D/g, '');
+
+    if (/^20\d{10}$/.test(digits)) {
+        return `0${digits.slice(2)}`;
+    }
+
+    if (/^1[0125]\d{8}$/.test(digits)) {
+        return `0${digits}`;
+    }
+
+    if (/^01[0125]\d{8}$/.test(digits)) {
+        return digits;
+    }
+
+    return trimmed.replace(/[^\d+]/g, '').trim();
 }
 
 function formatOrderAmount(order = {}) {
@@ -300,6 +315,13 @@ function extractErrorMessage(payload, fallbackMessage) {
         return fallbackMessage;
     }
 
+    const nestedPayloadCandidates = [
+        payload.data,
+        payload.error,
+        payload.errors,
+        payload.status
+    ].filter((value) => value && typeof value === 'object');
+
     if (typeof payload.message === 'string' && payload.message.trim()) {
         return payload.message.trim();
     }
@@ -315,6 +337,24 @@ function extractErrorMessage(payload, fallbackMessage) {
 
         if (firstMessage) {
             return firstMessage.trim();
+        }
+    }
+
+    for (const candidate of nestedPayloadCandidates) {
+        if (typeof candidate.message === 'string' && candidate.message.trim()) {
+            return candidate.message.trim();
+        }
+
+        if (typeof candidate.error === 'string' && candidate.error.trim()) {
+            return candidate.error.trim();
+        }
+
+        const nestedFirstMessage = Object.values(candidate)
+            .flatMap((value) => Array.isArray(value) ? value : [value])
+            .find((value) => typeof value === 'string' && value.trim());
+
+        if (nestedFirstMessage) {
+            return nestedFirstMessage.trim();
         }
     }
 
@@ -934,6 +974,21 @@ function buildSwaggerOrderPayload(order = {}, preview = {}, config = getSideUpCo
     const pickupLocationId = Number.isFinite(config.pickupLocationId) ? config.pickupLocationId : undefined;
 
     return removeUndefinedFields({
+        name: recipientName || undefined,
+        phone: recipientPhone || undefined,
+        address: shippingAddress || undefined,
+        area_id: preview?.location?.area?.id,
+        shipment_code: getOrderExternalRef(order) || order.id || undefined,
+        item_description: buildOrderItemDescription(order),
+        total_cash_collection: amount,
+        courier: config.courierName || undefined,
+        zero_cash_collection: amount <= 0,
+        landmark: getOrderLandmark(order) || undefined,
+        userId: order.userId || undefined,
+        email: getOrderEmail(order) || undefined,
+        isNewDashboard: true,
+        online_payment: 'cod',
+        reverse_order: 0,
         receiver_name: recipientName || undefined,
         receiver_phone: recipientPhone || undefined,
         receiver_address: shippingAddress || undefined,
