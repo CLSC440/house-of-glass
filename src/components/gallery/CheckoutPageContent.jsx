@@ -2226,7 +2226,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                                         </p>
                                     </div>
 
-                                    <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-2 lg:gap-4 2xl:grid-cols-3">
+                                    <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3 lg:flex lg:flex-nowrap lg:gap-4 lg:overflow-x-auto lg:pb-2">
                                         {shippingPricingDetails.quotes.map((quote) => {
                                             const isSelectedQuote = String(quote?.courierId || '').trim() === shippingPricingDetails.courierId;
                                             const isRecommendedQuote = String(quote?.courierId || '').trim() === shippingPricingDetails.recommendedCourierId;
@@ -2236,7 +2236,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                                                     key={quote.courierId}
                                                     type="button"
                                                     onClick={() => handleSelectShippingCourier(quote.courierId)}
-                                                    className={`relative rounded-[1rem] border px-2.5 py-3 text-center transition-colors sm:px-4 sm:py-4 lg:px-4 lg:py-4 ${isSelectedQuote ? 'border-brandGold/35 bg-brandGold/10 text-brandBlue dark:text-white' : 'border-brandGold/12 bg-white/70 text-brandBlue hover:bg-brandGold/[0.06] dark:bg-gray-900/35 dark:text-slate-200'}`}
+                                                    className={`relative rounded-[1rem] border px-2.5 py-3 text-center transition-colors sm:px-4 sm:py-4 lg:w-[240px] lg:flex-none lg:px-4 lg:py-4 ${isSelectedQuote ? 'border-brandGold/35 bg-brandGold/10 text-brandBlue dark:text-white' : 'border-brandGold/12 bg-white/70 text-brandBlue hover:bg-brandGold/[0.06] dark:bg-gray-900/35 dark:text-slate-200'}`}
                                                 >
                                                     <span className={`absolute left-2 top-2 inline-flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full border sm:left-auto sm:right-3 sm:top-3 sm:h-5 sm:w-5 ${isSelectedQuote ? selectedDeliveryCheckClasses : 'border-brandGold/35 bg-transparent text-brandGold/0 dark:border-brandGold/20 dark:text-brandGold/0'}`}>
                                                         <i className={`fa-solid fa-check text-[9px] sm:text-[10px] ${isSelectedQuote ? 'opacity-100' : 'opacity-0'}`}></i>
