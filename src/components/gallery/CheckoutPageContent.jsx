@@ -2226,7 +2226,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                                         </p>
                                     </div>
 
-                                    <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-[repeat(auto-fit,minmax(220px,1fr))] lg:gap-4">
+                                    <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-2 lg:gap-4 2xl:grid-cols-3">
                                         {shippingPricingDetails.quotes.map((quote) => {
                                             const isSelectedQuote = String(quote?.courierId || '').trim() === shippingPricingDetails.courierId;
                                             const isRecommendedQuote = String(quote?.courierId || '').trim() === shippingPricingDetails.recommendedCourierId;
