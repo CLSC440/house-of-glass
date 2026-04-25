@@ -962,15 +962,24 @@ async function buildSideUpCreatePayloadContext(order = {}, preview = {}) {
     const pickupAddress = pickupAddressResult.status === 'fulfilled' ? pickupAddressResult.value : null;
     const pricing = pricingResult.status === 'fulfilled' ? pricingResult.value : null;
     const pricingQuotes = Array.isArray(pricing?.quotes) ? pricing.quotes : [];
-    const preferredPricingQuote = pricingQuotes.find((quote) => getPositiveNumber(quote?.courierId) === preferredCourierId)
-        || pricingQuotes.find((quote) => preferredCourierName && String(quote?.courierName || '').trim().toLowerCase() === preferredCourierName.toLowerCase())
-        || pricing?.cheapestQuote
-        || null;
+    const preferredQuoteById = pricingQuotes.find((quote) => getPositiveNumber(quote?.courierId) === preferredCourierId) || null;
+    const preferredQuoteByName = pricingQuotes.find((quote) => preferredCourierName && String(quote?.courierName || '').trim().toLowerCase() === preferredCourierName.toLowerCase()) || null;
+    const preferredPricingQuote = preferredQuoteById || preferredQuoteByName || pricing?.cheapestQuote || null;
+    const courierResolution = preferredQuoteById
+        ? 'preferred-id'
+        : preferredQuoteByName
+            ? 'preferred-name'
+            : pricing?.cheapestQuote
+                ? 'fallback-cheapest'
+                : preferredCourierName || preferredCourierId
+                    ? 'stored-selection'
+                    : 'default';
 
     return removeUndefinedFields({
         pickupLocationId: getPositiveNumber(pickupAddress?.pickupLocationId),
         courierName: String(preferredPricingQuote?.courierName || preferredCourierName || pricing?.courierName || '').trim() || undefined,
-        courierId: getPositiveNumber(preferredPricingQuote?.courierId) || preferredCourierId || getPositiveNumber(pricing?.cheapestQuote?.courierId)
+        courierId: getPositiveNumber(preferredPricingQuote?.courierId) || preferredCourierId || getPositiveNumber(pricing?.cheapestQuote?.courierId),
+        courierResolution: courierResolution || undefined
     });
 }
 
@@ -1246,6 +1255,11 @@ export async function buildSideUpOrderPreview(order = {}, { areaHint = '' } = {}
 
     return {
         ...preview,
+        resolvedCourier: removeUndefinedFields({
+            id: getPositiveNumber(createContext?.courierId),
+            name: String(createContext?.courierName || '').trim() || undefined,
+            resolution: String(createContext?.courierResolution || '').trim() || undefined
+        }),
         payloads: {
             postman: buildPostmanOrderPayload(order, preview, createContext),
             swagger: buildSwaggerOrderPayload(order, preview, createContext)

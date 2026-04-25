@@ -156,6 +156,7 @@ export async function POST(request) {
                 mode,
                 createReady: hasSideUpCreateCredentials(),
                 location: preview.location,
+                resolvedCourier: preview.resolvedCourier || null,
                 payloads: preview.payloads,
                 shipmentCode: preview.payloads?.postman?.shipment_code || null
             });

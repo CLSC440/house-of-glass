@@ -501,6 +501,15 @@ function buildSideUpPreviewFeedbackState(payload = {}) {
     const shipmentCode = payload?.shipmentCode || payload?.payloads?.postman?.shipment_code || 'Not set';
     const serverMode = payload?.createReady ? 'Create mode ready' : 'Preview only';
     const selectedCourierName = getOrderSelectedShippingCourierName(payload?.order || {});
+    const resolvedCourierName = formatSideUpCourierDisplayName(payload?.resolvedCourier?.name || '');
+    const resolvedCourierResolution = String(payload?.resolvedCourier?.resolution || '').trim();
+    const resolvedCourierHelpText = resolvedCourierResolution === 'fallback-cheapest'
+        ? 'Fallback to the cheapest available courier for this address.'
+        : resolvedCourierResolution === 'preferred-id' || resolvedCourierResolution === 'preferred-name'
+            ? 'This matches the customer\'s selected courier.'
+            : resolvedCourierResolution === 'stored-selection'
+                ? 'Using the stored courier selection directly.'
+                : '';
 
     return {
         tone: 'info',
@@ -513,6 +522,15 @@ function buildSideUpPreviewFeedbackState(payload = {}) {
             { label: 'Area', value: areaName },
             { label: 'Zone', value: zoneName },
             { label: 'Selected Courier', value: selectedCourierName ? <CourierSummary courierName={selectedCourierName} /> : 'Not selected' },
+            {
+                label: 'Will Send With',
+                value: resolvedCourierName ? (
+                    <div className="space-y-1">
+                        <CourierSummary courierName={resolvedCourierName} />
+                        {resolvedCourierHelpText ? <p className="text-xs font-medium text-slate-400">{resolvedCourierHelpText}</p> : null}
+                    </div>
+                ) : 'Not resolved'
+            },
             { label: 'Shipment Code', value: shipmentCode },
             { label: 'Server Mode', value: serverMode }
         ]
@@ -525,6 +543,15 @@ function buildSideUpCreateConfirmationState(payload = {}) {
     const zoneName = payload?.location?.zone?.name || 'Unknown';
     const shipmentCode = payload?.shipmentCode || payload?.payloads?.postman?.shipment_code || 'Not set';
     const selectedCourierName = getOrderSelectedShippingCourierName(payload?.order || {});
+    const resolvedCourierName = formatSideUpCourierDisplayName(payload?.resolvedCourier?.name || '');
+    const resolvedCourierResolution = String(payload?.resolvedCourier?.resolution || '').trim();
+    const resolvedCourierHelpText = resolvedCourierResolution === 'fallback-cheapest'
+        ? 'This send will use the cheapest available courier instead of the original selection.'
+        : resolvedCourierResolution === 'preferred-id' || resolvedCourierResolution === 'preferred-name'
+            ? 'This send will use the customer\'s selected courier.'
+            : resolvedCourierResolution === 'stored-selection'
+                ? 'This send will use the stored courier selection directly.'
+                : '';
 
     return {
         tone: 'warning',
@@ -538,6 +565,15 @@ function buildSideUpCreateConfirmationState(payload = {}) {
             { label: 'Area', value: areaName },
             { label: 'Zone', value: zoneName },
             { label: 'Selected Courier', value: selectedCourierName ? <CourierSummary courierName={selectedCourierName} /> : 'Not selected' },
+            {
+                label: 'Will Send With',
+                value: resolvedCourierName ? (
+                    <div className="space-y-1">
+                        <CourierSummary courierName={resolvedCourierName} />
+                        {resolvedCourierHelpText ? <p className="text-xs font-medium text-slate-400">{resolvedCourierHelpText}</p> : null}
+                    </div>
+                ) : 'Not resolved'
+            },
             { label: 'Shipment Code', value: shipmentCode }
         ],
         confirmLabel: 'Send Now',
