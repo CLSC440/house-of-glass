@@ -318,67 +318,97 @@ function getSideUpRefreshButtonLabel({ isRefreshing, canRefreshSideUp, sideupSyn
     return 'Unavailable';
 }
 
-function buildSideUpPreviewMessage(payload = {}) {
+function buildSideUpPreviewFeedbackState(payload = {}) {
     const cityName = payload?.location?.city?.name || 'Unknown';
     const areaName = payload?.location?.area?.name || 'Unknown';
     const zoneName = payload?.location?.zone?.name || 'Unknown';
     const shipmentCode = payload?.shipmentCode || payload?.payloads?.postman?.shipment_code || 'Not set';
-    const createModeLine = payload?.createReady
-        ? 'Server create mode is configured when you want to go live.'
-        : 'Server is preview-only until SideUp credentials are added.';
+    const serverMode = payload?.createReady ? 'Create mode ready' : 'Preview only';
 
-    return [
-        'SideUp preview is ready.',
-        `City: ${cityName}`,
-        `Area: ${areaName}`,
-        `Zone: ${zoneName}`,
-        `Shipment Code: ${shipmentCode}`,
-        createModeLine
-    ].join('\n');
+    return {
+        tone: 'info',
+        icon: 'fa-location-dot',
+        eyebrow: 'SideUp Preview',
+        title: 'Preview Ready',
+        description: 'Resolved SideUp delivery details for this order before sending it live.',
+        details: [
+            { label: 'City', value: cityName },
+            { label: 'Area', value: areaName },
+            { label: 'Zone', value: zoneName },
+            { label: 'Shipment Code', value: shipmentCode },
+            { label: 'Server Mode', value: serverMode }
+        ]
+    };
 }
 
-function buildSideUpCreateConfirmationMessage(payload = {}) {
+function buildSideUpCreateConfirmationState(payload = {}) {
     const cityName = payload?.location?.city?.name || 'Unknown';
     const areaName = payload?.location?.area?.name || 'Unknown';
     const zoneName = payload?.location?.zone?.name || 'Unknown';
     const shipmentCode = payload?.shipmentCode || payload?.payloads?.postman?.shipment_code || 'Not set';
 
-    return [
-        'Create a real SideUp test order now?',
-        `City: ${cityName}`,
-        `Area: ${areaName}`,
-        `Zone: ${zoneName}`,
-        `Shipment Code: ${shipmentCode}`,
-        'Press OK to send this order to SideUp for real.'
-    ].join('\n');
+    return {
+        tone: 'warning',
+        icon: 'fa-paper-plane',
+        variant: 'confirm',
+        eyebrow: 'SideUp Send',
+        title: 'Send Order To SideUp?',
+        description: 'This will create a real shipment on SideUp for this order.',
+        details: [
+            { label: 'City', value: cityName },
+            { label: 'Area', value: areaName },
+            { label: 'Zone', value: zoneName },
+            { label: 'Shipment Code', value: shipmentCode }
+        ],
+        confirmLabel: 'Send Now',
+        cancelLabel: 'Cancel'
+    };
 }
 
-function buildSideUpCreateSuccessMessage(payload = {}, previewPayload = {}) {
+function buildSideUpCreateSuccessFeedbackState(payload = {}, previewPayload = {}) {
     const shipmentCode = payload?.shipmentCode || previewPayload?.shipmentCode || previewPayload?.payloads?.postman?.shipment_code || 'Not set';
     const sideupOrderId = payload?.sideupOrderId || 'Not returned';
     const payloadFormat = payload?.usedPayloadFormat || 'unknown';
 
-    return [
-        'SideUp test order created successfully.',
-        `Shipment Code: ${shipmentCode}`,
-        `SideUp Order ID: ${sideupOrderId}`,
-        `Payload Format: ${payloadFormat}`
-    ].join('\n');
+    return {
+        tone: 'success',
+        icon: 'fa-circle-check',
+        eyebrow: 'SideUp Send',
+        title: 'Order Sent Successfully',
+        description: 'A real SideUp shipment was created successfully for this order.',
+        details: [
+            { label: 'Shipment Code', value: shipmentCode },
+            { label: 'SideUp Order ID', value: sideupOrderId },
+            { label: 'Payload Format', value: payloadFormat }
+        ]
+    };
 }
 
-function buildSideUpRefreshSuccessMessage(payload = {}) {
-    const shipmentCode = payload?.shipmentCode || 'Not set';
-    const orderStatus = payload?.orderStatus || 'Not returned';
-    const courierName = payload?.courierName || 'Not returned';
-    const sideupOrderId = payload?.sideupOrderId || 'Not returned';
+function buildSideUpRefreshFeedbackState(payload = {}) {
+    return {
+        tone: 'success',
+        icon: 'fa-rotate-right',
+        eyebrow: 'SideUp Status',
+        title: 'Status Refreshed',
+        description: 'Latest shipment details were pulled successfully from SideUp.',
+        details: [
+            { label: 'Shipment Code', value: payload?.shipmentCode || 'Not set' },
+            { label: 'Current Status', value: payload?.orderStatus || 'Not returned' },
+            { label: 'Courier', value: payload?.courierName || 'Not returned' },
+            { label: 'SideUp Order ID', value: payload?.sideupOrderId || 'Not returned' }
+        ]
+    };
+}
 
-    return [
-        'SideUp status refreshed successfully.',
-        `Shipment Code: ${shipmentCode}`,
-        `Current Status: ${orderStatus}`,
-        `Courier: ${courierName}`,
-        `SideUp Order ID: ${sideupOrderId}`
-    ].join('\n');
+function buildSideUpDialogErrorState(title, message) {
+    return {
+        tone: 'error',
+        icon: 'fa-circle-exclamation',
+        eyebrow: 'SideUp',
+        title,
+        description: message,
+        details: []
+    };
 }
 
 export default function AdminOrders() {
@@ -391,11 +421,13 @@ export default function AdminOrders() {
     const [previewingSideUpOrderId, setPreviewingSideUpOrderId] = useState(null);
     const [creatingSideUpOrderId, setCreatingSideUpOrderId] = useState(null);
     const [refreshingSideUpOrderId, setRefreshingSideUpOrderId] = useState(null);
+    const [sideUpDialogState, setSideUpDialogState] = useState(null);
     const [openStatusMenuId, setOpenStatusMenuId] = useState(null);
     const [editingOrder, setEditingOrder] = useState(null);
     const [editingForm, setEditingForm] = useState(null);
     const [isSavingOrder, setIsSavingOrder] = useState(false);
     const statusMenuRef = useRef(null);
+    const sideUpDialogResolverRef = useRef(null);
     const catalogEntries = useMemo(() => buildCatalogEntries(allProducts), [allProducts]);
     const targetedOrderId = String(searchParams.get('orderId') || '').trim();
 
@@ -444,6 +476,50 @@ export default function AdminOrders() {
 
         return () => window.clearTimeout(timeoutId);
     }, [orders, targetedOrderId]);
+
+    useEffect(() => () => {
+        if (sideUpDialogResolverRef.current) {
+            sideUpDialogResolverRef.current(false);
+            sideUpDialogResolverRef.current = null;
+        }
+    }, []);
+
+    const closeSideUpDialog = (result = false) => {
+        setSideUpDialogState(null);
+
+        if (sideUpDialogResolverRef.current) {
+            const resolve = sideUpDialogResolverRef.current;
+            sideUpDialogResolverRef.current = null;
+            resolve(result);
+        }
+    };
+
+    const openSideUpMessage = (feedback) => {
+        if (sideUpDialogResolverRef.current) {
+            sideUpDialogResolverRef.current(false);
+            sideUpDialogResolverRef.current = null;
+        }
+
+        setSideUpDialogState({
+            variant: 'message',
+            dismissLabel: 'Done',
+            ...feedback
+        });
+    };
+
+    const openSideUpConfirmation = (feedback) => new Promise((resolve) => {
+        if (sideUpDialogResolverRef.current) {
+            sideUpDialogResolverRef.current(false);
+        }
+
+        sideUpDialogResolverRef.current = resolve;
+        setSideUpDialogState({
+            variant: 'confirm',
+            confirmLabel: 'Confirm',
+            cancelLabel: 'Cancel',
+            ...feedback
+        });
+    });
 
     const handleStatusChange = async (order, newStatus) => {
         try {
@@ -551,7 +627,10 @@ export default function AdminOrders() {
     const handlePreviewSideUp = async (orderId) => {
         const currentUser = auth.currentUser;
         if (!currentUser) {
-            alert('Authentication is required.');
+            openSideUpMessage(buildSideUpDialogErrorState(
+                'Authentication Required',
+                'Sign in again, then retry the SideUp preview.'
+            ));
             return;
         }
 
@@ -576,7 +655,7 @@ export default function AdminOrders() {
 
                 const payload = await response.json().catch(() => ({}));
                 if (response.ok) {
-                    alert(buildSideUpPreviewMessage(payload));
+                    openSideUpMessage(buildSideUpPreviewFeedbackState(payload));
                     break;
                 }
 
@@ -602,7 +681,10 @@ export default function AdminOrders() {
             }
         } catch (error) {
             console.error('SideUp preview failed:', error);
-            alert(error.message || 'Failed to preview SideUp order');
+            openSideUpMessage(buildSideUpDialogErrorState(
+                'Preview Failed',
+                error.message || 'Failed to preview SideUp order'
+            ));
         } finally {
             setPreviewingSideUpOrderId(null);
         }
@@ -611,7 +693,10 @@ export default function AdminOrders() {
     const handleCreateSideUp = async (orderId) => {
         const currentUser = auth.currentUser;
         if (!currentUser) {
-            alert('Authentication is required.');
+            openSideUpMessage(buildSideUpDialogErrorState(
+                'Authentication Required',
+                'Sign in again, then retry sending this order to SideUp.'
+            ));
             return;
         }
 
@@ -661,7 +746,7 @@ export default function AdminOrders() {
                     throw new Error('SideUp server credentials are missing. Add SIDEUP_EMAIL/SIDEUP_PASSWORD or SIDEUP_API_TOKEN first.');
                 }
 
-                const isConfirmed = window.confirm(buildSideUpCreateConfirmationMessage(previewPayload));
+                const isConfirmed = await openSideUpConfirmation(buildSideUpCreateConfirmationState(previewPayload));
                 if (!isConfirmed) {
                     return;
                 }
@@ -681,7 +766,7 @@ export default function AdminOrders() {
 
                 const createPayload = await createResponse.json().catch(() => ({}));
                 if (createResponse.ok) {
-                    alert(buildSideUpCreateSuccessMessage(createPayload, previewPayload));
+                    openSideUpMessage(buildSideUpCreateSuccessFeedbackState(createPayload, previewPayload));
                     break;
                 }
 
@@ -707,7 +792,10 @@ export default function AdminOrders() {
             }
         } catch (error) {
             console.error('SideUp order creation failed:', error);
-            alert(error.message || 'Failed to create SideUp test order');
+            openSideUpMessage(buildSideUpDialogErrorState(
+                'Send Failed',
+                error.message || 'Failed to create SideUp test order'
+            ));
         } finally {
             setCreatingSideUpOrderId(null);
         }
@@ -716,7 +804,10 @@ export default function AdminOrders() {
     const handleRefreshSideUp = async (orderId) => {
         const currentUser = auth.currentUser;
         if (!currentUser) {
-            alert('Authentication is required.');
+            openSideUpMessage(buildSideUpDialogErrorState(
+                'Authentication Required',
+                'Sign in again, then retry refreshing this SideUp shipment.'
+            ));
             return;
         }
 
@@ -740,10 +831,13 @@ export default function AdminOrders() {
                 throw new Error(payload?.error || payload?.message || 'Failed to refresh SideUp status');
             }
 
-            alert(buildSideUpRefreshSuccessMessage(payload));
+            openSideUpMessage(buildSideUpRefreshFeedbackState(payload));
         } catch (error) {
             console.error('SideUp status refresh failed:', error);
-            alert(error.message || 'Failed to refresh SideUp status');
+            openSideUpMessage(buildSideUpDialogErrorState(
+                'Refresh Failed',
+                error.message || 'Failed to refresh SideUp status'
+            ));
         } finally {
             setRefreshingSideUpOrderId(null);
         }
@@ -1290,6 +1384,152 @@ export default function AdminOrders() {
                     onResendInvoice={handleResendInvoice}
                 />
             ) : null}
+
+            <AdminStatusMessageModal
+                feedback={sideUpDialogState}
+                onClose={() => closeSideUpDialog(false)}
+                onConfirm={() => closeSideUpDialog(true)}
+            />
+        </div>
+    );
+}
+
+function AdminStatusMessageModal({ feedback, onClose, onConfirm }) {
+    const isOpen = Boolean(feedback);
+    const tone = ['error', 'warning', 'info', 'success'].includes(feedback?.tone) ? feedback.tone : 'success';
+    const variant = feedback?.variant === 'confirm' ? 'confirm' : 'message';
+
+    useEffect(() => {
+        if (!isOpen) {
+            return undefined;
+        }
+
+        const handleKeyDown = (event) => {
+            if (event.key === 'Escape') {
+                onClose();
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, onClose]);
+
+    if (!isOpen) {
+        return null;
+    }
+
+    const accentClasses = tone === 'error'
+        ? {
+            badge: 'border-rose-400/25 bg-rose-500/12 text-rose-200',
+            icon: 'border-rose-400/30 bg-rose-500/14 text-rose-200',
+            value: 'text-rose-100',
+            button: 'border-rose-400/30 bg-rose-500/14 text-rose-100 hover:bg-rose-500/24'
+        }
+        : tone === 'warning'
+            ? {
+                badge: 'border-amber-400/25 bg-amber-500/12 text-amber-200',
+                icon: 'border-amber-400/30 bg-amber-500/14 text-amber-200',
+                value: 'text-white',
+                button: 'border-amber-400/30 bg-amber-500/14 text-amber-100 hover:bg-amber-500/24'
+            }
+            : tone === 'info'
+                ? {
+                    badge: 'border-cyan-400/25 bg-cyan-500/12 text-cyan-200',
+                    icon: 'border-cyan-400/30 bg-cyan-500/14 text-cyan-200',
+                    value: 'text-white',
+                    button: 'border-cyan-400/30 bg-cyan-500/14 text-cyan-100 hover:bg-cyan-500/24'
+                }
+                : {
+                    badge: 'border-teal-400/25 bg-teal-500/12 text-teal-200',
+                    icon: 'border-teal-400/30 bg-teal-500/14 text-teal-200',
+                    value: 'text-white',
+                    button: 'border-brandGold/30 bg-brandGold/12 text-brandGold hover:bg-brandGold hover:text-brandBlue'
+                };
+
+    const iconName = feedback?.icon || (tone === 'error'
+        ? 'fa-circle-exclamation'
+        : tone === 'warning'
+            ? 'fa-triangle-exclamation'
+            : tone === 'info'
+                ? 'fa-circle-info'
+                : 'fa-circle-check');
+    const secondaryButtonClassName = 'border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 hover:text-white';
+
+    return (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm" onClick={onClose}>
+            <div className="relative w-full max-w-[34rem] overflow-hidden rounded-[1.75rem] border border-white/10 bg-[linear-gradient(180deg,#162038_0%,#10192d_100%)] shadow-[0_30px_80px_rgba(4,8,20,0.55)]" onClick={(event) => event.stopPropagation()}>
+                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent"></div>
+                <div className="flex items-start justify-between gap-4 border-b border-white/8 px-6 py-5">
+                    <div className="flex items-start gap-3">
+                        <div className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border ${accentClasses.icon}`}>
+                            <i className={`fa-solid ${iconName} text-lg`}></i>
+                        </div>
+                        <div>
+                            <p className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.2em] ${accentClasses.badge}`}>
+                                {feedback?.eyebrow || 'Update'}
+                            </p>
+                            <h3 className="mt-3 text-[1.45rem] font-black text-white">{feedback?.title || 'Done'}</h3>
+                            {feedback?.description ? (
+                                <p className="mt-2 max-w-[28rem] text-sm leading-6 text-slate-300">{feedback.description}</p>
+                            ) : null}
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
+                        aria-label="Close status message"
+                    >
+                        <i className="fa-solid fa-xmark text-sm"></i>
+                    </button>
+                </div>
+
+                {Array.isArray(feedback?.details) && feedback.details.length > 0 ? (
+                    <div className="grid gap-3 px-6 py-5 sm:grid-cols-2">
+                        {feedback.details.map((detail) => (
+                            <div key={detail.label} className="rounded-[1.15rem] border border-white/8 bg-white/[0.03] px-4 py-3.5">
+                                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{detail.label}</p>
+                                <p className={`mt-2 text-[15px] font-bold leading-6 ${accentClasses.value}`}>{detail.value}</p>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="px-6 py-5">
+                        <div className="rounded-[1.15rem] border border-white/8 bg-white/[0.03] px-4 py-4 text-sm leading-6 text-slate-300">
+                            {feedback?.description || 'No additional details were returned.'}
+                        </div>
+                    </div>
+                )}
+
+                <div className="flex justify-end gap-2 border-t border-white/8 px-6 py-4">
+                    {variant === 'confirm' ? (
+                        <>
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className={`inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-black uppercase tracking-[0.12em] transition-colors ${secondaryButtonClassName}`}
+                            >
+                                {feedback?.cancelLabel || 'Cancel'}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={onConfirm}
+                                className={`inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-black uppercase tracking-[0.12em] transition-colors ${accentClasses.button}`}
+                            >
+                                {feedback?.confirmLabel || 'Confirm'}
+                            </button>
+                        </>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className={`inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-black uppercase tracking-[0.12em] transition-colors ${accentClasses.button}`}
+                        >
+                            {feedback?.dismissLabel || 'Done'}
+                        </button>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }
