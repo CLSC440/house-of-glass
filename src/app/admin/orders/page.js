@@ -1127,22 +1127,22 @@ export default function AdminOrders() {
                                                         </button>
                                                         <button
                                                             type="button"
-                                                            onClick={() => handleRefreshSideUp(order.id)}
-                                                            disabled={isSideUpRefreshing || isSideUpCreating || isSideUpPreviewing || !canRefreshSideUp}
-                                                            className={`col-start-4 row-start-1 inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${canRefreshSideUp ? 'border-violet-500/25 bg-violet-500/10 text-violet-300 hover:bg-violet-500 hover:text-white' : 'border-white/10 bg-white/5 text-slate-500'}`}
-                                                        >
-                                                            <i className={`fa-solid ${isSideUpRefreshing ? 'fa-spinner fa-spin' : canRefreshSideUp ? 'fa-rotate-right' : 'fa-ban'}`}></i>
-                                                            {sideupRefreshButtonLabel}
-                                                        </button>
-                                                        <button
-                                                            type="button"
                                                             onClick={() => handleCreateSideUp(order.id)}
                                                             disabled={isSideUpCreating || isSideUpPreviewing || isSideUpRefreshing || !canCreateSideUp}
-                                                            className={`col-start-2 col-span-3 row-start-2 inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${canCreateSideUp ? 'border-teal-500/25 bg-teal-500/10 text-teal-300 hover:bg-teal-500 hover:text-[#11192b]' : 'border-white/10 bg-white/5 text-slate-500'}`}
+                                                                className={`col-start-2 col-span-2 row-start-2 inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${canCreateSideUp ? 'border-teal-500/25 bg-teal-500/10 text-teal-300 hover:bg-teal-500 hover:text-[#11192b]' : 'border-white/10 bg-white/5 text-slate-500'}`}
                                                         >
                                                             <i className={`fa-solid ${isSideUpCreating ? 'fa-spinner fa-spin' : canCreateSideUp ? 'fa-paper-plane' : 'fa-ban'}`}></i>
                                                             {sideupCreateButtonLabel}
                                                         </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleRefreshSideUp(order.id)}
+                                                                disabled={isSideUpRefreshing || isSideUpCreating || isSideUpPreviewing || !canRefreshSideUp}
+                                                                className={`col-start-4 row-start-2 inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${canRefreshSideUp ? 'border-violet-500/25 bg-violet-500/10 text-violet-300 hover:bg-violet-500 hover:text-white' : 'border-white/10 bg-white/5 text-slate-500'}`}
+                                                            >
+                                                                <i className={`fa-solid ${isSideUpRefreshing ? 'fa-spinner fa-spin' : canRefreshSideUp ? 'fa-rotate-right' : 'fa-ban'}`}></i>
+                                                                {sideupRefreshButtonLabel}
+                                                            </button>
                                                         <button
                                                             type="button"
                                                             onClick={() => toggleExpandedOrder(order.id)}
