@@ -202,6 +202,8 @@ export function getOrderSideUpSyncState(order = {}) {
     const syncStatus = String(order.sideupSync?.status || '').trim().toLowerCase();
     const shipmentCode = String(order.sideupSync?.shipmentCode || '').trim();
     const areaName = String(order.sideupSync?.areaName || '').trim();
+    const orderStatus = String(order.sideupSync?.orderStatus || '').trim();
+    const courierName = String(order.sideupSync?.courierName || '').trim();
 
     if (deliveryMethod !== 'shipping') {
         return {
@@ -209,7 +211,9 @@ export function getOrderSideUpSyncState(order = {}) {
             tone: 'pickup',
             message: 'This order does not need a shipping shipment',
             shipmentCode: '',
-            areaName: ''
+            areaName: '',
+            orderStatus: '',
+            courierName: ''
         };
     }
 
@@ -219,7 +223,9 @@ export function getOrderSideUpSyncState(order = {}) {
             tone: 'success',
             message: order.sideupSync?.message || 'Order created successfully on SideUp',
             shipmentCode,
-            areaName
+            areaName,
+            orderStatus,
+            courierName
         };
     }
 
@@ -229,7 +235,9 @@ export function getOrderSideUpSyncState(order = {}) {
             tone: 'sending',
             message: order.sideupSync?.message || 'Order is being created on SideUp',
             shipmentCode: '',
-            areaName
+            areaName,
+            orderStatus: '',
+            courierName: ''
         };
     }
 
@@ -239,7 +247,9 @@ export function getOrderSideUpSyncState(order = {}) {
             tone: 'failed',
             message: order.sideupSync?.message || 'SideUp order creation failed',
             shipmentCode,
-            areaName
+            areaName,
+            orderStatus,
+            courierName
         };
     }
 
@@ -248,8 +258,22 @@ export function getOrderSideUpSyncState(order = {}) {
         tone: 'idle',
         message: 'Order has not been sent to SideUp yet',
         shipmentCode: '',
-        areaName
+        areaName,
+        orderStatus: '',
+        courierName: ''
     };
+}
+
+export function canRefreshOrderForSideUp(order = {}) {
+    const deliveryMethod = getOrderDeliveryMethod(order);
+    const shipmentCode = String(order.sideupSync?.shipmentCode || order.websiteOrderRef || '').trim();
+    const sideupSyncStatus = String(order.sideupSync?.status || '').trim().toLowerCase();
+
+    if (deliveryMethod !== 'shipping') {
+        return false;
+    }
+
+    return Boolean(shipmentCode) && sideupSyncStatus !== 'sending';
 }
 
 export function canPreviewOrderForSideUp(order = {}) {

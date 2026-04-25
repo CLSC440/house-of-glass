@@ -1070,6 +1070,137 @@ function normalizeCreateResult(apiPayload = {}, preview = {}, usedPayloadFormat 
     });
 }
 
+function collectSideUpObjects(value, results = []) {
+    if (!value || typeof value !== 'object') {
+        return results;
+    }
+
+    if (Array.isArray(value)) {
+        value.forEach((entry) => collectSideUpObjects(entry, results));
+        return results;
+    }
+
+    results.push(value);
+    Object.values(value).forEach((entry) => collectSideUpObjects(entry, results));
+    return results;
+}
+
+function buildSideUpShipmentCodeCandidates(order = {}) {
+    return Array.from(new Set([
+        order.sideupSync?.shipmentCode,
+        getOrderExternalRef(order),
+        order.websiteOrderRef,
+        order.id
+    ].map((value) => String(value || '').trim()).filter(Boolean)));
+}
+
+function matchesSideUpShipmentCode(record = {}, shipmentCodeCandidates = []) {
+    const normalizedCandidates = shipmentCodeCandidates.map((value) => value.toLowerCase());
+    const recordShipmentCodeCandidates = [
+        record.shipment_code,
+        record.shipmentCode,
+        record.code,
+        record.reference,
+        record.order_reference,
+        record.orderReference,
+        record.merchant_reference,
+        record.merchantReference
+    ].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean);
+
+    return recordShipmentCodeCandidates.some((value) => normalizedCandidates.includes(value));
+}
+
+function findSideUpOrderRecord(payload, shipmentCodeCandidates = []) {
+    const records = collectSideUpObjects(payload, []);
+    return records.find((record) => matchesSideUpShipmentCode(record, shipmentCodeCandidates)) || null;
+}
+
+function normalizeSideUpStatusResult(record = {}, order = {}, requestPath = '') {
+    return removeUndefinedFields({
+        orderId: getPositiveNumber(record?.id || record?.order_id || record?.orderId),
+        shipmentCode: String(record?.shipment_code || record?.shipmentCode || getOrderExternalRef(order) || order.sideupSync?.shipmentCode || '').trim() || undefined,
+        status: String(record?.status || record?.shipment_status || record?.shipmentStatus || record?.order_status || record?.orderStatus || record?.tracking_status || '').trim() || undefined,
+        courierId: getPositiveNumber(record?.courier_id || record?.courierId || record?.courier?.id),
+        courierName: String(record?.courier_name || record?.courierName || record?.courier?.name || '').trim() || undefined,
+        requestPath: requestPath || undefined
+    });
+}
+
+function buildSideUpStatusRequestCandidates(shipmentCode) {
+    const encodedShipmentCode = encodeURIComponent(String(shipmentCode || '').trim());
+    const queryVariants = [
+        `shipment_code=${encodedShipmentCode}`,
+        `search=${encodedShipmentCode}`,
+        `keyword=${encodedShipmentCode}`,
+        `searchTerm=${encodedShipmentCode}`,
+        `filter[shipment_code]=${encodedShipmentCode}`
+    ];
+
+    return [
+        ...queryVariants.flatMap((query) => ([
+            { method: 'GET', path: `/order?${query}` },
+            { method: 'GET', path: `/order/index?${query}` },
+            { method: 'GET', path: `/orders?${query}` },
+            { method: 'GET', path: `/myorders?${query}` }
+        ])),
+        { method: 'GET', path: `/order/${encodedShipmentCode}` },
+        { method: 'GET', path: `/order/show/${encodedShipmentCode}` },
+        { method: 'GET', path: `/orders/${encodedShipmentCode}` },
+        { method: 'POST', path: '/order/search', body: { shipment_code: shipmentCode } },
+        { method: 'POST', path: '/order/search', body: { search: shipmentCode } },
+        { method: 'POST', path: '/order/index', body: { shipment_code: shipmentCode } },
+        { method: 'POST', path: '/order/index', body: { search: shipmentCode } }
+    ];
+}
+
+export async function refreshSideUpOrderStatus(order = {}) {
+    const shipmentCodeCandidates = buildSideUpShipmentCodeCandidates(order);
+    if (shipmentCodeCandidates.length === 0) {
+        throw createError(409, 'This order does not have a SideUp shipment code yet', 'sideup_shipment_code_missing');
+    }
+
+    let lastError = null;
+
+    for (const shipmentCode of shipmentCodeCandidates) {
+        const requestCandidates = buildSideUpStatusRequestCandidates(shipmentCode);
+
+        for (const requestCandidate of requestCandidates) {
+            try {
+                const apiPayload = await sideupFetch(requestCandidate.path, {
+                    method: requestCandidate.method,
+                    auth: 'required',
+                    body: requestCandidate.body
+                });
+
+                const record = findSideUpOrderRecord(apiPayload, shipmentCodeCandidates);
+                if (!record) {
+                    continue;
+                }
+
+                return normalizeSideUpStatusResult(record, order, requestCandidate.path);
+            } catch (error) {
+                lastError = error;
+                const statusCode = Number(error?.status);
+                if (Number.isFinite(statusCode) && [400, 404, 405, 422].includes(statusCode)) {
+                    continue;
+                }
+
+                throw error;
+            }
+        }
+    }
+
+    throw createError(
+        404,
+        'Unable to find this shipment on SideUp right now',
+        'sideup_status_not_found',
+        removeUndefinedFields({
+            shipmentCodes: shipmentCodeCandidates,
+            lastError: lastError?.message || undefined
+        })
+    );
+}
+
 export async function buildSideUpOrderPreview(order = {}, { areaHint = '' } = {}) {
     const governorate = getOrderGovernorate(order);
     const districtName = getOrderDistrict(order);

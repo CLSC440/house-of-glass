@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import firebaseAdminModule from '../../../../api/_firebaseAdmin.js';
-import { buildSideUpOrderPreview, createSideUpOrderForOrder, hasSideUpCreateCredentials } from '@/lib/sideup';
+import { buildSideUpOrderPreview, createSideUpOrderForOrder, hasSideUpCreateCredentials, refreshSideUpOrderStatus } from '@/lib/sideup';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -39,6 +39,11 @@ function canCreateSideUpShipment(order = {}) {
     return deliveryMethod === 'shipping' && status !== 'pending' && status !== 'cancelled';
 }
 
+function canRefreshSideUpShipment(order = {}) {
+    const deliveryMethod = getOrderDeliveryMethod(order);
+    return deliveryMethod === 'shipping' && Boolean(String(order.sideupSync?.shipmentCode || order.websiteOrderRef || '').trim());
+}
+
 function buildRequesterPayload(requester) {
     return requester ? {
         uid: requester.uid,
@@ -60,6 +65,7 @@ function buildSideUpSyncPayload({ status, message, requester, areaHint = '', pre
         shipmentCode: result?.shipmentCode || preview?.payloads?.postman?.shipment_code || undefined,
         sideupOrderId: result?.orderId || undefined,
         orderStatus: result?.status || undefined,
+        courierName: result?.courierName || undefined,
         payloadFormat: result?.payloadFormat || undefined,
         cityId: result?.cityId || preview?.location?.city?.id,
         cityName: result?.cityName || preview?.location?.city?.name,
@@ -109,7 +115,12 @@ export async function POST(request) {
         requestBody = await request.json().catch(() => ({}));
         const orderId = String(requestBody?.orderId || '').trim();
         const areaHint = String(requestBody?.areaHint || '').trim();
-        const mode = String(requestBody?.mode || 'preview').trim().toLowerCase() === 'create' ? 'create' : 'preview';
+        const rawMode = String(requestBody?.mode || 'preview').trim().toLowerCase();
+        const mode = rawMode === 'create'
+            ? 'create'
+            : rawMode === 'refresh'
+                ? 'refresh'
+                : 'preview';
         const force = requestBody?.force === true;
 
         if (!orderId) {
@@ -123,7 +134,11 @@ export async function POST(request) {
         }
 
         const order = { id: orderSnap.id, ...orderSnap.data() };
-        if (!canCreateSideUpShipment(order)) {
+        if (mode === 'refresh' && !canRefreshSideUpShipment(order)) {
+            throw createError(409, 'Only shipping orders with a SideUp shipment code can be refreshed', 'sideup_refresh_not_ready');
+        }
+
+        if (mode !== 'refresh' && !canCreateSideUpShipment(order)) {
             throw createError(409, 'Only reviewed shipping orders can be prepared for SideUp', 'sideup_order_not_ready');
         }
 
@@ -143,6 +158,32 @@ export async function POST(request) {
                 location: preview.location,
                 payloads: preview.payloads,
                 shipmentCode: preview.payloads?.postman?.shipment_code || null
+            });
+        }
+
+        if (mode === 'refresh') {
+            const result = await refreshSideUpOrderStatus(order);
+
+            await orderRef.set({
+                sideupSync: buildSideUpSyncPayload({
+                    status: 'success',
+                    message: result.status
+                        ? `SideUp status: ${result.status}`
+                        : 'Shipment is still registered on SideUp',
+                    requester,
+                    result
+                }),
+                updatedAt: new Date().toISOString(),
+                sideupUpdatedAt: new Date().toISOString()
+            }, { merge: true });
+
+            return NextResponse.json({
+                ok: true,
+                mode,
+                shipmentCode: result.shipmentCode || null,
+                sideupOrderId: result.orderId || null,
+                orderStatus: result.status || null,
+                courierName: result.courierName || null
             });
         }
 

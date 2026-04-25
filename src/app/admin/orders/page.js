@@ -6,7 +6,7 @@ import { addDoc, collection, query, onSnapshot, doc, updateDoc, deleteDoc, serve
 import { auth, db } from '@/lib/firebase';
 import { useGallery } from '@/contexts/GalleryContext';
 import { parseTimestamp } from '@/lib/utils/format';
-import { canCreateOrderForSideUp, canPreviewOrderForSideUp, canSendOrderInvoice, getOrderAmount, getOrderCustomerName, getOrderCustomerPhone, getOrderDateValue, getOrderDiscountAmount, getOrderExternalRef, getOrderDcSyncState, getOrderPreDiscountTotalAmount, getOrderShippingAmount, getOrderSideUpSyncState, getOrderSubtotalAmount } from '@/lib/utils/admin-orders';
+import { canCreateOrderForSideUp, canPreviewOrderForSideUp, canRefreshOrderForSideUp, canSendOrderInvoice, getOrderAmount, getOrderCustomerName, getOrderCustomerPhone, getOrderDateValue, getOrderDiscountAmount, getOrderExternalRef, getOrderDcSyncState, getOrderPreDiscountTotalAmount, getOrderShippingAmount, getOrderSideUpSyncState, getOrderSubtotalAmount } from '@/lib/utils/admin-orders';
 import { ORDER_STATUS_OPTIONS, appendOrderStatusHistory, getAllowedOrderStatusTransitions, getOrderStatusHistory, getOrderStatusMeta, normalizeOrderStatus } from '@/lib/utils/order-status';
 import { buildOrderStatusNotification } from '@/lib/utils/notifications';
 
@@ -309,6 +309,15 @@ function getSideUpCreateButtonLabel({ isCreating, canCreateSideUp, sideupSyncSta
     return 'Unavailable';
 }
 
+function getSideUpRefreshButtonLabel({ isRefreshing, canRefreshSideUp, sideupSyncState, deliveryMethod }) {
+    if (isRefreshing) return 'Refreshing';
+    if (canRefreshSideUp) return 'Refresh Status';
+    if (deliveryMethod !== 'shipping') return 'Pickup Only';
+    if (sideupSyncState.tone === 'sending') return 'Wait';
+    if (!sideupSyncState.shipmentCode) return 'No Shipment';
+    return 'Unavailable';
+}
+
 function buildSideUpPreviewMessage(payload = {}) {
     const cityName = payload?.location?.city?.name || 'Unknown';
     const areaName = payload?.location?.area?.name || 'Unknown';
@@ -357,6 +366,21 @@ function buildSideUpCreateSuccessMessage(payload = {}, previewPayload = {}) {
     ].join('\n');
 }
 
+function buildSideUpRefreshSuccessMessage(payload = {}) {
+    const shipmentCode = payload?.shipmentCode || 'Not set';
+    const orderStatus = payload?.orderStatus || 'Not returned';
+    const courierName = payload?.courierName || 'Not returned';
+    const sideupOrderId = payload?.sideupOrderId || 'Not returned';
+
+    return [
+        'SideUp status refreshed successfully.',
+        `Shipment Code: ${shipmentCode}`,
+        `Current Status: ${orderStatus}`,
+        `Courier: ${courierName}`,
+        `SideUp Order ID: ${sideupOrderId}`
+    ].join('\n');
+}
+
 export default function AdminOrders() {
     const searchParams = useSearchParams();
     const { allProducts } = useGallery();
@@ -366,6 +390,7 @@ export default function AdminOrders() {
     const [syncingOrderId, setSyncingOrderId] = useState(null);
     const [previewingSideUpOrderId, setPreviewingSideUpOrderId] = useState(null);
     const [creatingSideUpOrderId, setCreatingSideUpOrderId] = useState(null);
+    const [refreshingSideUpOrderId, setRefreshingSideUpOrderId] = useState(null);
     const [openStatusMenuId, setOpenStatusMenuId] = useState(null);
     const [editingOrder, setEditingOrder] = useState(null);
     const [editingForm, setEditingForm] = useState(null);
@@ -688,6 +713,42 @@ export default function AdminOrders() {
         }
     };
 
+    const handleRefreshSideUp = async (orderId) => {
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+            alert('Authentication is required.');
+            return;
+        }
+
+        setRefreshingSideUpOrderId(orderId);
+        try {
+            const token = await currentUser.getIdToken();
+            const response = await fetch('/api/integrations/sideup', {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    orderId,
+                    mode: 'refresh'
+                })
+            });
+
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(payload?.error || payload?.message || 'Failed to refresh SideUp status');
+            }
+
+            alert(buildSideUpRefreshSuccessMessage(payload));
+        } catch (error) {
+            console.error('SideUp status refresh failed:', error);
+            alert(error.message || 'Failed to refresh SideUp status');
+        } finally {
+            setRefreshingSideUpOrderId(null);
+        }
+    };
+
     const handleOpenEditOrder = (order) => {
         setEditingOrder(order);
         setEditingForm(buildEditForm(order, catalogEntries));
@@ -905,6 +966,7 @@ export default function AdminOrders() {
                                     const hasStatusTransitions = statusActionOptions.length > 0;
                                     const isSyncing = syncingOrderId === order.id;
                                     const isSideUpCreating = creatingSideUpOrderId === order.id;
+                                    const isSideUpRefreshing = refreshingSideUpOrderId === order.id;
                                     const orderTypeLabel = order.orderType === 'wholesale' ? 'Wholesale Order' : 'Retail Order';
                                     let displayOrder = order;
                                     if (isSyncing) {
@@ -939,6 +1001,7 @@ export default function AdminOrders() {
                                     const sideupSyncState = getOrderSideUpSyncState(displayOrder);
                                     const canPreviewSideUp = canPreviewOrderForSideUp(displayOrder);
                                     const canCreateSideUp = canCreateOrderForSideUp(displayOrder);
+                                    const canRefreshSideUp = canRefreshOrderForSideUp(displayOrder);
                                     const isSideUpPreviewing = previewingSideUpOrderId === order.id;
                                     const sideupButtonLabel = getSideUpButtonLabel({
                                         isPreviewing: isSideUpPreviewing,
@@ -952,6 +1015,12 @@ export default function AdminOrders() {
                                         canCreateSideUp,
                                         sideupSyncState,
                                         normalizedStatus,
+                                        deliveryMethod: deliveryMethodValue
+                                    });
+                                    const sideupRefreshButtonLabel = getSideUpRefreshButtonLabel({
+                                        isRefreshing: isSideUpRefreshing,
+                                        canRefreshSideUp,
+                                        sideupSyncState,
                                         deliveryMethod: deliveryMethodValue
                                     });
 
@@ -1029,7 +1098,7 @@ export default function AdminOrders() {
                                                     </div>
                                                 </td>
                                                 <td className="px-3.5 py-3 align-top">
-                                                    <div className="grid justify-end gap-1.5 [grid-template-columns:auto_max-content_max-content_max-content_auto]">
+                                                    <div className="grid justify-end gap-1.5 [grid-template-columns:auto_max-content_max-content_max-content_max-content_auto]">
                                                         <button
                                                             type="button"
                                                             onClick={() => handleOpenEditOrder(order)}
@@ -1050,7 +1119,7 @@ export default function AdminOrders() {
                                                         <button
                                                             type="button"
                                                             onClick={() => handlePreviewSideUp(order.id)}
-                                                            disabled={isSideUpPreviewing || isSideUpCreating || !canPreviewSideUp}
+                                                            disabled={isSideUpPreviewing || isSideUpCreating || isSideUpRefreshing || !canPreviewSideUp}
                                                             className={`col-start-3 row-start-1 inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${canPreviewSideUp ? 'border-cyan-500/25 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500 hover:text-[#11192b]' : 'border-white/10 bg-white/5 text-slate-500'}`}
                                                         >
                                                             <i className={`fa-solid ${isSideUpPreviewing ? 'fa-spinner fa-spin' : canPreviewSideUp ? 'fa-location-dot' : 'fa-ban'}`}></i>
@@ -1058,9 +1127,18 @@ export default function AdminOrders() {
                                                         </button>
                                                         <button
                                                             type="button"
+                                                            onClick={() => handleRefreshSideUp(order.id)}
+                                                            disabled={isSideUpRefreshing || isSideUpCreating || isSideUpPreviewing || !canRefreshSideUp}
+                                                            className={`col-start-4 row-start-1 inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${canRefreshSideUp ? 'border-violet-500/25 bg-violet-500/10 text-violet-300 hover:bg-violet-500 hover:text-white' : 'border-white/10 bg-white/5 text-slate-500'}`}
+                                                        >
+                                                            <i className={`fa-solid ${isSideUpRefreshing ? 'fa-spinner fa-spin' : canRefreshSideUp ? 'fa-rotate-right' : 'fa-ban'}`}></i>
+                                                            {sideupRefreshButtonLabel}
+                                                        </button>
+                                                        <button
+                                                            type="button"
                                                             onClick={() => handleCreateSideUp(order.id)}
-                                                            disabled={isSideUpCreating || isSideUpPreviewing || !canCreateSideUp}
-                                                            className={`col-start-2 col-span-2 row-start-2 inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${canCreateSideUp ? 'border-teal-500/25 bg-teal-500/10 text-teal-300 hover:bg-teal-500 hover:text-[#11192b]' : 'border-white/10 bg-white/5 text-slate-500'}`}
+                                                            disabled={isSideUpCreating || isSideUpPreviewing || isSideUpRefreshing || !canCreateSideUp}
+                                                            className={`col-start-2 col-span-3 row-start-2 inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${canCreateSideUp ? 'border-teal-500/25 bg-teal-500/10 text-teal-300 hover:bg-teal-500 hover:text-[#11192b]' : 'border-white/10 bg-white/5 text-slate-500'}`}
                                                         >
                                                             <i className={`fa-solid ${isSideUpCreating ? 'fa-spinner fa-spin' : canCreateSideUp ? 'fa-paper-plane' : 'fa-ban'}`}></i>
                                                             {sideupCreateButtonLabel}
@@ -1068,14 +1146,14 @@ export default function AdminOrders() {
                                                         <button
                                                             type="button"
                                                             onClick={() => toggleExpandedOrder(order.id)}
-                                                            className="col-start-4 row-start-2 inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-brandGold/20 bg-brandGold/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-brandGold transition-colors hover:bg-brandGold hover:text-brandBlue"
+                                                            className="col-start-5 row-start-2 inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-brandGold/20 bg-brandGold/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-brandGold transition-colors hover:bg-brandGold hover:text-brandBlue"
                                                         >
                                                             {isExpanded ? 'Hide' : 'View'}
                                                             <i className={`fa-solid ${isExpanded ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
                                                         </button>
                                                         <button
                                                             onClick={() => handleDelete(order.id)}
-                                                            className="col-start-5 row-start-2 flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/10 text-red-400 transition-colors hover:bg-red-500 hover:text-white"
+                                                            className="col-start-6 row-start-2 flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/10 text-red-400 transition-colors hover:bg-red-500 hover:text-white"
                                                             title="Delete Order"
                                                         >
                                                             <i className="fa-solid fa-trash text-[13px]"></i>
@@ -1121,6 +1199,8 @@ export default function AdminOrders() {
                                                                         <InfoPill label="DC Sync" value={dcSyncState.label} />
                                                                         <InfoPill label="SideUp Sync" value={sideupSyncState.label} />
                                                                         <InfoPill label="SideUp Shipment" value={sideupSyncState.shipmentCode || 'Not assigned'} />
+                                                                        <InfoPill label="SideUp Status" value={sideupSyncState.orderStatus || 'Not synced'} />
+                                                                        <InfoPill label="SideUp Courier" value={sideupSyncState.courierName || 'Not synced'} />
                                                                         <InfoPill label="SideUp Area" value={sideupSyncState.areaName || 'Not resolved'} />
                                                                     </div>
                                                                     {order.dcSync?.dcInvoiceId ? (
