@@ -94,14 +94,38 @@ function formatSideUpCourierDisplayName(value) {
     return String(value || '').trim();
 }
 
+function formatSideUpDeliveryTime(value) {
+    const normalizedValue = String(value || '').trim();
+    if (!normalizedValue) {
+        return '';
+    }
+
+    const compactValue = normalizedValue.toLowerCase().replace(/\s+/g, ' ');
+    const fromWorkingDaysMatch = compactValue.match(/^from\s+([0-9]+(?:\.[0-9]+)?)\s+working\s+days?$/i);
+    if (fromWorkingDaysMatch) {
+        return `من ${fromWorkingDaysMatch[1]} يوم عمل`;
+    }
+
+    const rangeWorkingDaysMatch = compactValue.match(/^([0-9]+(?:\.[0-9]+)?)\s*(?:-|to)\s*([0-9]+(?:\.[0-9]+)?)\s+working\s+days?$/i);
+    if (rangeWorkingDaysMatch) {
+        return `من ${rangeWorkingDaysMatch[1]} إلى ${rangeWorkingDaysMatch[2]} يوم عمل`;
+    }
+
+    return normalizedValue
+        .replace(/^from\s+/i, 'من ')
+        .replace(/working\s+days?/gi, 'يوم عمل')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
 function CourierLogoBadge({ courierName }) {
     const brandKey = normalizeSideUpCourierBrandKey(courierName);
-    const baseClasses = 'inline-flex h-12 min-w-[7.25rem] items-center justify-center rounded-2xl border px-3 shadow-[0_12px_28px_rgba(15,23,42,0.08)]';
+    const baseClasses = 'inline-flex h-10 min-w-[5.75rem] items-center justify-center rounded-[1.1rem] border px-2.5 shadow-[0_12px_28px_rgba(15,23,42,0.08)] sm:h-12 sm:min-w-[7.25rem] sm:rounded-2xl sm:px-3';
 
     if (brandKey === 'fedex') {
         return (
             <span className={`${baseClasses} border-[#4d148c]/20 bg-white`} aria-hidden="true">
-                <span className="text-[1.35rem] font-black tracking-[-0.08em]">
+                <span className="text-[1.12rem] font-black tracking-[-0.08em] sm:text-[1.35rem]">
                     <span className="text-[#4d148c]">Fed</span>
                     <span className="text-[#ff6600]">Ex</span>
                 </span>
@@ -114,7 +138,7 @@ function CourierLogoBadge({ courierName }) {
             <span className={`${baseClasses} border-[#e94e1b]/20 bg-white`} aria-hidden="true">
                 <span className="flex items-center gap-2 text-[#e94e1b]">
                     <span className="h-[2px] w-4 rounded-full bg-[#e94e1b]"></span>
-                    <span className="text-[1.15rem] font-black italic tracking-[-0.05em] lowercase">aramex</span>
+                    <span className="text-[0.98rem] font-black italic tracking-[-0.05em] lowercase sm:text-[1.15rem]">aramex</span>
                     <span className="h-[2px] w-4 rounded-full bg-[#e94e1b]"></span>
                 </span>
             </span>
@@ -124,7 +148,7 @@ function CourierLogoBadge({ courierName }) {
     if (brandKey === 'smsa') {
         return (
             <span className={`${baseClasses} border-[#d7282f]/20 bg-white`} aria-hidden="true">
-                <span className="rounded-xl bg-[#d7282f] px-3 py-1 text-[1rem] font-black uppercase tracking-[0.18em] text-white">
+                <span className="rounded-xl bg-[#d7282f] px-3 py-1 text-[0.85rem] font-black uppercase tracking-[0.18em] text-white sm:text-[1rem]">
                     SMSA
                 </span>
             </span>
@@ -134,13 +158,13 @@ function CourierLogoBadge({ courierName }) {
     if (brandKey === 'jt') {
         return (
             <span className={`${baseClasses} border-[#d71920]/20 bg-white`} aria-hidden="true">
-                <span className="flex items-center gap-2 text-[#e53d2f]">
+                <span className="flex items-center gap-1.5 text-[#e53d2f] sm:gap-2">
                     <span className="relative inline-flex flex-col items-start leading-none">
-                        <span className="text-[1.25rem] font-black italic tracking-[-0.08em]">J&amp;T</span>
+                        <span className="text-[1rem] font-black italic tracking-[-0.08em] sm:text-[1.25rem]">J&amp;T</span>
                         <span className="absolute -right-3 top-[0.15rem] h-[2px] w-4 rounded-full bg-[#e53d2f]"></span>
                         <span className="absolute -right-4 top-[0.45rem] h-[2px] w-5 rounded-full bg-[#e53d2f]"></span>
                     </span>
-                    <span className="pt-0.5 text-[0.85rem] font-black uppercase tracking-[-0.02em]">Express</span>
+                    <span className="pt-0.5 text-[0.72rem] font-black uppercase tracking-[-0.02em] sm:text-[0.85rem]">Express</span>
                 </span>
             </span>
         );
@@ -149,12 +173,12 @@ function CourierLogoBadge({ courierName }) {
     if (brandKey === 'pdc') {
         return (
             <span className={`${baseClasses} border-[#efb000]/20 bg-white`} aria-hidden="true">
-                <span className="flex items-center gap-2.5">
-                    <span className="relative h-8 w-6 shrink-0">
-                        <span className="absolute right-0 top-0 h-8 w-4 origin-top -skew-x-[18deg] rounded-tl-[90%] rounded-br-[90%] bg-[#57b6d7]"></span>
-                        <span className="absolute bottom-0 left-0 h-6 w-4 origin-bottom skew-x-[18deg] rounded-tr-[90%] rounded-bl-[90%] bg-[#efb000]"></span>
+                <span className="flex items-center gap-2 sm:gap-2.5">
+                    <span className="relative h-7 w-5 shrink-0 sm:h-8 sm:w-6">
+                        <span className="absolute right-0 top-0 h-7 w-3.5 origin-top -skew-x-[18deg] rounded-tl-[90%] rounded-br-[90%] bg-[#57b6d7] sm:h-8 sm:w-4"></span>
+                        <span className="absolute bottom-0 left-0 h-5 w-3.5 origin-bottom skew-x-[18deg] rounded-tr-[90%] rounded-bl-[90%] bg-[#efb000] sm:h-6 sm:w-4"></span>
                     </span>
-                    <span className="text-[1.3rem] font-black italic tracking-[-0.08em] text-[#efb000]">PDC</span>
+                    <span className="text-[1.08rem] font-black italic tracking-[-0.08em] text-[#efb000] sm:text-[1.3rem]">PDC</span>
                 </span>
             </span>
         );
@@ -165,7 +189,7 @@ function CourierLogoBadge({ courierName }) {
             <span className={`${baseClasses} border-[#ff4f93]/20 bg-white`} aria-hidden="true">
                 <span className="flex items-center gap-2 text-[#ff4f93]">
                     <span className="h-2.5 w-2.5 rounded-full bg-[#ff4f93]"></span>
-                    <span className="text-[1.1rem] font-black tracking-[-0.05em]">Mylerz</span>
+                    <span className="text-[0.98rem] font-black tracking-[-0.05em] sm:text-[1.1rem]">Mylerz</span>
                 </span>
             </span>
         );
@@ -176,7 +200,7 @@ function CourierLogoBadge({ courierName }) {
             <span className={`${baseClasses} border-[#111827]/10 bg-white`} aria-hidden="true">
                 <span className="flex items-center gap-2">
                     <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#35b24a] text-[0.8rem] font-black text-white">Y</span>
-                    <span className="text-[1.05rem] font-black tracking-[0.14em] text-[#111827]">YFS</span>
+                    <span className="text-[0.95rem] font-black tracking-[0.14em] text-[#111827] sm:text-[1.05rem]">YFS</span>
                 </span>
             </span>
         );
@@ -188,7 +212,7 @@ function CourierLogoBadge({ courierName }) {
                 <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-brandBlue text-[0.8rem] font-black text-white">
                     <i className="fa-solid fa-truck-fast text-[0.75rem]"></i>
                 </span>
-                <span className="text-[0.95rem] font-black">Courier</span>
+                <span className="text-[0.85rem] font-black sm:text-[0.95rem]">Courier</span>
             </span>
         </span>
     );
@@ -213,7 +237,7 @@ function normalizeSideUpLivePricingQuote(rawQuote = {}) {
     return {
         courierId,
         courierName: formatSideUpCourierDisplayName(rawQuote?.courierName || rawQuote?.name || ''),
-        deliveryTime: String(rawQuote?.deliveryTime || rawQuote?.delivery_time || '').trim(),
+        deliveryTime: formatSideUpDeliveryTime(rawQuote?.deliveryTime || rawQuote?.delivery_time || ''),
         totalDue: getSideUpQuoteAmount({ totalDue: rawQuote?.totalDue }),
         deliveryFees: getSideUpQuoteAmount({ deliveryFees: rawQuote?.deliveryFees }),
         vatAmount: parseAmount(rawQuote?.vatAmount ?? rawQuote?.vat),
@@ -2185,7 +2209,7 @@ export default function CheckoutPageContent({ checkoutType }) {
                                         </p>
                                     </div>
 
-                                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                                    <div className="mt-4 grid gap-2.5 sm:gap-3 sm:grid-cols-2">
                                         {shippingPricingDetails.quotes.map((quote) => {
                                             const isSelectedQuote = String(quote?.courierId || '').trim() === shippingPricingDetails.courierId;
                                             const isRecommendedQuote = String(quote?.courierId || '').trim() === shippingPricingDetails.recommendedCourierId;
@@ -2195,13 +2219,13 @@ export default function CheckoutPageContent({ checkoutType }) {
                                                     key={quote.courierId}
                                                     type="button"
                                                     onClick={() => handleSelectShippingCourier(quote.courierId)}
-                                                    className={`rounded-[1rem] border px-4 py-4 text-right transition-colors ${isSelectedQuote ? 'border-brandGold/35 bg-brandGold/10 text-brandBlue dark:text-white' : 'border-brandGold/12 bg-white/70 text-brandBlue hover:bg-brandGold/[0.06] dark:bg-gray-900/35 dark:text-slate-200'}`}
+                                                    className={`rounded-[1rem] border px-3 py-3 text-right transition-colors sm:px-4 sm:py-4 ${isSelectedQuote ? 'border-brandGold/35 bg-brandGold/10 text-brandBlue dark:text-white' : 'border-brandGold/12 bg-white/70 text-brandBlue hover:bg-brandGold/[0.06] dark:bg-gray-900/35 dark:text-slate-200'}`}
                                                 >
-                                                    <div className="flex items-start justify-between gap-3">
+                                                    <div className="flex items-start justify-between gap-2.5 sm:gap-3">
                                                         <div className="min-w-0 flex-1 text-right">
-                                                            <div className="flex items-start justify-between gap-3">
+                                                            <div className="flex items-start justify-between gap-2 sm:gap-3">
                                                                 <CourierLogoBadge courierName={quote.courierName} />
-                                                                <div className="flex flex-wrap justify-end gap-2">
+                                                                <div className="flex flex-wrap justify-end gap-1.5 sm:gap-2">
                                                                     {isRecommendedQuote ? (
                                                                         <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">Recommended</span>
                                                                     ) : null}
@@ -2210,10 +2234,10 @@ export default function CheckoutPageContent({ checkoutType }) {
                                                                     ) : null}
                                                                 </div>
                                                             </div>
-                                                            <p className="mt-3 text-base font-black">{quote.courierName || 'شركة شحن'}</p>
-                                                            <p className="mt-2 text-sm font-black text-emerald-600 dark:text-brandGold">الشحن: {formatCurrency(getSideUpQuoteAmount(quote))}</p>
+                                                            <p className="mt-2 text-[0.95rem] font-black sm:mt-3 sm:text-base">{quote.courierName || 'شركة شحن'}</p>
+                                                            <p className="mt-1.5 text-[0.92rem] font-black text-emerald-600 dark:text-brandGold sm:mt-2 sm:text-sm">الشحن: {formatCurrency(getSideUpQuoteAmount(quote))}</p>
                                                             {quote.deliveryTime ? (
-                                                                <p className="mt-2 text-xs font-black text-slate-500 dark:text-slate-300">المدة المتوقعة: {quote.deliveryTime}</p>
+                                                                <p className="mt-1.5 text-[11px] font-black leading-5 text-slate-500 dark:text-slate-300 sm:mt-2 sm:text-xs sm:leading-6">المدة المتوقعة: {quote.deliveryTime}</p>
                                                             ) : null}
                                                         </div>
                                                         <span className={`mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${isSelectedQuote ? selectedDeliveryCheckClasses : 'border-brandGold/35 bg-transparent text-brandGold/0 dark:border-brandGold/20 dark:text-brandGold/0'}`}>
