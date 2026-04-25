@@ -1880,7 +1880,7 @@ export function GalleryProvider({ children }) {
         }
     };
 
-    const buildOrderPayload = ({ currentUser, profileData, items, subtotalAmount, shippingAmount, discountAmount, totalPrice, itemCount, orderType, promoCode, promoDiscountType, promoDiscountValue, deliveryMethod, shippingAddress, shippingGovernorate, shippingZone, shippingDistrict, shippingDistrictId, shippingCityId, shippingCityName, shippingZoneId, shippingRecipientName, shippingRecipientPhone, shippingAddressId }) => {
+    const buildOrderPayload = ({ currentUser, profileData, items, subtotalAmount, shippingAmount, discountAmount, totalPrice, itemCount, orderType, promoCode, promoDiscountType, promoDiscountValue, deliveryMethod, shippingAddress, shippingGovernorate, shippingZone, shippingDistrict, shippingDistrictId, shippingCityId, shippingCityName, shippingZoneId, shippingRecipientName, shippingRecipientPhone, shippingAddressId, shippingCourierId, shippingCourierName, shippingCourierDeliveryTime }) => {
         const customerName = profileData.name
             || [profileData.firstName, profileData.lastName].filter(Boolean).join(' ')
             || currentUser.displayName
@@ -1903,6 +1903,9 @@ export function GalleryProvider({ children }) {
         const normalizedShippingCityName = normalizedDeliveryMethod === 'shipping' ? String(shippingCityName || '').trim() : '';
         const normalizedShippingZoneId = normalizedDeliveryMethod === 'shipping' ? String(shippingZoneId || '').trim() : '';
         const normalizedShippingAddressId = normalizedDeliveryMethod === 'shipping' ? String(shippingAddressId || '').trim() : '';
+        const normalizedShippingCourierId = normalizedDeliveryMethod === 'shipping' ? String(shippingCourierId || '').trim() : '';
+        const normalizedShippingCourierName = normalizedDeliveryMethod === 'shipping' ? String(shippingCourierName || '').trim() : '';
+        const normalizedShippingCourierDeliveryTime = normalizedDeliveryMethod === 'shipping' ? String(shippingCourierDeliveryTime || '').trim() : '';
         const normalizedShippingRecipientName = normalizedDeliveryMethod === 'shipping'
             ? (String(shippingRecipientName || '').trim() || customerName)
             : customerName;
@@ -1925,7 +1928,10 @@ export function GalleryProvider({ children }) {
                 shippingDistrictId: normalizedShippingDistrictId,
                 shippingCityId: normalizedShippingCityId,
                 shippingCityName: normalizedShippingCityName,
-                shippingZoneId: normalizedShippingZoneId
+                shippingZoneId: normalizedShippingZoneId,
+                shippingCourierId: normalizedShippingCourierId,
+                shippingCourierName: normalizedShippingCourierName,
+                shippingCourierDeliveryTime: normalizedShippingCourierDeliveryTime
             },
             customerInfo: {
                 uid: currentUser.uid,
@@ -1941,7 +1947,10 @@ export function GalleryProvider({ children }) {
                 shippingDistrictId: normalizedShippingDistrictId,
                 shippingCityId: normalizedShippingCityId,
                 shippingCityName: normalizedShippingCityName,
-                shippingZoneId: normalizedShippingZoneId
+                shippingZoneId: normalizedShippingZoneId,
+                shippingCourierId: normalizedShippingCourierId,
+                shippingCourierName: normalizedShippingCourierName,
+                shippingCourierDeliveryTime: normalizedShippingCourierDeliveryTime
             },
             items,
             subtotalAmount,
@@ -1959,6 +1968,9 @@ export function GalleryProvider({ children }) {
             shippingCityName: normalizedShippingCityName,
             shippingZoneId: normalizedShippingZoneId,
             shippingAddressId: normalizedShippingAddressId,
+            shippingCourierId: normalizedShippingCourierId,
+            shippingCourierName: normalizedShippingCourierName,
+            shippingCourierDeliveryTime: normalizedShippingCourierDeliveryTime,
             shippingRecipient: {
                 name: normalizedShippingRecipientName,
                 phone: normalizedShippingRecipientPhone
@@ -2068,7 +2080,10 @@ export function GalleryProvider({ children }) {
                 shippingZoneId: options.shippingZoneId,
                 shippingRecipientName: options.shippingRecipientName,
                 shippingRecipientPhone: options.shippingRecipientPhone,
-                shippingAddressId: options.shippingAddressId
+                shippingAddressId: options.shippingAddressId,
+                shippingCourierId: options.shippingCourierId,
+                shippingCourierName: options.shippingCourierName,
+                shippingCourierDeliveryTime: options.shippingCourierDeliveryTime
             });
 
             orderData.websiteOrderRef = await allocateWebsiteOrderRef();
@@ -2157,7 +2172,10 @@ export function GalleryProvider({ children }) {
                 shippingZoneId: options.shippingZoneId,
                 shippingRecipientName: options.shippingRecipientName,
                 shippingRecipientPhone: options.shippingRecipientPhone,
-                shippingAddressId: options.shippingAddressId
+                shippingAddressId: options.shippingAddressId,
+                shippingCourierId: options.shippingCourierId,
+                shippingCourierName: options.shippingCourierName,
+                shippingCourierDeliveryTime: options.shippingCourierDeliveryTime
             });
 
             orderData.websiteOrderRef = await allocateWebsiteOrderRef();

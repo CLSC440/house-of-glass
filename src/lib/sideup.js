@@ -944,6 +944,8 @@ async function buildSideUpCreatePayloadContext(order = {}, preview = {}) {
     const destinationZoneId = getPositiveNumber(preview?.location?.zone?.id);
     const destinationAreaId = getPositiveNumber(preview?.location?.area?.id);
     const amount = formatOrderAmount(order);
+    const preferredCourierId = getPositiveNumber(order.shippingCourierId || order.customerInfo?.shippingCourierId || order.customer?.shippingCourierId);
+    const preferredCourierName = String(order.shippingCourierName || order.customerInfo?.shippingCourierName || order.customer?.shippingCourierName || '').trim();
 
     const [pickupAddressResult, pricingResult] = await Promise.allSettled([
         getSideUpDefaultPickupAddress(),
@@ -959,11 +961,16 @@ async function buildSideUpCreatePayloadContext(order = {}, preview = {}) {
 
     const pickupAddress = pickupAddressResult.status === 'fulfilled' ? pickupAddressResult.value : null;
     const pricing = pricingResult.status === 'fulfilled' ? pricingResult.value : null;
+    const pricingQuotes = Array.isArray(pricing?.quotes) ? pricing.quotes : [];
+    const preferredPricingQuote = pricingQuotes.find((quote) => getPositiveNumber(quote?.courierId) === preferredCourierId)
+        || pricingQuotes.find((quote) => preferredCourierName && String(quote?.courierName || '').trim().toLowerCase() === preferredCourierName.toLowerCase())
+        || pricing?.cheapestQuote
+        || null;
 
     return removeUndefinedFields({
         pickupLocationId: getPositiveNumber(pickupAddress?.pickupLocationId),
-        courierName: String(pricing?.courierName || '').trim() || undefined,
-        courierId: getPositiveNumber(pricing?.cheapestQuote?.courierId)
+        courierName: String(preferredPricingQuote?.courierName || preferredCourierName || pricing?.courierName || '').trim() || undefined,
+        courierId: getPositiveNumber(preferredPricingQuote?.courierId) || preferredCourierId || getPositiveNumber(pricing?.cheapestQuote?.courierId)
     });
 }
 
