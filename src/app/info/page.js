@@ -2,12 +2,13 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     IconArrowUpRight,
     IconBrandFacebook,
     IconBrandInstagram,
     IconBrandTiktok,
+    IconChevronDown,
     IconBrandWhatsapp,
     IconMapPin,
     IconMessageCircle,
@@ -43,6 +44,7 @@ function simplifyUrl(value) {
 export default function InfoPage() {
     const { derivedSettings, isLoading } = useSiteSettings();
     const cardsSectionRef = useRef(null);
+    const [isQuickContactOpen, setIsQuickContactOpen] = useState(false);
 
     useEffect(() => {
         let firstFrameId = 0;
@@ -175,36 +177,59 @@ export default function InfoPage() {
                         </div>
 
                         <div className="border-t border-white/10 bg-[linear-gradient(180deg,rgba(212,175,55,0.08),rgba(255,255,255,0.03))] px-5 py-6 md:px-8 md:py-8 lg:border-l lg:border-t-0 lg:px-8 lg:py-10">
-                            <div className="rounded-[1.6rem] border border-white/10 bg-[#0b1324]/88 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                                <p className="text-[11px] font-black uppercase tracking-[0.26em] text-brandGold/80">Quick Contact</p>
-                                <div className="mt-5 flex items-center gap-4">
-                                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-brandGold/20 bg-brandGold/10">
-                                        <Image src="/logo.png" alt="House Of Glass" width={48} height={48} className="h-12 w-12 object-contain" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xl font-black text-white">House Of Glass</p>
-                                        <p className="mt-1 text-sm leading-6 text-slate-300">{derivedSettings.infoPageNote}</p>
-                                    </div>
-                                </div>
-
-                                <div className="mt-6 space-y-3">
-                                    {derivedSettings.phoneNumbers.length > 0 ? derivedSettings.phoneNumbers.map((entry) => (
-                                        <a
-                                            key={entry.digits}
-                                            href={`tel:${entry.digits}`}
-                                            className="flex items-center justify-between rounded-[1.2rem] border border-white/10 bg-white/[0.03] px-4 py-3 transition-colors hover:border-brandGold/30 hover:bg-brandGold/10"
-                                        >
-                                            <div>
-                                                <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Phone</p>
-                                                <p className="mt-1 text-sm font-bold text-white">{formatPhoneLabel(entry.raw)}</p>
-                                            </div>
-                                            <IconPhoneCall className="h-5 w-5 text-brandGold" />
-                                        </a>
-                                    )) : (
-                                        <div className="rounded-[1.2rem] border border-dashed border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-400">
-                                            Add a phone number from admin settings to show it here.
+                            <div className="rounded-[1.6rem] border border-white/10 bg-[#0b1324]/88 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:p-5">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsQuickContactOpen((currentValue) => !currentValue)}
+                                    aria-expanded={isQuickContactOpen}
+                                    aria-controls="info-quick-contact-panel"
+                                    className="w-full text-left"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-brandGold/20 bg-brandGold/10 md:h-16 md:w-16">
+                                            <Image src="/logo.png" alt="House Of Glass" width={44} height={44} className="h-10 w-10 object-contain md:h-11 md:w-11" />
                                         </div>
-                                    )}
+
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-[11px] font-black uppercase tracking-[0.26em] text-brandGold/80">Quick Contact</p>
+                                            <p className="mt-1 text-xl font-black text-white md:text-[1.75rem]">House Of Glass</p>
+                                            <p className="mt-1 text-sm leading-6 text-slate-300">
+                                                {isQuickContactOpen ? 'اضغط لإخفاء أرقام التواصل الحالية.' : 'اضغط لعرض أرقام التواصل الحالية بسرعة.'}
+                                            </p>
+                                        </div>
+
+                                        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-slate-300 transition-all duration-200 ${isQuickContactOpen ? 'rotate-180 border-brandGold/30 text-brandGold' : ''}`}>
+                                            <IconChevronDown className="h-5 w-5" />
+                                        </div>
+                                    </div>
+                                </button>
+
+                                <div id="info-quick-contact-panel" className={`grid transition-[grid-template-rows,margin,opacity] duration-300 ease-out ${isQuickContactOpen ? 'mt-4 grid-rows-[1fr] opacity-100' : 'mt-0 grid-rows-[0fr] opacity-75'}`}>
+                                    <div className="overflow-hidden">
+                                        <div className="border-t border-white/10 pt-4">
+                                            <p className="text-sm leading-6 text-slate-300">{derivedSettings.infoPageNote}</p>
+
+                                            <div className="mt-4 space-y-3">
+                                                {derivedSettings.phoneNumbers.length > 0 ? derivedSettings.phoneNumbers.map((entry) => (
+                                                    <a
+                                                        key={entry.digits}
+                                                        href={`tel:${entry.digits}`}
+                                                        className="flex items-center justify-between rounded-[1.2rem] border border-white/10 bg-white/[0.03] px-4 py-3 transition-colors hover:border-brandGold/30 hover:bg-brandGold/10"
+                                                    >
+                                                        <div>
+                                                            <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Phone</p>
+                                                            <p className="mt-1 text-sm font-bold text-white">{formatPhoneLabel(entry.raw)}</p>
+                                                        </div>
+                                                        <IconPhoneCall className="h-5 w-5 text-brandGold" />
+                                                    </a>
+                                                )) : (
+                                                    <div className="rounded-[1.2rem] border border-dashed border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-400">
+                                                        Add a phone number from admin settings to show it here.
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
