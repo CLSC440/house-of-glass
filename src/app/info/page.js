@@ -46,6 +46,7 @@ export default function InfoPage() {
     const cardsSectionRef = useRef(null);
     const hasAutoScrolledRef = useRef(false);
     const [isQuickContactOpen, setIsQuickContactOpen] = useState(false);
+    const [isPhoneCardOpen, setIsPhoneCardOpen] = useState(false);
 
     useEffect(() => {
         if (isLoading || hasAutoScrolledRef.current || !cardsSectionRef.current) {
@@ -245,36 +246,92 @@ export default function InfoPage() {
 
                 <section ref={cardsSectionRef} className="grid scroll-mt-6 gap-4 md:grid-cols-2 md:scroll-mt-8 xl:grid-cols-4">
                     {socialCards.map((item) => (
-                        <a
-                            key={item.id}
-                            href={item.href}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="group relative overflow-hidden rounded-[1.6rem] border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.92),rgba(10,15,29,0.96))] p-5 shadow-[0_20px_36px_rgba(2,6,23,0.24)] transition-transform duration-200 hover:-translate-y-1 hover:border-brandGold/30"
-                        >
-                            <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${item.accentClassName} opacity-100 transition-opacity duration-200 group-hover:opacity-100`}></div>
-                            <div className="relative flex h-full flex-col">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-brandGold">
-                                        {item.icon}
-                                    </div>
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-slate-300 transition-colors group-hover:text-brandGold">
-                                        <IconArrowUpRight className="h-4 w-4" />
-                                    </div>
-                                </div>
+                        item.id === 'phone' ? (
+                            <div
+                                key={item.id}
+                                className="group relative overflow-hidden rounded-[1.6rem] border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.92),rgba(10,15,29,0.96))] p-5 shadow-[0_20px_36px_rgba(2,6,23,0.24)] transition-transform duration-200 hover:-translate-y-1 hover:border-brandGold/30"
+                            >
+                                <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${item.accentClassName} opacity-100 transition-opacity duration-200 group-hover:opacity-100`}></div>
+                                <div className="relative flex h-full flex-col">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsPhoneCardOpen((currentValue) => !currentValue)}
+                                        aria-expanded={isPhoneCardOpen}
+                                        aria-controls="info-phone-card-panel"
+                                        className="w-full text-left"
+                                    >
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-brandGold">
+                                                {item.icon}
+                                            </div>
+                                            <div className={`flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-slate-300 transition-all duration-200 ${isPhoneCardOpen ? 'rotate-45 border-brandGold/30 text-brandGold' : 'group-hover:text-brandGold'}`}>
+                                                <IconArrowUpRight className="h-4 w-4" />
+                                            </div>
+                                        </div>
 
-                                <div className="mt-8 flex-1">
-                                    <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Contact Channel</p>
-                                    <h2 className="mt-2 text-2xl font-black text-white">{item.title}</h2>
-                                    <p className="mt-3 text-sm leading-7 text-slate-300">{item.description}</p>
-                                </div>
+                                        <div className="mt-8 flex-1">
+                                            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Contact Channel</p>
+                                            <h2 className="mt-2 text-2xl font-black text-white">{item.title}</h2>
+                                            <p className="mt-3 text-sm leading-7 text-slate-300">{item.description}</p>
+                                        </div>
 
-                                <div className="mt-6 border-t border-white/10 pt-4">
-                                    <p className="text-xs font-black uppercase tracking-[0.18em] text-brandGold/80">Link</p>
-                                    <p className="mt-2 break-all text-sm font-semibold text-slate-100">{item.value}</p>
+                                        <div className="mt-6 border-t border-white/10 pt-4">
+                                            <p className="text-xs font-black uppercase tracking-[0.18em] text-brandGold/80">{isPhoneCardOpen ? 'Phone List' : 'Tap To Open'}</p>
+                                            <p className="mt-2 break-all text-sm font-semibold text-slate-100">{isPhoneCardOpen ? 'اختار الرقم المناسب ليك من الليستة.' : item.value}</p>
+                                        </div>
+                                    </button>
+
+                                    <div id="info-phone-card-panel" className={`overflow-hidden transition-[max-height,margin,opacity] duration-300 ease-out ${isPhoneCardOpen ? 'mt-4 max-h-[28rem] opacity-100' : 'mt-0 max-h-0 opacity-0'}`}>
+                                        <div className="space-y-3 border-t border-white/10 pt-4">
+                                            {derivedSettings.phoneNumbers.map((entry) => (
+                                                <a
+                                                    key={entry.digits}
+                                                    href={`tel:${entry.digits}`}
+                                                    className="flex items-center justify-between rounded-[1.2rem] border border-white/10 bg-white/[0.03] px-4 py-3 transition-colors hover:border-brandGold/30 hover:bg-brandGold/10"
+                                                >
+                                                    <div>
+                                                        <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Phone</p>
+                                                        <p className="mt-1 text-sm font-bold text-white">{formatPhoneLabel(entry.raw)}</p>
+                                                    </div>
+                                                    <IconPhoneCall className="h-5 w-5 text-brandGold" />
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </a>
+                        ) : (
+                            <a
+                                key={item.id}
+                                href={item.href}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="group relative overflow-hidden rounded-[1.6rem] border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.92),rgba(10,15,29,0.96))] p-5 shadow-[0_20px_36px_rgba(2,6,23,0.24)] transition-transform duration-200 hover:-translate-y-1 hover:border-brandGold/30"
+                            >
+                                <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${item.accentClassName} opacity-100 transition-opacity duration-200 group-hover:opacity-100`}></div>
+                                <div className="relative flex h-full flex-col">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-brandGold">
+                                            {item.icon}
+                                        </div>
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-slate-300 transition-colors group-hover:text-brandGold">
+                                            <IconArrowUpRight className="h-4 w-4" />
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-8 flex-1">
+                                        <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Contact Channel</p>
+                                        <h2 className="mt-2 text-2xl font-black text-white">{item.title}</h2>
+                                        <p className="mt-3 text-sm leading-7 text-slate-300">{item.description}</p>
+                                    </div>
+
+                                    <div className="mt-6 border-t border-white/10 pt-4">
+                                        <p className="text-xs font-black uppercase tracking-[0.18em] text-brandGold/80">Link</p>
+                                        <p className="mt-2 break-all text-sm font-semibold text-slate-100">{item.value}</p>
+                                    </div>
+                                </div>
+                            </a>
+                        )
                     ))}
                 </section>
             </main>
