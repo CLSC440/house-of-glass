@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { useEffect, useRef } from 'react';
 import {
     IconArrowUpRight,
     IconBrandFacebook,
@@ -14,6 +15,18 @@ import {
     IconWorldWww
 } from '@tabler/icons-react';
 import { useSiteSettings } from '@/lib/use-site-settings';
+
+function orderInfoCards(cards, orderedIds = []) {
+    const positionMap = new Map(orderedIds.map((id, index) => [id, index]));
+
+    return [...cards].sort((leftCard, rightCard) => {
+        const leftIndex = positionMap.has(leftCard.id) ? positionMap.get(leftCard.id) : Number.MAX_SAFE_INTEGER;
+        const rightIndex = positionMap.has(rightCard.id) ? positionMap.get(rightCard.id) : Number.MAX_SAFE_INTEGER;
+
+        if (leftIndex !== rightIndex) return leftIndex - rightIndex;
+        return 0;
+    });
+}
 
 function formatPhoneLabel(value) {
     const normalized = String(value || '').trim();
@@ -29,8 +42,28 @@ function simplifyUrl(value) {
 
 export default function InfoPage() {
     const { derivedSettings, isLoading } = useSiteSettings();
+    const cardsSectionRef = useRef(null);
 
-    const socialCards = [
+    useEffect(() => {
+        let firstFrameId = 0;
+        let secondFrameId = 0;
+
+        firstFrameId = window.requestAnimationFrame(() => {
+            secondFrameId = window.requestAnimationFrame(() => {
+                cardsSectionRef.current?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            });
+        });
+
+        return () => {
+            window.cancelAnimationFrame(firstFrameId);
+            window.cancelAnimationFrame(secondFrameId);
+        };
+    }, []);
+
+    const socialCards = orderInfoCards([
         {
             id: 'website',
             title: 'Website',
@@ -103,7 +136,7 @@ export default function InfoPage() {
             icon: <IconMapPin className="h-6 w-6" />,
             accentClassName: 'from-[#f97316]/30 via-[#f97316]/10 to-transparent'
         }
-    ].filter((item) => Boolean(item.href));
+    ], derivedSettings.infoPageCardOrder).filter((item) => Boolean(item.href));
 
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.18),transparent_24%),radial-gradient(circle_at_bottom_right,rgba(37,99,235,0.18),transparent_28%),linear-gradient(180deg,#07111f_0%,#020617_100%)] text-white">
@@ -178,7 +211,7 @@ export default function InfoPage() {
                     </div>
                 </section>
 
-                <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <section ref={cardsSectionRef} className="grid scroll-mt-6 gap-4 md:grid-cols-2 md:scroll-mt-8 xl:grid-cols-4">
                     {socialCards.map((item) => (
                         <a
                             key={item.id}

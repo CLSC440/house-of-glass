@@ -6,7 +6,7 @@ import { FloatingDock } from '@/components/ui/floating-dock';
 import { auth, db } from '@/lib/firebase';
 import { CATEGORY_GROUPS_COLLECTION, sortCategoryGroupDocs } from '@/lib/category-groups';
 import { createEmptyPromoCodeEntry, findDuplicatePromoCodes } from '@/lib/promo-codes';
-import { DEFAULT_SITE_SETTINGS, normalizeSiteSettings, useSiteSettings } from '@/lib/use-site-settings';
+import { DEFAULT_SITE_SETTINGS, INFO_PAGE_CARD_IDS, normalizeInfoPageCardOrder, normalizeSiteSettings, useSiteSettings } from '@/lib/use-site-settings';
 import { GOVERNORATE_OPTIONS, SHIPPING_ZONE_RATE_FIELDS } from '@/lib/shipping-zones';
 import { normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
 import { signOut } from 'firebase/auth';
@@ -15,11 +15,13 @@ import {
     IconAdjustmentsCog,
     IconArrowsSort,
     IconChecklist,
+    IconChevronDown,
+    IconChevronUp,
     IconCirclePlus,
     IconClipboardList,
     IconCategory,
     IconEdit,
-    IconHome,
+    IconInfoCircle,
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
     IconLogout2,
@@ -105,6 +107,27 @@ function orderToolbarItems(items = [], orderedIds = []) {
     });
 }
 
+const INFO_PAGE_CARD_LABELS = Object.freeze({
+    website: 'Website',
+    whatsapp: 'WhatsApp',
+    phone: 'Call Us',
+    facebook: 'Facebook',
+    instagram: 'Instagram',
+    tiktok: 'TikTok',
+    channel: 'WhatsApp Channel',
+    maps: 'Maps'
+});
+
+function moveArrayItem(items = [], fromIndex, toIndex) {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= items.length || toIndex >= items.length) {
+        return items;
+    }
+
+    const nextItems = [...items];
+    const [movedItem] = nextItems.splice(fromIndex, 1);
+    nextItems.splice(toIndex, 0, movedItem);
+    return nextItems;
+}
 export default function FloatingDockDemo({
     allProducts = [],
     categories = [],
@@ -269,6 +292,25 @@ export default function FloatingDockDemo({
         { label: 'Info Page', href: '/info' }
     ].filter((linkItem) => Boolean(linkItem.href));
 
+    const infoCardManagerItems = useMemo(() => {
+        const enabledMap = {
+            website: Boolean(settingsForm.website),
+            whatsapp: Boolean(derivedSettings.whatsappUrl),
+            phone: Boolean(derivedSettings.phoneUrl),
+            facebook: Boolean(settingsForm.facebook),
+            instagram: Boolean(settingsForm.instagram),
+            tiktok: Boolean(settingsForm.tiktok),
+            channel: Boolean(settingsForm.whatsappChannel),
+            maps: Boolean(settingsForm.maps)
+        };
+
+        return normalizeInfoPageCardOrder(settingsForm.infoPageCardOrder || INFO_PAGE_CARD_IDS).map((cardId) => ({
+            id: cardId,
+            title: INFO_PAGE_CARD_LABELS[cardId] || cardId,
+            enabled: enabledMap[cardId]
+        }));
+    }, [derivedSettings.phoneUrl, derivedSettings.whatsappUrl, settingsForm.facebook, settingsForm.infoPageCardOrder, settingsForm.instagram, settingsForm.maps, settingsForm.tiktok, settingsForm.website, settingsForm.whatsappChannel]);
+
     const quickActions = [
         {
             id: 'toolbar-collapse',
@@ -310,7 +352,7 @@ export default function FloatingDockDemo({
             title: 'Info Page',
             href: '/info',
             active: pathname === '/info',
-            icon: <IconHome className="h-full w-full" />
+            icon: <IconInfoCircle className="h-full w-full" />
         },
         {
             id: 'server-status',
@@ -354,6 +396,22 @@ export default function FloatingDockDemo({
             ...currentValue,
             [fieldName]: value
         }));
+    };
+
+    const moveInfoPageCard = (cardId, direction) => {
+        setSettingsForm((currentValue) => {
+            const currentOrder = normalizeInfoPageCardOrder(currentValue.infoPageCardOrder);
+            const currentIndex = currentOrder.indexOf(cardId);
+            if (currentIndex === -1) return currentValue;
+
+            const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+            if (nextIndex < 0 || nextIndex >= currentOrder.length) return currentValue;
+
+            return {
+                ...currentValue,
+                infoPageCardOrder: moveArrayItem(currentOrder, currentIndex, nextIndex)
+            };
+        });
     };
 
     const updateShippingRateField = (zoneKey, value) => {
@@ -1305,6 +1363,54 @@ export default function FloatingDockDemo({
                                                 className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white outline-none transition-colors placeholder:text-slate-500 focus:border-brandGold/50"
                                             />
                                         </label>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3 md:col-span-2">
+                                    <div>
+                                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Info Page Card Order</span>
+                                        <p className="mt-2 text-sm leading-7 text-slate-400">
+                                            Reorder the public `/info` cards from here. Enabled cards appear on the page in exactly this order.
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        {infoCardManagerItems.map((item, index) => {
+                                            const isFirst = index === 0;
+                                            const isLast = index === infoCardManagerItems.length - 1;
+
+                                            return (
+                                                <div key={item.id} className="flex flex-col gap-3 rounded-[1.35rem] border border-white/10 bg-white/[0.03] px-4 py-4 md:flex-row md:items-center md:justify-between">
+                                                    <div>
+                                                        <p className="text-sm font-black text-white">{item.title}</p>
+                                                        <p className={`mt-1 text-xs font-black uppercase tracking-[0.18em] ${item.enabled ? 'text-emerald-300' : 'text-amber-300'}`}>
+                                                            {item.enabled ? 'Enabled On Page' : 'Hidden Until Link Exists'}
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-2 self-start md:self-auto">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => moveInfoPageCard(item.id, 'up')}
+                                                            disabled={isFirst}
+                                                            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-slate-200 transition-colors hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-35"
+                                                            aria-label={`Move ${item.title} up`}
+                                                        >
+                                                            <IconChevronUp className="h-5 w-5" />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => moveInfoPageCard(item.id, 'down')}
+                                                            disabled={isLast}
+                                                            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-slate-200 transition-colors hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-35"
+                                                            aria-label={`Move ${item.title} down`}
+                                                        >
+                                                            <IconChevronDown className="h-5 w-5" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             </div>

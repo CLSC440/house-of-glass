@@ -11,6 +11,17 @@ import {
 } from '@/lib/promo-codes';
 import { DEFAULT_SIDEUP_FALLBACK_DELIVERY_RATES, normalizeShippingRates } from '@/lib/shipping-zones';
 
+export const INFO_PAGE_CARD_IDS = Object.freeze([
+    'website',
+    'whatsapp',
+    'phone',
+    'facebook',
+    'instagram',
+    'tiktok',
+    'channel',
+    'maps'
+]);
+
 export const DEFAULT_SITE_SETTINGS = Object.freeze({
     whatsapp: '201026600350',
     priceIncrease: '0',
@@ -29,7 +40,8 @@ export const DEFAULT_SITE_SETTINGS = Object.freeze({
     maps: 'https://maps.google.com',
     infoPageTitle: 'وصل لنا بسهولة',
     infoPageDescription: 'كل طرق التواصل والوصول السريعة لـ House Of Glass في مكان واحد.',
-    infoPageNote: 'اختار الطريقة الأنسب ليك للتواصل أو زيارة الموقع والمتجر.'
+    infoPageNote: 'اختار الطريقة الأنسب ليك للتواصل أو زيارة الموقع والمتجر.',
+    infoPageCardOrder: Object.freeze([...INFO_PAGE_CARD_IDS])
 });
 
 function normalizeText(value, fallback = '') {
@@ -63,6 +75,16 @@ export function getPhoneNumbers(value) {
         .filter((entry, index, list) => list.findIndex((candidate) => candidate.digits === entry.digits) === index);
 }
 
+export function normalizeInfoPageCardOrder(value) {
+    const rawIds = Array.isArray(value) ? value : [];
+    const filteredIds = rawIds.filter((entry, index) => INFO_PAGE_CARD_IDS.includes(entry) && rawIds.indexOf(entry) === index);
+
+    return [
+        ...filteredIds,
+        ...INFO_PAGE_CARD_IDS.filter((entry) => !filteredIds.includes(entry))
+    ];
+}
+
 export function normalizeSiteSettings(settings = {}) {
     const promoCodes = normalizePromoCodes(settings.promoCodes, {
         promoCode: settings.promoCode || DEFAULT_SITE_SETTINGS.promoCode,
@@ -89,7 +111,8 @@ export function normalizeSiteSettings(settings = {}) {
         maps: normalizeText(settings.maps, DEFAULT_SITE_SETTINGS.maps),
         infoPageTitle: normalizeText(settings.infoPageTitle, DEFAULT_SITE_SETTINGS.infoPageTitle),
         infoPageDescription: normalizeText(settings.infoPageDescription, DEFAULT_SITE_SETTINGS.infoPageDescription),
-        infoPageNote: normalizeText(settings.infoPageNote, DEFAULT_SITE_SETTINGS.infoPageNote)
+        infoPageNote: normalizeText(settings.infoPageNote, DEFAULT_SITE_SETTINGS.infoPageNote),
+        infoPageCardOrder: normalizeInfoPageCardOrder(settings.infoPageCardOrder)
     };
 }
 
@@ -150,6 +173,7 @@ export function useSiteSettings() {
             infoPageTitle: siteSettings.infoPageTitle || DEFAULT_SITE_SETTINGS.infoPageTitle,
             infoPageDescription: siteSettings.infoPageDescription || DEFAULT_SITE_SETTINGS.infoPageDescription,
             infoPageNote: siteSettings.infoPageNote || DEFAULT_SITE_SETTINGS.infoPageNote,
+            infoPageCardOrder: normalizeInfoPageCardOrder(siteSettings.infoPageCardOrder),
             priceIncrease: siteSettings.priceIncrease,
             shippingPrice: siteSettings.shipping,
             shippingRates: normalizeShippingRates(siteSettings.shippingRates),
