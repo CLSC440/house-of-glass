@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { toAbsoluteSiteUrl } from '@/lib/site-origin';
 import {
     buildLegacyPromoSettingsFromPromoCodes,
     getActivePromoCodes,
@@ -21,8 +22,14 @@ export const DEFAULT_SITE_SETTINGS = Object.freeze({
     promoDiscountValue: '0',
     phone: '',
     facebook: 'https://www.facebook.com',
+    instagram: '',
+    tiktok: '',
+    website: toAbsoluteSiteUrl('/'),
     whatsappChannel: '',
-    maps: 'https://maps.google.com'
+    maps: 'https://maps.google.com',
+    infoPageTitle: 'وصل لنا بسهولة',
+    infoPageDescription: 'كل طرق التواصل والوصول السريعة لـ House Of Glass في مكان واحد.',
+    infoPageNote: 'اختار الطريقة الأنسب ليك للتواصل أو زيارة الموقع والمتجر.'
 });
 
 function normalizeText(value, fallback = '') {
@@ -75,8 +82,14 @@ export function normalizeSiteSettings(settings = {}) {
         promoDiscountValue: legacyPromoSettings.promoDiscountValue,
         phone: normalizeText(settings.phone, DEFAULT_SITE_SETTINGS.phone),
         facebook: normalizeText(settings.facebook, DEFAULT_SITE_SETTINGS.facebook),
+        instagram: normalizeText(settings.instagram, DEFAULT_SITE_SETTINGS.instagram),
+        tiktok: normalizeText(settings.tiktok, DEFAULT_SITE_SETTINGS.tiktok),
+        website: normalizeText(settings.website, DEFAULT_SITE_SETTINGS.website),
         whatsappChannel: normalizeText(settings.whatsappChannel, DEFAULT_SITE_SETTINGS.whatsappChannel),
-        maps: normalizeText(settings.maps, DEFAULT_SITE_SETTINGS.maps)
+        maps: normalizeText(settings.maps, DEFAULT_SITE_SETTINGS.maps),
+        infoPageTitle: normalizeText(settings.infoPageTitle, DEFAULT_SITE_SETTINGS.infoPageTitle),
+        infoPageDescription: normalizeText(settings.infoPageDescription, DEFAULT_SITE_SETTINGS.infoPageDescription),
+        infoPageNote: normalizeText(settings.infoPageNote, DEFAULT_SITE_SETTINGS.infoPageNote)
     };
 }
 
@@ -129,8 +142,14 @@ export function useSiteSettings() {
             primaryPhone,
             phoneUrl: primaryPhone ? `tel:${primaryPhone}` : '',
             facebookUrl: siteSettings.facebook || DEFAULT_SITE_SETTINGS.facebook,
+            instagramUrl: siteSettings.instagram,
+            tiktokUrl: siteSettings.tiktok,
+            websiteUrl: siteSettings.website || DEFAULT_SITE_SETTINGS.website,
             whatsappChannelUrl: siteSettings.whatsappChannel,
             mapsUrl: siteSettings.maps || DEFAULT_SITE_SETTINGS.maps,
+            infoPageTitle: siteSettings.infoPageTitle || DEFAULT_SITE_SETTINGS.infoPageTitle,
+            infoPageDescription: siteSettings.infoPageDescription || DEFAULT_SITE_SETTINGS.infoPageDescription,
+            infoPageNote: siteSettings.infoPageNote || DEFAULT_SITE_SETTINGS.infoPageNote,
             priceIncrease: siteSettings.priceIncrease,
             shippingPrice: siteSettings.shipping,
             shippingRates: normalizeShippingRates(siteSettings.shippingRates),

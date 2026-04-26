@@ -102,6 +102,7 @@ export default function Footer() {
                     <p>© 2026 Al Ashour Ades. All rights reserved.</p>
                     <div className="flex flex-col items-center gap-4 md:flex-row md:gap-6">
                         <div className="flex items-center gap-4 text-[10px] md:text-xs">
+                            <Link href="/info" className="hover:text-brandGold transition-colors">Info</Link>
                             <Link href="/privacy-policy" className="hover:text-brandGold transition-colors">Privacy Policy</Link>
                             <Link href="/data-deletion" className="hover:text-brandGold transition-colors">Data Deletion</Link>
                         </div>

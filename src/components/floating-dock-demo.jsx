@@ -259,10 +259,14 @@ export default function FloatingDockDemo({
     }, [toolbarOrderIds]);
 
     const settingsLinks = [
+        { label: 'Website', href: derivedSettings.websiteUrl },
         { label: 'WhatsApp', href: derivedSettings.whatsappUrl },
         { label: 'Facebook', href: derivedSettings.facebookUrl },
+        { label: 'Instagram', href: derivedSettings.instagramUrl },
+        { label: 'TikTok', href: derivedSettings.tiktokUrl },
         { label: 'Maps', href: derivedSettings.mapsUrl },
-        { label: 'Channel', href: derivedSettings.whatsappChannelUrl }
+        { label: 'Channel', href: derivedSettings.whatsappChannelUrl },
+        { label: 'Info Page', href: '/info' }
     ].filter((linkItem) => Boolean(linkItem.href));
 
     const quickActions = [
@@ -300,6 +304,13 @@ export default function FloatingDockDemo({
             active: openPanel === 'settings',
             icon: <IconSettings className="h-full w-full" />,
             adminOnly: true
+        },
+        {
+            id: 'info-page',
+            title: 'Info Page',
+            href: '/info',
+            active: pathname === '/info',
+            icon: <IconHome className="h-full w-full" />
         },
         {
             id: 'server-status',
@@ -967,7 +978,7 @@ export default function FloatingDockDemo({
                                 </div>
                             </div>
                             <p className="max-w-3xl text-sm leading-relaxed text-slate-300">
-                                Restored from the legacy admin flow. Saving here updates the same Firestore document used for the public WhatsApp, Facebook, maps, and contact links.
+                                Restored from the legacy admin flow. Saving here updates the same Firestore document used for the public info page, website link, WhatsApp, Facebook, maps, and contact links.
                             </p>
 
                             <div className="grid gap-4 md:grid-cols-2">
@@ -1199,6 +1210,39 @@ export default function FloatingDockDemo({
                                 </label>
 
                                 <label className="space-y-2 md:col-span-2">
+                                    <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Website Link</span>
+                                    <input
+                                        type="url"
+                                        value={settingsForm.website}
+                                        onChange={(event) => updateSettingsField('website', event.target.value)}
+                                        placeholder="https://www.hg-alshour.online"
+                                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white outline-none transition-colors placeholder:text-slate-500 focus:border-brandGold/50"
+                                    />
+                                </label>
+
+                                <label className="space-y-2">
+                                    <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Instagram Link</span>
+                                    <input
+                                        type="url"
+                                        value={settingsForm.instagram}
+                                        onChange={(event) => updateSettingsField('instagram', event.target.value)}
+                                        placeholder="https://www.instagram.com/..."
+                                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white outline-none transition-colors placeholder:text-slate-500 focus:border-brandGold/50"
+                                    />
+                                </label>
+
+                                <label className="space-y-2">
+                                    <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">TikTok Link</span>
+                                    <input
+                                        type="url"
+                                        value={settingsForm.tiktok}
+                                        onChange={(event) => updateSettingsField('tiktok', event.target.value)}
+                                        placeholder="https://www.tiktok.com/@..."
+                                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white outline-none transition-colors placeholder:text-slate-500 focus:border-brandGold/50"
+                                    />
+                                </label>
+
+                                <label className="space-y-2 md:col-span-2">
                                     <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">WhatsApp Channel Link</span>
                                     <input
                                         type="url"
@@ -1219,6 +1263,50 @@ export default function FloatingDockDemo({
                                         className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white outline-none transition-colors placeholder:text-slate-500 focus:border-brandGold/50"
                                     />
                                 </label>
+
+                                <div className="space-y-3 md:col-span-2">
+                                    <div>
+                                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Info Page Copy</span>
+                                        <p className="mt-2 text-sm leading-7 text-slate-400">
+                                            Edit the hero text that appears on the public `/info` page while the cards below continue pulling the live links above.
+                                        </p>
+                                    </div>
+
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        <label className="space-y-2 md:col-span-2">
+                                            <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Info Page Title</span>
+                                            <input
+                                                type="text"
+                                                value={settingsForm.infoPageTitle}
+                                                onChange={(event) => updateSettingsField('infoPageTitle', event.target.value)}
+                                                placeholder="وصل لنا بسهولة"
+                                                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white outline-none transition-colors placeholder:text-slate-500 focus:border-brandGold/50"
+                                            />
+                                        </label>
+
+                                        <label className="space-y-2 md:col-span-2">
+                                            <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Info Page Description</span>
+                                            <textarea
+                                                rows={4}
+                                                value={settingsForm.infoPageDescription}
+                                                onChange={(event) => updateSettingsField('infoPageDescription', event.target.value)}
+                                                placeholder="كل طرق التواصل والوصول السريعة لـ House Of Glass في مكان واحد."
+                                                className="min-h-[132px] w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white outline-none transition-colors placeholder:text-slate-500 focus:border-brandGold/50"
+                                            />
+                                        </label>
+
+                                        <label className="space-y-2 md:col-span-2">
+                                            <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Info Page Note</span>
+                                            <input
+                                                type="text"
+                                                value={settingsForm.infoPageNote}
+                                                onChange={(event) => updateSettingsField('infoPageNote', event.target.value)}
+                                                placeholder="اختار الطريقة الأنسب ليك للتواصل أو زيارة الموقع والمتجر."
+                                                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white outline-none transition-colors placeholder:text-slate-500 focus:border-brandGold/50"
+                                            />
+                                        </label>
+                                    </div>
+                                </div>
                             </div>
 
                             {settingsFeedback ? (
@@ -1231,7 +1319,7 @@ export default function FloatingDockDemo({
                                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                     <div>
                                         <p className="text-[11px] font-black uppercase tracking-[0.22em] text-brandGold/80">Live Preview</p>
-                                        <p className="mt-1 text-sm text-slate-300">Open the current links exactly as the storefront will use them.</p>
+                                        <p className="mt-1 text-sm text-slate-300">Open the current links and the public info page exactly as the storefront will use them.</p>
                                     </div>
                                     <button
                                         type="submit"
