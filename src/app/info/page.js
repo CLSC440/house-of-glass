@@ -44,9 +44,16 @@ function simplifyUrl(value) {
 export default function InfoPage() {
     const { derivedSettings, isLoading } = useSiteSettings();
     const cardsSectionRef = useRef(null);
+    const hasAutoScrolledRef = useRef(false);
     const [isQuickContactOpen, setIsQuickContactOpen] = useState(false);
 
     useEffect(() => {
+        if (isLoading || hasAutoScrolledRef.current || !cardsSectionRef.current) {
+            return undefined;
+        }
+
+        hasAutoScrolledRef.current = true;
+
         let firstFrameId = 0;
         let secondFrameId = 0;
 
@@ -63,7 +70,7 @@ export default function InfoPage() {
             window.cancelAnimationFrame(firstFrameId);
             window.cancelAnimationFrame(secondFrameId);
         };
-    }, []);
+    }, [isLoading]);
 
     const socialCards = orderInfoCards([
         {
@@ -204,8 +211,8 @@ export default function InfoPage() {
                                     </div>
                                 </button>
 
-                                <div id="info-quick-contact-panel" className={`grid transition-[grid-template-rows,margin,opacity] duration-300 ease-out ${isQuickContactOpen ? 'mt-4 grid-rows-[1fr] opacity-100' : 'mt-0 grid-rows-[0fr] opacity-75'}`}>
-                                    <div className="overflow-hidden">
+                                <div id="info-quick-contact-panel" className={`overflow-hidden transition-[max-height,margin,opacity] duration-300 ease-out ${isQuickContactOpen ? 'mt-4 max-h-[32rem] opacity-100' : 'mt-0 max-h-0 opacity-0'}`}>
+                                    <div>
                                         <div className="border-t border-white/10 pt-4">
                                             <p className="text-sm leading-6 text-slate-300">{derivedSettings.infoPageNote}</p>
 
