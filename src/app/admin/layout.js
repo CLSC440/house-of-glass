@@ -17,10 +17,10 @@ export default function AdminLayout({ children }) {
 
     if (isCheckingAuth && !isAuthorized) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-[#0a0f1d]">
+            <div className="min-h-screen flex items-center justify-center bg-slate-100 text-slate-900 dark:bg-[#0a0f1d] dark:text-white">
                 <div className="animate-pulse flex flex-col items-center">
                     <div className="w-12 h-12 border-4 border-brandGold border-t-transparent rounded-full animate-spin"></div>
-                    <p className="mt-4 text-sm font-bold uppercase tracking-widest text-brandBlue dark:text-brandGold">Authenticating...</p>
+                    <p className="mt-4 text-brandGold font-bold tracking-widest text-sm uppercase">Authenticating...</p>
                 </div>
             </div>
         );

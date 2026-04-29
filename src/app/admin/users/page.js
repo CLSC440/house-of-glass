@@ -356,11 +356,11 @@ export default function AdminUsers() {
         });
     };
 
-    if (isCheckingAccess || loading) return <div className="p-8 text-center text-slate-600 dark:text-slate-300">Loading users...</div>;
+    if (isCheckingAccess || loading) return <div className="p-8 text-center">Loading users...</div>;
     if (!canViewUsersPage) return null;
 
     return (
-        <div className="mx-auto max-w-7xl text-slate-900 dark:text-slate-100">
+        <div className="max-w-7xl mx-auto">
             {toast ? <FloatingToast message={toast.message} tone={toast.tone} onClose={() => setToast(null)} /> : null}
             {confirmState ? (
                 <FloatingConfirmDialog
@@ -379,18 +379,18 @@ export default function AdminUsers() {
                     onConfirm={confirmState.onConfirm}
                 />
             ) : null}
-            <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex justify-between items-center mb-8">
                 <div>
-                    <h1 className="mb-2 text-3xl font-black text-slate-950 dark:text-white">User Management</h1>
-                    <p className="text-slate-600 dark:text-gray-400">View registered users and manage their access roles.</p>
+                    <h1 className="text-3xl font-black text-brandBlue dark:text-white mb-2">User Management</h1>
+                    <p className="text-gray-500 dark:text-gray-400">View registered users and manage their access roles.</p>
                     {roleDefinitionsError ? (
-                        <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">Role definitions could not be loaded. Custom roles may appear with fallback labels until refresh.</p>
+                        <p className="mt-2 text-sm text-amber-600 dark:text-amber-300">Role definitions could not be loaded. Custom roles may appear with fallback labels until refresh.</p>
                     ) : null}
                 </div>
                 {canManageUsers ? (
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-3">
                         {canViewRoles ? (
-                            <Link href="/admin/roles" className="inline-flex items-center gap-2 rounded-full border border-fuchsia-200 bg-fuchsia-50 px-4 py-2.5 text-sm font-black text-fuchsia-700 transition-colors hover:bg-fuchsia-100 dark:border-fuchsia-400/30 dark:bg-fuchsia-500/10 dark:text-fuchsia-200 dark:hover:bg-fuchsia-500/18">
+                            <Link href="/admin/roles" className="inline-flex items-center gap-2 rounded-full border border-fuchsia-400/30 bg-fuchsia-500/10 px-4 py-2.5 text-sm font-black text-fuchsia-700 transition-colors hover:bg-fuchsia-500/18 dark:text-fuchsia-200">
                                 <i className="fa-solid fa-user-shield"></i>
                                 Roles Page
                             </Link>
@@ -399,13 +399,13 @@ export default function AdminUsers() {
                             type="button"
                             onClick={handleRebuildLoginLookup}
                             disabled={isRebuildingLoginLookup || users.length === 0}
-                            className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm font-black text-sky-700 transition-colors hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-sky-400/30 dark:bg-sky-500/10 dark:text-sky-300 dark:hover:bg-sky-500/18"
+                            className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-4 py-2.5 text-sm font-black text-sky-700 transition-colors hover:bg-sky-500/18 disabled:cursor-not-allowed disabled:opacity-50 dark:text-sky-300"
                         >
                             <i className={`fa-solid ${isRebuildingLoginLookup ? 'fa-spinner fa-spin' : 'fa-key'}`}></i>
                             Rebuild Login Lookup
                         </button>
                         {legacyRetailUsers.length > 0 ? (
-                            <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-amber-700 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-amber-300">
+                            <span className="rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-amber-700 dark:text-amber-300">
                                 {legacyRetailUsers.length} legacy retail role{legacyRetailUsers.length === 1 ? '' : 's'}
                             </span>
                         ) : null}
@@ -413,7 +413,7 @@ export default function AdminUsers() {
                             type="button"
                             onClick={handleNormalizeLegacyRetailRoles}
                             disabled={isNormalizingRetailRoles || legacyRetailUsers.length === 0}
-                            className="inline-flex items-center gap-2 rounded-full border border-brandGold/30 bg-brandGold/10 px-4 py-2.5 text-sm font-black text-amber-700 transition-colors hover:bg-brandGold/18 disabled:cursor-not-allowed disabled:opacity-50 dark:text-brandGold"
+                            className="inline-flex items-center gap-2 rounded-full border border-brandGold/30 bg-brandGold/10 px-4 py-2.5 text-sm font-black text-brandGold transition-colors hover:bg-brandGold/18 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <i className={`fa-solid ${isNormalizingRetailRoles ? 'fa-spinner fa-spin' : 'fa-shield-halved'}`}></i>
                             Normalize Retail Roles
@@ -424,27 +424,27 @@ export default function AdminUsers() {
 
             <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <label className="relative block w-full lg:max-w-md">
-                    <i className="fa-solid fa-magnifying-glass pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500"></i>
+                    <i className="fa-solid fa-magnifying-glass pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
                     <input
                         type="text"
                         value={searchQuery}
                         onChange={(event) => setSearchQuery(event.target.value)}
                         placeholder="Search by name, email, phone, role, ID..."
-                        className="h-12 w-full rounded-[1rem] border border-slate-200 bg-white pl-12 pr-4 text-sm text-slate-900 shadow-sm shadow-slate-200/70 outline-none transition-colors placeholder:text-slate-400 focus:border-brandGold/45 dark:border-white/8 dark:bg-[#1a2337] dark:text-white dark:shadow-none dark:placeholder:text-slate-500 dark:focus:border-brandGold/35"
+                        className="h-12 w-full rounded-[1rem] border border-slate-200 bg-white pl-12 pr-4 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-brandGold/35 dark:border-white/8 dark:bg-[#1a2337] dark:text-white dark:placeholder:text-slate-500"
                     />
                 </label>
 
-                <div className="inline-flex items-center gap-3 self-start rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm shadow-slate-200/60 dark:border-brandGold/15 dark:bg-brandGold/8 dark:text-slate-200 dark:shadow-none">
+                <div className="inline-flex items-center gap-3 self-start rounded-full border border-brandGold/15 bg-brandGold/8 px-4 py-2 text-sm font-black text-slate-700 dark:text-slate-200">
                     <span className="uppercase tracking-[0.2em] text-brandGold">Results</span>
                     <span className="text-slate-600 dark:text-slate-300">Showing {filteredUsers.length} of {users.length} users</span>
                 </div>
             </div>
 
-            <div className="overflow-visible rounded-3xl border border-slate-200/80 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.06)] dark:border-gray-800 dark:bg-darkCard dark:shadow-none">
+            <div className="rounded-3xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-darkCard overflow-visible">
                 <div className="overflow-x-auto overflow-y-visible rounded-3xl">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="border-b border-slate-200 bg-slate-50 text-sm font-semibold text-slate-600 dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-400">
+                            <tr className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 text-sm font-semibold text-gray-500 dark:text-gray-400">
                                 <th className="p-4">User</th>
                                 <th className="p-4">Email Details</th>
                                 <th className="p-4">Phone</th>
@@ -456,22 +456,22 @@ export default function AdminUsers() {
                         <tbody className="align-top min-h-[520px]">
                             {filteredUsers.length === 0 ? (
                                 <tr>
-                                    <td colSpan="6" className="py-12 text-center text-slate-500 dark:text-gray-400">{searchQuery.trim() ? 'No users matched your search.' : 'No users found.'}</td>
+                                    <td colSpan="6" className="text-center py-12 text-gray-400">{searchQuery.trim() ? 'No users matched your search.' : 'No users found.'}</td>
                                 </tr>
                             ) : (
                                 filteredUsers.map((user) => (
-                                    <tr key={user.id} className={`border-b border-slate-100 transition-colors hover:bg-slate-50 dark:border-gray-800/50 dark:hover:bg-gray-800/20 ${openRoleMenuId === user.id ? 'relative z-20' : 'relative z-0'}`}>
+                                    <tr key={user.id} className={`border-b border-gray-50 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/20 ${openRoleMenuId === user.id ? 'relative z-20' : 'relative z-0'}`}>
                                         <td className="p-4">
                                             <div className="font-bold text-gray-900 dark:text-white">{user.name || 'Anonymous User'}</div>
-                                            <div className="mt-0.5 font-mono text-xs text-slate-500 dark:text-gray-500">ID: {user.id.slice(0, 8)}...</div>
+                                            <div className="text-xs text-gray-500 font-mono mt-0.5">ID: {user.id.slice(0, 8)}...</div>
                                         </td>
                                         <td className="p-4 text-sm font-medium text-brandBlue dark:text-gray-300">
                                             {user.email || 'No email'}
                                         </td>
-                                        <td className="p-4 text-sm text-slate-600 dark:text-gray-400">
+                                        <td className="p-4 text-sm text-gray-600 dark:text-gray-400">
                                             {user.phone || ''}
                                         </td>
-                                        <td className="p-4 text-sm text-slate-600 dark:text-gray-400">
+                                        <td className="p-4 text-sm text-gray-600 dark:text-gray-400">
                                             {parseTimestamp(user.createdAt)}
                                         </td>
                                         <td className="p-4">
@@ -488,7 +488,7 @@ export default function AdminUsers() {
                                                     </button>
 
                                                     {openRoleMenuId === user.id ? (
-                                                        <div className="absolute left-0 top-[calc(100%+0.55rem)] z-30 min-w-[190px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_18px_40px_rgba(15,23,42,0.16)] backdrop-blur-xl dark:border-white/10 dark:bg-[#10192d] dark:shadow-[0_18px_40px_rgba(4,8,20,0.45)]">
+                                                        <div className="absolute left-0 top-[calc(100%+0.55rem)] z-30 min-w-[190px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_18px_40px_rgba(15,23,42,0.18)] backdrop-blur-xl dark:border-white/10 dark:bg-[#10192d] dark:shadow-[0_18px_40px_rgba(4,8,20,0.45)]">
                                                             {roleMenuOptions.map((option) => {
                                                                 const isActive = normalizeUserRole(user.role) === option.value;
                                                                 return (
@@ -496,7 +496,7 @@ export default function AdminUsers() {
                                                                         key={option.value}
                                                                         type="button"
                                                                         onClick={() => handleRoleChange(user.id, option.value)}
-                                                                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-xs font-bold transition-colors ${isActive ? 'bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white' : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/6 dark:hover:text-white'}`}
+                                                                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-xs font-bold transition-colors ${isActive ? 'bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/6 dark:hover:text-white'}`}
                                                                     >
                                                                         <span>{option.label}</span>
                                                                         {isActive ? <i className="fa-solid fa-check text-[10px] text-brandGold"></i> : null}
@@ -540,12 +540,12 @@ export default function AdminUsers() {
 
 function FloatingToast({ message, tone = 'success', onClose }) {
     const toneClasses = tone === 'error'
-        ? 'border-red-200 bg-white text-slate-800 dark:border-red-400/30 dark:bg-[#2a1117] dark:text-red-200'
-        : 'border-emerald-200 bg-white text-slate-800 dark:border-emerald-400/30 dark:bg-[#10251a] dark:text-emerald-200';
+        ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-400/30 dark:bg-[#2a1117] dark:text-red-200'
+        : 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-[#10251a] dark:text-emerald-200';
 
     return (
         <div className="fixed right-6 top-6 z-[210] w-full max-w-sm">
-            <div className={`rounded-[1.4rem] border px-4 py-4 shadow-[0_18px_40px_rgba(15,23,42,0.16)] backdrop-blur-xl dark:shadow-[0_18px_40px_rgba(4,8,20,0.35)] ${toneClasses}`}>
+            <div className={`rounded-[1.4rem] border px-4 py-4 shadow-[0_18px_40px_rgba(4,8,20,0.35)] backdrop-blur-xl ${toneClasses}`}>
                 <div className="flex items-start justify-between gap-4">
                     <div>
                         <p className="text-[11px] font-black uppercase tracking-[0.22em] opacity-75">{tone === 'error' ? 'Action Failed' : 'Success'}</p>
@@ -562,13 +562,13 @@ function FloatingToast({ message, tone = 'success', onClose }) {
 
 function FloatingConfirmDialog({ title, message, confirmLabel, tone = 'brand', busy = false, onCancel, onConfirm }) {
     const confirmClasses = tone === 'danger'
-        ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-500/30 dark:bg-red-500/15 dark:text-red-200 dark:hover:bg-red-500/22'
-        : 'border-brandGold/30 bg-brandGold/12 text-amber-700 hover:bg-brandGold/18 dark:text-brandGold';
+        ? 'border-red-300 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-500/30 dark:bg-red-500/15 dark:text-red-200 dark:hover:bg-red-500/22'
+        : 'border-brandGold/30 bg-brandGold/12 text-brandGold hover:bg-brandGold/18';
 
     return (
-        <div className="fixed inset-0 z-[205] flex items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm dark:bg-[#050914]/70">
-            <div className="w-full max-w-md rounded-[1.8rem] border border-slate-200 bg-white p-6 shadow-[0_25px_60px_rgba(15,23,42,0.16)] dark:border-white/10 dark:bg-[#0f1729]/95 dark:shadow-[0_25px_60px_rgba(4,8,20,0.45)]">
-                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-brandGold/80">Confirmation</p>
+        <div className="fixed inset-0 z-[205] flex items-center justify-center bg-[#050914]/70 px-4 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-[1.8rem] border border-slate-200 bg-white p-6 text-slate-900 shadow-[0_25px_60px_rgba(15,23,42,0.16)] dark:border-white/10 dark:bg-[#0f1729]/95 dark:text-white dark:shadow-[0_25px_60px_rgba(4,8,20,0.45)]">
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-brandGold/70">Confirmation</p>
                 <h3 className="mt-3 text-2xl font-black text-slate-950 dark:text-white">{title}</h3>
                 <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">{message}</p>
                 <div className="mt-6 flex items-center justify-end gap-3">
@@ -576,7 +576,7 @@ function FloatingConfirmDialog({ title, message, confirmLabel, tone = 'brand', b
                         type="button"
                         onClick={onCancel}
                         disabled={busy}
-                        className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-black text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10"
+                        className="rounded-full border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm font-black text-slate-700 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10"
                     >
                         Cancel
                     </button>
