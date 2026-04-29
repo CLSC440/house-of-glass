@@ -358,180 +358,178 @@ export default function AdminUsers() {
     if (!canViewUsersPage) return null;
 
     return (
-        <div className="-m-4 min-h-screen bg-slate-50 px-4 py-4 text-slate-900 md:-m-6 md:px-6 md:py-6 lg:-m-7 lg:px-7 lg:py-7 dark:bg-transparent dark:text-slate-100">
-            <div className="max-w-7xl mx-auto">
-                {toast ? <FloatingToast message={toast.message} tone={toast.tone} onClose={() => setToast(null)} /> : null}
-                {confirmState ? (
-                    <FloatingConfirmDialog
-                        title={confirmState.title}
-                        message={confirmState.message}
-                        confirmLabel={confirmState.confirmLabel}
-                        tone={confirmState.tone}
-                        busy={confirmState.kind === 'role-change'
-                            ? Boolean(savingUserId)
-                            : confirmState.kind === 'normalize-retail-roles'
-                                ? isNormalizingRetailRoles
-                                : confirmState.kind === 'rebuild-login-lookup'
-                                    ? isRebuildingLoginLookup
-                                    : Boolean(deletingUserId)}
-                        onCancel={closeConfirm}
-                        onConfirm={confirmState.onConfirm}
-                    />
-                ) : null}
-                <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div>
-                        <h1 className="mb-2 text-3xl font-black text-brandBlue dark:text-white">User Management</h1>
-                        <p className="text-slate-600 dark:text-gray-400">View registered users and manage their access roles.</p>
-                        {roleDefinitionsError ? (
-                            <p className="mt-2 text-sm text-amber-600 dark:text-amber-300">Role definitions could not be loaded. Custom roles may appear with fallback labels until refresh.</p>
-                        ) : null}
-                    </div>
-                    {canManageUsers ? (
-                        <div className="flex flex-wrap items-center gap-3">
-                            {canViewRoles ? (
-                                <Link href="/admin/roles" className="inline-flex items-center gap-2 rounded-full border border-fuchsia-300/60 bg-fuchsia-50 px-4 py-2.5 text-sm font-black text-fuchsia-700 transition-colors hover:bg-fuchsia-100 dark:border-fuchsia-400/30 dark:bg-fuchsia-500/10 dark:text-fuchsia-200 dark:hover:bg-fuchsia-500/18">
-                                    <i className="fa-solid fa-user-shield"></i>
-                                    Roles Page
-                                </Link>
-                            ) : null}
-                            <button
-                                type="button"
-                                onClick={handleRebuildLoginLookup}
-                                disabled={isRebuildingLoginLookup || users.length === 0}
-                                className="inline-flex items-center gap-2 rounded-full border border-sky-300/60 bg-sky-50 px-4 py-2.5 text-sm font-black text-sky-700 transition-colors hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-sky-400/30 dark:bg-sky-500/10 dark:text-sky-300 dark:hover:bg-sky-500/18"
-                            >
-                                <i className={`fa-solid ${isRebuildingLoginLookup ? 'fa-spinner fa-spin' : 'fa-key'}`}></i>
-                                Rebuild Login Lookup
-                            </button>
-                            {legacyRetailUsers.length > 0 ? (
-                                <span className="rounded-full border border-amber-300/60 bg-amber-50 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-amber-700 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-amber-300">
-                                    {legacyRetailUsers.length} legacy retail role{legacyRetailUsers.length === 1 ? '' : 's'}
-                                </span>
-                            ) : null}
-                            <button
-                                type="button"
-                                onClick={handleNormalizeLegacyRetailRoles}
-                                disabled={isNormalizingRetailRoles || legacyRetailUsers.length === 0}
-                                className="inline-flex items-center gap-2 rounded-full border border-brandGold/40 bg-brandGold/10 px-4 py-2.5 text-sm font-black text-brandBlue transition-colors hover:bg-brandGold/18 disabled:cursor-not-allowed disabled:opacity-50 dark:border-brandGold/30 dark:text-brandGold"
-                            >
-                                <i className={`fa-solid ${isNormalizingRetailRoles ? 'fa-spinner fa-spin' : 'fa-shield-halved'}`}></i>
-                                Normalize Retail Roles
-                            </button>
-                        </div>
+        <div className="max-w-7xl mx-auto">
+            {toast ? <FloatingToast message={toast.message} tone={toast.tone} onClose={() => setToast(null)} /> : null}
+            {confirmState ? (
+                <FloatingConfirmDialog
+                    title={confirmState.title}
+                    message={confirmState.message}
+                    confirmLabel={confirmState.confirmLabel}
+                    tone={confirmState.tone}
+                    busy={confirmState.kind === 'role-change'
+                        ? Boolean(savingUserId)
+                        : confirmState.kind === 'normalize-retail-roles'
+                            ? isNormalizingRetailRoles
+                            : confirmState.kind === 'rebuild-login-lookup'
+                                ? isRebuildingLoginLookup
+                            : Boolean(deletingUserId)}
+                    onCancel={closeConfirm}
+                    onConfirm={confirmState.onConfirm}
+                />
+            ) : null}
+            <div className="flex justify-between items-center mb-8">
+                <div>
+                    <h1 className="text-3xl font-black text-brandBlue dark:text-white mb-2">User Management</h1>
+                    <p className="text-gray-500 dark:text-gray-400">View registered users and manage their access roles.</p>
+                    {roleDefinitionsError ? (
+                        <p className="mt-2 text-sm text-amber-300">Role definitions could not be loaded. Custom roles may appear with fallback labels until refresh.</p>
                     ) : null}
                 </div>
-
-                <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <label className="relative block w-full lg:max-w-md">
-                        <i className="fa-solid fa-magnifying-glass pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500"></i>
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(event) => setSearchQuery(event.target.value)}
-                            placeholder="Search by name, email, phone, role, ID..."
-                            className="h-12 w-full rounded-[1rem] border border-slate-200 bg-white pl-12 pr-4 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-brandGold/45 dark:border-white/8 dark:bg-[#1a2337] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-brandGold/35"
-                        />
-                    </label>
-
-                    <div className="inline-flex items-center gap-3 self-start rounded-full border border-brandGold/20 bg-brandGold/10 px-4 py-2 text-sm font-black text-slate-700 dark:text-slate-200">
-                        <span className="uppercase tracking-[0.2em] text-brandGold">Results</span>
-                        <span className="text-slate-600 dark:text-slate-300">Showing {filteredUsers.length} of {users.length} users</span>
+                {canManageUsers ? (
+                    <div className="flex items-center gap-3">
+                        {canViewRoles ? (
+                            <Link href="/admin/roles" className="inline-flex items-center gap-2 rounded-full border border-fuchsia-400/30 bg-fuchsia-500/10 px-4 py-2.5 text-sm font-black text-fuchsia-200 transition-colors hover:bg-fuchsia-500/18">
+                                <i className="fa-solid fa-user-shield"></i>
+                                Roles Page
+                            </Link>
+                        ) : null}
+                        <button
+                            type="button"
+                            onClick={handleRebuildLoginLookup}
+                            disabled={isRebuildingLoginLookup || users.length === 0}
+                            className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-4 py-2.5 text-sm font-black text-sky-300 transition-colors hover:bg-sky-500/18 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            <i className={`fa-solid ${isRebuildingLoginLookup ? 'fa-spinner fa-spin' : 'fa-key'}`}></i>
+                            Rebuild Login Lookup
+                        </button>
+                        {legacyRetailUsers.length > 0 ? (
+                            <span className="rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-amber-300">
+                                {legacyRetailUsers.length} legacy retail role{legacyRetailUsers.length === 1 ? '' : 's'}
+                            </span>
+                        ) : null}
+                        <button
+                            type="button"
+                            onClick={handleNormalizeLegacyRetailRoles}
+                            disabled={isNormalizingRetailRoles || legacyRetailUsers.length === 0}
+                            className="inline-flex items-center gap-2 rounded-full border border-brandGold/30 bg-brandGold/10 px-4 py-2.5 text-sm font-black text-brandGold transition-colors hover:bg-brandGold/18 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            <i className={`fa-solid ${isNormalizingRetailRoles ? 'fa-spinner fa-spin' : 'fa-shield-halved'}`}></i>
+                            Normalize Retail Roles
+                        </button>
                     </div>
+                ) : null}
+            </div>
+
+            <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <label className="relative block w-full lg:max-w-md">
+                    <i className="fa-solid fa-magnifying-glass pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(event) => setSearchQuery(event.target.value)}
+                        placeholder="Search by name, email, phone, role, ID..."
+                        className="h-12 w-full rounded-[1rem] border border-white/8 bg-[#1a2337] pl-12 pr-4 text-sm text-white outline-none transition-colors placeholder:text-slate-500 focus:border-brandGold/35"
+                    />
+                </label>
+
+                <div className="inline-flex items-center gap-3 self-start rounded-full border border-brandGold/15 bg-brandGold/8 px-4 py-2 text-sm font-black text-slate-200">
+                    <span className="uppercase tracking-[0.2em] text-brandGold">Results</span>
+                    <span className="text-slate-300">Showing {filteredUsers.length} of {users.length} users</span>
                 </div>
+            </div>
 
-                <div className="overflow-visible rounded-3xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-darkCard">
-                    <div className="overflow-x-auto overflow-y-visible rounded-3xl">
-                        <table className="w-full border-collapse text-left">
-                            <thead>
-                                <tr className="border-b border-gray-100 bg-gray-50 text-sm font-semibold text-gray-500 dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-400">
-                                    <th className="p-4">User</th>
-                                    <th className="p-4">Email Details</th>
-                                    <th className="p-4">Phone</th>
-                                    <th className="p-4">Joined Date</th>
-                                    <th className="p-4">Role</th>
-                                    <th className="p-4 text-right">Actions</th>
+            <div className="overflow-visible rounded-3xl border border-white/8 bg-[#11192c] text-slate-200 shadow-[0_18px_40px_rgba(4,8,20,0.35)]">
+                <div className="overflow-x-auto overflow-y-visible rounded-3xl">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="border-b border-white/8 bg-[#18223a] text-sm font-semibold text-slate-400">
+                                <th className="p-4">User</th>
+                                <th className="p-4">Email Details</th>
+                                <th className="p-4">Phone</th>
+                                <th className="p-4">Joined Date</th>
+                                <th className="p-4">Role</th>
+                                <th className="p-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="align-top min-h-[520px]">
+                            {filteredUsers.length === 0 ? (
+                                <tr>
+                                    <td colSpan="6" className="py-12 text-center text-slate-500">{searchQuery.trim() ? 'No users matched your search.' : 'No users found.'}</td>
                                 </tr>
-                            </thead>
-                            <tbody className="min-h-[520px] align-top">
-                                {filteredUsers.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="6" className="py-12 text-center text-gray-400">{searchQuery.trim() ? 'No users matched your search.' : 'No users found.'}</td>
-                                    </tr>
-                                ) : (
-                                    filteredUsers.map((user) => (
-                                        <tr key={user.id} className={`border-b border-gray-50 hover:bg-gray-50 dark:border-gray-800/50 dark:hover:bg-gray-800/20 ${openRoleMenuId === user.id ? 'relative z-20' : 'relative z-0'}`}>
-                                            <td className="p-4">
-                                                <div className="font-bold text-gray-900 dark:text-white">{user.name || 'Anonymous User'}</div>
-                                                <div className="mt-0.5 font-mono text-xs text-gray-500">ID: {user.id.slice(0, 8)}...</div>
-                                            </td>
-                                            <td className="p-4 text-sm font-medium text-brandBlue dark:text-gray-300">
-                                                {user.email || 'No email'}
-                                            </td>
-                                            <td className="p-4 text-sm text-gray-600 dark:text-gray-400">
-                                                {user.phone || ''}
-                                            </td>
-                                            <td className="p-4 text-sm text-gray-600 dark:text-gray-400">
-                                                {parseTimestamp(user.createdAt)}
-                                            </td>
-                                            <td className="p-4">
-                                                {canManageUsers ? (
-                                                    <div ref={openRoleMenuId === user.id ? roleMenuRef : null} className="relative inline-flex">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setOpenRoleMenuId((currentValue) => currentValue === user.id ? null : user.id)}
-                                                            disabled={savingUserId === user.id || isLoadingRoleDefinitions}
-                                                            className={`inline-flex min-w-[170px] items-center justify-between gap-3 rounded-full border px-4 py-2 text-xs font-black transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${getUserRoleBadgeTone(user.role, roleDefinitions)}`}
-                                                        >
-                                                            <span>{getUserRoleLabel(user.role, roleDefinitions)}</span>
-                                                            <i className={`fa-solid ${savingUserId === user.id ? 'fa-spinner fa-spin' : openRoleMenuId === user.id ? 'fa-chevron-up' : 'fa-chevron-down'} text-[10px]`}></i>
-                                                        </button>
+                            ) : (
+                                filteredUsers.map((user) => (
+                                    <tr key={user.id} className={`border-b border-white/6 hover:bg-white/[0.03] ${openRoleMenuId === user.id ? 'relative z-20' : 'relative z-0'}`}>
+                                        <td className="p-4">
+                                            <div className="font-bold text-white">{user.name || 'Anonymous User'}</div>
+                                            <div className="mt-0.5 font-mono text-xs text-slate-500">ID: {user.id.slice(0, 8)}...</div>
+                                        </td>
+                                        <td className="p-4 text-sm font-medium text-slate-200">
+                                            {user.email || 'No email'}
+                                        </td>
+                                        <td className="p-4 text-sm text-slate-400">
+                                            {user.phone || ''}
+                                        </td>
+                                        <td className="p-4 text-sm text-slate-400">
+                                            {parseTimestamp(user.createdAt)}
+                                        </td>
+                                        <td className="p-4">
+                                            {canManageUsers ? (
+                                                <div ref={openRoleMenuId === user.id ? roleMenuRef : null} className="relative inline-flex">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setOpenRoleMenuId((currentValue) => currentValue === user.id ? null : user.id)}
+                                                        disabled={savingUserId === user.id || isLoadingRoleDefinitions}
+                                                        className={`inline-flex min-w-[170px] items-center justify-between gap-3 rounded-full border px-4 py-2 text-xs font-black transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${getUserRoleBadgeTone(user.role, roleDefinitions)}`}
+                                                    >
+                                                        <span>{getUserRoleLabel(user.role, roleDefinitions)}</span>
+                                                        <i className={`fa-solid ${savingUserId === user.id ? 'fa-spinner fa-spin' : openRoleMenuId === user.id ? 'fa-chevron-up' : 'fa-chevron-down'} text-[10px]`}></i>
+                                                    </button>
 
-                                                        {openRoleMenuId === user.id ? (
-                                                            <div className="absolute left-0 top-[calc(100%+0.55rem)] z-30 min-w-[190px] overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 p-2 text-slate-700 shadow-[0_18px_40px_rgba(15,23,42,0.14)] backdrop-blur-xl dark:border-white/10 dark:bg-[#10192d] dark:text-slate-300 dark:shadow-[0_18px_40px_rgba(4,8,20,0.45)]">
-                                                                {roleMenuOptions.map((option) => {
-                                                                    const isActive = normalizeUserRole(user.role) === option.value;
-                                                                    return (
-                                                                        <button
-                                                                            key={option.value}
-                                                                            type="button"
-                                                                            onClick={() => handleRoleChange(user.id, option.value)}
-                                                                            className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-xs font-bold transition-colors ${isActive ? 'bg-brandGold/12 text-brandBlue dark:bg-white/10 dark:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/6 dark:hover:text-white'}`}
-                                                                        >
-                                                                            <span>{option.label}</span>
-                                                                            {isActive ? <i className="fa-solid fa-check text-[10px] text-brandGold"></i> : null}
-                                                                        </button>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        ) : null}
-                                                    </div>
-                                                ) : (
-                                                    <span className={`inline-flex rounded-full border px-3 py-1.5 text-xs font-black tracking-wider ${getUserRoleBadgeTone(user.role, roleDefinitions)}`}>
-                                                        {getUserRoleLabel(user.role, roleDefinitions)}
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="flex justify-end p-4 text-right">
-                                                <button
-                                                    onClick={() => handleDelete(user.id)}
-                                                    disabled={!canManageUsers || deletingUserId === user.id}
-                                                    className={'flex h-8 w-8 items-center justify-center rounded-xl transition-colors ' + (canManageUsers ? 'bg-red-50 text-red-500 hover:bg-red-500 hover:text-white dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500 dark:hover:text-white' : 'cursor-not-allowed bg-slate-100 text-slate-400 dark:bg-gray-800')}
-                                                    title="Delete User"
-                                                >
-                                                    <i className={`fa-solid ${deletingUserId === user.id ? 'fa-spinner fa-spin' : 'fa-trash'} text-sm`}></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                                {filteredUsers.length > 0 && filteredUsers.length < 6 ? (
-                                    <tr aria-hidden="true">
-                                        <td colSpan="6" className="h-[320px] border-0 p-0"></td>
+                                                    {openRoleMenuId === user.id ? (
+                                                        <div className="absolute left-0 top-[calc(100%+0.55rem)] z-30 min-w-[190px] overflow-hidden rounded-2xl border border-white/10 bg-[#10192d] p-2 shadow-[0_18px_40px_rgba(4,8,20,0.45)] backdrop-blur-xl">
+                                                            {roleMenuOptions.map((option) => {
+                                                                const isActive = normalizeUserRole(user.role) === option.value;
+                                                                return (
+                                                                    <button
+                                                                        key={option.value}
+                                                                        type="button"
+                                                                        onClick={() => handleRoleChange(user.id, option.value)}
+                                                                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-xs font-bold transition-colors ${isActive ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/6 hover:text-white'}`}
+                                                                    >
+                                                                        <span>{option.label}</span>
+                                                                        {isActive ? <i className="fa-solid fa-check text-[10px] text-brandGold"></i> : null}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    ) : null}
+                                                </div>
+                                            ) : (
+                                                <span className={`inline-flex rounded-full border px-3 py-1.5 text-xs font-black tracking-wider ${getUserRoleBadgeTone(user.role, roleDefinitions)}`}>
+                                                    {getUserRoleLabel(user.role, roleDefinitions)}
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="p-4 text-right flex justify-end">
+                                            <button 
+                                                onClick={() => handleDelete(user.id)}
+                                                disabled={!canManageUsers || deletingUserId === user.id}
+                                                className={'flex h-8 w-8 items-center justify-center rounded-xl transition-colors ' + (canManageUsers ? 'bg-red-500/10 text-red-300 hover:bg-red-500 hover:text-white' : 'cursor-not-allowed bg-white/5 text-slate-500')}
+                                                title="Delete User"
+                                            >
+                                                <i className={`fa-solid ${deletingUserId === user.id ? 'fa-spinner fa-spin' : 'fa-trash'} text-sm`}></i>
+                                            </button>
+                                        </td>
                                     </tr>
-                                ) : null}
-                            </tbody>
-                        </table>
-                    </div>
+                                ))
+                            )}
+                            {filteredUsers.length > 0 && filteredUsers.length < 6 ? (
+                                <tr aria-hidden="true">
+                                    <td colSpan="6" className="h-[320px] border-0 p-0"></td>
+                                </tr>
+                            ) : null}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -540,8 +538,8 @@ export default function AdminUsers() {
 
 function FloatingToast({ message, tone = 'success', onClose }) {
     const toneClasses = tone === 'error'
-        ? 'border-red-200 bg-white text-red-700 dark:border-red-400/30 dark:bg-[#2a1117] dark:text-red-200'
-        : 'border-emerald-200 bg-white text-emerald-700 dark:border-emerald-400/30 dark:bg-[#10251a] dark:text-emerald-200';
+        ? 'border-red-400/30 bg-[#2a1117] text-red-200'
+        : 'border-emerald-400/30 bg-[#10251a] text-emerald-200';
 
     return (
         <div className="fixed right-6 top-6 z-[210] w-full max-w-sm">
@@ -562,21 +560,21 @@ function FloatingToast({ message, tone = 'success', onClose }) {
 
 function FloatingConfirmDialog({ title, message, confirmLabel, tone = 'brand', busy = false, onCancel, onConfirm }) {
     const confirmClasses = tone === 'danger'
-        ? 'border-red-300 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-500/30 dark:bg-red-500/15 dark:text-red-200 dark:hover:bg-red-500/22'
-        : 'border-brandGold/35 bg-brandGold/10 text-brandBlue hover:bg-brandGold/18 dark:border-brandGold/30 dark:text-brandGold';
+        ? 'border-red-500/30 bg-red-500/15 text-red-200 hover:bg-red-500/22'
+        : 'border-brandGold/30 bg-brandGold/12 text-brandGold hover:bg-brandGold/18';
 
     return (
-        <div className="fixed inset-0 z-[205] flex items-center justify-center bg-slate-950/35 px-4 backdrop-blur-sm dark:bg-[#050914]/70">
-            <div className="w-full max-w-md rounded-[1.8rem] border border-slate-200 bg-white/95 p-6 shadow-[0_25px_60px_rgba(15,23,42,0.16)] dark:border-white/10 dark:bg-[#0f1729]/95 dark:shadow-[0_25px_60px_rgba(4,8,20,0.45)]">
-                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-brandGold/80">Confirmation</p>
-                <h3 className="mt-3 text-2xl font-black text-slate-900 dark:text-white">{title}</h3>
-                <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">{message}</p>
+        <div className="fixed inset-0 z-[205] flex items-center justify-center bg-[#050914]/70 px-4 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-[1.8rem] border border-white/10 bg-[#0f1729]/95 p-6 shadow-[0_25px_60px_rgba(4,8,20,0.45)]">
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-brandGold/70">Confirmation</p>
+                <h3 className="mt-3 text-2xl font-black text-white">{title}</h3>
+                <p className="mt-3 text-sm leading-7 text-slate-300">{message}</p>
                 <div className="mt-6 flex items-center justify-end gap-3">
                     <button
                         type="button"
                         onClick={onCancel}
                         disabled={busy}
-                        className="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10"
+                        className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-black text-slate-300 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         Cancel
                     </button>

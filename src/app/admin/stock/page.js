@@ -290,15 +290,14 @@ function AdminStockContent() {
     };
 
     return (
-        <div className="-m-4 min-h-screen bg-slate-50 px-4 py-4 text-slate-900 md:-m-6 md:px-6 md:py-6 lg:-m-7 lg:px-7 lg:py-7 dark:bg-transparent dark:text-slate-100">
         <div className="w-full max-w-7xl mx-auto space-y-6 md:space-y-8">       
-            <div className="mb-2 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-2">
                 <div className="flex items-center gap-3">
                     <Link href="/admin" className="w-11 h-11 rounded-full border border-brandGold/30 bg-brandGold/10 text-brandGold flex items-center justify-center hover:bg-brandGold hover:text-white transition-all"> 
                         <i className="fa-solid fa-arrow-left"></i>
                     </Link>
                     <div>
-                        <p className="text-[11px] uppercase tracking-[0.35em] text-slate-500 dark:text-gray-400">Admin Stock Sync</p>
+                        <p className="text-[11px] uppercase tracking-[0.35em] text-gray-400">Admin Stock Sync</p>
                         <h1 className="text-2xl md:text-3xl font-black text-brandBlue dark:text-brandGold">Showroom and Warehouse Stock</h1>
                     </div>
                 </div>
@@ -319,42 +318,42 @@ function AdminStockContent() {
 
             {/* Stats Row */}
             <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-                <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-darkCard">
-                    <p className="mb-2 text-xs text-slate-500 dark:text-gray-400">Website Products</p>
+                <div className="rounded-3xl border border-white/8 bg-[#11192c] p-5 text-white shadow-[0_18px_40px_rgba(4,8,20,0.35)]">
+                    <p className="text-xs text-gray-400 mb-2">Website Products</p>
                     <p className="text-3xl font-black">{stats.totalProducts}</p>
                 </div>
-                <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-darkCard">
-                    <p className="mb-2 text-xs text-slate-500 dark:text-gray-400">Linked Products</p>
+                <div className="rounded-3xl border border-white/8 bg-[#11192c] p-5 text-white shadow-[0_18px_40px_rgba(4,8,20,0.35)]">
+                    <p className="text-xs text-gray-400 mb-2">Linked Products</p>
                     <p className="text-3xl font-black text-green-600">{stats.totalLinked}</p>     
                 </div>
-                <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-darkCard">
-                    <p className="mb-2 text-xs text-slate-500 dark:text-gray-400">Total Showroom Stock</p>
+                <div className="rounded-3xl border border-white/8 bg-[#11192c] p-5 text-white shadow-[0_18px_40px_rgba(4,8,20,0.35)]">
+                    <p className="text-xs text-gray-400 mb-2">Total Showroom Stock</p>
                     <p className="text-3xl font-black text-blue-600">{stats.totalRetail}</p>      
                 </div>
-                <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-darkCard">
-                    <p className="mb-2 text-xs text-slate-500 dark:text-gray-400">Total Warehouse Stock</p>
+                <div className="rounded-3xl border border-white/8 bg-[#11192c] p-5 text-white shadow-[0_18px_40px_rgba(4,8,20,0.35)]">
+                    <p className="text-xs text-gray-400 mb-2">Total Warehouse Stock</p>
                     <p className="text-3xl font-black text-amber-500">{stats.totalWholesale}</p>     
                 </div>
             </section>
 
             {/* Filters Section */}
-            <section className="mb-6 rounded-3xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-darkCard md:p-5">
+            <section className="mb-6 rounded-3xl border border-white/8 bg-[#11192c] p-4 text-slate-200 shadow-[0_18px_40px_rgba(4,8,20,0.35)] md:p-5">
                 <div className="flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
                     <div className="flex-1 flex flex-col md:flex-row gap-3">    
                         <div className="relative flex-1">
-                            <i className="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-400"></i>
+                            <i className="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
                             <input
                                 type="text"
                                 placeholder="Search by name, code, or barcode"      
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-900 outline-none focus:border-brandGold dark:border-transparent dark:bg-gray-800 dark:text-slate-100"  
+                                className="w-full rounded-2xl border border-white/8 bg-[#18223a] py-3 pl-10 pr-4 text-white outline-none placeholder:text-slate-500 focus:border-brandGold/35"  
                             />
                         </div>
                         <select
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value)}   
-                            className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-brandGold dark:border-transparent dark:bg-gray-800 dark:text-slate-100"
+                            className="rounded-2xl border border-white/8 bg-[#18223a] px-4 py-3 text-white outline-none focus:border-brandGold/35"
                         >
                             <option value="all">All Products ({stats.totalProducts})</option>
                             <option value="linked">Linked ({stats.totalLinked})</option>
@@ -365,7 +364,7 @@ function AdminStockContent() {
                             <option value="outWholesale">Warehouse Out of Stock</option>
                         </select>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500 dark:text-gray-400">
+                    <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
                         <div>
                             <span>Matching: </span>
                             <span className="font-black text-brandBlue dark:text-brandGold">{filteredRows.length}</span>
@@ -379,10 +378,10 @@ function AdminStockContent() {
             </section>
 
             {/* Table Section */}
-            <section className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-darkCard">
+            <section className="overflow-hidden rounded-3xl border border-white/8 bg-[#11192c] text-slate-200 shadow-[0_18px_40px_rgba(4,8,20,0.35)]">
                 <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">
-                        <thead className="bg-gray-50 dark:bg-gray-800/80 text-gray-500 dark:text-gray-300">
+                        <thead className="bg-[#18223a] text-slate-400">
                             <tr>
                                 <th className="px-4 py-4 text-left font-black w-12"></th>
                                 <th className="px-4 py-4 text-left font-black">Product</th>
@@ -393,10 +392,10 @@ function AdminStockContent() {
                                 <th className="px-4 py-4 text-left font-black">Status</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                        <tbody className="divide-y divide-white/6">
                             {productsLoading || isSyncing ? (
                                 <tr>
-                                    <td colSpan="7" className="px-6 py-16 text-center text-gray-400">
+                                    <td colSpan="7" className="px-6 py-16 text-center text-slate-500">
                                         <div className="flex flex-col items-center">
                                             <i className="fa-solid fa-spinner fa-spin text-3xl mb-4 text-brandGold"></i>        
                                             <p className="text-sm font-bold">Loading website products and matching them with system stock...</p>
@@ -405,22 +404,22 @@ function AdminStockContent() {
                                 </tr>
                             ) : filteredRows.length === 0 ? (
                                 <tr>
-                                    <td colSpan="7" className="px-6 py-16 text-center text-gray-400 font-bold">
+                                    <td colSpan="7" className="px-6 py-16 text-center font-bold text-slate-500">
                                         No products match the current filters.
                                     </td>
                                 </tr>
                             ) : (
                                                                 filteredRows.map(row => (
                                     <React.Fragment key={row.id}>
-                                        <tr className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                                        <tr className="transition-colors hover:bg-white/[0.03]">
                                             <td className="px-4 py-4">
                                                 {row.hasVariants && (
-                                                    <button onClick={() => toggleExpand(row.id)} className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-brandBlue shadow-sm transition-colors hover:border-brandGold/40 hover:bg-brandGold/10 hover:text-brandGold dark:border-white/20 dark:bg-gradient-to-b dark:from-white/10 dark:to-black/10 dark:text-brandGold dark:shadow-[0_0_0_3px_rgba(255,255,255,0.06)] dark:hover:text-white">
+                                                    <button onClick={() => toggleExpand(row.id)} className="w-10 h-10 rounded-full border-2 border-white/20 bg-gradient-to-b from-white/10 to-black/10 text-brandGold flex items-center justify-center hover:border-brandGold/40 hover:bg-brandGold/10 hover:text-white transition-colors shadow-[0_0_0_3px_rgba(255,255,255,0.06)]">
                                                         <i className={'fa-solid fa-chevron-right transition-transform ' + (expandedIds.has(row.id) ? 'rotate-90' : '')}></i>
                                                     </button>
                                                 )}
                                             </td>
-                                            <td className="px-4 py-4 font-bold text-brandBlue dark:text-white">
+                                            <td className="px-4 py-4 font-bold text-white">
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <span>{row.title || row.name}</span>
                                                     {row.hasVariants ? (
@@ -460,13 +459,13 @@ function AdminStockContent() {
                                             </td>
                                         </tr>
                                         {row.hasVariants && expandedIds.has(row.id) && (
-                                            <tr className="border-b border-gray-100 bg-slate-50/80 dark:border-gray-800/50 dark:bg-[#121a2d]">
+                                            <tr className="bg-[#121a2d] border-b border-gray-100 dark:border-gray-800/50">
                                                 <td colSpan="7" className="px-6 py-5">
-                                                    <div className="rounded-[1.6rem] border border-slate-200 bg-white p-4 dark:border-white/8 dark:bg-white/[0.02] md:p-5">
+                                                    <div className="rounded-[1.6rem] border border-white/8 bg-white/[0.02] p-4 md:p-5">
                                                         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                                                             <div>
                                                                 <p className="text-[10px] font-black uppercase tracking-[0.24em] text-brandGold">Variant Breakdown</p>
-                                                                <p className="mt-1 text-sm text-slate-600 dark:text-gray-400">
+                                                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                                                                     {row.hasSharedVariantCode
                                                                         ? 'These variants share the same inventory code, so the parent stock is counted once.'
                                                                         : 'Each variant uses its own inventory code, so parent stock is the total of all variant codes.'}
@@ -484,25 +483,25 @@ function AdminStockContent() {
 
                                                         <div className="grid gap-3">
                                                             {row.variants.map((v, idx) => (
-                                                                <div key={v.id || idx} className="grid gap-3 rounded-[1.15rem] border border-slate-200 bg-slate-50 px-4 py-3 text-sm dark:border-white/8 dark:bg-[#18223a] md:grid-cols-[minmax(0,1.6fr)_minmax(120px,0.8fr)_minmax(120px,0.8fr)_110px_110px_120px] md:items-center">
+                                                                <div key={v.id || idx} className="grid gap-3 rounded-[1.15rem] border border-white/8 bg-[#18223a] px-4 py-3 text-sm md:grid-cols-[minmax(0,1.6fr)_minmax(120px,0.8fr)_minmax(120px,0.8fr)_110px_110px_120px] md:items-center">
                                                                     <div className="flex items-center gap-3 min-w-0">
-                                                                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 dark:bg-white/[0.05] dark:text-slate-400">
+                                                                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.05] text-slate-400">
                                                                             <i className="fa-solid fa-code-branch text-xs"></i>
                                                                         </span>
                                                                         <div className="min-w-0">
-                                                                            <p className="truncate font-bold text-brandBlue dark:text-white">{v.name}</p>
+                                                                            <p className="truncate font-bold text-white">{v.name}</p>
                                                                             <p className="mt-0.5 text-[11px] text-slate-500">Variant {idx + 1}</p>
                                                                         </div>
                                                                     </div>
 
                                                                     <div>
                                                                         <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 md:hidden">Code</p>
-                                                                        <p className="font-mono text-xs text-slate-600 dark:text-slate-300">{v.code || '-'}</p>
+                                                                        <p className="font-mono text-xs text-slate-300">{v.code || '-'}</p>
                                                                     </div>
 
                                                                     <div>
                                                                         <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 md:hidden">Barcode</p>
-                                                                        <p className="font-mono text-xs text-slate-500 dark:text-slate-400">{v.matchedBarcode || '-'}</p>
+                                                                        <p className="font-mono text-xs text-slate-400">{v.matchedBarcode || '-'}</p>
                                                                     </div>
 
                                                                     <div>
@@ -539,7 +538,6 @@ function AdminStockContent() {
                     </table>
                 </div>
             </section>
-        </div>
         </div>
     );
 }
