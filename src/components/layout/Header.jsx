@@ -361,6 +361,7 @@ export default function Header() {
 
     const profilePhotoUrl = userProfile?.photoURL || user?.photoURL || '';
     const shouldShowProfilePhoto = Boolean(profilePhotoUrl) && !avatarLoadFailed;
+    const isReseller = normalizeUserRole(userProfile?.role) === 'reseller';
 
     return (
         <>
@@ -411,6 +412,15 @@ export default function Header() {
                             >
                                 Home
                             </Link>
+                            {isReseller && (
+                                <Link
+                                    href="/reseller"
+                                    onClick={() => { closeAccountPanel(); closeSidebar(); }}
+                                    className={`text-sm font-bold px-1 py-1 border-b-2 transition-colors ${pathname.startsWith('/reseller') ? 'text-brandBlue dark:text-white border-brandGold' : 'text-gray-500 dark:text-gray-300 border-transparent hover:text-brandGold'}`}
+                                >
+                                    Reseller
+                                </Link>
+                            )}
                             {isAdmin && (
                                 <button
                                     type="button"
@@ -486,6 +496,17 @@ export default function Header() {
                             </div>
 
                             <div className="space-y-3 bg-gradient-to-b from-white/[0.04] via-white/[0.02] to-black/10 p-5">
+                                {isReseller && (
+                                    <AccountPanelLink
+                                        href="/reseller"
+                                        title="Reseller Workspace"
+                                        subtitle="Open orders, daily summary, and reseller reporting"
+                                        onClick={() => {
+                                            closeAccountPanel();
+                                            closeSidebar();
+                                        }}
+                                    />
+                                )}
                                 <AccountPanelLink
                                     href="/profile#profile-settings"
                                     title="Settings & Orders History"
@@ -666,6 +687,11 @@ export default function Header() {
                             <Link href="/profile" onClick={closeSidebar} className="block text-center bg-brandBlue text-white py-3 rounded-xl font-bold border border-brandGold hover:bg-opacity-90">
                                 My Profile
                             </Link>
+                            {isReseller && (
+                                <Link href="/reseller" onClick={closeSidebar} className="block text-center bg-brandGold/10 text-brandGold py-3 rounded-xl font-bold border border-brandGold/40 hover:bg-brandGold hover:text-white transition-colors">
+                                    Reseller Workspace
+                                </Link>
+                            )}
                             {isAdmin && (
                                 <button type="button" onClick={navigateToAdminDashboard} disabled={isAdminRedirecting} className="block w-full text-center bg-brandGold/10 text-brandGold py-3 rounded-xl font-bold border border-brandGold/40 hover:bg-brandGold hover:text-white transition-colors disabled:cursor-wait disabled:opacity-80">
                                     {isAdminRedirecting ? 'Loading Dashboard...' : 'Admin Dashboard'}

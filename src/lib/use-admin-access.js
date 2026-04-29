@@ -28,35 +28,13 @@ function parseCachedPermissions() {
 }
 
 function createInitialAccessState(adminOnly, effectivePermission) {
-    const defaultState = {
+    return {
         checking: true,
         allowed: false,
         user: null,
         role: '',
         permissions: normalizeRolePermissions(),
         error: ''
-    };
-
-    if (typeof window === 'undefined') {
-        return defaultState;
-    }
-
-    const cachedRole = normalizeUserRole(sessionStorage.getItem('userRole'));
-    const cachedPermissions = parseCachedPermissions() || getRoleDefinition(cachedRole).permissions;
-    const hasAccess = adminOnly
-        ? cachedRole === USER_ROLE_VALUES.ADMIN
-        : hasRolePermission(cachedRole, effectivePermission, [{
-            key: cachedRole,
-            label: getRoleDefinition(cachedRole).label,
-            permissions: cachedPermissions
-        }]);
-
-    return {
-        ...defaultState,
-        checking: !hasAccess,
-        allowed: hasAccess,
-        role: cachedRole,
-        permissions: cachedPermissions
     };
 }
 
