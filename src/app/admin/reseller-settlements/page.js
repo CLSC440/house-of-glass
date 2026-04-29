@@ -5,6 +5,19 @@ import { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
+const STATUS_ACTIONS = {
+    submitted: {
+        nextStatus: 'invoiced',
+        label: 'Mark As Invoiced',
+        successMessage: 'Batch moved to invoiced.'
+    },
+    invoiced: {
+        nextStatus: 'paid',
+        label: 'Mark As Paid',
+        successMessage: 'Batch moved to paid.'
+    }
+};
+
 function formatCurrency(value) {
     const numericValue = Number(value);
     if (!Number.isFinite(numericValue)) {
@@ -53,11 +66,11 @@ function StatusChip({ status }) {
         ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300'
         : normalizedStatus === 'invoiced'
             ? 'border-sky-500/25 bg-sky-500/10 text-sky-300'
-        : normalizedStatus === 'submitted'
-            ? 'border-brandGold/25 bg-brandGold/10 text-brandGold'
-            : normalizedStatus === 'cancelled'
-                ? 'border-red-500/25 bg-red-500/10 text-red-300'
-                : 'border-sky-500/25 bg-sky-500/10 text-sky-300';
+            : normalizedStatus === 'submitted'
+                ? 'border-brandGold/25 bg-brandGold/10 text-brandGold'
+                : normalizedStatus === 'cancelled'
+                    ? 'border-red-500/25 bg-red-500/10 text-red-300'
+                    : 'border-sky-500/25 bg-sky-500/10 text-sky-300';
 
     return (
         <span className={`inline-flex items-center rounded-full border px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] ${className}`}>
@@ -75,6 +88,11 @@ export default function AdminResellerSettlementsPage() {
         loading: true,
         error: '',
         batches: []
+    });
+    const [statusState, setStatusState] = useState({
+        submittingBatchId: '',
+        error: '',
+        success: ''
     });
 
     useEffect(() => {
@@ -169,6 +187,60 @@ export default function AdminResellerSettlementsPage() {
         profit: 0
     });
 
+    async function handleStatusUpdate(batch) {
+        const normalizedStatus = normalizeText(batch?.status);
+        const nextAction = STATUS_ACTIONS[normalizedStatus];
+        const currentUser = auth.currentUser;
+
+        if (!nextAction || !currentUser || !batch?.id) {
+            return;
+        }
+
+        try {
+            setStatusState({
+                submittingBatchId: batch.id,
+                error: '',
+                success: ''
+            });
+
+            const idToken = await currentUser.getIdToken();
+            const response = await fetch(`/api/admin/reseller-settlements/${batch.id}`, {
+                method: 'PATCH',
+                headers: {
+                    Authorization: `Bearer ${idToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    status: nextAction.nextStatus,
+                    adminNotes: batch?.adminNotes || ''
+                })
+            });
+
+            const responseData = await response.json().catch(() => ({}));
+            if (!response.ok || responseData?.success === false) {
+                throw new Error(responseData?.error || `Request failed (${response.status})`);
+            }
+
+            setViewState((currentValue) => ({
+                ...currentValue,
+                batches: currentValue.batches.map((currentBatch) => currentBatch.id === batch.id
+                    ? { ...currentBatch, ...(responseData?.batch || {}) }
+                    : currentBatch)
+            }));
+            setStatusState({
+                submittingBatchId: '',
+                error: '',
+                success: nextAction.successMessage
+            });
+        } catch (error) {
+            setStatusState({
+                submittingBatchId: '',
+                error: error?.message || 'Failed to update reseller settlement status.',
+                success: ''
+            });
+        }
+    }
+
     return (
         <section className="space-y-6">
             <div className="rounded-[1.8rem] border border-white/8 bg-[#101729] px-6 py-6 shadow-[0_20px_44px_rgba(4,8,20,0.28)] md:px-7 md:py-7">
@@ -206,6 +278,7 @@ export default function AdminResellerSettlementsPage() {
                             >
                                 <option value="all" className="bg-[#101729] text-white">All statuses</option>
                                 <option value="submitted" className="bg-[#101729] text-white">Submitted</option>
+                                <option value="invoiced" className="bg-[#101729] text-white">Invoiced</option>
                                 <option value="open" className="bg-[#101729] text-white">Open</option>
                                 <option value="paid" className="bg-[#101729] text-white">Paid</option>
                             </select>
@@ -217,6 +290,18 @@ export default function AdminResellerSettlementsPage() {
             {viewState.error ? (
                 <div className="rounded-[1.45rem] border border-red-500/20 bg-red-500/10 px-5 py-4 text-sm font-semibold text-red-200">
                     {viewState.error}
+                </div>
+            ) : null}
+
+            {statusState.error ? (
+                <div className="rounded-[1.45rem] border border-red-500/20 bg-red-500/10 px-5 py-4 text-sm font-semibold text-red-200">
+                    {statusState.error}
+                </div>
+            ) : null}
+
+            {statusState.success ? (
+                <div className="rounded-[1.45rem] border border-emerald-500/20 bg-emerald-500/10 px-5 py-4 text-sm font-semibold text-emerald-200">
+                    {statusState.success}
                 </div>
             ) : null}
 
@@ -254,32 +339,56 @@ export default function AdminResellerSettlementsPage() {
                             </div>
                         ) : (
                             <div className="mt-6 space-y-3">
-                                {filteredBatches.map((batch) => (
-                                    <article key={batch.id} className="rounded-[1.25rem] border border-white/8 bg-[#151e34] p-4">
-                                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                                            <div>
-                                                <div className="flex flex-wrap items-center gap-3">
-                                                    <p className="text-base font-black text-white">{batch.resellerSnapshot?.name || 'Unknown reseller'}</p>
-                                                    <StatusChip status={batch.status} />
+                                {filteredBatches.map((batch) => {
+                                    const normalizedStatus = normalizeText(batch.status);
+                                    const nextAction = STATUS_ACTIONS[normalizedStatus] || null;
+                                    const isSubmitting = statusState.submittingBatchId === batch.id;
+
+                                    return (
+                                        <article key={batch.id} className="rounded-[1.25rem] border border-white/8 bg-[#151e34] p-4">
+                                            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                                <div>
+                                                    <div className="flex flex-wrap items-center gap-3">
+                                                        <p className="text-base font-black text-white">{batch.resellerSnapshot?.name || 'Unknown reseller'}</p>
+                                                        <StatusChip status={batch.status} />
+                                                    </div>
+                                                    <p className="mt-2 text-sm text-slate-400">{batch.resellerSnapshot?.email || 'No email'} • {batch.batchDateKey || 'No batch date'}</p>
+                                                    <p className="mt-1 text-xs text-slate-500">Submitted {formatDateTime(batch.submittedAtIso || batch.updatedAtIso)}</p>
+                                                    <p className="mt-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{batch.id}</p>
                                                 </div>
-                                                <p className="mt-2 text-sm text-slate-400">{batch.resellerSnapshot?.email || 'No email'} • {batch.batchDateKey || 'No batch date'}</p>
-                                                <p className="mt-1 text-xs text-slate-500">Submitted {formatDateTime(batch.submittedAtIso || batch.updatedAtIso)}</p>
-                                                <p className="mt-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{batch.id}</p>
+
+                                                <div className="grid gap-2 sm:min-w-[320px] sm:grid-cols-2">
+                                                    <SummaryCard label="Orders" value={Number(batch?.totals?.ordersCount || 0).toLocaleString('en-US')} />
+                                                    <SummaryCard label="Due To Admin" value={formatCurrency(batch?.totals?.dueToAdmin || 0)} accent="text-brandGold" />
+                                                </div>
                                             </div>
 
-                                            <div className="grid gap-2 sm:min-w-[320px] sm:grid-cols-2">
-                                                <SummaryCard label="Orders" value={Number(batch?.totals?.ordersCount || 0).toLocaleString('en-US')} />
-                                                <SummaryCard label="Due To Admin" value={formatCurrency(batch?.totals?.dueToAdmin || 0)} accent="text-brandGold" />
+                                            <div className="mt-4 flex flex-wrap gap-2">
+                                                <Link href={`/admin/reseller-settlements/${batch.id}`} className="inline-flex items-center justify-center rounded-full border border-brandGold/30 bg-brandGold/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-brandGold transition-colors hover:bg-brandGold hover:text-brandBlue">
+                                                    Open Batch Details
+                                                </Link>
+                                                {nextAction ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleStatusUpdate(batch)}
+                                                        disabled={isSubmitting}
+                                                        className={`inline-flex items-center justify-center rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.18em] transition-colors ${isSubmitting ? 'cursor-wait border-white/10 bg-white/[0.04] text-slate-500 opacity-70' : 'border-sky-500/25 bg-sky-500/10 text-sky-300 hover:bg-sky-500/18'}`}
+                                                    >
+                                                        {isSubmitting ? 'Updating...' : nextAction.label}
+                                                    </button>
+                                                ) : normalizedStatus === 'paid' ? (
+                                                    <span className="inline-flex items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
+                                                        Workflow Complete
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                                                        Waiting For Reseller Submit
+                                                    </span>
+                                                )}
                                             </div>
-                                        </div>
-
-                                        <div className="mt-4 flex flex-wrap gap-2">
-                                            <Link href={`/admin/reseller-settlements/${batch.id}`} className="inline-flex items-center justify-center rounded-full border border-brandGold/30 bg-brandGold/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-brandGold transition-colors hover:bg-brandGold hover:text-brandBlue">
-                                                Open Batch Details
-                                            </Link>
-                                        </div>
-                                    </article>
-                                ))}
+                                        </article>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
