@@ -54,10 +54,6 @@ function applyPermissionDependencies(currentPermissions, permissionKey, nextValu
         nextPermissions[ROLE_PERMISSION_KEYS.ACCESS_ADMIN] = true;
     }
 
-    if (nextPermissions[ROLE_PERMISSION_KEYS.VIEW_PRICE_PACK]) {
-        nextPermissions[ROLE_PERMISSION_KEYS.VIEW_PRICE_DISCOUNT] = true;
-    }
-
     if (
         nextPermissions[ROLE_PERMISSION_KEYS.VIEW_DASHBOARD]
         || nextPermissions[ROLE_PERMISSION_KEYS.VIEW_PRODUCTS]
