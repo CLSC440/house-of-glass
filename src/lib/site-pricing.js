@@ -1,12 +1,18 @@
-import { normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
+import { getCachedRolePermissions, getResolvedRolePermissions } from '@/lib/user-roles';
 
 export function parsePercentage(value) {
     const numericValue = Number(value);
     return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : 0;
 }
 
-export function shouldApplyGlobalRetailIncrease(userRole = '') {
-    return normalizeUserRole(userRole) === USER_ROLE_VALUES.CST_RETAIL;
+export function shouldApplyGlobalRetailIncrease(userRole = '', rolePermissions = null) {
+    const resolvedRolePermissions = getResolvedRolePermissions(
+        userRole,
+        [],
+        rolePermissions ?? getCachedRolePermissions()
+    );
+
+    return resolvedRolePermissions.viewPriceFinal === true;
 }
 
 export function applyGlobalRetailIncrease(amount, percentage) {
@@ -21,8 +27,8 @@ export function applyGlobalRetailIncrease(amount, percentage) {
     return Math.round((safeAmount * (1 + (safePercentage / 100)) + Number.EPSILON) * 100) / 100;
 }
 
-export function getGlobalRetailDisplayPrice(amount, percentage, userRole = '') {
-    if (!shouldApplyGlobalRetailIncrease(userRole)) {
+export function getGlobalRetailDisplayPrice(amount, percentage, userRole = '', rolePermissions = null) {
+    if (!shouldApplyGlobalRetailIncrease(userRole, rolePermissions)) {
         return Number.isFinite(Number(amount)) ? Number(amount) : 0;
     }
 

@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @next/next/no-img-element */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useGallery } from '@/contexts/GalleryContext';
 import AdminProductModal from '@/components/admin/AdminProductModal';
@@ -21,10 +22,6 @@ const SHOW_MORE_ARABIC_LINES = [
     'اكتشف الباقي',
     'لسه في اكتر'
 ];
-const quickAddAutoCollapseState = {
-    deadlines: {},
-    pendingOpen: {}
-};
 
 function splitBilingualLabel(value) {
     const normalizedValue = String(value || '').trim();
@@ -145,7 +142,8 @@ export default function ProductGrid() {
     const [visibleCategoryRows, setVisibleCategoryRows] = useState(INITIAL_CATEGORY_ROWS);
     const [productRowScrollState, setProductRowScrollState] = useState({});
     const [expandedQuickAddControls, setExpandedQuickAddControls] = useState({});
-    const [quickAddAutoCollapseVersion, setQuickAddAutoCollapseVersion] = useState(0);
+    const [quickAddDeadlines, setQuickAddDeadlines] = useState({});
+    const [pendingQuickAddOpen, setPendingQuickAddOpen] = useState({});
     const [selectedShowMoreArabicLine] = useState(() => SHOW_MORE_ARABIC_LINES[
         Math.floor(Math.random() * SHOW_MORE_ARABIC_LINES.length)
     ]);
@@ -165,17 +163,33 @@ export default function ProductGrid() {
     const previousQuickAddQuantitiesRef = useRef({});
 
     useEffect(() => {
+        let animationFrameId = null;
+
         if (!isAdminUser || !dcLiveUpdateAt) {
-            setShowLiveIndicator(false);
-            return undefined;
+            animationFrameId = window.requestAnimationFrame(() => {
+                setShowLiveIndicator(false);
+            });
+
+            return () => {
+                if (animationFrameId !== null) {
+                    window.cancelAnimationFrame(animationFrameId);
+                }
+            };
         }
 
-        setShowLiveIndicator(true);
+        animationFrameId = window.requestAnimationFrame(() => {
+            setShowLiveIndicator(true);
+        });
         const timeoutId = window.setTimeout(() => {
             setShowLiveIndicator(false);
         }, LIVE_INDICATOR_DURATION_MS);
 
-        return () => window.clearTimeout(timeoutId);
+        return () => {
+            if (animationFrameId !== null) {
+                window.cancelAnimationFrame(animationFrameId);
+            }
+            window.clearTimeout(timeoutId);
+        };
     }, [isAdminUser, dcLiveUpdateAt]);
 
     useEffect(() => {
@@ -183,20 +197,35 @@ export default function ProductGrid() {
             return;
         }
 
+        let animationFrameId = null;
         const shouldUseStoredRows = activeCategory === 'All' && activeFilterChips.length === 0;
         if (!shouldUseStoredRows) {
             window.sessionStorage.removeItem(CATEGORY_ROWS_STORAGE_KEY);
-            setVisibleCategoryRows(INITIAL_CATEGORY_ROWS);
-            return;
+            animationFrameId = window.requestAnimationFrame(() => {
+                setVisibleCategoryRows(INITIAL_CATEGORY_ROWS);
+            });
+
+            return () => {
+                if (animationFrameId !== null) {
+                    window.cancelAnimationFrame(animationFrameId);
+                }
+            };
         }
 
         const storedRows = Number(window.sessionStorage.getItem(CATEGORY_ROWS_STORAGE_KEY));
-        if (Number.isFinite(storedRows) && storedRows >= INITIAL_CATEGORY_ROWS) {
-            setVisibleCategoryRows(storedRows);
-            return;
-        }
+        const nextVisibleCategoryRows = Number.isFinite(storedRows) && storedRows >= INITIAL_CATEGORY_ROWS
+            ? storedRows
+            : INITIAL_CATEGORY_ROWS;
 
-        setVisibleCategoryRows(INITIAL_CATEGORY_ROWS);
+        animationFrameId = window.requestAnimationFrame(() => {
+            setVisibleCategoryRows(nextVisibleCategoryRows);
+        });
+
+        return () => {
+            if (animationFrameId !== null) {
+                window.cancelAnimationFrame(animationFrameId);
+            }
+        };
     }, [activeCategory, activeFilterChips]);
 
     useEffect(() => {
@@ -249,32 +278,77 @@ export default function ProductGrid() {
         };
     }, [editingProduct, filteredProducts]);
 
+    function setQuickAddExpanded(controlKey, nextExpanded) {
+        if (!controlKey) {
+            return;
+        }
+
+        setExpandedQuickAddControls((currentState) => {
+            if (nextExpanded) {
+                return {
+                    ...currentState,
+                    [controlKey]: true
+                };
+            }
+
+            if (!currentState[controlKey]) {
+                return currentState;
+            }
+
+            const nextState = { ...currentState };
+            delete nextState[controlKey];
+            return nextState;
+        });
+    }
+
+    function clearQuickAddCollapseTimeout(controlKey) {
+        if (!controlKey) {
+            return;
+        }
+
+        setQuickAddDeadlines((currentState) => {
+            if (!currentState[controlKey]) {
+                return currentState;
+            }
+
+            const nextState = { ...currentState };
+            delete nextState[controlKey];
+            return nextState;
+        });
+    }
+
+    function scheduleQuickAddCollapse(controlKey) {
+        if (!controlKey) {
+            return;
+        }
+
+        setQuickAddDeadlines((currentState) => ({
+            ...currentState,
+            [controlKey]: Date.now() + QUICK_ADD_COLLAPSE_DELAY_MS
+        }));
+    }
+
     useEffect(() => {
-        const entries = Object.entries(quickAddAutoCollapseState.deadlines);
+        const entries = Object.entries(quickAddDeadlines);
         if (entries.length === 0) {
             return undefined;
         }
 
         const now = Date.now();
-        const expiredKeys = entries
-            .filter(([, deadline]) => deadline <= now)
-            .map(([controlKey]) => controlKey);
-
-        if (expiredKeys.length > 0) {
-            expiredKeys.forEach((controlKey) => {
-                delete quickAddAutoCollapseState.deadlines[controlKey];
-            });
-            setQuickAddAutoCollapseVersion((currentValue) => currentValue + 1);
-            return undefined;
-        }
-
         const nextDeadline = Math.min(...entries.map(([, deadline]) => deadline));
         const timeoutId = window.setTimeout(() => {
-            setQuickAddAutoCollapseVersion((currentValue) => currentValue + 1);
+            const currentTimestamp = Date.now();
+            setQuickAddDeadlines((currentState) => {
+                const nextState = Object.fromEntries(
+                    Object.entries(currentState).filter(([, deadline]) => Number(deadline) > currentTimestamp)
+                );
+
+                return Object.keys(nextState).length === Object.keys(currentState).length ? currentState : nextState;
+            });
         }, Math.max(0, nextDeadline - now));
 
         return () => window.clearTimeout(timeoutId);
-    }, [quickAddAutoCollapseVersion]);
+    }, [quickAddDeadlines]);
 
     useEffect(() => {
         const nextQuantities = {};
@@ -291,10 +365,18 @@ export default function ProductGrid() {
 
         Object.entries(nextQuantities).forEach(([controlKey, quantity]) => {
             const previousQuantity = Number(previousQuantities[controlKey] || 0);
-            const isPendingOpen = Boolean(quickAddAutoCollapseState.pendingOpen[controlKey]);
+            const isPendingOpen = Boolean(pendingQuickAddOpen[controlKey]);
 
             if (isPendingOpen && previousQuantity <= 0 && quantity > 0) {
-                delete quickAddAutoCollapseState.pendingOpen[controlKey];
+                setPendingQuickAddOpen((currentState) => {
+                    if (!currentState[controlKey]) {
+                        return currentState;
+                    }
+
+                    const nextState = { ...currentState };
+                    delete nextState[controlKey];
+                    return nextState;
+                });
                 setQuickAddExpanded(controlKey, false);
                 scheduleQuickAddCollapse(controlKey);
             }
@@ -302,7 +384,15 @@ export default function ProductGrid() {
             if (quantity <= 0) {
                 clearQuickAddCollapseTimeout(controlKey);
                 setQuickAddExpanded(controlKey, false);
-                delete quickAddAutoCollapseState.pendingOpen[controlKey];
+                setPendingQuickAddOpen((currentState) => {
+                    if (!currentState[controlKey]) {
+                        return currentState;
+                    }
+
+                    const nextState = { ...currentState };
+                    delete nextState[controlKey];
+                    return nextState;
+                });
             }
         });
 
@@ -310,12 +400,20 @@ export default function ProductGrid() {
             if (!nextQuantities[controlKey]) {
                 clearQuickAddCollapseTimeout(controlKey);
                 setQuickAddExpanded(controlKey, false);
-                delete quickAddAutoCollapseState.pendingOpen[controlKey];
+                setPendingQuickAddOpen((currentState) => {
+                    if (!currentState[controlKey]) {
+                        return currentState;
+                    }
+
+                    const nextState = { ...currentState };
+                    delete nextState[controlKey];
+                    return nextState;
+                });
             }
         });
 
         previousQuickAddQuantitiesRef.current = nextQuantities;
-    }, [cartItems, wholesaleCartItems]);
+    }, [cartItems, pendingQuickAddOpen, wholesaleCartItems]);
 
     const getImageUrl = (product) => {
         const firstImage = Array.isArray(product.images) ? product.images[0] : null;
@@ -444,51 +542,6 @@ export default function ProductGrid() {
         setEditingProduct(null);
     };
 
-    const setQuickAddExpanded = (controlKey, nextExpanded) => {
-        if (!controlKey) {
-            return;
-        }
-
-        setExpandedQuickAddControls((currentState) => {
-            if (nextExpanded) {
-                return {
-                    ...currentState,
-                    [controlKey]: true
-                };
-            }
-
-            if (!currentState[controlKey]) {
-                return currentState;
-            }
-
-            const nextState = { ...currentState };
-            delete nextState[controlKey];
-            return nextState;
-        });
-    };
-
-    const clearQuickAddCollapseTimeout = (controlKey) => {
-        if (!controlKey) {
-            return;
-        }
-
-        if (!quickAddAutoCollapseState.deadlines[controlKey]) {
-            return;
-        }
-
-        delete quickAddAutoCollapseState.deadlines[controlKey];
-        setQuickAddAutoCollapseVersion((currentValue) => currentValue + 1);
-    };
-
-    const scheduleQuickAddCollapse = (controlKey) => {
-        if (!controlKey) {
-            return;
-        }
-
-        quickAddAutoCollapseState.deadlines[controlKey] = Date.now() + QUICK_ADD_COLLAPSE_DELAY_MS;
-        setQuickAddAutoCollapseVersion((currentValue) => currentValue + 1);
-    };
-
     const handleQuickAddControlAction = ({ controlKey, callback, currentQuantity = 0, collapseImmediately = false }) => {
         callback();
 
@@ -503,11 +556,22 @@ export default function ProductGrid() {
         }
 
         if (currentQuantity <= 0) {
-            quickAddAutoCollapseState.pendingOpen[controlKey] = true;
+            setPendingQuickAddOpen((currentState) => ({
+                ...currentState,
+                [controlKey]: true
+            }));
             return;
         }
 
-        delete quickAddAutoCollapseState.pendingOpen[controlKey];
+        setPendingQuickAddOpen((currentState) => {
+            if (!currentState[controlKey]) {
+                return currentState;
+            }
+
+            const nextState = { ...currentState };
+            delete nextState[controlKey];
+            return nextState;
+        });
         setQuickAddExpanded(controlKey, false);
         scheduleQuickAddCollapse(controlKey);
     };
@@ -578,7 +642,7 @@ export default function ProductGrid() {
                 collapsedIcon: 'fa-cart-shopping',
                 collapsedIconAsset: '/icons/add-to-cart-retail-collapsed.svg'
             };
-        const isAutoExpanded = quantity > 0 && Number(quickAddAutoCollapseState.deadlines[controlKey] || 0) > Date.now();
+        const isAutoExpanded = quantity > 0 && Boolean(quickAddDeadlines[controlKey]);
         const isExpanded = quantity > 0 && (Boolean(expandedQuickAddControls[controlKey]) || isAutoExpanded);
 
         const handleAction = (event, callback) => {
@@ -929,7 +993,7 @@ export default function ProductGrid() {
         const hasVariants = variants.length > 0;
         const isFlipped = Boolean(flippedCards[productId]);
         const retailPrice = getRetailPrice(product);
-        const adjustedRetailPrice = getGlobalRetailDisplayPrice(retailPrice, retailPriceIncreasePercentage, userRole);
+        const adjustedRetailPrice = getGlobalRetailDisplayPrice(retailPrice, retailPriceIncreasePercentage, userRole, resolvedRolePermissions);
         const wholesalePrice = getWholesalePrice(product);
         const discountValue = getDiscountValue(product);
         const netPrice = getNetPrice(product);

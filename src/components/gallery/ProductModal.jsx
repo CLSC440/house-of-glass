@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @next/next/no-img-element */
 import { useGallery } from '@/contexts/GalleryContext';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -756,7 +757,7 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, onRemo
     const dismissTimeoutRef = useRef(null);
     const minimizedBarHideTimeoutRef = useRef(null);
     const lastMinimizedBarScrollYRef = useRef(0);
-    const [isMinimized, setIsMinimized] = useState(false);
+    const [isMinimized, setIsMinimized] = useState(() => Boolean(startMinimized));
     const [isMinimizedBarVisible, setIsMinimizedBarVisible] = useState(Boolean(startMinimized));
 
     const clearMinimizedBarHideTimeout = () => {
@@ -850,7 +851,7 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, onRemo
         if (typeof window !== 'undefined') {
             window.setTimeout(() => {
                 minimizeSheet();
-            }, 0);
+            });
             return;
         }
 
@@ -929,27 +930,29 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, onRemo
     const summaryStateSyncKey = summary?.isCartFallback ? 'cart-fallback' : summary;
 
     useEffect(() => {
-        setIsMinimized(startMinimized);
-        setIsMinimizedBarVisible(Boolean(startMinimized));
-
         clearMinimizedBarHideTimeout();
 
-        if (typeof window !== 'undefined') {
-            lastMinimizedBarScrollYRef.current = Math.max(0, window.scrollY || 0);
+        if (typeof window === 'undefined') {
+            return undefined;
         }
 
-        if (startMinimized) {
-            scheduleMinimizedBarHide();
-        }
+        lastMinimizedBarScrollYRef.current = Math.max(0, window.scrollY || 0);
+        const animationFrameId = window.requestAnimationFrame(() => {
+            setIsMinimized(Boolean(startMinimized));
+            setIsMinimizedBarVisible(Boolean(startMinimized));
 
-        if (!startMinimized) {
-            if (typeof window !== 'undefined') {
-                window.requestAnimationFrame(() => applyDragOffset(0));
-            } else {
-                applyDragOffset(0);
+            if (startMinimized) {
+                scheduleMinimizedBarHide();
+                return;
             }
-        }
-    }, [startMinimized, summaryStateSyncKey]);
+
+            applyDragOffset(0);
+        });
+
+        return () => {
+            window.cancelAnimationFrame(animationFrameId);
+        };
+    }, [startMinimized, summaryStateSyncKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         return () => {
@@ -960,7 +963,7 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, onRemo
                 dismissTimeoutRef.current = null;
             }
         };
-    }, []);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         if (typeof window === 'undefined' || !summary || !isMinimized || !isSummaryBarScrollViewport()) {
@@ -996,7 +999,7 @@ function ProductOrderDecisionSheet({ summary, onDismiss, onCompleteOrder, onRemo
             window.removeEventListener('scroll', handleScroll);
             clearMinimizedBarHideTimeout();
         };
-    }, [isMinimized, summary]);
+    }, [isMinimized, summary]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         if (typeof document === 'undefined') {
@@ -1318,7 +1321,17 @@ export default function ProductModal() {
     const isWholesaleCheckoutLoading = pendingCheckoutHref.includes('type=wholesale');
 
     useEffect(() => {
-        setIsClientMounted(true);
+        if (typeof window === 'undefined') {
+            return undefined;
+        }
+
+        const animationFrameId = window.requestAnimationFrame(() => {
+            setIsClientMounted(true);
+        });
+
+        return () => {
+            window.cancelAnimationFrame(animationFrameId);
+        };
     }, []);
 
     useEffect(() => {
@@ -1499,17 +1512,33 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
     const canViewFinalPrice = resolvedRolePermissions.viewPriceFinal === true;
 
     useEffect(() => {
+        let animationFrameId = null;
+
         if (!isAdminUser || !dcLiveUpdateAt) {
-            setShowLiveIndicator(false);
-            return undefined;
+            animationFrameId = window.requestAnimationFrame(() => {
+                setShowLiveIndicator(false);
+            });
+
+            return () => {
+                if (animationFrameId !== null) {
+                    window.cancelAnimationFrame(animationFrameId);
+                }
+            };
         }
 
-        setShowLiveIndicator(true);
+        animationFrameId = window.requestAnimationFrame(() => {
+            setShowLiveIndicator(true);
+        });
         const timeoutId = window.setTimeout(() => {
             setShowLiveIndicator(false);
         }, LIVE_INDICATOR_DURATION_MS);
 
-        return () => window.clearTimeout(timeoutId);
+        return () => {
+            if (animationFrameId !== null) {
+                window.cancelAnimationFrame(animationFrameId);
+            }
+            window.clearTimeout(timeoutId);
+        };
     }, [isAdminUser, dcLiveUpdateAt, dcSyncedAt]);
 
     useEffect(() => {
@@ -1820,7 +1849,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
         const variantDiscountValue = parsePrice(v?.discountAmount || v?.discount_amount || v?.discount || v?.discountValue || selectedProduct?.discountAmount || selectedProduct?.discount_amount || selectedProduct?.discount || selectedProduct?.discountValue);
         const variantExplicitNet = parsePrice(v?.netPrice || v?.net_price || v?.net);
         const variantNetPrice = variantExplicitNet > 0 ? variantExplicitNet : Math.max(0, variantRetailPrice - variantDiscountValue);
-        const variantFinalPrice = getGlobalRetailDisplayPrice(variantRetailPrice, productModalRetailIncreasePercentage, userRole);
+        const variantFinalPrice = getGlobalRetailDisplayPrice(variantRetailPrice, productModalRetailIncreasePercentage, userRole, resolvedRolePermissions);
         const variantVisiblePrice = resolveVisiblePriceInfo({
             canViewFinalPrice,
             canViewPackPrice,
@@ -1895,7 +1924,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
         || activePricingSource?.net
     );
     const netPriceValue = explicitNetPrice > 0 ? explicitNetPrice : Math.max(0, retailPriceValue - discountValue);
-    const adjustedRetailPriceValue = getGlobalRetailDisplayPrice(retailPriceValue, productModalRetailIncreasePercentage, userRole);
+    const adjustedRetailPriceValue = getGlobalRetailDisplayPrice(retailPriceValue, productModalRetailIncreasePercentage, userRole, resolvedRolePermissions);
     const adminPricingMetrics = buildAdminPricingMetrics({
         canViewPackPrice,
         canViewDiscountPrice,
@@ -1999,18 +2028,44 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
     }, [allProducts, normalizedSelectedCategory, selectedProduct, selectedProductIdentity]);
 
     useEffect(() => {
+        if (typeof window === 'undefined') {
+            return undefined;
+        }
+
+        const animationFrameIds = [];
+
         if (retailStockLimit !== null) {
-            setQuantity((currentValue) => Math.min(Math.max(1, currentValue), retailStockLimit || 1));
+            animationFrameIds.push(window.requestAnimationFrame(() => {
+                setQuantity((currentValue) => Math.min(Math.max(1, currentValue), retailStockLimit || 1));
+            }));
         }
 
         if (wholesaleStockLimit !== null) {
-            setWholesaleQuantity((currentValue) => Math.min(Math.max(1, currentValue), wholesaleStockLimit || 1));
+            animationFrameIds.push(window.requestAnimationFrame(() => {
+                setWholesaleQuantity((currentValue) => Math.min(Math.max(1, currentValue), wholesaleStockLimit || 1));
+            }));
         }
+
+        return () => {
+            animationFrameIds.forEach((animationFrameId) => {
+                window.cancelAnimationFrame(animationFrameId);
+            });
+        };
     }, [retailStockLimit, wholesaleStockLimit]);
 
     useEffect(() => {
-        setShowMobileVariantPicker(false);
-        setShowMobileRetailQuantityBar(false);
+        if (typeof window === 'undefined') {
+            return undefined;
+        }
+
+        const animationFrameId = window.requestAnimationFrame(() => {
+            setShowMobileVariantPicker(false);
+            setShowMobileRetailQuantityBar(false);
+        });
+
+        return () => {
+            window.cancelAnimationFrame(animationFrameId);
+        };
     }, [selectedProduct?.id, selectedProduct?.code, selectedProduct?.name]);
 
     useEffect(() => {
@@ -2018,12 +2073,22 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
             return;
         }
 
-        if (mobileVariantCheckoutItem) {
-            setQuantity(Math.max(1, Number(mobileVariantCheckoutItem.quantity || 1)));
-            return;
+        if (typeof window === 'undefined') {
+            return undefined;
         }
 
-        setQuantity(1);
+        const animationFrameId = window.requestAnimationFrame(() => {
+            if (mobileVariantCheckoutItem) {
+                setQuantity(Math.max(1, Number(mobileVariantCheckoutItem.quantity || 1)));
+                return;
+            }
+
+            setQuantity(1);
+        });
+
+        return () => {
+            window.cancelAnimationFrame(animationFrameId);
+        };
     }, [activeVariantIndex, hasVariants, mobileVariantCheckoutItem]);
 
     const closeLightbox = () => {
@@ -2286,7 +2351,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
             || firstVariant?.net
         );
         const productNetPrice = productExplicitNetPrice > 0 ? productExplicitNetPrice : Math.max(0, productRetailPrice - productDiscountValue);
-        const productFinalPrice = getGlobalRetailDisplayPrice(productRetailPrice, productModalRetailIncreasePercentage, userRole);
+        const productFinalPrice = getGlobalRetailDisplayPrice(productRetailPrice, productModalRetailIncreasePercentage, userRole, resolvedRolePermissions);
         const productVisiblePrice = resolveVisiblePriceInfo({
             canViewFinalPrice,
             canViewPackPrice,
@@ -2911,7 +2976,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
         );
         const variantExplicitNetPrice = parsePrice(variant?.netPrice || variant?.net_price || variant?.net);
         const variantNetPrice = variantExplicitNetPrice > 0 ? variantExplicitNetPrice : Math.max(0, variantRetailPrice - variantDiscountValue);
-        const variantFinalPrice = getGlobalRetailDisplayPrice(variantRetailPrice, productModalRetailIncreasePercentage, userRole);
+        const variantFinalPrice = getGlobalRetailDisplayPrice(variantRetailPrice, productModalRetailIncreasePercentage, userRole, resolvedRolePermissions);
         const variantVisiblePrice = resolveVisiblePriceInfo({
             canViewFinalPrice,
             canViewPackPrice,
@@ -3213,7 +3278,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                                                         : 'border-transparent opacity-65 hover:opacity-100'
                                                 }`}
                                             >
-                                                <img src={imgUrl} className="h-full w-full object-cover" />
+                                                <img src={imgUrl} alt="" className="h-full w-full object-cover" />
                                             </button>
                                         ))}
                                     </div>
@@ -3564,7 +3629,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                                             <i className="fa-solid fa-play text-white"></i>
                                         </div>
                                     ) : (
-                                        <img src={img.url || img} className="w-full h-full object-cover" />
+                                        <img src={img.url || img} alt="" className="w-full h-full object-cover" />
                                     )}
                                 </button>
                             ))}

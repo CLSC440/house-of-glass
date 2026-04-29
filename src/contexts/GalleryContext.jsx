@@ -6,7 +6,7 @@ import { CART_STORAGE_KEY, WHOLESALE_CART_STORAGE_KEY } from '@/lib/cart-storage
 import { buildGroupedCategoryFacetEntries, CATEGORY_GROUPS_COLLECTION, sortCategoryGroupDocs } from '@/lib/category-groups';
 import { useSiteSettings } from '@/lib/use-site-settings';
 import { getGlobalRetailDisplayPrice, parsePercentage } from '@/lib/site-pricing';
-import { isWholesaleRole, normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
+import { getCachedRolePermissions, getResolvedRolePermissions, isWholesaleRole, normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
 import { buildOrderStatusHistoryEntry } from '@/lib/utils/order-status';
 
 const noop = () => {};
@@ -512,10 +512,10 @@ function getProductNetPrice(product) {
     return Math.max(0, getProductPrice(product) - getProductDiscountAmount(product));
 }
 
-function getProductUnitOrderPrice(product, userRole = '', retailPriceIncreasePercentage = 0) {
+function getProductUnitOrderPrice(product, userRole = '', retailPriceIncreasePercentage = 0, rolePermissions = null) {
     return normalizeUserRole(userRole) === USER_ROLE_VALUES.CST_WHOLESALE
         ? getProductNetPrice(product)
-        : getGlobalRetailDisplayPrice(getProductPrice(product), retailPriceIncreasePercentage, userRole);
+    : getGlobalRetailDisplayPrice(getProductPrice(product), retailPriceIncreasePercentage, userRole, rolePermissions);
 }
 
 function getProductWholesalePrice(product) {
@@ -533,7 +533,7 @@ function getProductWholesalePrice(product) {
     );
 }
 
-function hasPendingCartPriceSync(items = [], products = [], orderType = 'retail', userRole = '', retailPriceIncreasePercentage = 0) {
+function hasPendingCartPriceSync(items = [], products = [], orderType = 'retail', userRole = '', retailPriceIncreasePercentage = 0, rolePermissions = null) {
     if (!Array.isArray(items) || items.length === 0) {
         return false;
     }
@@ -550,7 +550,7 @@ function hasPendingCartPriceSync(items = [], products = [], orderType = 'retail'
 
         const nextPrice = orderType === 'wholesale'
             ? getProductWholesalePrice(linkedProduct)
-            : getProductUnitOrderPrice(linkedProduct, userRole, retailPriceIncreasePercentage);
+            : getProductUnitOrderPrice(linkedProduct, userRole, retailPriceIncreasePercentage, rolePermissions);
 
         return Math.abs((Number(item.price) || 0) - nextPrice) >= 0.0001;
     });
@@ -862,6 +862,8 @@ export function GalleryProvider({ children }) {
     const [dcSyncedAt, setDcSyncedAt] = useState(0);
     const didRestoreUrlFiltersRef = useRef(false);
     const retailPriceIncreasePercentage = parsePercentage(derivedSettings?.priceIncrease);
+    const cachedRolePermissions = getCachedRolePermissions();
+    const resolvedRolePermissions = getResolvedRolePermissions(userRole, [], cachedRolePermissions);
 
     const buildDcRequestUrl = (path, options = {}) => {
         const query = new URLSearchParams();
@@ -1371,7 +1373,7 @@ export function GalleryProvider({ children }) {
                     return item;
                 }
 
-                const nextPrice = getProductUnitOrderPrice(linkedProduct, userRole, retailPriceIncreasePercentage);
+                const nextPrice = getProductUnitOrderPrice(linkedProduct, userRole, retailPriceIncreasePercentage, resolvedRolePermissions);
                 if (Math.abs((Number(item.price) || 0) - nextPrice) < 0.0001) {
                     return item;
                 }
@@ -1385,7 +1387,7 @@ export function GalleryProvider({ children }) {
 
             return didChange ? nextCart : currentCart;
         });
-    }, [catalogProducts, isCartHydrated, retailPriceIncreasePercentage, userRole]);
+    }, [catalogProducts, isCartHydrated, resolvedRolePermissions, retailPriceIncreasePercentage, userRole]);
 
     useEffect(() => {
         if (!isWholesaleCartHydrated || catalogProducts.length === 0) return;
@@ -1662,7 +1664,7 @@ export function GalleryProvider({ children }) {
 
         const normalizedQuantity = Math.max(1, Number(quantity) || 1);
         const stockLimit = getProductStockLimit(product, 'retail');
-        const unitOrderPrice = getProductUnitOrderPrice(product, userRole, retailPriceIncreasePercentage);
+        const unitOrderPrice = getProductUnitOrderPrice(product, userRole, retailPriceIncreasePercentage, resolvedRolePermissions);
 
         if (stockLimit === 0) {
             showToast('هذا المنتج غير متوفر حالياً.', 'error');
@@ -1849,10 +1851,10 @@ export function GalleryProvider({ children }) {
     const wholesaleCartCount = wholesaleCartItems.reduce((sum, item) => sum + item.quantity, 0);
     const wholesaleCartSubtotal = wholesaleCartItems.reduce((sum, item) => sum + ((Number(item.price) || 0) * item.quantity), 0);
     const isRetailCartPricingReady = isCartHydrated && (
-        cartItems.length === 0 || (isDcCatalogReady && !hasPendingCartPriceSync(cartItems, catalogProducts, 'retail', userRole, retailPriceIncreasePercentage))
+        cartItems.length === 0 || (isDcCatalogReady && !hasPendingCartPriceSync(cartItems, catalogProducts, 'retail', userRole, retailPriceIncreasePercentage, resolvedRolePermissions))
     );
     const isWholesaleCartPricingReady = isWholesaleCartHydrated && (
-        wholesaleCartItems.length === 0 || (isDcCatalogReady && !hasPendingCartPriceSync(wholesaleCartItems, catalogProducts, 'wholesale', userRole, retailPriceIncreasePercentage))
+        wholesaleCartItems.length === 0 || (isDcCatalogReady && !hasPendingCartPriceSync(wholesaleCartItems, catalogProducts, 'wholesale', userRole, retailPriceIncreasePercentage, resolvedRolePermissions))
     );
 
     const allocateWebsiteOrderRef = async () => {
