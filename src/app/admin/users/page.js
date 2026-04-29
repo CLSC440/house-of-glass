@@ -1,29 +1,18 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
+import Link from 'next/link';
 import { collection, query, onSnapshot, doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { parseTimestamp } from '@/lib/utils/format';
 import { adminDeleteUserAccount, adminUpdateUserRole } from '@/lib/account-api';
-import { getUserRoleBadgeTone, getUserRoleLabel, MANAGEABLE_USER_ROLES, normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
-
-const ROLE_MENU_OPTIONS = MANAGEABLE_USER_ROLES.map((role) => ({
-    value: role,
-    label: getUserRoleLabel(role)
-}));
-
-const USER_ROLE_SORT_PRIORITY = {
-    [USER_ROLE_VALUES.ADMIN]: 0,
-    [USER_ROLE_VALUES.MODERATOR]: 1,
-    [USER_ROLE_VALUES.CST_WHOLESALE]: 2,
-    [USER_ROLE_VALUES.CST_RETAIL]: 3
-};
+import { getUserRoleBadgeTone, getUserRoleLabel, getUserRoleSortOrder, normalizeUserRole, ROLE_PERMISSION_KEYS, USER_ROLE_VALUES } from '@/lib/user-roles';
+import { useAdminAccess } from '@/lib/use-admin-access';
+import { useRoleDefinitions } from '@/lib/use-role-definitions';
 
 export default function AdminUsers() {
     const [users, setUsers] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
-    const [currentUserRole, setCurrentUserRole] = useState(USER_ROLE_VALUES.MODERATOR);
     const [openRoleMenuId, setOpenRoleMenuId] = useState(null);
     const [savingUserId, setSavingUserId] = useState(null);
     const [deletingUserId, setDeletingUserId] = useState(null);
@@ -32,31 +21,33 @@ export default function AdminUsers() {
     const [isNormalizingRetailRoles, setIsNormalizingRetailRoles] = useState(false);
     const [isRebuildingLoginLookup, setIsRebuildingLoginLookup] = useState(false);
     const roleMenuRef = useRef(null);
+    const {
+        checking: isCheckingAccess,
+        allowed: canViewUsersPage,
+        user: currentUser,
+        role: currentUserRole,
+        permissions
+    } = useAdminAccess({
+        requiredPermission: ROLE_PERMISSION_KEYS.VIEW_USERS,
+        unauthorizedRedirect: '/admin'
+    });
+    const canManageUsers = permissions.manageUsers === true;
+    const canViewRoles = permissions.viewRoles === true;
+    const {
+        roleDefinitions,
+        isLoading: isLoadingRoleDefinitions,
+        error: roleDefinitionsError
+    } = useRoleDefinitions(currentUser, { enabled: canViewUsersPage && (canManageUsers || canViewRoles) });
+    const roleMenuOptions = useMemo(() => roleDefinitions.map((roleDefinition) => ({
+        value: roleDefinition.key,
+        label: roleDefinition.label
+    })), [roleDefinitions]);
 
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            setCurrentUserRole(normalizeUserRole(sessionStorage.getItem('userRole')) || USER_ROLE_VALUES.MODERATOR);
+        if (!canViewUsersPage) {
+            setLoading(isCheckingAccess);
+            return undefined;
         }
-
-        const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
-            if (!currentUser) {
-                setCurrentUserRole(USER_ROLE_VALUES.MODERATOR);
-                return;
-            }
-
-            try {
-                const currentUserSnap = await getDoc(doc(db, 'users', currentUser.uid));
-                const resolvedRole = normalizeUserRole(currentUserSnap.exists() ? currentUserSnap.data()?.role : '');
-                setCurrentUserRole(resolvedRole || USER_ROLE_VALUES.MODERATOR);
-
-                if (typeof window !== 'undefined') {
-                    sessionStorage.setItem('userRole', resolvedRole || USER_ROLE_VALUES.MODERATOR);
-                    sessionStorage.setItem('isAdmin', resolvedRole === USER_ROLE_VALUES.ADMIN || resolvedRole === USER_ROLE_VALUES.MODERATOR ? 'true' : 'false');
-                }
-            } catch (error) {
-                console.error('Failed to resolve current admin role:', error);
-            }
-        });
 
         const q = query(collection(db, 'users'));
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -66,11 +57,8 @@ export default function AdminUsers() {
             }));
             
             usersData.sort((a, b) => {
-                const roleA = normalizeUserRole(a.role);
-                const roleB = normalizeUserRole(b.role);
-
-                const rolePriorityA = USER_ROLE_SORT_PRIORITY[roleA] ?? Number.MAX_SAFE_INTEGER;
-                const rolePriorityB = USER_ROLE_SORT_PRIORITY[roleB] ?? Number.MAX_SAFE_INTEGER;
+                const rolePriorityA = getUserRoleSortOrder(a.role, roleDefinitions);
+                const rolePriorityB = getUserRoleSortOrder(b.role, roleDefinitions);
 
                 if (rolePriorityA !== rolePriorityB) {
                     return rolePriorityA - rolePriorityB;
@@ -84,10 +72,9 @@ export default function AdminUsers() {
         });
 
         return () => {
-            unsubscribeAuth();
             unsubscribe();
         };
-    }, []);
+    }, [canViewUsersPage, isCheckingAccess, roleDefinitions]);
 
     useEffect(() => {
         const handlePointerDown = (event) => {
@@ -115,7 +102,6 @@ export default function AdminUsers() {
         setConfirmState(null);
     };
 
-    const canManageUsers = normalizeUserRole(currentUserRole) === USER_ROLE_VALUES.ADMIN;
     const legacyRetailUsers = users.filter((user) => String(user.role || '').trim().toLowerCase() === 'cst_retail');
 
     const filteredUsers = useMemo(() => {
@@ -134,13 +120,13 @@ export default function AdminUsers() {
                 user.usernameLowercase,
                 user.phone,
                 user.role,
-                getUserRoleLabel(user.role),
+                getUserRoleLabel(user.role, roleDefinitions),
                 parseTimestamp(user.createdAt)
             ];
 
             return searchValues.some((value) => String(value || '').toLowerCase().includes(normalizedQuery));
         });
-    }, [searchQuery, users]);
+    }, [roleDefinitions, searchQuery, users]);
 
     const normalizeEmailForLookup = (value) => String(value || '').trim().toLowerCase();
     const normalizeUsernameForLookup = (value) => String(value || '').trim().toLowerCase().replace(/\s+/g, '');
@@ -157,13 +143,13 @@ export default function AdminUsers() {
     };
 
     const handleRebuildLoginLookup = () => {
-        if (!auth.currentUser) {
+        if (!currentUser) {
             showToast('Authentication is required.', 'error');
             return;
         }
 
         if (!canManageUsers) {
-            showToast('Only Admin accounts can rebuild login lookup data.', 'error');
+            showToast('This role does not have permission to rebuild login lookup data.', 'error');
             return;
         }
 
@@ -216,7 +202,7 @@ export default function AdminUsers() {
 
     const updateRoleWithFallback = async (userId, newRole) => {
         try {
-            await adminUpdateUserRole(auth.currentUser, userId, newRole);
+            await adminUpdateUserRole(currentUser, userId, newRole);
             return;
         } catch (error) {
             const message = String(error?.message || '');
@@ -235,7 +221,7 @@ export default function AdminUsers() {
 
     const executeRoleChange = async (userId, newRole) => {
         const targetUser = users.find((entry) => entry.id === userId);
-        const nextRoleLabel = getUserRoleLabel(newRole);
+        const nextRoleLabel = getUserRoleLabel(newRole, roleDefinitions);
 
         try {
             setSavingUserId(userId);
@@ -255,13 +241,13 @@ export default function AdminUsers() {
     };
 
     const handleNormalizeLegacyRetailRoles = () => {
-        if (!auth.currentUser) {
+        if (!currentUser) {
             showToast('Authentication is required.', 'error');
             return;
         }
 
         if (!canManageUsers) {
-            showToast('Only Admin accounts can run this migration.', 'error');
+            showToast('This role does not have permission to run this migration.', 'error');
             return;
         }
 
@@ -300,19 +286,24 @@ export default function AdminUsers() {
     };
 
     const handleRoleChange = async (userId, newRole) => {
-        if (!auth.currentUser) {
+        if (!currentUser) {
             showToast('Authentication is required.', 'error');
             return;
         }
 
         if (!canManageUsers) {
-            showToast('Only Admin accounts can change user roles.', 'error');
+            showToast('This role does not have permission to change user roles.', 'error');
+            return;
+        }
+
+        if (isLoadingRoleDefinitions) {
+            showToast('Role definitions are still loading. Please try again.', 'error');
             return;
         }
 
         const targetUser = users.find((entry) => entry.id === userId);
-        const currentRoleLabel = getUserRoleLabel(targetUser?.role);
-        const nextRoleLabel = getUserRoleLabel(newRole);
+        const currentRoleLabel = getUserRoleLabel(targetUser?.role, roleDefinitions);
+        const nextRoleLabel = getUserRoleLabel(newRole, roleDefinitions);
 
         if (normalizeUserRole(targetUser?.role) === normalizeUserRole(newRole)) {
             setOpenRoleMenuId(null);
@@ -330,13 +321,13 @@ export default function AdminUsers() {
     };
 
     const handleDelete = async (userId) => {
-        if (!auth.currentUser) {
+        if (!currentUser) {
             showToast('Authentication is required.', 'error');
             return;
         }
 
         if (!canManageUsers) {
-            showToast('Only Admin accounts can delete users.', 'error');
+            showToast('This role does not have permission to delete users.', 'error');
             return;
         }
 
@@ -350,7 +341,7 @@ export default function AdminUsers() {
             onConfirm: async () => {
                 try {
                     setDeletingUserId(userId);
-                    await adminDeleteUserAccount(auth.currentUser, userId);
+                    await adminDeleteUserAccount(currentUser, userId);
                     setConfirmState(null);
                     showToast('User deleted successfully.', 'success');
                 } catch (error) {
@@ -363,7 +354,8 @@ export default function AdminUsers() {
         });
     };
 
-    if (loading) return <div className="p-8 text-center">Loading users...</div>;
+    if (isCheckingAccess || loading) return <div className="p-8 text-center">Loading users...</div>;
+    if (!canViewUsersPage) return null;
 
     return (
         <div className="max-w-7xl mx-auto">
@@ -389,9 +381,18 @@ export default function AdminUsers() {
                 <div>
                     <h1 className="text-3xl font-black text-brandBlue dark:text-white mb-2">User Management</h1>
                     <p className="text-gray-500 dark:text-gray-400">View registered users and manage their access roles.</p>
+                    {roleDefinitionsError ? (
+                        <p className="mt-2 text-sm text-amber-300">Role definitions could not be loaded. Custom roles may appear with fallback labels until refresh.</p>
+                    ) : null}
                 </div>
                 {canManageUsers ? (
                     <div className="flex items-center gap-3">
+                        {canViewRoles ? (
+                            <Link href="/admin/roles" className="inline-flex items-center gap-2 rounded-full border border-fuchsia-400/30 bg-fuchsia-500/10 px-4 py-2.5 text-sm font-black text-fuchsia-200 transition-colors hover:bg-fuchsia-500/18">
+                                <i className="fa-solid fa-user-shield"></i>
+                                Roles Page
+                            </Link>
+                        ) : null}
                         <button
                             type="button"
                             onClick={handleRebuildLoginLookup}
@@ -472,21 +473,21 @@ export default function AdminUsers() {
                                             {parseTimestamp(user.createdAt)}
                                         </td>
                                         <td className="p-4">
-                                            {normalizeUserRole(currentUserRole) === USER_ROLE_VALUES.ADMIN ? (
+                                            {canManageUsers ? (
                                                 <div ref={openRoleMenuId === user.id ? roleMenuRef : null} className="relative inline-flex">
                                                     <button
                                                         type="button"
                                                         onClick={() => setOpenRoleMenuId((currentValue) => currentValue === user.id ? null : user.id)}
-                                                        disabled={savingUserId === user.id}
-                                                        className={`inline-flex min-w-[170px] items-center justify-between gap-3 rounded-full border px-4 py-2 text-xs font-black transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${getUserRoleBadgeTone(user.role)}`}
+                                                        disabled={savingUserId === user.id || isLoadingRoleDefinitions}
+                                                        className={`inline-flex min-w-[170px] items-center justify-between gap-3 rounded-full border px-4 py-2 text-xs font-black transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${getUserRoleBadgeTone(user.role, roleDefinitions)}`}
                                                     >
-                                                        <span>{getUserRoleLabel(user.role)}</span>
+                                                        <span>{getUserRoleLabel(user.role, roleDefinitions)}</span>
                                                         <i className={`fa-solid ${savingUserId === user.id ? 'fa-spinner fa-spin' : openRoleMenuId === user.id ? 'fa-chevron-up' : 'fa-chevron-down'} text-[10px]`}></i>
                                                     </button>
 
                                                     {openRoleMenuId === user.id ? (
                                                         <div className="absolute left-0 top-[calc(100%+0.55rem)] z-30 min-w-[190px] overflow-hidden rounded-2xl border border-white/10 bg-[#10192d] p-2 shadow-[0_18px_40px_rgba(4,8,20,0.45)] backdrop-blur-xl">
-                                                            {ROLE_MENU_OPTIONS.map((option) => {
+                                                            {roleMenuOptions.map((option) => {
                                                                 const isActive = normalizeUserRole(user.role) === option.value;
                                                                 return (
                                                                     <button
@@ -504,8 +505,8 @@ export default function AdminUsers() {
                                                     ) : null}
                                                 </div>
                                             ) : (
-                                                <span className={`inline-flex rounded-full border px-3 py-1.5 text-xs font-black tracking-wider ${getUserRoleBadgeTone(user.role)}`}>
-                                                    {getUserRoleLabel(user.role)}
+                                                <span className={`inline-flex rounded-full border px-3 py-1.5 text-xs font-black tracking-wider ${getUserRoleBadgeTone(user.role, roleDefinitions)}`}>
+                                                    {getUserRoleLabel(user.role, roleDefinitions)}
                                                 </span>
                                             )}
                                         </td>

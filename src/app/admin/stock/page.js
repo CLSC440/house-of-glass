@@ -2,8 +2,27 @@
 import { useGallery } from '@/contexts/GalleryContext';
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { useAdminAccess } from '@/lib/use-admin-access';
+import { ROLE_PERMISSION_KEYS } from '@/lib/user-roles';
 
 export default function AdminStock() {
+    const { checking, allowed } = useAdminAccess({
+        requiredPermission: ROLE_PERMISSION_KEYS.VIEW_STOCK,
+        unauthorizedRedirect: '/admin'
+    });
+
+    if (checking) {
+        return <div className="p-8 text-center">Loading stock sync...</div>;
+    }
+
+    if (!allowed) {
+        return null;
+    }
+
+    return <AdminStockContent />;
+}
+
+function AdminStockContent() {
     const { allProducts, isLoading: productsLoading } = useGallery();
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');

@@ -9,6 +9,8 @@ import { parseTimestamp } from '@/lib/utils/format';
 import { canCreateOrderForSideUp, canPreviewOrderForSideUp, canRefreshOrderForSideUp, canSendOrderInvoice, getOrderAmount, getOrderCustomerName, getOrderCustomerPhone, getOrderDateValue, getOrderDiscountAmount, getOrderExternalRef, getOrderDcSyncState, getOrderPreDiscountTotalAmount, getOrderShippingAmount, getOrderSideUpSyncState, getOrderSubtotalAmount } from '@/lib/utils/admin-orders';
 import { ORDER_STATUS_OPTIONS, appendOrderStatusHistory, getAllowedOrderStatusTransitions, getOrderStatusHistory, getOrderStatusMeta, normalizeOrderStatus } from '@/lib/utils/order-status';
 import { buildOrderStatusNotification } from '@/lib/utils/notifications';
+import { useAdminAccess } from '@/lib/use-admin-access';
+import { ROLE_PERMISSION_KEYS } from '@/lib/user-roles';
 
 const STATUS_STYLES = {
     pending: {
@@ -692,6 +694,23 @@ function buildOrderSearchIndex(order = {}) {
 }
 
 export default function AdminOrders() {
+    const { checking, allowed } = useAdminAccess({
+        requiredPermission: ROLE_PERMISSION_KEYS.VIEW_ORDERS,
+        unauthorizedRedirect: '/admin'
+    });
+
+    if (checking) {
+        return <div className="p-8 text-center">Loading orders workspace...</div>;
+    }
+
+    if (!allowed) {
+        return null;
+    }
+
+    return <AdminOrdersContent />;
+}
+
+function AdminOrdersContent() {
     const searchParams = useSearchParams();
     const { allProducts } = useGallery();
     const [orders, setOrders] = useState([]);

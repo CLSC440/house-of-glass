@@ -20,6 +20,27 @@ service cloud.firestore {
         : null;
     }
 
+    function currentRoleDocExists() {
+      return currentUserExists()
+        && currentUserRole() != null
+        && exists(/databases/$(database)/documents/roles/$(currentUserRole()));
+    }
+
+    function currentRoleDoc() {
+      return get(/databases/$(database)/documents/roles/$(currentUserRole()));
+    }
+
+    function currentRolePermissions() {
+      return currentRoleDocExists()
+        ? currentRoleDoc().data.permissions
+        : null;
+    }
+
+    function hasCustomRolePermission(permissionKey) {
+      return currentRolePermissions() != null
+        && currentRolePermissions()[permissionKey] == true;
+    }
+
     function isAdmin() {
       return currentUserRole() == 'admin';
     }
@@ -30,6 +51,47 @@ service cloud.firestore {
 
     function isAdminLike() {
       return isAdmin() || isModerator();
+    }
+
+    function hasAdminWorkspaceAccess() {
+      return isAdminLike() || hasCustomRolePermission('accessAdmin');
+    }
+
+    function canManageProducts() {
+      return isAdminLike() || hasCustomRolePermission('viewProducts');
+    }
+
+    function canManageStock() {
+      return isAdminLike() || hasCustomRolePermission('viewStock');
+    }
+
+    function canManageOrders() {
+      return isAdminLike() || hasCustomRolePermission('viewOrders');
+    }
+
+    function canViewUsers() {
+      return isAdminLike()
+        || hasCustomRolePermission('viewUsers')
+        || hasCustomRolePermission('manageUsers');
+    }
+
+    function canManageUsers() {
+      return isAdmin() || hasCustomRolePermission('manageUsers');
+    }
+
+    function canViewRoles() {
+      return isAdmin()
+        || hasCustomRolePermission('viewRoles')
+        || hasCustomRolePermission('manageRoles')
+        || hasCustomRolePermission('manageUsers');
+    }
+
+    function canManageRoles() {
+      return isAdmin() || hasCustomRolePermission('manageRoles');
+    }
+
+    function canReadOwnRoleDefinition(roleId) {
+      return currentUserExists() && currentUserRole() == roleId;
     }
 
     function isOwner(userId) {
@@ -57,38 +119,43 @@ service cloud.firestore {
 
     match /products/{productId} {
       allow read: if true;
-      allow create, update, delete: if isAdminLike();
+      allow create, update, delete: if canManageProducts();
     }
 
     match /productCategories/{categoryId} {
       allow read: if true;
-      allow create, update, delete: if isAdminLike();
+      allow create, update, delete: if canManageProducts();
     }
 
     match /categories/{categoryId} {
       allow read: if true;
-      allow create, update, delete: if isAdminLike();
+      allow create, update, delete: if canManageProducts();
     }
 
     match /categoryGroups/{groupId} {
       allow read: if true;
-      allow create, update, delete: if isAdminLike();
+      allow create, update, delete: if canManageProducts();
     }
 
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdminLike();
-      allow create: if isOwner(userId) || isAdminLike();
-      allow update: if isAdmin()
+      allow read: if isOwner(userId) || canViewUsers();
+      allow create: if isOwner(userId) || canManageUsers();
+      allow update: if canManageUsers()
         || (
           isOwner(userId)
           && request.resource.data.role == resource.data.role
           && request.resource.data.uid == resource.data.uid
         );
-      allow delete: if isAdmin();
+      allow delete: if canManageUsers();
+    }
+
+    match /roles/{roleId} {
+      allow read: if canReadOwnRoleDefinition(roleId) || canViewRoles() || canManageUsers();
+      allow create, update, delete: if canManageRoles();
     }
 
     match /user_directory/{directoryId} {
-      allow read, write: if isAdmin();
+      allow read, write: if canManageUsers();
     }
 
     match /notifications/{notificationId} {
@@ -107,15 +174,15 @@ service cloud.firestore {
     match /login_lookup/{lookupId} {
       allow get: if true;
       allow list: if false;
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if canManageUsers();
     }
 
     match /orders/{orderId} {
-      allow read: if isAdminLike() || orderBelongsToSignedInUser();
+      allow read: if canManageOrders() || orderBelongsToSignedInUser();
       allow create: if isSignedIn()
         && request.resource.data.customer != null
         && request.resource.data.customer.uid == request.auth.uid;
-      allow update, delete: if isAdminLike();
+      allow update, delete: if canManageOrders();
     }
 
     match /settings/{settingId} {

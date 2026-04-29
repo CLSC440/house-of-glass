@@ -3,7 +3,7 @@ import { createRequire } from 'module';
 import { buildAdminOrderCreatedNotification } from '@/lib/utils/notifications';
 
 const require = createRequire(import.meta.url);
-const { admin, getDb, verifyRequestUser } = require('../../../../api/_firebaseAdmin.js');
+const { admin, getDb, verifyRequestUser, listUsersWithRolePermission, ROLE_PERMISSION_KEYS } = require('../../../../api/_firebaseAdmin.js');
 const { sendWebPushNotification, isWebPushConfigured } = require('../../../../api/_webPush.js');
 
 function createError(status, message) {
@@ -66,16 +66,16 @@ export async function POST(request) {
             throw createError(403, 'You are not allowed to notify admins about this order');
         }
 
-        const privilegedUsersSnap = await db.collection('users').where('role', 'in', ['admin', 'moderator']).get();
-        if (privilegedUsersSnap.empty) {
+        const privilegedUsers = await listUsersWithRolePermission(ROLE_PERMISSION_KEYS.VIEW_ORDERS);
+        if (privilegedUsers.length === 0) {
             return NextResponse.json({ ok: true, notificationsCreated: 0 });
         }
 
         const batch = db.batch();
         let notificationsCreated = 0;
 
-        privilegedUsersSnap.forEach((userDoc) => {
-            const notificationPayload = buildAdminOrderCreatedNotification(orderData, userDoc.id);
+        privilegedUsers.forEach((userData) => {
+            const notificationPayload = buildAdminOrderCreatedNotification(orderData, userData.id);
             if (!notificationPayload) {
                 return;
             }
@@ -91,13 +91,13 @@ export async function POST(request) {
         if (notificationsCreated > 0) {
             await batch.commit();
 
-            await Promise.all(privilegedUsersSnap.docs.map(async (userDoc) => {
-                const notificationPayload = buildAdminOrderCreatedNotification(orderData, userDoc.id);
+            await Promise.all(privilegedUsers.map(async (userData) => {
+                const notificationPayload = buildAdminOrderCreatedNotification(orderData, userData.id);
                 if (!notificationPayload) {
                     return;
                 }
 
-                await sendPushToUser(db, userDoc.id, {
+                await sendPushToUser(db, userData.id, {
                     title: notificationPayload.title,
                     body: notificationPayload.message,
                     url: notificationPayload.actionHref || '/admin/orders'

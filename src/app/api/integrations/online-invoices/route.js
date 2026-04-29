@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import firebaseAdminModule from '../../../../api/_firebaseAdmin.js';
 
-const { getDb, verifyRequestUser, getAdmin } = firebaseAdminModule;
+const { getDb, getAdmin, requireRequestPermission, ROLE_PERMISSION_KEYS } = firebaseAdminModule;
 
 const DC_ONLINE_INVOICE_URL = process.env.DC_ONLINE_INVOICE_URL;
 const DC_ONLINE_INVOICE_API_KEY = process.env.DC_ONLINE_INVOICE_API_KEY;
@@ -407,15 +407,9 @@ export async function POST(request) {
         ensureConfig();
 
         const headerBag = Object.fromEntries(request.headers.entries());
-        const decodedToken = await verifyRequestUser({ headers: headerBag });
+        const { tokenData: decodedToken } = await requireRequestPermission({ headers: headerBag }, ROLE_PERMISSION_KEYS.VIEW_ORDERS, 'Order access permission is required');
         const db = getDb();
         const admin = getAdmin();
-
-        const userDoc = await db.collection('users').doc(decodedToken.uid).get();
-        const role = userDoc.exists ? String(userDoc.data()?.role || '') : '';
-        if (role !== 'admin' && role !== 'moderator') {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-        }
 
         const body = await request.json().catch(() => ({}));
         const orderId = String(body?.orderId || '').trim();

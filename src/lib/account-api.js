@@ -94,6 +94,34 @@ export async function adminUpdateUserRole(currentUser, uid, role) {
     return callAccountApi('adminUpdateUserRole', { uid, role }, idToken);
 }
 
+export async function getRoleDefinitions(currentUser) {
+    if (!currentUser) {
+        throw new Error('Authentication required');
+    }
+
+    const idToken = await currentUser.getIdToken();
+    const responseData = await callAccountApi('getRoleDefinitions', {}, idToken);
+    return Array.isArray(responseData.roles) ? responseData.roles : [];
+}
+
+export async function adminUpsertRoleDefinition(currentUser, roleDefinition = {}) {
+    if (!currentUser) {
+        throw new Error('Authentication required');
+    }
+
+    const idToken = await currentUser.getIdToken();
+    return callAccountApi('adminUpsertRole', roleDefinition, idToken);
+}
+
+export async function adminDeleteRoleDefinition(currentUser, key) {
+    if (!currentUser) {
+        throw new Error('Authentication required');
+    }
+
+    const idToken = await currentUser.getIdToken();
+    return callAccountApi('adminDeleteRole', { key }, idToken);
+}
+
 export async function getOwnOrders(currentUser) {
     if (!currentUser) {
         throw new Error('Authentication required');

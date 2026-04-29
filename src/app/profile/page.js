@@ -616,6 +616,7 @@ export default function UserProfile() {
         await signOut(auth);
         sessionStorage.removeItem('isAdmin');
         sessionStorage.removeItem('userRole');
+        sessionStorage.removeItem('userPermissions');
         router.push('/login');
     };
 
@@ -769,6 +770,7 @@ export default function UserProfile() {
             await deleteOwnAccount(user, { forceRefresh: true });
             sessionStorage.removeItem('isAdmin');
             sessionStorage.removeItem('userRole');
+            sessionStorage.removeItem('userPermissions');
             router.push('/signup');
         } catch (err) {
             console.error(err);

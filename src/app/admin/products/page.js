@@ -8,6 +8,8 @@ import { parseTimestamp } from '@/lib/utils/format';
 import { auth, db } from '@/lib/firebase';
 import { deleteImageKitFiles } from '@/lib/imagekit-client';
 import { doc, deleteDoc } from 'firebase/firestore';
+import { useAdminAccess } from '@/lib/use-admin-access';
+import { ROLE_PERMISSION_KEYS } from '@/lib/user-roles';
 
 function parseNumber(value) {
     const numericValue = Number(value);
@@ -503,6 +505,23 @@ async function persistAdminDcSnapshotBaseline() {
 }
 
 export default function AdminProducts() {
+    const { checking, allowed } = useAdminAccess({
+        requiredPermission: ROLE_PERMISSION_KEYS.VIEW_PRODUCTS,
+        unauthorizedRedirect: '/admin'
+    });
+
+    if (checking) {
+        return <div className="p-8 text-center">Loading products workspace...</div>;
+    }
+
+    if (!allowed) {
+        return null;
+    }
+
+    return <AdminProductsContent />;
+}
+
+function AdminProductsContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { allProducts, categories, brands, isLoading, dcSyncedAt, refreshDcCatalog } = useGallery();

@@ -1,13 +1,22 @@
 import { NextResponse } from 'next/server';
 import { createRequire } from 'module';
-import { normalizeUserRole } from '@/lib/user-roles';
+import {
+    ROLE_PERMISSION_KEYS,
+    SYSTEM_ROLE_DEFINITIONS,
+    getDefaultResellerRoleDefinition,
+    hasRolePermission,
+    mergeRoleDefinitions,
+    normalizeRoleKey,
+    normalizeRolePermissions,
+    normalizeUserRole
+} from '@/lib/user-roles';
 
 const require = createRequire(import.meta.url);
 const { admin, getDb, verifyRequestUser } = require('../../../api/_firebaseAdmin.js');
 
-const ALLOWED_ROLES = new Set(['customer', 'cst_wholesale', 'moderator', 'admin']);
 const RECENT_AUTH_MAX_AGE_SECONDS = 5 * 60;
 const MAX_SAVED_SHIPPING_ADDRESSES = 3;
+const ROLE_COLLECTION = 'roles';
 
 function createError(status, message) {
     const error = new Error(message);
@@ -96,6 +105,87 @@ function normalizeShippingAddressId(value) {
 
 function generateShippingAddressId() {
     return `addr_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function serializeRoleDefinition(roleDefinition = {}) {
+    return {
+        key: normalizeRoleKey(roleDefinition.key),
+        label: normalizeString(roleDefinition.label, 64),
+        description: normalizeString(roleDefinition.description, 280),
+        permissions: normalizeRolePermissions(roleDefinition.permissions),
+        isSystem: roleDefinition.isSystem === true,
+        sortOrder: Number.isFinite(roleDefinition.sortOrder) ? roleDefinition.sortOrder : 100
+    };
+}
+
+async function listStoredRoleDefinitions(db) {
+    const rolesSnapshot = await db.collection(ROLE_COLLECTION).get();
+    return rolesSnapshot.docs.map((roleDoc) => serializeRoleDefinition({ key: roleDoc.id, ...roleDoc.data() }));
+}
+
+async function ensureSeedRoleDefinitions(db) {
+    const rolesSnapshot = await db.collection(ROLE_COLLECTION).limit(1).get();
+    if (!rolesSnapshot.empty) return;
+
+    const resellerRole = serializeRoleDefinition(getDefaultResellerRoleDefinition());
+    await db.collection(ROLE_COLLECTION).doc(resellerRole.key).set({
+        label: resellerRole.label,
+        description: resellerRole.description,
+        permissions: resellerRole.permissions,
+        isSystem: false,
+        sortOrder: resellerRole.sortOrder,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+}
+
+async function getAvailableRoleDefinitions(db, { seedDefaults = false } = {}) {
+    if (seedDefaults) {
+        await ensureSeedRoleDefinitions(db);
+    }
+
+    const storedRoleDefinitions = await listStoredRoleDefinitions(db);
+    return mergeRoleDefinitions(storedRoleDefinitions);
+}
+
+function isSupportedRole(role, roleDefinitions = []) {
+    const normalizedRole = normalizeUserRole(role);
+    return mergeRoleDefinitions(roleDefinitions).some((roleDefinition) => roleDefinition.key === normalizedRole);
+}
+
+async function requireRolePermission(db, callerUid, permissionKey, message = 'You do not have permission to perform this action.') {
+    const [callerSnap, roleDefinitions] = await Promise.all([
+        db.collection('users').doc(callerUid).get(),
+        getAvailableRoleDefinitions(db, { seedDefaults: true })
+    ]);
+    const role = normalizeUserRole(callerSnap.exists ? callerSnap.data()?.role : '');
+
+    if (!hasRolePermission(role, permissionKey, roleDefinitions)) {
+        throw createError(403, message);
+    }
+
+    return {
+        role,
+        roleDefinitions
+    };
+}
+
+async function requireAnyRolePermission(db, callerUid, permissionKeys = [], message = 'You do not have permission to perform this action.') {
+    const [callerSnap, roleDefinitions] = await Promise.all([
+        db.collection('users').doc(callerUid).get(),
+        getAvailableRoleDefinitions(db, { seedDefaults: true })
+    ]);
+    const role = normalizeUserRole(callerSnap.exists ? callerSnap.data()?.role : '');
+    const hasMatchingPermission = permissionKeys.some((permissionKey) => hasRolePermission(role, permissionKey, roleDefinitions));
+
+    if (!hasMatchingPermission) {
+        throw createError(403, message);
+    }
+
+    return {
+        role,
+        roleDefinitions
+    };
 }
 
 function sanitizeSavedShippingAddress(rawAddress = {}) {
@@ -317,15 +407,6 @@ async function deleteDirectoryEntriesForUser(db, batch, uid, userData = {}) {
     }
 }
 
-async function requireAdmin(db, callerUid) {
-    const callerSnap = await db.collection('users').doc(callerUid).get();
-    const role = normalizeUserRole(callerSnap.exists ? callerSnap.data()?.role : '');
-
-    if (role !== 'admin') {
-        throw createError(403, 'Admin access is required for this action.');
-    }
-}
-
 function getAuthorizationHeader(request) {
     return request.headers.get('authorization') || '';
 }
@@ -384,6 +465,7 @@ export async function POST(request) {
             const currentProfile = currentSnap.exists ? currentSnap.data() : {};
             const options = body?.options || {};
             const nextProfile = sanitizeProfile(body?.profile || {}, tokenData, currentProfile);
+            const roleDefinitions = await getAvailableRoleDefinitions(db, { seedDefaults: true });
 
             if (options.autoGenerateUsername || !nextProfile.usernameLowercase) {
                 nextProfile.username = await pickAvailableUsername(db, nextProfile.username, nextProfile.name, nextProfile.authEmail || nextProfile.email, tokenData.uid);
@@ -403,7 +485,7 @@ export async function POST(request) {
                 const liveProfile = liveSnap.exists ? liveSnap.data() : {};
                 const liveRole = normalizeUserRole(liveProfile.role || role || 'customer');
 
-                if (!ALLOWED_ROLES.has(liveRole)) throw createError(400, 'Invalid role on user profile.');
+                if (!isSupportedRole(liveRole, roleDefinitions)) throw createError(400, 'Invalid role on user profile.');
 
                 await claimDirectoryEntries(db, transaction, tokenData.uid, nextProfile, liveProfile);
 
@@ -572,7 +654,7 @@ export async function POST(request) {
 
         if (action === 'adminDeleteUser') {
             const tokenData = await verifyUserFromRequest(request);
-            await requireAdmin(db, tokenData.uid);
+            await requireRolePermission(db, tokenData.uid, ROLE_PERMISSION_KEYS.MANAGE_USERS, 'User management permission is required for this action.');
 
             const uid = normalizeString(body?.uid, 128);
             if (!uid) throw createError(400, 'uid is required.');
@@ -601,13 +683,13 @@ export async function POST(request) {
 
         if (action === 'adminUpdateUserRole') {
             const tokenData = await verifyUserFromRequest(request);
-            await requireAdmin(db, tokenData.uid);
+            const { roleDefinitions } = await requireRolePermission(db, tokenData.uid, ROLE_PERMISSION_KEYS.MANAGE_USERS, 'User management permission is required for this action.');
 
             const uid = normalizeString(body?.uid, 128);
             const role = normalizeUserRole(body?.role);
 
             if (!uid) throw createError(400, 'uid is required.');
-            if (!ALLOWED_ROLES.has(role)) throw createError(400, 'Invalid role provided.');
+            if (!isSupportedRole(role, roleDefinitions)) throw createError(400, 'Invalid role provided.');
 
             await db.collection('users').doc(uid).set({
                 role,
@@ -615,6 +697,68 @@ export async function POST(request) {
             }, { merge: true });
 
             return NextResponse.json({ success: true, role });
+        }
+
+        if (action === 'getRoleDefinitions') {
+            const tokenData = await verifyUserFromRequest(request);
+            await requireAnyRolePermission(
+                db,
+                tokenData.uid,
+                [ROLE_PERMISSION_KEYS.VIEW_ROLES, ROLE_PERMISSION_KEYS.MANAGE_USERS],
+                'Role visibility permission is required for this action.'
+            );
+
+            const roleDefinitions = await getAvailableRoleDefinitions(db, { seedDefaults: true });
+            return NextResponse.json({ success: true, roles: roleDefinitions.map(serializeRoleDefinition) });
+        }
+
+        if (action === 'adminUpsertRole') {
+            const tokenData = await verifyUserFromRequest(request);
+            await requireRolePermission(db, tokenData.uid, ROLE_PERMISSION_KEYS.MANAGE_ROLES, 'Role management permission is required for this action.');
+
+            const roleKey = normalizeRoleKey(body?.key || body?.label);
+            const label = normalizeString(body?.label, 64);
+            const description = normalizeString(body?.description, 280);
+            const permissions = normalizeRolePermissions(body?.permissions || {});
+
+            if (!roleKey) throw createError(400, 'Role key is required.');
+            if (!label) throw createError(400, 'Role label is required.');
+            if (SYSTEM_ROLE_DEFINITIONS[roleKey]) throw createError(400, 'System roles cannot be edited from the roles page.');
+
+            const roleRef = db.collection(ROLE_COLLECTION).doc(roleKey);
+            const roleSnap = await roleRef.get();
+            const sortOrder = permissions.accessAdmin ? 20 : 35;
+
+            await roleRef.set({
+                key: roleKey,
+                label,
+                description,
+                permissions,
+                isSystem: false,
+                sortOrder,
+                createdAt: roleSnap.exists ? (roleSnap.data()?.createdAt || admin.firestore.FieldValue.serverTimestamp()) : admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            const savedRoleSnap = await roleRef.get();
+            return NextResponse.json({ success: true, role: serializeRoleDefinition({ key: savedRoleSnap.id, ...savedRoleSnap.data() }) });
+        }
+
+        if (action === 'adminDeleteRole') {
+            const tokenData = await verifyUserFromRequest(request);
+            await requireRolePermission(db, tokenData.uid, ROLE_PERMISSION_KEYS.MANAGE_ROLES, 'Role management permission is required for this action.');
+
+            const roleKey = normalizeRoleKey(body?.key || body?.role);
+            if (!roleKey) throw createError(400, 'Role key is required.');
+            if (SYSTEM_ROLE_DEFINITIONS[roleKey]) throw createError(400, 'System roles cannot be deleted.');
+
+            const assignedUsersSnapshot = await db.collection('users').where('role', '==', roleKey).limit(1).get();
+            if (!assignedUsersSnapshot.empty) {
+                throw createError(409, 'This role is still assigned to one or more users. Reassign them before deleting the role.');
+            }
+
+            await db.collection(ROLE_COLLECTION).doc(roleKey).delete();
+            return NextResponse.json({ success: true, key: roleKey });
         }
 
         throw createError(400, 'Unsupported action.');

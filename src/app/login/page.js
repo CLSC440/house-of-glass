@@ -6,7 +6,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '@/lib/firebase';
 import Link from 'next/link';
 import { resolveLoginIdentifier, upsertCurrentUserProfile } from '@/lib/account-api';
-import { isAdminRole, normalizeUserRole } from '@/lib/user-roles';
+import { canAccessAdminArea, getRoleDefinition, normalizeUserRole, SYSTEM_ROLE_DEFINITIONS } from '@/lib/user-roles';
 
 function LoginForm() {
     const markNotificationPromptPending = () => {
@@ -22,6 +22,26 @@ function LoginForm() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+
+    const resolveRoleAccess = async (role) => {
+        const normalizedRole = normalizeUserRole(role);
+
+        if (SYSTEM_ROLE_DEFINITIONS[normalizedRole]) {
+            return {
+                normalizedRole,
+                canAccessAdmin: canAccessAdminArea(normalizedRole),
+                permissions: getRoleDefinition(normalizedRole).permissions
+            };
+        }
+
+        const roleSnap = await getDoc(doc(db, 'roles', normalizedRole));
+        const roleDefinitions = roleSnap.exists() ? [{ key: roleSnap.id, ...roleSnap.data() }] : [];
+        return {
+            normalizedRole,
+            canAccessAdmin: canAccessAdminArea(normalizedRole, roleDefinitions),
+            permissions: getRoleDefinition(normalizedRole, roleDefinitions).permissions
+        };
+    };
 
     const resolvePostAuthRoute = () => {
         const redirectParam = searchParams.get('redirect');
@@ -217,11 +237,12 @@ function LoginForm() {
             
             if (userDoc.exists()) {
                 const userData = userDoc.data();
-                const normalizedRole = normalizeUserRole(userData.role);
-                if (isAdminRole(normalizedRole)) {
+                const roleAccess = await resolveRoleAccess(userData.role);
+                if (roleAccess.canAccessAdmin) {
                     markNotificationPromptPending();
                     sessionStorage.setItem('isAdmin', 'true');
-                    sessionStorage.setItem('userRole', normalizedRole);
+                    sessionStorage.setItem('userRole', roleAccess.normalizedRole);
+                    sessionStorage.setItem('userPermissions', JSON.stringify(roleAccess.permissions));
                     router.push('/admin');
                     return;
                 }
@@ -229,6 +250,7 @@ function LoginForm() {
             
             markNotificationPromptPending();
             sessionStorage.removeItem('isAdmin');
+            sessionStorage.removeItem('userPermissions');
             router.push(resolvePostAuthRoute());
         } catch (err) {
             console.error('Error fetching user role:', err);

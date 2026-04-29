@@ -3,7 +3,7 @@ import { createRequire } from 'module';
 import { buildOrderStatusNotification } from '@/lib/utils/notifications';
 
 const require = createRequire(import.meta.url);
-const { admin, getDb, verifyRequestUser } = require('../../../../api/_firebaseAdmin.js');
+const { admin, getDb, requireRequestPermission, ROLE_PERMISSION_KEYS } = require('../../../../api/_firebaseAdmin.js');
 const { sendWebPushNotification, isWebPushConfigured } = require('../../../../api/_webPush.js');
 
 function createError(status, message) {
@@ -38,18 +38,13 @@ async function sendPushToUser(db, userId, payload) {
 
 export async function POST(request) {
     try {
-        const tokenData = await verifyRequestUser({
+        await requireRequestPermission({
             headers: {
                 authorization: request.headers.get('authorization') || ''
             }
-        });
+        }, ROLE_PERMISSION_KEYS.VIEW_ORDERS, 'Order access permission is required');
 
         const db = getDb();
-        const requesterSnap = await db.collection('users').doc(tokenData.uid).get();
-        const requesterRole = String(requesterSnap.data()?.role || '').trim().toLowerCase();
-        if (requesterRole !== 'admin' && requesterRole !== 'moderator') {
-            throw createError(403, 'Admin or moderator access is required');
-        }
 
         const payload = await request.json().catch(() => ({}));
         const orderId = String(payload?.orderId || '').trim();

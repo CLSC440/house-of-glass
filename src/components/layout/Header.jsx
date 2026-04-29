@@ -4,9 +4,9 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { useGallery } from '@/contexts/GalleryContext';
-import { getUserRoleLabel, isAdminRole, normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
+import { canAccessAdminArea, getRoleDefinition, getUserRoleLabel, normalizeUserRole, SYSTEM_ROLE_DEFINITIONS, USER_ROLE_VALUES } from '@/lib/user-roles';
 import NotificationsCenter from '@/components/layout/NotificationsCenter';
 import BrandLoadingScreen from '@/components/layout/BrandLoadingScreen';
 
@@ -58,6 +58,33 @@ export default function Header() {
         activeFilterChips
     } = useGallery();
 
+    const syncRoleAccess = useCallback(async (normalizedRole) => {
+        if (!normalizedRole) {
+            setIsAdmin(false);
+
+            if (typeof window !== 'undefined') {
+                sessionStorage.removeItem('userPermissions');
+            }
+
+            return;
+        }
+
+        const roleSnap = SYSTEM_ROLE_DEFINITIONS[normalizedRole]
+            ? null
+            : await getDoc(doc(db, 'roles', normalizedRole));
+        const roleDefinitions = roleSnap?.exists() ? [{ key: roleSnap.id, ...roleSnap.data() }] : [];
+        const roleDefinition = getRoleDefinition(normalizedRole, roleDefinitions);
+        const hasAdminAccess = canAccessAdminArea(normalizedRole, roleDefinitions);
+
+        setIsAdmin(hasAdminAccess);
+
+        if (typeof window !== 'undefined') {
+            sessionStorage.setItem('userRole', normalizedRole || '');
+            sessionStorage.setItem('isAdmin', hasAdminAccess ? 'true' : 'false');
+            sessionStorage.setItem('userPermissions', JSON.stringify(roleDefinition.permissions));
+        }
+    }, []);
+
     useEffect(() => {
         let unsubscribeProfile = null;
 
@@ -80,12 +107,7 @@ export default function Header() {
                     const normalizedRole = normalizeUserRole(profileData?.role);
 
                     setUserProfile(profileData);
-                    setIsAdmin(isAdminRole(normalizedRole));
-
-                    if (typeof window !== 'undefined') {
-                        sessionStorage.setItem('userRole', normalizedRole || '');
-                        sessionStorage.setItem('isAdmin', isAdminRole(normalizedRole) ? 'true' : 'false');
-                    }
+                    void syncRoleAccess(normalizedRole);
                 }, (error) => {
                     console.error('Error fetching header user profile:', error);
                     setUserProfile(null);
@@ -99,6 +121,7 @@ export default function Header() {
                 if (typeof window !== 'undefined') {
                     sessionStorage.removeItem('userRole');
                     sessionStorage.removeItem('isAdmin');
+                    sessionStorage.removeItem('userPermissions');
                 }
             }
         });
@@ -108,15 +131,19 @@ export default function Header() {
             }
             unsubscribe();
         };
-    }, []);
+    }, [syncRoleAccess]);
 
     useEffect(() => {
-        setAccountPanelOpen(false);
-        setIsProfileRouteLoading(false);
+        queueMicrotask(() => {
+            setAccountPanelOpen(false);
+            setIsProfileRouteLoading(false);
+        });
     }, [pathname]);
 
     useEffect(() => {
-        setAvatarLoadFailed(false);
+        queueMicrotask(() => {
+            setAvatarLoadFailed(false);
+        });
     }, [user?.photoURL, userProfile?.photoURL]);
 
     const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
@@ -154,6 +181,7 @@ export default function Header() {
         if (typeof window !== 'undefined') {
             sessionStorage.removeItem('isAdmin');
             sessionStorage.removeItem('userRole');
+            sessionStorage.removeItem('userPermissions');
         }
         closeAccountPanel();
         closeSidebar();
@@ -309,7 +337,10 @@ export default function Header() {
     };
 
     const handleProfilePanelNavigation = () => {
-        setIsProfileRouteLoading(true);
+        if (pathname !== '/profile') {
+            setIsProfileRouteLoading(true);
+        }
+
         closeAccountPanel();
         closeSidebar();
     };

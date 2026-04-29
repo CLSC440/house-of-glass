@@ -6,7 +6,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '@/lib/firebase';
 import Link from 'next/link';
 import { checkAccountAvailability, upsertCurrentUserProfile } from '@/lib/account-api';
-import { isAdminRole, normalizeUserRole } from '@/lib/user-roles';
+import { canAccessAdminArea, getRoleDefinition, normalizeUserRole, SYSTEM_ROLE_DEFINITIONS } from '@/lib/user-roles';
 
 function SignupForm() {
     const markNotificationPromptPending = () => {
@@ -30,6 +30,26 @@ function SignupForm() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+
+    const resolveRoleAccess = async (role) => {
+        const normalizedRole = normalizeUserRole(role);
+
+        if (SYSTEM_ROLE_DEFINITIONS[normalizedRole]) {
+            return {
+                normalizedRole,
+                canAccessAdmin: canAccessAdminArea(normalizedRole),
+                permissions: getRoleDefinition(normalizedRole).permissions
+            };
+        }
+
+        const roleSnap = await getDoc(doc(db, 'roles', normalizedRole));
+        const roleDefinitions = roleSnap.exists() ? [{ key: roleSnap.id, ...roleSnap.data() }] : [];
+        return {
+            normalizedRole,
+            canAccessAdmin: canAccessAdminArea(normalizedRole, roleDefinitions),
+            permissions: getRoleDefinition(normalizedRole, roleDefinitions).permissions
+        };
+    };
 
     const resolvePostAuthRoute = () => {
         const redirectParam = searchParams.get('redirect');
@@ -134,12 +154,13 @@ function SignupForm() {
             
             const userRef = doc(db, 'users', user.uid);
             const userDoc = await getDoc(userRef);
+            let resolvedProfile = userDoc.exists() ? userDoc.data() : null;
 
             if (!userDoc.exists()) {
                 const parts = String(user.displayName || '').trim().split(' ').filter(Boolean);
                 const firstName = parts[0] || '';
                 const lastName = parts.slice(1).join(' ');
-                await upsertCurrentUserProfile(user, {
+                const savedProfile = await upsertCurrentUserProfile(user, {
                     firstName,
                     lastName,
                     name: user.displayName || 'Google User',
@@ -147,9 +168,10 @@ function SignupForm() {
                     phone: user.phoneNumber || '',
                     photoURL: user.photoURL || ''
                 }, { autoGenerateUsername: true });
+                resolvedProfile = savedProfile?.profile || null;
             }
 
-            handleRedirect(userDoc.exists() ? userDoc.data() : null);
+            handleRedirect(resolvedProfile);
         } catch (err) {
             console.error('Google Signup Error:', err);
             setError('Google sign up failed!');
@@ -157,17 +179,23 @@ function SignupForm() {
         }
     };
 
-    const handleRedirect = (userData = null) => {
-        if (userData && isAdminRole(normalizeUserRole(userData.role))) {
-            markNotificationPromptPending();
-            sessionStorage.setItem('isAdmin', 'true');
-            sessionStorage.setItem('userRole', normalizeUserRole(userData.role));
-            router.push('/admin');
-        } else {
-            markNotificationPromptPending();
-            sessionStorage.removeItem('isAdmin');
-            router.push(resolvePostAuthRoute());
+    const handleRedirect = async (userData = null) => {
+        if (userData) {
+            const roleAccess = await resolveRoleAccess(userData.role);
+            if (roleAccess.canAccessAdmin) {
+                markNotificationPromptPending();
+                sessionStorage.setItem('isAdmin', 'true');
+                sessionStorage.setItem('userRole', roleAccess.normalizedRole);
+                sessionStorage.setItem('userPermissions', JSON.stringify(roleAccess.permissions));
+                router.push('/admin');
+                return;
+            }
         }
+
+        markNotificationPromptPending();
+        sessionStorage.removeItem('isAdmin');
+        sessionStorage.removeItem('userPermissions');
+        router.push(resolvePostAuthRoute());
     };
 
     return (

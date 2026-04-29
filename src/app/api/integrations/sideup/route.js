@@ -5,7 +5,7 @@ import { buildSideUpOrderPreview, createSideUpOrderForOrder, hasSideUpCreateCred
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const { getDb, verifyRequestUser } = firebaseAdminModule;
+const { getDb, requireRequestPermission, ROLE_PERMISSION_KEYS } = firebaseAdminModule;
 
 function createError(status, message, code, details) {
     const error = new Error(message);
@@ -99,18 +99,13 @@ export async function POST(request) {
     let shouldPersistFailure = false;
 
     try {
-        const tokenData = await verifyRequestUser({
+        const { tokenData, role: requesterRole } = await requireRequestPermission({
             headers: {
                 authorization: request.headers.get('authorization') || ''
             }
-        });
+        }, ROLE_PERMISSION_KEYS.VIEW_ORDERS, 'Order access permission is required');
 
         const db = getDb();
-        const requesterSnap = await db.collection('users').doc(tokenData.uid).get();
-        const requesterRole = getRequesterRole(requesterSnap.data());
-        if (requesterRole !== 'admin' && requesterRole !== 'moderator') {
-            throw createError(403, 'Admin or moderator access is required', 'sideup_forbidden');
-        }
 
         requestBody = await request.json().catch(() => ({}));
         const orderId = String(requestBody?.orderId || '').trim();
@@ -145,7 +140,7 @@ export async function POST(request) {
         requester = {
             uid: tokenData.uid,
             email: tokenData.email || '',
-            role: requesterRole
+            role: getRequesterRole({ role: requesterRole })
         };
 
         if (mode === 'preview') {

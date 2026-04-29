@@ -8,7 +8,7 @@ import { CATEGORY_GROUPS_COLLECTION, sortCategoryGroupDocs } from '@/lib/categor
 import { createEmptyPromoCodeEntry, findDuplicatePromoCodes } from '@/lib/promo-codes';
 import { DEFAULT_SITE_SETTINGS, INFO_PAGE_CARD_IDS, normalizeInfoPageCardOrder, normalizeSiteSettings, useSiteSettings } from '@/lib/use-site-settings';
 import { GOVERNORATE_OPTIONS, SHIPPING_ZONE_RATE_FIELDS } from '@/lib/shipping-zones';
-import { normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
+import { normalizeRolePermissions, normalizeUserRole, ROLE_PERMISSION_KEYS, USER_ROLE_VALUES } from '@/lib/user-roles';
 import { signOut } from 'firebase/auth';
 import { addDoc, collection, deleteDoc, doc, getDocs, onSnapshot, query, setDoc, updateDoc, where } from 'firebase/firestore';
 import {
@@ -134,6 +134,7 @@ export default function FloatingDockDemo({
     onAddProduct,
     ordersHref = '/admin/orders',
     usersHref = '/admin/users',
+    rolesHref = '/admin/roles',
     stockHref = '/admin/stock',
     supportHref = '/whatsapp-server',
     healthHref = '/server-status',
@@ -144,6 +145,7 @@ export default function FloatingDockDemo({
     const [openPanel, setOpenPanel] = useState(null);
     const [isDark, setIsDark] = useState(true);
     const [userRole, setUserRole] = useState('');
+    const [userPermissions, setUserPermissions] = useState(() => normalizeRolePermissions());
     const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
     const [settingsForm, setSettingsForm] = useState(DEFAULT_SITE_SETTINGS);
     const [isSavingSettings, setIsSavingSettings] = useState(false);
@@ -170,6 +172,14 @@ export default function FloatingDockDemo({
     useEffect(() => {
         setIsDark(document.documentElement.classList.contains('dark'));
         setUserRole(normalizeUserRole(sessionStorage.getItem('userRole')));
+        try {
+            const storedPermissions = sessionStorage.getItem('userPermissions');
+            if (storedPermissions) {
+                setUserPermissions(normalizeRolePermissions(JSON.parse(storedPermissions)));
+            }
+        } catch (error) {
+            console.error('Failed to restore admin permissions:', error);
+        }
 
         try {
             const storedToolbarOrder = window.localStorage.getItem(ADMIN_TOOLBAR_ORDER_STORAGE_KEY);
@@ -337,7 +347,15 @@ export default function FloatingDockDemo({
             href: usersHref,
             active: pathname === usersHref,
             icon: <IconUsersGroup className="h-full w-full" />,
-            adminOnly: true
+            permissionKey: ROLE_PERMISSION_KEYS.VIEW_USERS
+        },
+        {
+            id: 'roles',
+            title: 'Roles',
+            href: rolesHref,
+            active: pathname === rolesHref,
+            icon: <IconTags className="h-full w-full" />,
+            permissionKey: ROLE_PERMISSION_KEYS.VIEW_ROLES
         },
         {
             id: 'settings',
@@ -374,9 +392,20 @@ export default function FloatingDockDemo({
             title: 'Stock Sync',
             href: stockHref,
             active: pathname === stockHref,
-            icon: <IconAdjustmentsCog className="h-full w-full" />
+            icon: <IconAdjustmentsCog className="h-full w-full" />,
+            permissionKey: ROLE_PERMISSION_KEYS.VIEW_STOCK
         }
-    ].filter((item) => !item.adminOnly || isStrictAdmin);
+    ].filter((item) => {
+        if (item.adminOnly && !isStrictAdmin) {
+            return false;
+        }
+
+        if (item.permissionKey && userPermissions[item.permissionKey] !== true) {
+            return false;
+        }
+
+        return true;
+    });
 
     const handleThemeToggle = () => {
         const isCurrentlyDark = document.documentElement.classList.contains('dark');
@@ -527,6 +556,7 @@ export default function FloatingDockDemo({
         await signOut(auth);
         sessionStorage.removeItem('isAdmin');
         sessionStorage.removeItem('userRole');
+        sessionStorage.removeItem('userPermissions');
         router.push('/login');
     };
 

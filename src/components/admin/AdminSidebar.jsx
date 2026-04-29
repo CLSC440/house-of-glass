@@ -1,25 +1,43 @@
 'use client';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
+import { normalizeRolePermissions, ROLE_PERMISSION_KEYS } from '@/lib/user-roles';
+
+function readStoredPermissions() {
+    if (typeof window === 'undefined') {
+        return normalizeRolePermissions();
+    }
+
+    try {
+        const storedPermissions = sessionStorage.getItem('userPermissions');
+        return storedPermissions ? normalizeRolePermissions(JSON.parse(storedPermissions)) : normalizeRolePermissions();
+    } catch (_error) {
+        return normalizeRolePermissions();
+    }
+}
 
 export default function AdminSidebar({ isOpen, setIsOpen }) {
     const router = useRouter();
     const pathname = usePathname();
+    const [userPermissions] = useState(() => readStoredPermissions());
 
     const navItems = [
         { href: '/admin', label: 'Dashboard', icon: 'fa-grip' },
-        { href: '/admin/products', label: 'Products', icon: 'fa-box' },
-        { href: '/admin/stock', label: 'Stock Sync', icon: 'fa-arrows-rotate' },
-        { href: '/admin/orders', label: 'Orders', icon: 'fa-receipt' },
-        { href: '/admin/users', label: 'Users', icon: 'fa-users' }
-    ];
+        { href: '/admin/products', label: 'Products', icon: 'fa-box', permissionKey: ROLE_PERMISSION_KEYS.VIEW_PRODUCTS },
+        { href: '/admin/stock', label: 'Stock Sync', icon: 'fa-arrows-rotate', permissionKey: ROLE_PERMISSION_KEYS.VIEW_STOCK },
+        { href: '/admin/orders', label: 'Orders', icon: 'fa-receipt', permissionKey: ROLE_PERMISSION_KEYS.VIEW_ORDERS },
+        { href: '/admin/users', label: 'Users', icon: 'fa-users', permissionKey: ROLE_PERMISSION_KEYS.VIEW_USERS },
+        { href: '/admin/roles', label: 'Roles', icon: 'fa-user-shield', permissionKey: ROLE_PERMISSION_KEYS.VIEW_ROLES }
+    ].filter((item) => !item.permissionKey || userPermissions[item.permissionKey] === true || item.href === '/admin');
 
     const handleSignOut = async () => {
         await signOut(auth);
         sessionStorage.removeItem('isAdmin');
         sessionStorage.removeItem('userRole');
+        sessionStorage.removeItem('userPermissions');
         router.push('/login');
     };
 
