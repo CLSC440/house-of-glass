@@ -12,7 +12,7 @@ export default function AdminStock() {
     });
 
     if (checking) {
-        return <div className="p-8 text-center">Loading stock sync...</div>;
+        return <div className="p-8 text-center text-slate-600 dark:text-slate-300">Loading stock sync...</div>;
     }
 
     if (!allowed) {
@@ -290,27 +290,27 @@ function AdminStockContent() {
     };
 
     return (
-        <div className="w-full max-w-7xl mx-auto space-y-6 md:space-y-8">       
+        <div className="mx-auto w-full max-w-7xl space-y-6 text-slate-900 dark:text-slate-100 md:space-y-8">       
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-2">
                 <div className="flex items-center gap-3">
-                    <Link href="/admin" className="w-11 h-11 rounded-full border border-brandGold/30 bg-brandGold/10 text-brandGold flex items-center justify-center hover:bg-brandGold hover:text-white transition-all"> 
+                    <Link href="/admin" className="flex h-11 w-11 items-center justify-center rounded-full border border-brandGold/30 bg-brandGold/10 text-brandGold transition-all hover:bg-brandGold hover:text-white dark:hover:text-white"> 
                         <i className="fa-solid fa-arrow-left"></i>
                     </Link>
                     <div>
-                        <p className="text-[11px] uppercase tracking-[0.35em] text-gray-400">Admin Stock Sync</p>
-                        <h1 className="text-2xl md:text-3xl font-black text-brandBlue dark:text-brandGold">Showroom and Warehouse Stock</h1>
+                        <p className="text-[11px] uppercase tracking-[0.35em] text-slate-500 dark:text-gray-400">Admin Stock Sync</p>
+                        <h1 className="text-2xl md:text-3xl font-black text-slate-950 dark:text-brandGold">Showroom and Warehouse Stock</h1>
                     </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                    <button onClick={() => fetchStock(true)} className="px-4 py-2 rounded-full bg-brandBlue text-white dark:bg-brandGold dark:text-brandBlue text-sm font-bold hover:opacity-90 transition-all flex items-center gap-2">
+                    <button onClick={() => fetchStock(true)} className="flex items-center gap-2 rounded-full border border-brandBlue/15 bg-brandBlue px-4 py-2 text-sm font-bold text-white transition-all hover:opacity-90 dark:border-brandGold/30 dark:bg-brandGold dark:text-brandBlue">
                         <i className={`fa-solid fa-rotate ${isSyncing ? "fa-spin" : ""}`}></i> Refresh Now
                     </button>
                         <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">
                             <span className="h-2 w-2 rounded-full bg-current"></span>
                             Live No-Cache
                         </span>
-                    <Link href="/" target="_blank" className="px-4 py-2 rounded-full border border-brandGold text-brandGold text-sm font-bold hover:bg-brandGold hover:text-white transition-all flex items-center gap-2">
+                    <Link href="/" target="_blank" className="flex items-center gap-2 rounded-full border border-brandGold/40 px-4 py-2 text-sm font-bold text-amber-700 transition-all hover:bg-brandGold/10 hover:text-brandBlue dark:border-brandGold dark:text-brandGold dark:hover:bg-brandGold dark:hover:text-white">
                         Open Website <i className="fa-solid fa-external-link text-xs"></i>
                     </Link>
                 </div>
@@ -318,42 +318,42 @@ function AdminStockContent() {
 
             {/* Stats Row */}
             <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-                <div className="rounded-3xl bg-white dark:bg-darkCard border border-gray-100 dark:border-gray-800 p-5 shadow-sm">
-                    <p className="text-xs text-gray-400 mb-2">Website Products</p>
-                    <p className="text-3xl font-black text-slate-900 dark:text-white">{stats.totalProducts}</p>
+                <div className="rounded-3xl border border-slate-200/80 bg-white p-5 text-slate-900 shadow-sm dark:border-gray-800 dark:bg-darkCard dark:text-slate-100">
+                    <p className="mb-2 text-xs text-slate-500 dark:text-gray-400">Website Products</p>
+                    <p className="text-3xl font-black text-slate-950 dark:text-white">{stats.totalProducts}</p>
                 </div>
-                <div className="rounded-3xl bg-white dark:bg-darkCard border border-gray-100 dark:border-gray-800 p-5 shadow-sm">
-                    <p className="text-xs text-gray-400 mb-2">Linked Products</p>
+                <div className="rounded-3xl border border-slate-200/80 bg-white p-5 text-slate-900 shadow-sm dark:border-gray-800 dark:bg-darkCard dark:text-slate-100">
+                    <p className="mb-2 text-xs text-slate-500 dark:text-gray-400">Linked Products</p>
                     <p className="text-3xl font-black text-green-600">{stats.totalLinked}</p>     
                 </div>
-                <div className="rounded-3xl bg-white dark:bg-darkCard border border-gray-100 dark:border-gray-800 p-5 shadow-sm">
-                    <p className="text-xs text-gray-400 mb-2">Total Showroom Stock</p>
+                <div className="rounded-3xl border border-slate-200/80 bg-white p-5 text-slate-900 shadow-sm dark:border-gray-800 dark:bg-darkCard dark:text-slate-100">
+                    <p className="mb-2 text-xs text-slate-500 dark:text-gray-400">Total Showroom Stock</p>
                     <p className="text-3xl font-black text-blue-600">{stats.totalRetail}</p>      
                 </div>
-                <div className="rounded-3xl bg-white dark:bg-darkCard border border-gray-100 dark:border-gray-800 p-5 shadow-sm">
-                    <p className="text-xs text-gray-400 mb-2">Total Warehouse Stock</p>
+                <div className="rounded-3xl border border-slate-200/80 bg-white p-5 text-slate-900 shadow-sm dark:border-gray-800 dark:bg-darkCard dark:text-slate-100">
+                    <p className="mb-2 text-xs text-slate-500 dark:text-gray-400">Total Warehouse Stock</p>
                     <p className="text-3xl font-black text-amber-500">{stats.totalWholesale}</p>     
                 </div>
             </section>
 
             {/* Filters Section */}
-            <section className="rounded-3xl bg-white dark:bg-darkCard border border-gray-100 dark:border-gray-800 p-4 md:p-5 shadow-sm mb-6">
+            <section className="mb-6 rounded-3xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-darkCard md:p-5">
                 <div className="flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
                     <div className="flex-1 flex flex-col md:flex-row gap-3">    
                         <div className="relative flex-1">
-                            <i className="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            <i className="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-400"></i>
                             <input
                                 type="text"
                                 placeholder="Search by name, code, or barcode"      
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-3 rounded-2xl bg-gray-50 text-slate-900 placeholder:text-gray-400 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500 border border-transparent focus:border-brandGold outline-none"  
+                                className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-900 outline-none focus:border-brandGold dark:border-transparent dark:bg-gray-800 dark:text-white"  
                             />
                         </div>
                         <select
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value)}   
-                            className="px-4 py-3 rounded-2xl bg-gray-50 text-slate-900 dark:bg-gray-800 dark:text-white border border-transparent focus:border-brandGold outline-none"
+                            className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-brandGold dark:border-transparent dark:bg-gray-800 dark:text-white"
                         >
                             <option value="all">All Products ({stats.totalProducts})</option>
                             <option value="linked">Linked ({stats.totalLinked})</option>
@@ -364,7 +364,7 @@ function AdminStockContent() {
                             <option value="outWholesale">Warehouse Out of Stock</option>
                         </select>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+                    <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500 dark:text-gray-400">
                         <div>
                             <span>Matching: </span>
                             <span className="font-black text-brandBlue dark:text-brandGold">{filteredRows.length}</span>
@@ -378,10 +378,10 @@ function AdminStockContent() {
             </section>
 
             {/* Table Section */}
-            <section className="rounded-3xl bg-white dark:bg-darkCard border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+            <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm dark:border-gray-800 dark:bg-darkCard">
                 <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">
-                        <thead className="bg-gray-50 dark:bg-gray-800/80 text-gray-500 dark:text-gray-300">
+                        <thead className="bg-slate-50 text-slate-600 dark:bg-gray-800/80 dark:text-gray-300">
                             <tr>
                                 <th className="px-4 py-4 text-left font-black w-12"></th>
                                 <th className="px-4 py-4 text-left font-black">Product</th>
@@ -395,16 +395,16 @@ function AdminStockContent() {
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                             {productsLoading || isSyncing ? (
                                 <tr>
-                                    <td colSpan="7" className="px-6 py-16 text-center text-gray-400">
+                                    <td colSpan="7" className="px-6 py-16 text-center text-slate-500 dark:text-gray-400">
                                         <div className="flex flex-col items-center">
                                             <i className="fa-solid fa-spinner fa-spin text-3xl mb-4 text-brandGold"></i>        
-                                            <p className="text-sm font-bold">Loading website products and matching them with system stock...</p>
+                                            <p className="text-sm font-bold text-slate-600 dark:text-slate-300">Loading website products and matching them with system stock...</p>
                                         </div>
                                     </td>
                                 </tr>
                             ) : filteredRows.length === 0 ? (
                                 <tr>
-                                    <td colSpan="7" className="px-6 py-16 text-center text-gray-400 font-bold">
+                                    <td colSpan="7" className="px-6 py-16 text-center font-bold text-slate-500 dark:text-gray-400">
                                         No products match the current filters.
                                     </td>
                                 </tr>
@@ -414,7 +414,7 @@ function AdminStockContent() {
                                         <tr className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                                             <td className="px-4 py-4">
                                                 {row.hasVariants && (
-                                                    <button onClick={() => toggleExpand(row.id)} className="w-10 h-10 rounded-full border-2 border-white/20 bg-gradient-to-b from-white/10 to-black/10 text-brandGold flex items-center justify-center hover:border-brandGold/40 hover:bg-brandGold/10 hover:text-white transition-colors shadow-[0_0_0_3px_rgba(255,255,255,0.06)]">
+                                                    <button onClick={() => toggleExpand(row.id)} className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-slate-200 bg-slate-50 text-brandGold transition-colors hover:border-brandGold/40 hover:bg-brandGold/10 hover:text-brandBlue dark:border-white/20 dark:bg-gradient-to-b dark:from-white/10 dark:to-black/10 dark:hover:text-white dark:shadow-[0_0_0_3px_rgba(255,255,255,0.06)]">
                                                         <i className={'fa-solid fa-chevron-right transition-transform ' + (expandedIds.has(row.id) ? 'rotate-90' : '')}></i>
                                                     </button>
                                                 )}
@@ -427,15 +427,15 @@ function AdminStockContent() {
                                                             <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600 dark:bg-slate-700/80 dark:text-slate-200">
                                                                 {row.variants.length} Variants
                                                             </span>
-                                                            <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] ${row.hasSharedVariantCode ? 'bg-brandGold/15 text-brandGold' : 'bg-blue-500/10 text-blue-400'}`}>
+                                                            <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] ${row.hasSharedVariantCode ? 'bg-brandGold/15 text-amber-700 dark:text-brandGold' : 'bg-blue-500/10 text-blue-700 dark:text-blue-400'}`}>
                                                                 {row.hasSharedVariantCode ? 'Shared Code' : `${row.uniqueVariantCodeCount} Codes`}
                                                             </span>
                                                         </>
                                                     ) : null}
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-4 font-mono text-xs">{row.code || '-'}</td>
-                                            <td className="px-4 py-4 font-mono text-xs">{row.matchedBarcode || '-'}</td>
+                                            <td className="px-4 py-4 font-mono text-xs text-slate-600 dark:text-slate-300">{row.code || '-'}</td>
+                                            <td className="px-4 py-4 font-mono text-xs text-slate-500 dark:text-slate-400">{row.matchedBarcode || '-'}</td>
                                             <td className="px-4 py-4">
                                                 {row.retailStock > 0
                                                     ? <span className="inline-flex min-w-[3rem] justify-center px-3 py-1 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 font-black">{row.retailStock}</span>
@@ -459,13 +459,13 @@ function AdminStockContent() {
                                             </td>
                                         </tr>
                                         {row.hasVariants && expandedIds.has(row.id) && (
-                                            <tr className="bg-[#121a2d] border-b border-gray-100 dark:border-gray-800/50">
+                                            <tr className="border-b border-slate-200 bg-slate-50/80 dark:border-gray-800/50 dark:bg-[#121a2d]">
                                                 <td colSpan="7" className="px-6 py-5">
-                                                    <div className="rounded-[1.6rem] border border-white/8 bg-white/[0.02] p-4 md:p-5">
+                                                    <div className="rounded-[1.6rem] border border-slate-200 bg-white p-4 dark:border-white/8 dark:bg-white/[0.02] md:p-5">
                                                         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                                                             <div>
                                                                 <p className="text-[10px] font-black uppercase tracking-[0.24em] text-brandGold">Variant Breakdown</p>
-                                                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                                                <p className="mt-1 text-sm text-slate-600 dark:text-gray-400">
                                                                     {row.hasSharedVariantCode
                                                                         ? 'These variants share the same inventory code, so the parent stock is counted once.'
                                                                         : 'Each variant uses its own inventory code, so parent stock is the total of all variant codes.'}
@@ -475,7 +475,7 @@ function AdminStockContent() {
                                                                 <span className="rounded-full bg-slate-200 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600 dark:bg-slate-700/80 dark:text-slate-200">
                                                                     {row.variants.length} variants
                                                                 </span>
-                                                                <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${row.hasSharedVariantCode ? 'bg-brandGold/15 text-brandGold' : 'bg-blue-500/10 text-blue-400'}`}>
+                                                                <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${row.hasSharedVariantCode ? 'bg-brandGold/15 text-amber-700 dark:text-brandGold' : 'bg-blue-500/10 text-blue-700 dark:text-blue-400'}`}>
                                                                     {row.hasSharedVariantCode ? '1 shared inventory code' : `${row.uniqueVariantCodeCount} unique inventory codes`}
                                                                 </span>
                                                             </div>
@@ -483,44 +483,44 @@ function AdminStockContent() {
 
                                                         <div className="grid gap-3">
                                                             {row.variants.map((v, idx) => (
-                                                                <div key={v.id || idx} className="grid gap-3 rounded-[1.15rem] border border-white/8 bg-[#18223a] px-4 py-3 text-sm md:grid-cols-[minmax(0,1.6fr)_minmax(120px,0.8fr)_minmax(120px,0.8fr)_110px_110px_120px] md:items-center">
+                                                                <div key={v.id || idx} className="grid gap-3 rounded-[1.15rem] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 dark:border-white/8 dark:bg-[#18223a] dark:text-slate-100 md:grid-cols-[minmax(0,1.6fr)_minmax(120px,0.8fr)_minmax(120px,0.8fr)_110px_110px_120px] md:items-center">
                                                                     <div className="flex items-center gap-3 min-w-0">
-                                                                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.05] text-slate-400">
+                                                                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-slate-500 shadow-sm dark:bg-white/[0.05] dark:text-slate-400 dark:shadow-none">
                                                                             <i className="fa-solid fa-code-branch text-xs"></i>
                                                                         </span>
                                                                         <div className="min-w-0">
-                                                                            <p className="truncate font-bold text-white">{v.name}</p>
+                                                                            <p className="truncate font-bold text-slate-950 dark:text-white">{v.name}</p>
                                                                             <p className="mt-0.5 text-[11px] text-slate-500">Variant {idx + 1}</p>
                                                                         </div>
                                                                     </div>
 
                                                                     <div>
                                                                         <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 md:hidden">Code</p>
-                                                                        <p className="font-mono text-xs text-slate-300">{v.code || '-'}</p>
+                                                                        <p className="font-mono text-xs text-slate-600 dark:text-slate-300">{v.code || '-'}</p>
                                                                     </div>
 
                                                                     <div>
                                                                         <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 md:hidden">Barcode</p>
-                                                                        <p className="font-mono text-xs text-slate-400">{v.matchedBarcode || '-'}</p>
+                                                                        <p className="font-mono text-xs text-slate-500 dark:text-slate-400">{v.matchedBarcode || '-'}</p>
                                                                     </div>
 
                                                                     <div>
                                                                         <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 md:hidden">Showroom</p>
                                                                         {v.retailStock > 0
-                                                                            ? <span className="inline-flex min-w-[3.4rem] justify-center rounded-full bg-blue-500/12 px-3 py-1 text-xs font-black text-blue-400">{v.retailStock}</span>
-                                                                            : <span className="inline-flex justify-center rounded-full bg-red-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-red-300">Out</span>}
+                                                                            ? <span className="inline-flex min-w-[3.4rem] justify-center rounded-full bg-blue-500/12 px-3 py-1 text-xs font-black text-blue-700 dark:text-blue-400">{v.retailStock}</span>
+                                                                            : <span className="inline-flex justify-center rounded-full bg-red-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-red-600 dark:text-red-300">Out</span>}
                                                                     </div>
 
                                                                     <div>
                                                                         <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 md:hidden">Warehouse</p>
                                                                         {v.wholesaleStock > 0
-                                                                            ? <span className="inline-flex min-w-[3.4rem] justify-center rounded-full bg-amber-500/12 px-3 py-1 text-xs font-black text-amber-300">{v.wholesaleStock}</span>
-                                                                            : <span className="inline-flex justify-center rounded-full bg-red-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-red-300">Out</span>}
+                                                                            ? <span className="inline-flex min-w-[3.4rem] justify-center rounded-full bg-amber-500/12 px-3 py-1 text-xs font-black text-amber-700 dark:text-amber-300">{v.wholesaleStock}</span>
+                                                                            : <span className="inline-flex justify-center rounded-full bg-red-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-red-600 dark:text-red-300">Out</span>}
                                                                     </div>
 
                                                                     <div>
                                                                         <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 md:hidden">Status</p>
-                                                                        <span className={'inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] ' + (v.linked ? 'bg-green-500/10 text-green-400' : 'bg-slate-500/10 text-slate-400')}>
+                                                                        <span className={'inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] ' + (v.linked ? 'bg-green-500/10 text-green-700 dark:text-green-400' : 'bg-slate-500/10 text-slate-600 dark:text-slate-400')}>
                                                                             {v.linked ? 'Linked' : 'Unlinked'}
                                                                         </span>
                                                                     </div>

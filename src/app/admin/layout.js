@@ -17,10 +17,10 @@ export default function AdminLayout({ children }) {
 
     if (isCheckingAuth && !isAuthorized) {
         return (
-            <div className="min-h-screen bg-[#0a0f1d] flex items-center justify-center">
+            <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-[#0a0f1d]">
                 <div className="animate-pulse flex flex-col items-center">
                     <div className="w-12 h-12 border-4 border-brandGold border-t-transparent rounded-full animate-spin"></div>
-                    <p className="mt-4 text-brandGold font-bold tracking-widest text-sm uppercase">Authenticating...</p>
+                    <p className="mt-4 text-sm font-bold uppercase tracking-widest text-brandBlue dark:text-brandGold">Authenticating...</p>
                 </div>
             </div>
         );
@@ -30,7 +30,7 @@ export default function AdminLayout({ children }) {
 
     return (
         <GalleryProvider>
-            <div className="min-h-screen bg-[#060b17] text-white">
+            <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors dark:bg-[#060b17] dark:text-white">
                 <NotificationsCenter user={currentUser} variant="admin" />
                 <main className="w-full overflow-y-auto p-4 md:p-6 lg:p-7">
                     {children}
