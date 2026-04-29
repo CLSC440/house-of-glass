@@ -4,7 +4,7 @@ import { useGallery } from '@/contexts/GalleryContext';
 import AdminProductModal from '@/components/admin/AdminProductModal';
 import { useSiteSettings } from '@/lib/use-site-settings';
 import { getGlobalRetailDisplayPrice, parsePercentage } from '@/lib/site-pricing';
-import { isAdminRole, normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
+import { getCachedRolePermissions, getResolvedRolePermissions, normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
 
 const ARABIC_TEXT_PATTERN = /[\u0600-\u06FF]/;
 const LATIN_TEXT_PATTERN = /[A-Za-z]/;
@@ -84,6 +84,31 @@ function getNetPrice(product) {
     return Math.max(0, getRetailPrice(product) - getDiscountValue(product));
 }
 
+function resolveVisiblePriceInfo({
+    canViewFinalPrice,
+    canViewPackPrice,
+    canViewRetailPrice,
+    canViewWholesalePrice,
+    finalPriceValue,
+    packPriceValue,
+    retailPriceValue,
+    wholesalePriceValue
+}) {
+    const visiblePriceCandidates = [
+        canViewFinalPrice ? { source: 'final', value: finalPriceValue } : null,
+        canViewPackPrice ? { source: 'pack', value: packPriceValue } : null,
+        canViewRetailPrice ? { source: 'retail', value: retailPriceValue } : null,
+        canViewWholesalePrice ? { source: 'wholesale', value: wholesalePriceValue } : null
+    ].filter(Boolean);
+
+    const preferredVisiblePrice = visiblePriceCandidates.find((candidate) => candidate.value > 0);
+    if (preferredVisiblePrice) {
+        return preferredVisiblePrice;
+    }
+
+    return visiblePriceCandidates[0] || { source: 'hidden', value: 0 };
+}
+
 function getQuickAddEntry(product, variants = []) {
     return variants.length === 1 ? variants[0] : product;
 }
@@ -126,13 +151,21 @@ export default function ProductGrid() {
     ]);
     const [editingProduct, setEditingProduct] = useState(null);
     const retailPriceIncreasePercentage = parsePercentage(derivedSettings?.priceIncrease);
+    const cachedRolePermissions = getCachedRolePermissions();
+    const resolvedRolePermissions = getResolvedRolePermissions(userRole, [], cachedRolePermissions);
+    const isAdminUser = resolvedRolePermissions.accessAdmin === true;
+    const canViewWholesalePrice = resolvedRolePermissions.viewPriceWholesale === true;
+    const canViewDiscountPrice = resolvedRolePermissions.viewPriceDiscount === true;
+    const canViewRetailPrice = resolvedRolePermissions.viewPriceRetail === true;
+    const canViewPackPrice = resolvedRolePermissions.viewPricePack === true;
+    const canViewFinalPrice = resolvedRolePermissions.viewPriceFinal === true;
     const savedScrollPositionRef = useRef(0);
     const shouldRestoreScrollRef = useRef(false);
     const productRowRefs = useRef({});
     const previousQuickAddQuantitiesRef = useRef({});
 
     useEffect(() => {
-        if (userRole !== 'admin' || !dcLiveUpdateAt) {
+        if (!isAdminUser || !dcLiveUpdateAt) {
             setShowLiveIndicator(false);
             return undefined;
         }
@@ -143,7 +176,7 @@ export default function ProductGrid() {
         }, LIVE_INDICATOR_DURATION_MS);
 
         return () => window.clearTimeout(timeoutId);
-    }, [userRole, dcLiveUpdateAt]);
+    }, [isAdminUser, dcLiveUpdateAt]);
 
     useEffect(() => {
         if (typeof window === 'undefined') {
@@ -713,9 +746,8 @@ export default function ProductGrid() {
         [shouldUseCategoryRows, productSections, visibleCategoryRows]
     );
     const hasMoreCategoryRows = shouldUseCategoryRows && productSections.length > visibleCategoryRows;
-    const isAdminUser = isAdminRole(userRole);
     const isStrictWholesaleUser = normalizeUserRole(userRole) === USER_ROLE_VALUES.CST_WHOLESALE;
-    const shouldShowWholesaleSummary = isStrictWholesaleUser || isAdminUser;
+    const shouldShowWholesaleSummary = canViewWholesalePrice;
 
     useEffect(() => {
         if (!shouldUseCategoryRows || typeof window === 'undefined') {
@@ -901,7 +933,17 @@ export default function ProductGrid() {
         const wholesalePrice = getWholesalePrice(product);
         const discountValue = getDiscountValue(product);
         const netPrice = getNetPrice(product);
-        const primaryDisplayPrice = isStrictWholesaleUser ? netPrice : adjustedRetailPrice;
+        const primaryVisiblePrice = resolveVisiblePriceInfo({
+            canViewFinalPrice,
+            canViewPackPrice,
+            canViewRetailPrice,
+            canViewWholesalePrice,
+            finalPriceValue: adjustedRetailPrice,
+            packPriceValue: netPrice,
+            retailPriceValue: retailPrice,
+            wholesalePriceValue: wholesalePrice
+        });
+        const primaryDisplayPrice = primaryVisiblePrice.value;
 
         return (
             <div 
@@ -1027,7 +1069,7 @@ export default function ProductGrid() {
                                             <div className="flex items-baseline gap-1.5">
                                                 <span className="font-black text-gray-900 dark:text-white text-xl md:text-2xl tracking-tight">{primaryDisplayPrice.toLocaleString()}</span>
                                                 <span className="text-brandGold font-bold text-xs md:text-sm">ج.م</span>
-                                                {isAdminUser ? (
+                                                {canViewDiscountPrice ? (
                                                     <span className="ml-2 text-lg font-black text-red-500 md:text-xl">
                                                         {discountValue > 0 ? discountValue.toLocaleString() : '0'}
                                                     </span>

@@ -14,7 +14,12 @@ export const ROLE_PERMISSION_KEYS = {
     VIEW_USERS: 'viewUsers',
     MANAGE_USERS: 'manageUsers',
     VIEW_ROLES: 'viewRoles',
-    MANAGE_ROLES: 'manageRoles'
+    MANAGE_ROLES: 'manageRoles',
+    VIEW_PRICE_WHOLESALE: 'viewPriceWholesale',
+    VIEW_PRICE_RETAIL: 'viewPriceRetail',
+    VIEW_PRICE_PACK: 'viewPricePack',
+    VIEW_PRICE_DISCOUNT: 'viewPriceDiscount',
+    VIEW_PRICE_FINAL: 'viewPriceFinal'
 };
 
 const DEFAULT_ROLE_PERMISSIONS = {
@@ -26,7 +31,12 @@ const DEFAULT_ROLE_PERMISSIONS = {
     [ROLE_PERMISSION_KEYS.VIEW_USERS]: false,
     [ROLE_PERMISSION_KEYS.MANAGE_USERS]: false,
     [ROLE_PERMISSION_KEYS.VIEW_ROLES]: false,
-    [ROLE_PERMISSION_KEYS.MANAGE_ROLES]: false
+    [ROLE_PERMISSION_KEYS.MANAGE_ROLES]: false,
+    [ROLE_PERMISSION_KEYS.VIEW_PRICE_WHOLESALE]: false,
+    [ROLE_PERMISSION_KEYS.VIEW_PRICE_RETAIL]: false,
+    [ROLE_PERMISSION_KEYS.VIEW_PRICE_PACK]: false,
+    [ROLE_PERMISSION_KEYS.VIEW_PRICE_DISCOUNT]: false,
+    [ROLE_PERMISSION_KEYS.VIEW_PRICE_FINAL]: false
 };
 
 export const ROLE_PERMISSION_GROUPS = [
@@ -92,6 +102,37 @@ export const ROLE_PERMISSION_GROUPS = [
                 description: 'Allows creating, editing, and deleting custom roles.'
             }
         ]
+    },
+    {
+        id: 'price-visibility',
+        title: 'Price Visibility',
+        permissions: [
+            {
+                key: ROLE_PERMISSION_KEYS.VIEW_PRICE_WHOLESALE,
+                label: 'View Wholesale Price',
+                description: 'Shows the carton wholesale price on product cards and product details.'
+            },
+            {
+                key: ROLE_PERMISSION_KEYS.VIEW_PRICE_RETAIL,
+                label: 'View Retail Price',
+                description: 'Shows the base retail pack price before discount.'
+            },
+            {
+                key: ROLE_PERMISSION_KEYS.VIEW_PRICE_PACK,
+                label: 'View Pack Price',
+                description: 'Shows the retail pack price after discount.'
+            },
+            {
+                key: ROLE_PERMISSION_KEYS.VIEW_PRICE_DISCOUNT,
+                label: 'View Discount Price',
+                description: 'Shows the discount amount alongside pack pricing.'
+            },
+            {
+                key: ROLE_PERMISSION_KEYS.VIEW_PRICE_FINAL,
+                label: 'View Final Price',
+                description: 'Shows the final selling price after the global retail increase percentage.'
+            }
+        ]
     }
 ];
 
@@ -128,6 +169,23 @@ export function normalizeRolePermissions(permissions = {}) {
     });
 
     return normalizedPermissions;
+}
+
+export function getCachedRolePermissions() {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    try {
+        const rawPermissions = window.sessionStorage.getItem('userPermissions');
+        if (!rawPermissions) {
+            return null;
+        }
+
+        return normalizeRolePermissions(JSON.parse(rawPermissions));
+    } catch (_error) {
+        return null;
+    }
 }
 
 function buildRoleDefinition({
@@ -169,7 +227,12 @@ export const SYSTEM_ROLE_DEFINITIONS = Object.freeze({
             viewUsers: true,
             manageUsers: true,
             viewRoles: true,
-            manageRoles: true
+            manageRoles: true,
+            viewPriceWholesale: true,
+            viewPriceRetail: true,
+            viewPricePack: true,
+            viewPriceDiscount: true,
+            viewPriceFinal: true
         },
         isSystem: true,
         sortOrder: 0
@@ -187,7 +250,12 @@ export const SYSTEM_ROLE_DEFINITIONS = Object.freeze({
             viewUsers: true,
             manageUsers: false,
             viewRoles: false,
-            manageRoles: false
+            manageRoles: false,
+            viewPriceWholesale: true,
+            viewPriceRetail: true,
+            viewPricePack: true,
+            viewPriceDiscount: true,
+            viewPriceFinal: true
         },
         isSystem: true,
         sortOrder: 10
@@ -196,7 +264,11 @@ export const SYSTEM_ROLE_DEFINITIONS = Object.freeze({
         key: USER_ROLE_VALUES.CST_WHOLESALE,
         label: 'CST. Wholesale',
         description: 'Wholesale storefront access without admin workspace permissions.',
-        permissions: {},
+        permissions: {
+            viewPriceWholesale: true,
+            viewPricePack: true,
+            viewPriceDiscount: true
+        },
         isSystem: true,
         sortOrder: 30
     }),
@@ -204,7 +276,9 @@ export const SYSTEM_ROLE_DEFINITIONS = Object.freeze({
         key: USER_ROLE_VALUES.CST_RETAIL,
         label: 'CST. Retail',
         description: 'Default storefront customer role.',
-        permissions: {},
+        permissions: {
+            viewPriceFinal: true
+        },
         isSystem: true,
         sortOrder: 40
     })
@@ -224,7 +298,12 @@ export function getDefaultResellerRoleDefinition() {
             viewUsers: false,
             manageUsers: false,
             viewRoles: false,
-            manageRoles: false
+            manageRoles: false,
+            viewPriceWholesale: true,
+            viewPriceRetail: true,
+            viewPricePack: true,
+            viewPriceDiscount: true,
+            viewPriceFinal: true
         },
         isSystem: false,
         sortOrder: 20
@@ -292,6 +371,19 @@ export function hasRolePermission(role, permissionKey, roleDefinitions = []) {
     return roleDefinition?.permissions?.[permissionKey] === true;
 }
 
+export function getResolvedRolePermissions(role, roleDefinitions = [], fallbackPermissions = null) {
+    const roleDefinition = getRoleDefinition(role, roleDefinitions);
+
+    if (!fallbackPermissions) {
+        return roleDefinition.permissions;
+    }
+
+    return normalizeRolePermissions({
+        ...roleDefinition.permissions,
+        ...normalizeRolePermissions(fallbackPermissions)
+    });
+}
+
 export function canAccessAdminArea(role, roleDefinitions = []) {
     return hasRolePermission(role, ROLE_PERMISSION_KEYS.ACCESS_ADMIN, roleDefinitions);
 }
@@ -302,6 +394,26 @@ export function canManageUsers(role, roleDefinitions = []) {
 
 export function canManageRoles(role, roleDefinitions = []) {
     return hasRolePermission(role, ROLE_PERMISSION_KEYS.MANAGE_ROLES, roleDefinitions);
+}
+
+export function canViewWholesalePrice(role, roleDefinitions = []) {
+    return hasRolePermission(role, ROLE_PERMISSION_KEYS.VIEW_PRICE_WHOLESALE, roleDefinitions);
+}
+
+export function canViewRetailPrice(role, roleDefinitions = []) {
+    return hasRolePermission(role, ROLE_PERMISSION_KEYS.VIEW_PRICE_RETAIL, roleDefinitions);
+}
+
+export function canViewPackPrice(role, roleDefinitions = []) {
+    return hasRolePermission(role, ROLE_PERMISSION_KEYS.VIEW_PRICE_PACK, roleDefinitions);
+}
+
+export function canViewDiscountPrice(role, roleDefinitions = []) {
+    return hasRolePermission(role, ROLE_PERMISSION_KEYS.VIEW_PRICE_DISCOUNT, roleDefinitions);
+}
+
+export function canViewFinalPrice(role, roleDefinitions = []) {
+    return hasRolePermission(role, ROLE_PERMISSION_KEYS.VIEW_PRICE_FINAL, roleDefinitions);
 }
 
 export function getUserRoleSortOrder(role, roleDefinitions = []) {

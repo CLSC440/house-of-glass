@@ -11,7 +11,12 @@ const ROLE_PERMISSION_KEYS = Object.freeze({
     VIEW_USERS: 'viewUsers',
     MANAGE_USERS: 'manageUsers',
     VIEW_ROLES: 'viewRoles',
-    MANAGE_ROLES: 'manageRoles'
+    MANAGE_ROLES: 'manageRoles',
+    VIEW_PRICE_WHOLESALE: 'viewPriceWholesale',
+    VIEW_PRICE_RETAIL: 'viewPriceRetail',
+    VIEW_PRICE_PACK: 'viewPricePack',
+    VIEW_PRICE_DISCOUNT: 'viewPriceDiscount',
+    VIEW_PRICE_FINAL: 'viewPriceFinal'
 });
 
 const DEFAULT_ROLE_PERMISSIONS = Object.freeze({
@@ -23,7 +28,12 @@ const DEFAULT_ROLE_PERMISSIONS = Object.freeze({
     viewUsers: false,
     manageUsers: false,
     viewRoles: false,
-    manageRoles: false
+    manageRoles: false,
+    viewPriceWholesale: false,
+    viewPriceRetail: false,
+    viewPricePack: false,
+    viewPriceDiscount: false,
+    viewPriceFinal: false
 });
 
 function normalizeRoleKey(role) {
@@ -60,7 +70,12 @@ function getSystemRolePermissions(role) {
             viewUsers: true,
             manageUsers: true,
             viewRoles: true,
-            manageRoles: true
+            manageRoles: true,
+            viewPriceWholesale: true,
+            viewPriceRetail: true,
+            viewPricePack: true,
+            viewPriceDiscount: true,
+            viewPriceFinal: true
         });
     }
 
@@ -71,7 +86,26 @@ function getSystemRolePermissions(role) {
             viewProducts: true,
             viewStock: true,
             viewOrders: true,
-            viewUsers: true
+            viewUsers: true,
+            viewPriceWholesale: true,
+            viewPriceRetail: true,
+            viewPricePack: true,
+            viewPriceDiscount: true,
+            viewPriceFinal: true
+        });
+    }
+
+    if (normalizedRole === 'cst_wholesale') {
+        return normalizeRolePermissions({
+            viewPriceWholesale: true,
+            viewPricePack: true,
+            viewPriceDiscount: true
+        });
+    }
+
+    if (normalizedRole === 'customer') {
+        return normalizeRolePermissions({
+            viewPriceFinal: true
         });
     }
 

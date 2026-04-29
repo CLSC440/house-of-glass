@@ -505,7 +505,7 @@ async function persistAdminDcSnapshotBaseline() {
 }
 
 export default function AdminProducts() {
-    const { checking, allowed } = useAdminAccess({
+    const { checking, allowed, permissions } = useAdminAccess({
         requiredPermission: ROLE_PERMISSION_KEYS.VIEW_PRODUCTS,
         unauthorizedRedirect: '/admin'
     });
@@ -518,10 +518,10 @@ export default function AdminProducts() {
         return null;
     }
 
-    return <AdminProductsContent />;
+    return <AdminProductsContent permissions={permissions} />;
 }
 
-function AdminProductsContent() {
+function AdminProductsContent({ permissions }) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { allProducts, categories, brands, isLoading, dcSyncedAt, refreshDcCatalog } = useGallery();
@@ -540,6 +540,10 @@ function AdminProductsContent() {
     const [deletingProductId, setDeletingProductId] = useState('');
     const adminDcRefreshInFlightRef = useRef(false);
     const lastSearchRefreshRef = useRef('');
+    const canViewWholesalePrice = permissions.viewPriceWholesale === true;
+    const canViewRetailPrice = permissions.viewPriceRetail === true;
+    const canViewPackPrice = permissions.viewPricePack === true;
+    const canViewDiscountPrice = permissions.viewPriceDiscount === true;
 
     const refreshAdminDcCatalog = useEffectEvent(async ({ force = false } = {}) => {
         if (!force && isAdminDcDataFresh(dcSyncedAt)) {
@@ -910,23 +914,37 @@ function AdminProductsContent() {
                                                     </div>
                                                 ) : null}
 
-                                                <div className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
-                                                    <div>
-                                                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Net | Disc.</p>
-                                                        <div className="mt-1 flex items-baseline gap-2">
-                                                            <span className="text-[1rem] font-black text-emerald-400 md:text-[1.05rem]">{formatCurrency(netPrice)}</span>
-                                                            <span className="text-[0.92rem] font-black text-rose-400">{discountValue > 0 ? formatCurrency(discountValue).replace('.00', '') : '0'}</span>
-                                                        </div>
+                                                {canViewPackPrice || canViewDiscountPrice || canViewRetailPrice || canViewWholesalePrice ? (
+                                                    <div className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+                                                        {canViewPackPrice || canViewDiscountPrice ? (
+                                                            <div>
+                                                                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                                                                    {canViewPackPrice && canViewDiscountPrice ? 'Pack | Disc.' : canViewPackPrice ? 'Pack' : 'Disc.'}
+                                                                </p>
+                                                                <div className="mt-1 flex items-baseline gap-2">
+                                                                    {canViewPackPrice ? <span className="text-[1rem] font-black text-emerald-400 md:text-[1.05rem]">{formatCurrency(netPrice)}</span> : null}
+                                                                    {canViewDiscountPrice ? <span className="text-[0.92rem] font-black text-rose-400">{discountValue > 0 ? formatCurrency(discountValue).replace('.00', '') : '0'}</span> : null}
+                                                                </div>
+                                                            </div>
+                                                        ) : null}
+                                                        {canViewRetailPrice ? (
+                                                            <div>
+                                                                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Retail</p>
+                                                                <p className="mt-1 text-[1rem] font-black text-white md:text-[1.05rem]">{formatCurrency(retailPrice)}</p>
+                                                            </div>
+                                                        ) : null}
+                                                        {canViewWholesalePrice ? (
+                                                            <div>
+                                                                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Wholesale</p>
+                                                                <p className="mt-1 text-[1rem] font-black text-brandGold md:text-[1.05rem]">{wholesalePrice > 0 ? formatCurrency(wholesalePrice) : 'N/A'}</p>
+                                                            </div>
+                                                        ) : null}
                                                     </div>
-                                                    <div>
-                                                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Retail</p>
-                                                        <p className="mt-1 text-[1rem] font-black text-white md:text-[1.05rem]">{formatCurrency(retailPrice)}</p>
+                                                ) : (
+                                                    <div className="mt-3 rounded-[1rem] border border-dashed border-white/10 bg-white/[0.03] px-3 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                                                        Price visibility is disabled for this role.
                                                     </div>
-                                                    <div>
-                                                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Wholesale</p>
-                                                        <p className="mt-1 text-[1rem] font-black text-brandGold md:text-[1.05rem]">{wholesalePrice > 0 ? formatCurrency(wholesalePrice) : 'N/A'}</p>
-                                                    </div>
-                                                </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>

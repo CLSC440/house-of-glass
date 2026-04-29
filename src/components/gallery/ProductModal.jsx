@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { AnimatedTestimonials } from '@/components/ui/animated-testimonials';
 import { buildWhatsAppUrl, useSiteSettings } from '@/lib/use-site-settings';
 import { getGlobalRetailDisplayPrice, parsePercentage } from '@/lib/site-pricing';
-import { isAdminRole, normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
+import { getCachedRolePermissions, getResolvedRolePermissions, normalizeUserRole, USER_ROLE_VALUES } from '@/lib/user-roles';
 import BrandLoadingScreen from '@/components/layout/BrandLoadingScreen';
 import useCheckoutNavigation from '@/lib/use-checkout-navigation';
 
@@ -260,7 +260,19 @@ function CompactAdminPricingMetric({ englishLabel, arabicLabel, value, valueClas
     );
 }
 
-function AdminPricingCard({ netPriceValue, discountValue, retailPriceValue, wholesalePriceValue }) {
+function AdminPricingCard({ metrics = [] }) {
+    if (metrics.length === 0) {
+        return null;
+    }
+
+    const mobileGridClassName = metrics.length === 1
+        ? 'grid-cols-1'
+        : metrics.length === 2
+            ? 'grid-cols-2'
+            : metrics.length === 3
+                ? 'grid-cols-1 sm:grid-cols-3'
+                : 'grid-cols-2 xl:grid-cols-4';
+
     return (
         <div className="mt-4 overflow-hidden rounded-[1.7rem] border border-slate-200/70 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-3 text-white shadow-[0_20px_60px_rgba(15,23,42,0.24)] dark:border-white/10">
             <div className="md:hidden">
@@ -272,31 +284,16 @@ function AdminPricingCard({ netPriceValue, discountValue, retailPriceValue, whol
                     <span className="rounded-full border border-brandGold/25 bg-brandGold/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-brandGold">DC Feed</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-                    <AdminPricingMetric
-                        englishLabel="Pack. Price"
-                        arabicLabel="سعر العبوة"
-                        value={formatPriceLabel(netPriceValue)}
-                        valueClassName="text-emerald-400"
-                    />
-                    <AdminPricingMetric
-                        englishLabel="Discount"
-                        arabicLabel="الخصم"
-                        value={discountValue.toFixed(2)}
-                        valueClassName="text-rose-400"
-                    />
-                    <AdminPricingMetric
-                        englishLabel="Retail"
-                        arabicLabel="العبوة"
-                        value={formatPriceLabel(retailPriceValue)}
-                        valueClassName="text-white/80"
-                    />
-                    <AdminPricingMetric
-                        englishLabel="Wholesale"
-                        arabicLabel="الكرتونة"
-                        value={wholesalePriceValue > 0 ? formatPriceLabel(wholesalePriceValue) : 'غير متاح'}
-                        valueClassName="text-brandGold"
-                    />
+                <div className={`grid gap-3 xl:grid-cols-4 ${mobileGridClassName}`}>
+                    {metrics.map((metric) => (
+                        <AdminPricingMetric
+                            key={metric.key}
+                            englishLabel={metric.englishLabel}
+                            arabicLabel={metric.arabicLabel}
+                            value={metric.value}
+                            valueClassName={metric.valueClassName}
+                        />
+                    ))}
                 </div>
             </div>
 
@@ -311,38 +308,129 @@ function AdminPricingCard({ netPriceValue, discountValue, retailPriceValue, whol
 
                 <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] lg:px-5">
                     <div className="flex flex-row-reverse items-start gap-3 lg:gap-4">
-                        <CompactAdminPricingMetric
-                            englishLabel="Whole."
-                            arabicLabel="الكرتونة"
-                            value={wholesalePriceValue > 0 ? formatPriceLabel(wholesalePriceValue) : 'غير متاح'}
-                            valueClassName="text-brandGold"
-                            showDivider
-                        />
-                        <CompactAdminPricingMetric
-                            englishLabel="Retail"
-                            arabicLabel="العبوة"
-                            value={formatPriceLabel(retailPriceValue)}
-                            valueClassName="text-white/80"
-                            showDivider
-                        />
-                        <CompactAdminPricingMetric
-                            englishLabel="Disc."
-                            arabicLabel="الخصم"
-                            value={discountValue.toFixed(2)}
-                            valueClassName="text-rose-400"
-                            showDivider
-                        />
-                        <CompactAdminPricingMetric
-                            englishLabel="Pack"
-                            arabicLabel="سعر العبوة"
-                            value={formatPriceLabel(netPriceValue)}
-                            valueClassName="text-emerald-400"
-                        />
+                        {metrics.map((metric, index) => (
+                            <CompactAdminPricingMetric
+                                key={metric.key}
+                                englishLabel={metric.compactEnglishLabel || metric.englishLabel}
+                                arabicLabel={metric.arabicLabel}
+                                value={metric.value}
+                                valueClassName={metric.valueClassName}
+                                showDivider={index < metrics.length - 1}
+                            />
+                        ))}
                     </div>
                 </div>
             </div>
         </div>
     );
+}
+
+function buildAdminPricingMetrics({
+    canViewPackPrice,
+    canViewDiscountPrice,
+    canViewRetailPrice,
+    canViewWholesalePrice,
+    netPriceValue,
+    discountValue,
+    retailPriceValue,
+    wholesalePriceValue
+}) {
+    const metrics = [];
+
+    if (canViewPackPrice) {
+        metrics.push({
+            key: 'pack',
+            englishLabel: 'Pack. Price',
+            compactEnglishLabel: 'Pack',
+            arabicLabel: 'سعر العبوة',
+            value: formatPriceLabel(netPriceValue),
+            valueClassName: 'text-emerald-400'
+        });
+    }
+
+    if (canViewDiscountPrice) {
+        metrics.push({
+            key: 'discount',
+            englishLabel: 'Discount',
+            compactEnglishLabel: 'Disc.',
+            arabicLabel: 'الخصم',
+            value: discountValue.toFixed(2),
+            valueClassName: 'text-rose-400'
+        });
+    }
+
+    if (canViewRetailPrice) {
+        metrics.push({
+            key: 'retail',
+            englishLabel: 'Retail',
+            compactEnglishLabel: 'Retail',
+            arabicLabel: 'العبوة',
+            value: formatPriceLabel(retailPriceValue),
+            valueClassName: 'text-white/80'
+        });
+    }
+
+    if (canViewWholesalePrice) {
+        metrics.push({
+            key: 'wholesale',
+            englishLabel: 'Wholesale',
+            compactEnglishLabel: 'Whole.',
+            arabicLabel: 'الكرتونة',
+            value: wholesalePriceValue > 0 ? formatPriceLabel(wholesalePriceValue) : 'غير متاح',
+            valueClassName: 'text-brandGold'
+        });
+    }
+
+    return metrics;
+}
+
+function resolveVisiblePriceInfo({
+    canViewFinalPrice,
+    canViewPackPrice,
+    canViewRetailPrice,
+    canViewWholesalePrice,
+    finalPriceValue,
+    packPriceValue,
+    retailPriceValue,
+    wholesalePriceValue
+}) {
+    const visiblePriceCandidates = [
+        canViewFinalPrice ? { source: 'final', value: finalPriceValue } : null,
+        canViewPackPrice ? { source: 'pack', value: packPriceValue } : null,
+        canViewRetailPrice ? { source: 'retail', value: retailPriceValue } : null,
+        canViewWholesalePrice ? { source: 'wholesale', value: wholesalePriceValue } : null
+    ].filter(Boolean);
+
+    const preferredVisiblePrice = visiblePriceCandidates.find((candidate) => candidate.value > 0);
+    if (preferredVisiblePrice) {
+        return preferredVisiblePrice;
+    }
+
+    return visiblePriceCandidates[0] || { source: 'hidden', value: 0 };
+}
+
+function buildVisiblePriceCaption({ source, wholesalePriceValue, canViewWholesalePrice, finalCaption }) {
+    if (source === 'hidden') {
+        return 'هذا الدور لا يمكنه كشف هذا السعر.';
+    }
+
+    if ((source === 'pack' || source === 'retail') && canViewWholesalePrice && wholesalePriceValue > 0) {
+        return `Wholesale: ${wholesalePriceValue.toLocaleString()} ج.م`;
+    }
+
+    if (source === 'wholesale') {
+        return wholesalePriceValue > 0 ? `Wholesale: ${wholesalePriceValue.toLocaleString()} ج.م` : 'Wholesale: غير متاح';
+    }
+
+    if (source === 'pack') {
+        return 'سعر العبوة بعد الخصم.';
+    }
+
+    if (source === 'retail') {
+        return 'سعر العبوة قبل الخصم.';
+    }
+
+    return finalCaption;
 }
 
 function ProductDetailCard({ iconClassName, iconWrapperClassName, label, value, valueClassName = '', caption, badge }) {
@@ -1401,9 +1489,17 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
     const { siteSettings, derivedSettings } = useSiteSettings();
     const [showLiveIndicator, setShowLiveIndicator] = useState(false);
     const [lightboxState, setLightboxState] = useState({ isOpen: false, images: [], index: 0, title: '' });
+    const cachedRolePermissions = getCachedRolePermissions();
+    const resolvedRolePermissions = getResolvedRolePermissions(userRole, [], cachedRolePermissions);
+    const isAdminUser = resolvedRolePermissions.accessAdmin === true;
+    const canViewWholesalePrice = resolvedRolePermissions.viewPriceWholesale === true;
+    const canViewRetailPrice = resolvedRolePermissions.viewPriceRetail === true;
+    const canViewPackPrice = resolvedRolePermissions.viewPricePack === true;
+    const canViewDiscountPrice = resolvedRolePermissions.viewPriceDiscount === true;
+    const canViewFinalPrice = resolvedRolePermissions.viewPriceFinal === true;
 
     useEffect(() => {
-        if (userRole !== 'admin' || !dcLiveUpdateAt) {
+        if (!isAdminUser || !dcLiveUpdateAt) {
             setShowLiveIndicator(false);
             return undefined;
         }
@@ -1414,7 +1510,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
         }, LIVE_INDICATOR_DURATION_MS);
 
         return () => window.clearTimeout(timeoutId);
-    }, [userRole, dcLiveUpdateAt, dcSyncedAt]);
+    }, [isAdminUser, dcLiveUpdateAt, dcSyncedAt]);
 
     useEffect(() => {
         if (!lightboxState.isOpen) return undefined;
@@ -1516,7 +1612,6 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
         || selectedProduct.bulk_price
         || 0
     );
-    const canViewAdminPricing = isAdminRole(userRole);
     const isStrictWholesaleUser = normalizeUserRole(userRole) === USER_ROLE_VALUES.CST_WHOLESALE;
 
     const increaseQuantity = () => {
@@ -1721,17 +1816,26 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
         const vImages = getVariantAllImages(v);
         const displayImage = idx === activeVariantIndex && vImages[subImageIndex] ? vImages[subImageIndex] : vImages[0];
         const variantRetailPrice = parsePrice(v?.price || v?.retailPrice || v?.retail_price || selectedProduct?.price);
+        const variantWholesalePrice = parsePrice(v?.wholesalePrice || v?.wholesale_price || v?.cartonPrice || v?.wholesaleCartonPrice || v?.priceWholesale || v?.bulkPrice || v?.bulk_price || selectedProduct?.wholesalePrice);
         const variantDiscountValue = parsePrice(v?.discountAmount || v?.discount_amount || v?.discount || v?.discountValue || selectedProduct?.discountAmount || selectedProduct?.discount_amount || selectedProduct?.discount || selectedProduct?.discountValue);
         const variantExplicitNet = parsePrice(v?.netPrice || v?.net_price || v?.net);
         const variantNetPrice = variantExplicitNet > 0 ? variantExplicitNet : Math.max(0, variantRetailPrice - variantDiscountValue);
-        const variantDisplayPrice = isStrictWholesaleUser
-            ? variantNetPrice
-            : getGlobalRetailDisplayPrice(variantRetailPrice, productModalRetailIncreasePercentage, userRole);
+        const variantFinalPrice = getGlobalRetailDisplayPrice(variantRetailPrice, productModalRetailIncreasePercentage, userRole);
+        const variantVisiblePrice = resolveVisiblePriceInfo({
+            canViewFinalPrice,
+            canViewPackPrice,
+            canViewRetailPrice,
+            canViewWholesalePrice,
+            finalPriceValue: variantFinalPrice,
+            packPriceValue: variantNetPrice,
+            retailPriceValue: variantRetailPrice,
+            wholesalePriceValue: variantWholesalePrice
+        });
         
         return {
             src: displayImage,
             name: v.name || v.label || selectedProduct.title || selectedProduct.name || `Variant ${idx + 1}`,
-            designation: variantDisplayPrice > 0 ? `${variantDisplayPrice} ج.م` : (v.code || 'House of Glass'),
+            designation: variantVisiblePrice.value > 0 ? `${variantVisiblePrice.value} ج.م` : (v.code || 'House of Glass'),
             quote: fallbackDesc || v.desc || v.description || '',
             originalVariant: v
         };
@@ -1792,7 +1896,34 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
     );
     const netPriceValue = explicitNetPrice > 0 ? explicitNetPrice : Math.max(0, retailPriceValue - discountValue);
     const adjustedRetailPriceValue = getGlobalRetailDisplayPrice(retailPriceValue, productModalRetailIncreasePercentage, userRole);
-    const primaryDisplayPrice = isStrictWholesaleUser ? netPriceValue : adjustedRetailPriceValue;
+    const adminPricingMetrics = buildAdminPricingMetrics({
+        canViewPackPrice,
+        canViewDiscountPrice,
+        canViewRetailPrice,
+        canViewWholesalePrice,
+        netPriceValue,
+        discountValue,
+        retailPriceValue,
+        wholesalePriceValue
+    });
+    const canViewAdminPricing = adminPricingMetrics.length > 0;
+    const primaryVisiblePrice = resolveVisiblePriceInfo({
+        canViewFinalPrice,
+        canViewPackPrice,
+        canViewRetailPrice,
+        canViewWholesalePrice,
+        finalPriceValue: adjustedRetailPriceValue,
+        packPriceValue: netPriceValue,
+        retailPriceValue,
+        wholesalePriceValue
+    });
+    const primaryDisplayPrice = primaryVisiblePrice.value;
+    const primaryPriceCaption = buildVisiblePriceCaption({
+        source: primaryVisiblePrice.source,
+        wholesalePriceValue,
+        canViewWholesalePrice,
+        finalCaption: 'سعر البيع الحالي للمنتج.'
+    });
     const canShowWholesaleOrder = isWholesaleCustomer && wholesalePriceValue > 0;
 
     const resolveStockLimit = (entry, orderType = 'retail') => getProductStockLimit(entry || {}, orderType);
@@ -2155,9 +2286,23 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
             || firstVariant?.net
         );
         const productNetPrice = productExplicitNetPrice > 0 ? productExplicitNetPrice : Math.max(0, productRetailPrice - productDiscountValue);
-        const productDisplayPrice = isStrictWholesaleUser
-            ? productNetPrice
-            : getGlobalRetailDisplayPrice(productRetailPrice, productModalRetailIncreasePercentage, userRole);
+        const productFinalPrice = getGlobalRetailDisplayPrice(productRetailPrice, productModalRetailIncreasePercentage, userRole);
+        const productVisiblePrice = resolveVisiblePriceInfo({
+            canViewFinalPrice,
+            canViewPackPrice,
+            canViewRetailPrice,
+            canViewWholesalePrice,
+            finalPriceValue: productFinalPrice,
+            packPriceValue: productNetPrice,
+            retailPriceValue: productRetailPrice,
+            wholesalePriceValue: productWholesalePrice
+        });
+        const productPriceCaption = buildVisiblePriceCaption({
+            source: productVisiblePrice.source,
+            wholesalePriceValue: productWholesalePrice,
+            canViewWholesalePrice,
+            finalCaption: 'سعر البيع الحالي للمنتج.'
+        });
         const productStockOrderType = isStrictWholesaleUser ? 'wholesale' : 'retail';
         const productStockStatus = resolveStockStatus(product, productStockOrderType);
         const productStockLimit = resolveStockLimit(product, productStockOrderType);
@@ -2216,11 +2361,11 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                         <div className="min-w-0">
                             <p className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-white/40">Price | السعر</p>
                             <p className="mt-1 line-clamp-1 text-sm font-black text-brandGold dark:text-brandGold">
-                                {productDisplayPrice > 0 ? formatPriceLabel(productDisplayPrice) : 'اسألنا'}
+                                {productVisiblePrice.value > 0 ? formatPriceLabel(productVisiblePrice.value) : 'اسألنا'}
                             </p>
-                            {isStrictWholesaleUser && productWholesalePrice > 0 ? (
+                            {productPriceCaption ? (
                                 <p className="mt-1 text-[10px] font-bold text-slate-500 dark:text-white/55">
-                                    Wholesale: {formatPriceLabel(productWholesalePrice)}
+                                    {productPriceCaption}
                                 </p>
                             ) : null}
                         </div>
@@ -2766,9 +2911,33 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
         );
         const variantExplicitNetPrice = parsePrice(variant?.netPrice || variant?.net_price || variant?.net);
         const variantNetPrice = variantExplicitNetPrice > 0 ? variantExplicitNetPrice : Math.max(0, variantRetailPrice - variantDiscountValue);
-        const variantDisplayPrice = isStrictWholesaleUser
-            ? variantNetPrice
-            : getGlobalRetailDisplayPrice(variantRetailPrice, productModalRetailIncreasePercentage, userRole);
+        const variantFinalPrice = getGlobalRetailDisplayPrice(variantRetailPrice, productModalRetailIncreasePercentage, userRole);
+        const variantVisiblePrice = resolveVisiblePriceInfo({
+            canViewFinalPrice,
+            canViewPackPrice,
+            canViewRetailPrice,
+            canViewWholesalePrice,
+            finalPriceValue: variantFinalPrice,
+            packPriceValue: variantNetPrice,
+            retailPriceValue: variantRetailPrice,
+            wholesalePriceValue: variantWholesalePrice
+        });
+        const variantPriceCaption = buildVisiblePriceCaption({
+            source: variantVisiblePrice.source,
+            wholesalePriceValue: variantWholesalePrice,
+            canViewWholesalePrice,
+            finalCaption: 'سعر البيع الحالي للعنصر المحدد.'
+        });
+        const variantAdminPricingMetrics = buildAdminPricingMetrics({
+            canViewPackPrice,
+            canViewDiscountPrice,
+            canViewRetailPrice,
+            canViewWholesalePrice,
+            netPriceValue: variantNetPrice,
+            discountValue: variantDiscountValue,
+            retailPriceValue: variantRetailPrice,
+            wholesalePriceValue: variantWholesalePrice
+        });
         const getVariantAvailability = (candidateVariant) => {
             const candidateStatus = resolveStockStatus(candidateVariant, 'retail');
             const candidateStockLimit = resolveStockLimit(candidateVariant, 'retail');
@@ -2821,12 +2990,9 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                 </div>
                 
                 <div className="space-y-4 pt-1">
-                    {canViewAdminPricing ? (
+                    {variantAdminPricingMetrics.length > 0 ? (
                         <AdminPricingCard
-                            netPriceValue={variantNetPrice}
-                            discountValue={variantDiscountValue}
-                            retailPriceValue={variantRetailPrice}
-                            wholesalePriceValue={variantWholesalePrice}
+                            metrics={variantAdminPricingMetrics}
                         />
                     ) : null}
 
@@ -2834,11 +3000,9 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                         iconClassName="fa-solid fa-coins"
                         iconWrapperClassName="bg-brandGold/15 text-brandGold dark:bg-brandGold/18"
                         label="Price | السعر"
-                        value={variantDisplayPrice > 0 ? `${variantDisplayPrice.toLocaleString()} ج.م` : 'تواصل معنا لمعرفة السعر'}
-                        valueClassName={variantDisplayPrice > 0 ? 'text-brandBlue dark:text-white' : 'text-slate-500 dark:text-white/65'}
-                        caption={isStrictWholesaleUser
-                            ? (variantWholesalePrice > 0 ? `Wholesale: ${variantWholesalePrice.toLocaleString()} ج.م` : 'Wholesale: غير متاح')
-                            : 'سعر البيع الحالي للعنصر المحدد.'}
+                        value={variantVisiblePrice.value > 0 ? `${variantVisiblePrice.value.toLocaleString()} ج.م` : 'تواصل معنا لمعرفة السعر'}
+                        valueClassName={variantVisiblePrice.value > 0 ? 'text-brandBlue dark:text-white' : 'text-slate-500 dark:text-white/65'}
+                        caption={variantPriceCaption}
                         badge={showLiveIndicator ? (
                             <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-300">
                                 <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse"></span>
@@ -2889,7 +3053,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                         <button
                             type="button"
                             onClick={() => handleRetailAddWithConfirmation(variant, quantity, {
-                                unitPrice: variantDisplayPrice,
+                                unitPrice: variantVisiblePrice.value,
                                 image: getVariantAllImages(variant)[0],
                                 title: variant.name || variant.label || selectedProduct.title || selectedProduct.name
                             })}
@@ -3103,10 +3267,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
 
                             {canViewAdminPricing ? (
                                 <AdminPricingCard
-                                    netPriceValue={netPriceValue}
-                                    discountValue={discountValue}
-                                    retailPriceValue={retailPriceValue}
-                                    wholesalePriceValue={wholesalePriceValue}
+                                    metrics={adminPricingMetrics}
                                 />
                             ) : null}
 
@@ -3116,9 +3277,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                                 label="Price | السعر"
                                 value={primaryDisplayPrice > 0 ? `${primaryDisplayPrice.toLocaleString()} ج.م` : 'تواصل معنا لمعرفة السعر'}
                                 valueClassName={primaryDisplayPrice > 0 ? 'text-brandBlue dark:text-white' : 'text-slate-500 dark:text-white/65'}
-                                caption={isStrictWholesaleUser
-                                    ? (wholesalePriceValue > 0 ? `Wholesale: ${wholesalePriceValue.toLocaleString()} ج.م` : 'Wholesale: غير متاح')
-                                    : 'سعر البيع الحالي للموديل المحدد.'}
+                                caption={primaryPriceCaption}
                                 badge={showLiveIndicator ? (
                                     <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-300">
                                         <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse"></span>
@@ -3451,10 +3610,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                     <div className="my-5 space-y-4">
                         {canViewAdminPricing ? (
                             <AdminPricingCard
-                                netPriceValue={netPriceValue}
-                                discountValue={discountValue}
-                                retailPriceValue={retailPriceValue}
-                                wholesalePriceValue={wholesalePriceValue}
+                                metrics={adminPricingMetrics}
                             />
                         ) : null}
 
@@ -3464,9 +3620,7 @@ function ProductModalContent({ selectedProduct, allProducts, closeModal, addToCa
                             label="Price | السعر"
                             value={primaryDisplayPrice > 0 ? `${primaryDisplayPrice.toLocaleString()} ج.م` : 'تواصل معنا لمعرفة السعر'}
                             valueClassName={primaryDisplayPrice > 0 ? 'text-brandBlue dark:text-white' : 'text-slate-500 dark:text-white/65'}
-                            caption={isStrictWholesaleUser
-                                ? (wholesalePriceValue > 0 ? `Wholesale: ${wholesalePriceValue.toLocaleString()} ج.م` : 'Wholesale: غير متاح')
-                                : 'سعر البيع الحالي للمنتج.'}
+                            caption={primaryPriceCaption}
                             badge={showLiveIndicator ? (
                                 <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-300">
                                     <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse"></span>
