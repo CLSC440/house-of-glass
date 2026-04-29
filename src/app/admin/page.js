@@ -23,6 +23,7 @@ export default function AdminDashboard() {
     const canViewDashboard = permissions.viewDashboard === true;
     const quickLinks = [
         permissions.viewOrders ? { href: '/admin/orders', label: 'Review Orders', secondary: false } : null,
+        permissions.accessAdmin ? { href: '/admin/reseller-settlements', label: 'Reseller Settlements', secondary: true } : null,
         permissions.viewProducts ? { href: '/admin/products', label: 'Manage Products', secondary: true } : null,
         permissions.viewUsers ? { href: '/admin/users', label: 'Manage Users', secondary: true } : null,
         permissions.viewRoles ? { href: '/admin/roles', label: 'Roles Page', secondary: true } : null,
