@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { collection, query, onSnapshot, doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { parseTimestamp } from '@/lib/utils/format';
+import { parseTimestamp, resolveTimestampDate } from '@/lib/utils/format';
 import { adminDeleteUserAccount, adminUpdateUserRole } from '@/lib/account-api';
 import { getUserRoleBadgeTone, getUserRoleLabel, getUserRoleSortOrder, normalizeUserRole, ROLE_PERMISSION_KEYS, USER_ROLE_VALUES } from '@/lib/user-roles';
 import { useAdminAccess } from '@/lib/use-admin-access';
@@ -64,7 +64,9 @@ export default function AdminUsers() {
                     return rolePriorityA - rolePriorityB;
                 }
 
-                return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                const leftCreatedAt = resolveTimestampDate(a.createdAt)?.getTime() || 0;
+                const rightCreatedAt = resolveTimestampDate(b.createdAt)?.getTime() || 0;
+                return rightCreatedAt - leftCreatedAt;
             });
             
             setUsers(usersData);

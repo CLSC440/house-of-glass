@@ -320,7 +320,7 @@ function AdminStockContent() {
             <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
                 <div className="rounded-3xl bg-white dark:bg-darkCard border border-gray-100 dark:border-gray-800 p-5 shadow-sm">
                     <p className="text-xs text-gray-400 mb-2">Website Products</p>
-                    <p className="text-3xl font-black">{stats.totalProducts}</p>
+                    <p className="text-3xl font-black text-slate-900 dark:text-white">{stats.totalProducts}</p>
                 </div>
                 <div className="rounded-3xl bg-white dark:bg-darkCard border border-gray-100 dark:border-gray-800 p-5 shadow-sm">
                     <p className="text-xs text-gray-400 mb-2">Linked Products</p>
@@ -347,13 +347,13 @@ function AdminStockContent() {
                                 placeholder="Search by name, code, or barcode"      
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-3 rounded-2xl bg-gray-50 dark:bg-gray-800 border border-transparent focus:border-brandGold outline-none"  
+                                className="w-full pl-10 pr-4 py-3 rounded-2xl bg-gray-50 text-slate-900 placeholder:text-gray-400 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500 border border-transparent focus:border-brandGold outline-none"  
                             />
                         </div>
                         <select
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value)}   
-                            className="px-4 py-3 rounded-2xl bg-gray-50 dark:bg-gray-800 border border-transparent focus:border-brandGold outline-none"
+                            className="px-4 py-3 rounded-2xl bg-gray-50 text-slate-900 dark:bg-gray-800 dark:text-white border border-transparent focus:border-brandGold outline-none"
                         >
                             <option value="all">All Products ({stats.totalProducts})</option>
                             <option value="linked">Linked ({stats.totalLinked})</option>
