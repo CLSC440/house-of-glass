@@ -6,18 +6,12 @@ import { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
-const STATUS_ACTIONS = {
-    submitted: {
-        nextStatus: 'invoiced',
-        label: 'Mark As Invoiced',
-        note: 'Confirm that this reseller batch was reviewed and invoiced by admin.'
-    },
-    invoiced: {
-        nextStatus: 'paid',
-        label: 'Mark As Paid',
-        note: 'Confirm that the reseller settled this batch and no further action is pending.'
-    }
-};
+const STATUS_OPTIONS = [
+    { value: 'open', label: 'Open' },
+    { value: 'submitted', label: 'Submitted' },
+    { value: 'invoiced', label: 'Invoiced' },
+    { value: 'paid', label: 'Paid' }
+];
 
 function formatCurrency(value) {
     const numericValue = Number(value);
@@ -93,7 +87,8 @@ export default function AdminResellerSettlementDetailPage() {
         submitting: false,
         error: '',
         success: '',
-        adminNotes: ''
+        adminNotes: '',
+        selectedStatus: ''
     });
 
     useEffect(() => {
@@ -157,7 +152,8 @@ export default function AdminResellerSettlementDetailPage() {
                 });
                 setStatusState((currentValue) => ({
                     ...currentValue,
-                    adminNotes: String(responseData?.batch?.adminNotes || '')
+                    adminNotes: String(responseData?.batch?.adminNotes || ''),
+                    selectedStatus: normalizeText(responseData?.batch?.status) || 'open'
                 }));
             } catch (error) {
                 if (!isDisposed) {
@@ -181,11 +177,15 @@ export default function AdminResellerSettlementDetailPage() {
     const orders = viewState.orders;
     const totals = batch?.totals || {};
     const normalizedStatus = normalizeText(batch?.status) || 'open';
-    const nextAction = STATUS_ACTIONS[normalizedStatus] || null;
+    const selectedStatus = statusState.selectedStatus || normalizedStatus;
+    const hasPendingChanges = Boolean(batch) && (
+        selectedStatus !== normalizedStatus
+        || statusState.adminNotes !== String(batch?.adminNotes || '')
+    );
 
     async function handleStatusUpdate() {
         const currentUser = auth.currentUser;
-        if (!currentUser || !batch || !nextAction) {
+        if (!currentUser || !batch || !selectedStatus) {
             return;
         }
 
@@ -205,7 +205,7 @@ export default function AdminResellerSettlementDetailPage() {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    status: nextAction.nextStatus,
+                    status: selectedStatus,
                     adminNotes: statusState.adminNotes
                 })
             });
@@ -223,7 +223,10 @@ export default function AdminResellerSettlementDetailPage() {
                 ...currentValue,
                 submitting: false,
                 error: '',
-                success: `Batch moved to ${nextAction.nextStatus}.`
+                success: selectedStatus !== normalizedStatus
+                    ? `Batch status updated to ${selectedStatus}.`
+                    : 'Batch notes saved successfully.',
+                selectedStatus
             }));
         } catch (error) {
             setStatusState((currentValue) => ({
@@ -367,8 +370,27 @@ export default function AdminResellerSettlementDetailPage() {
                             <div className="mt-5 space-y-4 rounded-[1.25rem] border border-white/8 bg-[#151e34] p-4 text-sm text-slate-300">
                                 <div>
                                     <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Workflow Action</p>
-                                    <p className="mt-2 leading-7 text-slate-300">{nextAction?.note || 'This batch already reached the final workflow state.'}</p>
+                                    <p className="mt-2 leading-7 text-slate-300">Choose the settlement status you want admin to save for this batch.</p>
                                 </div>
+                                <label className="block">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Settlement Status</span>
+                                    <select
+                                        value={selectedStatus}
+                                        onChange={(event) => setStatusState((currentValue) => ({
+                                            ...currentValue,
+                                            selectedStatus: event.target.value,
+                                            error: '',
+                                            success: ''
+                                        }))}
+                                        className="mt-2 w-full rounded-[1rem] border border-white/10 bg-[#0f172b] px-4 py-3 text-sm font-bold uppercase tracking-[0.14em] text-white outline-none transition-colors focus:border-brandGold/35"
+                                    >
+                                        {STATUS_OPTIONS.map((option) => (
+                                            <option key={option.value} value={option.value} className="bg-[#101729] text-white">
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
                                 <label className="block">
                                     <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Admin Notes</span>
                                     <textarea
@@ -387,10 +409,10 @@ export default function AdminResellerSettlementDetailPage() {
                                 <button
                                     type="button"
                                     onClick={handleStatusUpdate}
-                                    disabled={!nextAction || statusState.submitting}
-                                    className={`inline-flex w-full items-center justify-center rounded-[1rem] border px-4 py-3 text-sm font-black uppercase tracking-[0.16em] transition-colors ${nextAction && !statusState.submitting ? 'border-brandGold/30 bg-brandGold text-brandBlue hover:bg-[#f4d67a]' : 'cursor-not-allowed border-white/10 bg-white/[0.04] text-slate-500 opacity-70'}`}
+                                    disabled={!hasPendingChanges || statusState.submitting}
+                                    className={`inline-flex w-full items-center justify-center rounded-[1rem] border px-4 py-3 text-sm font-black uppercase tracking-[0.16em] transition-colors ${hasPendingChanges && !statusState.submitting ? 'border-brandGold/30 bg-brandGold text-brandBlue hover:bg-[#f4d67a]' : 'cursor-not-allowed border-white/10 bg-white/[0.04] text-slate-500 opacity-70'}`}
                                 >
-                                    {statusState.submitting ? 'Updating Batch...' : nextAction?.label || 'Workflow Complete'}
+                                    {statusState.submitting ? 'Saving Batch...' : 'Edit Status'}
                                 </button>
                             </div>
                         </aside>

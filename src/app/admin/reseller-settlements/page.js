@@ -5,18 +5,12 @@ import { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
-const STATUS_ACTIONS = {
-    submitted: {
-        nextStatus: 'invoiced',
-        label: 'Mark As Invoiced',
-        successMessage: 'Batch moved to invoiced.'
-    },
-    invoiced: {
-        nextStatus: 'paid',
-        label: 'Mark As Paid',
-        successMessage: 'Batch moved to paid.'
-    }
-};
+const STATUS_OPTIONS = [
+    { value: 'open', label: 'Open' },
+    { value: 'submitted', label: 'Submitted' },
+    { value: 'invoiced', label: 'Invoiced' },
+    { value: 'paid', label: 'Paid' }
+];
 
 function formatCurrency(value) {
     const numericValue = Number(value);
@@ -92,7 +86,8 @@ export default function AdminResellerSettlementsPage() {
     const [statusState, setStatusState] = useState({
         submittingBatchId: '',
         error: '',
-        success: ''
+        success: '',
+        selectedStatuses: {}
     });
 
     useEffect(() => {
@@ -188,11 +183,11 @@ export default function AdminResellerSettlementsPage() {
     });
 
     async function handleStatusUpdate(batch) {
-        const normalizedStatus = normalizeText(batch?.status);
-        const nextAction = STATUS_ACTIONS[normalizedStatus];
+        const normalizedStatus = normalizeText(batch?.status) || 'open';
+        const selectedStatus = statusState.selectedStatuses?.[batch?.id] || normalizedStatus;
         const currentUser = auth.currentUser;
 
-        if (!nextAction || !currentUser || !batch?.id) {
+        if (!currentUser || !batch?.id || !selectedStatus) {
             return;
         }
 
@@ -211,7 +206,7 @@ export default function AdminResellerSettlementsPage() {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    status: nextAction.nextStatus,
+                    status: selectedStatus,
                     adminNotes: batch?.adminNotes || ''
                 })
             });
@@ -230,13 +225,18 @@ export default function AdminResellerSettlementsPage() {
             setStatusState({
                 submittingBatchId: '',
                 error: '',
-                success: nextAction.successMessage
+                success: `Batch status updated to ${selectedStatus}.`,
+                selectedStatuses: {
+                    ...statusState.selectedStatuses,
+                    [batch.id]: selectedStatus
+                }
             });
         } catch (error) {
             setStatusState({
                 submittingBatchId: '',
                 error: error?.message || 'Failed to update reseller settlement status.',
-                success: ''
+                success: '',
+                selectedStatuses: statusState.selectedStatuses
             });
         }
     }
@@ -341,7 +341,8 @@ export default function AdminResellerSettlementsPage() {
                             <div className="mt-6 space-y-3">
                                 {filteredBatches.map((batch) => {
                                     const normalizedStatus = normalizeText(batch.status);
-                                    const nextAction = STATUS_ACTIONS[normalizedStatus] || null;
+                                    const selectedStatus = statusState.selectedStatuses?.[batch.id] || normalizedStatus || 'open';
+                                    const hasStatusChange = selectedStatus !== (normalizedStatus || 'open');
                                     const isSubmitting = statusState.submittingBatchId === batch.id;
 
                                     return (
@@ -367,24 +368,36 @@ export default function AdminResellerSettlementsPage() {
                                                 <Link href={`/admin/reseller-settlements/${batch.id}`} className="inline-flex items-center justify-center rounded-full border border-brandGold/30 bg-brandGold/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-brandGold transition-colors hover:bg-brandGold hover:text-brandBlue">
                                                     Open Batch Details
                                                 </Link>
-                                                {nextAction ? (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleStatusUpdate(batch)}
-                                                        disabled={isSubmitting}
-                                                        className={`inline-flex items-center justify-center rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.18em] transition-colors ${isSubmitting ? 'cursor-wait border-white/10 bg-white/[0.04] text-slate-500 opacity-70' : 'border-sky-500/25 bg-sky-500/10 text-sky-300 hover:bg-sky-500/18'}`}
+                                                <label className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-300">
+                                                    <span className="text-slate-400">Status</span>
+                                                    <select
+                                                        value={selectedStatus}
+                                                        onChange={(event) => setStatusState((currentValue) => ({
+                                                            ...currentValue,
+                                                            error: '',
+                                                            success: '',
+                                                            selectedStatuses: {
+                                                                ...currentValue.selectedStatuses,
+                                                                [batch.id]: event.target.value
+                                                            }
+                                                        }))}
+                                                        className="rounded-full border border-white/10 bg-[#0f172b] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-white outline-none transition-colors focus:border-brandGold/35"
                                                     >
-                                                        {isSubmitting ? 'Updating...' : nextAction.label}
-                                                    </button>
-                                                ) : normalizedStatus === 'paid' ? (
-                                                    <span className="inline-flex items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
-                                                        Workflow Complete
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                                                        Waiting For Reseller Submit
-                                                    </span>
-                                                )}
+                                                        {STATUS_OPTIONS.map((option) => (
+                                                            <option key={option.value} value={option.value} className="bg-[#101729] text-white">
+                                                                {option.label}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </label>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleStatusUpdate(batch)}
+                                                    disabled={isSubmitting || !hasStatusChange}
+                                                    className={`inline-flex items-center justify-center rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.18em] transition-colors ${isSubmitting || !hasStatusChange ? 'cursor-not-allowed border-white/10 bg-white/[0.04] text-slate-500 opacity-70' : 'border-sky-500/25 bg-sky-500/10 text-sky-300 hover:bg-sky-500/18'}`}
+                                                >
+                                                    {isSubmitting ? 'Saving...' : 'Edit Status'}
+                                                </button>
                                             </div>
                                         </article>
                                     );
